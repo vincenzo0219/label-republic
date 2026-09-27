@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { config } from "@/lib/config";
 import { classifySource, isBot, newVisitorId, parsePath, recordPageView, VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
+import { fingerprint } from "@/lib/fingerprint";
 import { hit } from "@/lib/rate-limit";
 
 const bodySchema = z.object({
@@ -35,7 +36,9 @@ export async function POST(req: Request) {
       });
     }
     const vh = visitorHash(vid);
+    // 쿠키를 버리며 매번 새 방문자로 위장하는 경우까지 막기 위해 IP·브라우저 기준 한도도 둔다
     if (!(await hit(`pv:${vh}`, 120, 60 * 1000))) return res;
+    if (!(await hit(`pv-fp:${fingerprint(req.headers)}`, 300, 60 * 1000))) return res;
 
     const { source, host } = classifySource({
       landing: parsed.data.landing,

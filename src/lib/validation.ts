@@ -8,7 +8,19 @@ const trimmed = (min: number, max: number, label: string) =>
     .min(min, `${label}은(는) ${min}자 이상이어야 합니다.`)
     .max(max, `${label}은(는) ${max}자 이하여야 합니다.`);
 
-export const nickname = trimmed(2, 20, "닉네임");
+/**
+ * 운영 주체나 AI 큐레이터로 오인될 수 있는 닉네임은 사람이 쓸 수 없다 (🤖 배지 없는 "AI 큐레이터" 사칭 방지).
+ * 공백·기호·대소문자·전각 문자를 정규화한 뒤 검사한다.
+ */
+const RESERVED_CONTAINS = ["큐레이터", "운영자", "관리자", "운영팀", "라벨공화국", "노방장", "방장"];
+const RESERVED_EXACT = ["admin", "administrator", "moderator", "mod", "system", "ai", "bot", "labelrepublic"];
+
+export function isReservedNickname(name: string): boolean {
+  const n = name.normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+  return RESERVED_CONTAINS.some((w) => n.includes(w)) || RESERVED_EXACT.includes(n) || /^ai(bot|curator|큐)/.test(n);
+}
+
+export const nickname = trimmed(2, 20, "닉네임").refine((n) => !isReservedNickname(n), "운영자·AI 큐레이터로 오인될 수 있는 닉네임은 쓸 수 없어요.");
 export const pin = z.string().regex(PIN_PATTERN, "비밀번호는 숫자 4자리입니다.");
 export const summaryLines = z.tuple([trimmed(2, 120, "요약"), trimmed(2, 120, "요약"), trimmed(2, 120, "요약")]);
 

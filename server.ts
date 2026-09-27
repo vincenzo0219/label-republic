@@ -16,7 +16,9 @@ import { checkAdminAuth, isAdminPath } from "./src/lib/admin-auth";
 import { config } from "./src/lib/config";
 import { pool } from "./src/lib/db";
 import { checkEnv } from "./src/lib/env-check";
-import { CLIENT_IP_HEADER } from "./src/lib/fingerprint";
+import { checkCsrf } from "./src/lib/csrf";
+import { CLIENT_IP_HEADER, clientIpFrom } from "./src/lib/fingerprint";
+import { hit, isLimited } from "./src/lib/rate-limit";
 import { startCuratorScheduler } from "./src/lib/jobs/curator";
 import { startDigestScheduler } from "./src/lib/jobs/digest";
 import { startMaintenanceScheduler } from "./src/lib/jobs/maintenance";
@@ -28,6 +30,8 @@ const hostname = process.env.HOST || "0.0.0.0";
 const databaseUrl = process.env.DATABASE_URL ?? "postgres://labelrep:labelrep@localhost:5432/labelrep";
 
 const MAX_SOCKETS_PER_POST = 500;
+const MAX_SOCKETS_PER_IP = 20;
+const socketsPerIp = new Map<string, number>();
 
 // 운영에서 치명적인 설정 누락이 있으면 시작하지 않는다
 const envReport = checkEnv(process.env, !dev);
@@ -110,13 +114,43 @@ app.prepare().then(async () => {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 });
 
   const hsts = config.siteUrl.startsWith("https://");
-  const server = createServer((req, res) => {
+  const allowedOrigins = [config.siteUrl, ...config.extraAllowedOrigins];
+  const ipOf = (req: IncomingMessage) =>
+    clientIpFrom(req.headers["x-forwarded-for"] as string | undefined, req.socket.remoteAddress, config.trustProxy, config.trustProxyHops);
+  const sendJson = (res: import("node:http").ServerResponse, status: number, code: string, message: string) => {
+    res.statusCode = status;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({ error: { code, message } }));
+  };
+
+  const server = createServer(async (req, res) => {
     withClientIp(req);
     if (hsts) res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-    // 운영 대시보드: ADMIN_PASSWORD 가 없으면 404, 있으면 Basic 인증
     const pathname = (req.url ?? "/").split("?")[0]!;
+
+    // CSRF: 상태를 바꾸는 /api/* 요청은 우리 사이트에서 보낸 JSON 요청만 받는다
+    const csrf = checkCsrf({
+      method: req.method ?? "GET",
+      pathname,
+      origin: req.headers.origin,
+      secFetchSite: req.headers["sec-fetch-site"] as string | undefined,
+      referer: req.headers.referer,
+      contentType: req.headers["content-type"],
+      hasBody: Number(req.headers["content-length"] ?? 0) > 0 || req.headers["transfer-encoding"] !== undefined,
+      // 개발 모드에서는 접속한 호스트 그대로도 허용 (localhost:포트가 SITE_URL 과 다를 수 있음)
+      allowedOrigins: dev && req.headers.host ? [...allowedOrigins, `http://${req.headers.host}`] : allowedOrigins,
+    });
+    if (!csrf.ok) return sendJson(res, csrf.status, csrf.code, csrf.message);
+
+    // 운영 대시보드: ADMIN_PASSWORD 가 없으면 404, 있으면 Basic 인증 (실패 15분 10회 초과 시 잠금)
     if (isAdminPath(pathname)) {
+      const lockKey = `admin-auth:${ipOf(req)}`;
+      if (config.adminPassword && (await isLimited(lockKey, 10, 15 * 60 * 1000).catch(() => false))) {
+        return sendJson(res, 429, "rate_limited", "로그인 시도가 너무 많습니다. 15분 뒤 다시 시도하세요.");
+      }
       const auth = checkAdminAuth(req.headers.authorization, config.adminPassword);
+      if (auth === "unauthorized" && req.headers.authorization) await hit(lockKey, 10, 15 * 60 * 1000).catch(() => true);
       if (auth !== "ok") {
         res.statusCode = auth === "disabled" ? 404 : 401;
         if (auth === "unauthorized") res.setHeader("WWW-Authenticate", 'Basic realm="labelrepublic-admin", charset="UTF-8"');
@@ -143,7 +177,20 @@ app.prepare().then(async () => {
       socket.destroy();
       return;
     }
+    // 한 IP가 소켓을 대량으로 열어 서버 자원을 고갈시키지 못하게 제한
+    const ip = ipOf(req);
+    if ((socketsPerIp.get(ip) ?? 0) >= MAX_SOCKETS_PER_IP) {
+      socket.write("HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n");
+      socket.destroy();
+      return;
+    }
     wss.handleUpgrade(req, socket, head, (ws) => {
+      socketsPerIp.set(ip, (socketsPerIp.get(ip) ?? 0) + 1);
+      ws.on("close", () => {
+        const n = (socketsPerIp.get(ip) ?? 1) - 1;
+        if (n <= 0) socketsPerIp.delete(ip);
+        else socketsPerIp.set(ip, n);
+      });
       if (!subscribe(postId, ws)) {
         ws.close(1013, "room full");
         return;

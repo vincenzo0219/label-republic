@@ -99,6 +99,20 @@
 
 **개인정보**: 방문자는 무작위 쿠키(`lr_vid`, httpOnly, 1년) 값의 HMAC으로만 식별하고 IP·UA는 저장하지 않습니다. 레퍼러는 호스트만 저장합니다. 개인정보처리방침에 분석 쿠키 사용을 고지하세요.
 
+### Sprint 9 — 보안 점검·수정
+
+공격을 직접 재현해 확인한 뒤 막았습니다.
+
+| 문제 (재현됨) | 수정 |
+|---|---|
+| **CSRF** — 다른 사이트의 `<form>`/`fetch`로 투표·신고·댓글·관리자 법적보존 요청이 통과 | `src/lib/csrf.ts`: 상태를 바꾸는 `/api/*` 요청은 `Origin` → `Sec-Fetch-Site` → `Referer` 순으로 우리 사이트인지 확인(403), 본문이 있으면 `application/json`만 허용(415). 브라우저 신호가 없는 요청(curl·서버 간)은 통과 — fingerprint·레이트리밋이 별도로 막음 |
+| **IP 위조** — `TRUST_PROXY=true`일 때 클라이언트가 `X-Forwarded-For` 첫 값을 바꿔 투표·신고 중복 방지를 우회 | 프록시가 덧붙인 **오른쪽 끝**에서 `TRUST_PROXY_HOPS`번째 값을 사용 |
+| **관리자 비밀번호 무차별 대입** | IP당 15분 10회 실패 시 429 잠금 |
+
+추가 강화: 운영자 사칭 닉네임(`운영자`·`관리자`·`AI큐레이터`·`admin` 등, 전각·기호 섞어도) 거부 · 페이지뷰 비콘 fingerprint당 분당 300회 제한 · 실시간 댓글 WebSocket IP당 20개 제한 · `npm audit` 취약점 0.
+
+> ⚠️ `TRUST_PROXY=true`는 `X-Forwarded-For`를 **덧붙이는** 프록시 뒤에서만 켜세요. 프록시를 여러 단 거치면 `TRUST_PROXY_HOPS`를 그 수로 맞추세요 (예: CDN → Nginx → 앱 = 2).
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -151,7 +165,9 @@ docker compose up --build
 |---|---|
 | `DATABASE_URL` | Postgres 접속 문자열 |
 | `APP_SECRET` | fingerprint HMAC · 요약 토큰 서명 키 (운영 필수, 16자 이상) |
-| `TRUST_PROXY` | 리버스 프록시 뒤에서 `true` → `X-Forwarded-For` 첫 IP 사용 |
+| `TRUST_PROXY` | XFF를 덧붙이는 리버스 프록시 뒤에서만 `true` → `X-Forwarded-For` 오른쪽 끝에서 IP 선택 |
+| `TRUST_PROXY_HOPS` | 앱 앞의 신뢰 프록시 수 (기본 1) |
+| `ALLOWED_ORIGINS` | 쓰기 API를 허용할 추가 Origin (쉼표 구분, 기본은 `SITE_URL`만) |
 | `SITE_URL` | canonical/OG/sitemap 절대 URL |
 | `ANTHROPIC_API_KEY` | 설정 시 Claude로 3줄 요약, 비우면 추출 요약 |
 | `SUMMARY_MODEL` | 기본 `claude-opus-5` |

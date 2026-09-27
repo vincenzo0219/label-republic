@@ -18,6 +18,15 @@ export const config = {
   get trustProxy() {
     return process.env.TRUST_PROXY === "true";
   },
+  /** 앞단 프록시 개수 (예: CDN + 로드밸런서면 2). X-Forwarded-For 오른쪽에서 이만큼 떨어진 값을 클라이언트 IP로 쓴다 */
+  get trustProxyHops() {
+    const n = Number(process.env.TRUST_PROXY_HOPS ?? 1);
+    return Number.isInteger(n) && n >= 1 ? n : 1;
+  },
+  /** SITE_URL 외에 상태 변경 요청을 허용할 출처 (쉼표 구분, 예: 스테이징 도메인) */
+  get extraAllowedOrigins(): string[] {
+    return (process.env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  },
   get siteUrl() {
     return (process.env.SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
   },

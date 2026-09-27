@@ -8,6 +8,10 @@ export function json(data: unknown, status = 200) {
 }
 
 export async function parseBody<S extends z.ZodType>(req: Request, schema: S): Promise<z.infer<S>> {
+  // server.ts 의 CSRF 가드와 이중 방어: HTML 폼은 application/json 을 보낼 수 없다
+  if (!/^application\/json\b/i.test(req.headers.get("content-type") ?? "")) {
+    throw new HttpError(415, "unsupported_media_type", "요청 본문은 application/json 이어야 합니다.");
+  }
   let raw: unknown;
   try {
     raw = await req.json();
