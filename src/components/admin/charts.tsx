@@ -27,6 +27,8 @@ export function StatTile({
   format = compact,
   trend,
   hint,
+  periodLabel = "직전 7일 대비",
+  currentPoints = 7,
 }: {
   label: string;
   value: number;
@@ -34,6 +36,9 @@ export function StatTile({
   format?: (n: number) => string;
   trend?: number[];
   hint?: string;
+  periodLabel?: string;
+  /** sparkline 에서 강조할 최근 구간 길이 (나머지는 비교 기간) */
+  currentPoints?: number;
 }) {
   let delta: { text: string; dir: "up" | "down" | "flat" } | null = null;
   if (previous !== undefined) {
@@ -51,20 +56,20 @@ export function StatTile({
       {delta && (
         <div className={`stat-delta ${delta.dir}`}>
           <span aria-hidden>{delta.dir === "up" ? "▲" : delta.dir === "down" ? "▼" : "–"}</span> {delta.text}
-          <span className="stat-period"> 직전 7일 대비</span>
+          <span className="stat-period"> {periodLabel}</span>
         </div>
       )}
-      {trend && trend.length > 1 && <Sparkline values={trend} />}
+      {trend && trend.length > 1 && <Sparkline values={trend} currentPoints={currentPoints} />}
     </div>
   );
 }
 
-function Sparkline({ values }: { values: number[] }) {
+function Sparkline({ values, currentPoints }: { values: number[]; currentPoints: number }) {
   const max = Math.max(1, ...values);
   const w = 100;
   const h = 24;
   const pts = values.map((v, i) => [(i / (values.length - 1)) * w, h - 2 - (v / max) * (h - 4)] as const);
-  const split = Math.max(0, values.length - 7);
+  const split = Math.max(0, values.length - currentPoints);
   const toStr = (arr: readonly (readonly [number, number])[]) => arr.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
   return (
     <svg className="sparkline" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden>

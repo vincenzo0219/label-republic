@@ -62,14 +62,20 @@ function alertSummary(a: m.AlertRow) {
   }
 }
 
-export default async function AdminPage() {
+const RANGES = [7, 30, 90] as const;
+type Range = (typeof RANGES)[number];
+
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const requested = Number((await searchParams).range);
+  const range: Range = (RANGES as readonly number[]).includes(requested) ? (requested as Range) : 7;
   const today = kstDay();
-  const cur = [addDays(today, -6), today] as const;
-  const prev = [addDays(today, -13), addDays(today, -7)] as const;
+  const cur = [addDays(today, -(range - 1)), today] as const;
+  const prev = [addDays(today, -(2 * range - 1)), addDays(today, -range)] as const;
+  const periodLabel = `직전 ${range}일 대비`;
 
   const [daily, visCur, visPrev, sources, searchRefs, searchPosts, viewedPosts, internalSearches, boards, alerts, blinds, modCounts, jobs, boardReqs] =
     await Promise.all([
-      m.dailySeries(30),
+      m.dailySeries(Math.max(30, 2 * range)),
       m.periodVisitors(...cur),
       m.periodVisitors(...prev),
       m.sourceBreakdown(...cur),
@@ -86,9 +92,10 @@ export default async function AdminPage() {
     ]);
   const holds = await activeLegalHolds();
 
-  const last7 = daily.slice(-7);
-  const prev7 = daily.slice(-14, -7);
-  const last14 = daily.slice(-14);
+  const last7 = daily.slice(-range);
+  const prev7 = daily.slice(-2 * range, -range);
+  const last14 = daily.slice(-2 * range);
+  const chartDays = daily.slice(-Math.max(30, range));
   const revisit = visCur.visitors ? visCur.returning / visCur.visitors : 0;
   const revisitPrev = visPrev.visitors ? visPrev.returning / visPrev.visitors : 0;
   const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
@@ -99,27 +106,34 @@ export default async function AdminPage() {
       <header className="admin-head">
         <h1>운영 대시보드</h1>
         <p className="hint">
-          최근 7일({cur[0]} ~ {cur[1]}, KST) · 직전 7일과 비교 · 지표 우선순위: 검색 유입 → 조회 → 참여 → 재방문
+          최근 {range}일({cur[0]} ~ {cur[1]}, KST) · 직전 {range}일과 비교 · 지표 우선순위: 검색 유입 → 조회 → 참여 → 재방문
         </p>
+        <nav className="type-filter" aria-label="기간">
+          {RANGES.map((r) => (
+            <Link key={r} href={r === 7 ? "/admin" : `/admin?range=${r}`} aria-current={r === range ? "true" : undefined}>
+              {r}일
+            </Link>
+          ))}
+        </nav>
       </header>
 
       <section className="stat-row" aria-label="핵심 지표">
-        <StatTile label="검색 유입" value={sum(last7, (r) => r.search_landings)} previous={sum(prev7, (r) => r.search_landings)} trend={last14.map((r) => r.search_landings)} hint="검색엔진에서 들어온 첫 페이지 수" />
-        <StatTile label="페이지뷰" value={sum(last7, (r) => r.page_views)} previous={sum(prev7, (r) => r.page_views)} trend={last14.map((r) => r.page_views)} />
-        <StatTile label="방문자" value={visCur.visitors} previous={visPrev.visitors} trend={last14.map((r) => r.visitors)} hint="기간 내 고유 방문자(쿠키 기준)" />
-        <StatTile label="재방문율" value={revisit} previous={revisitPrev} format={pct} trend={last14.map((r) => (r.visitors ? r.returning_visitors / r.visitors : 0))} hint="기간 방문자 중 이전 날짜에도 방문했던 비율" />
-        <StatTile label="사람이 쓴 글" value={sum(last7, (r) => r.human_posts)} previous={sum(prev7, (r) => r.human_posts)} trend={last14.map((r) => r.human_posts)} />
-        <StatTile label="댓글·투표 참여" value={sum(last7, (r) => r.comments + r.votes)} previous={sum(prev7, (r) => r.comments + r.votes)} trend={last14.map((r) => r.comments + r.votes)} hint="사람 댓글 + 추천/비추천 수" />
+        <StatTile label="검색 유입" value={sum(last7, (r) => r.search_landings)} previous={sum(prev7, (r) => r.search_landings)} periodLabel={periodLabel} currentPoints={range} trend={last14.map((r) => r.search_landings)} hint="검색엔진에서 들어온 첫 페이지 수" />
+        <StatTile label="페이지뷰" value={sum(last7, (r) => r.page_views)} previous={sum(prev7, (r) => r.page_views)} periodLabel={periodLabel} currentPoints={range} trend={last14.map((r) => r.page_views)} />
+        <StatTile label="방문자" value={visCur.visitors} previous={visPrev.visitors} periodLabel={periodLabel} currentPoints={range} trend={last14.map((r) => r.visitors)} hint="기간 내 고유 방문자(쿠키 기준)" />
+        <StatTile label="재방문율" value={revisit} previous={revisitPrev} format={pct} periodLabel={periodLabel} currentPoints={range} trend={last14.map((r) => (r.visitors ? r.returning_visitors / r.visitors : 0))} hint="기간 방문자 중 이전 날짜에도 방문했던 비율" />
+        <StatTile label="사람이 쓴 글" value={sum(last7, (r) => r.human_posts)} previous={sum(prev7, (r) => r.human_posts)} periodLabel={periodLabel} currentPoints={range} trend={last14.map((r) => r.human_posts)} />
+        <StatTile label="댓글·투표 참여" value={sum(last7, (r) => r.comments + r.votes)} previous={sum(prev7, (r) => r.comments + r.votes)} periodLabel={periodLabel} currentPoints={range} trend={last14.map((r) => r.comments + r.votes)} hint="사람 댓글 + 추천/비추천 수" />
       </section>
 
       <section className="chart-grid" aria-label="일별 추이">
-        <DailyBars title="검색 유입" unit="회" data={daily.map((r) => ({ day: r.day, value: r.search_landings }))} description="검색엔진에서 들어온 랜딩 페이지 수" />
-        <DailyBars title="페이지뷰" unit="회" data={daily.map((r) => ({ day: r.day, value: r.page_views }))} />
-        <DailyBars title="재방문자" unit="명" data={daily.map((r) => ({ day: r.day, value: r.returning_visitors }))} description="그날 방문자 중 이전 날짜에 처음 온 방문자" />
+        <DailyBars title="검색 유입" unit="회" data={chartDays.map((r) => ({ day: r.day, value: r.search_landings }))} description="검색엔진에서 들어온 랜딩 페이지 수" />
+        <DailyBars title="페이지뷰" unit="회" data={chartDays.map((r) => ({ day: r.day, value: r.page_views }))} />
+        <DailyBars title="재방문자" unit="명" data={chartDays.map((r) => ({ day: r.day, value: r.returning_visitors }))} description="그날 방문자 중 이전 날짜에 처음 온 방문자" />
       </section>
 
       <section className="chart-grid two" aria-label="유입 경로">
-        <HBarList title="유입 경로 (최근 7일 랜딩)" unit="회" empty="아직 수집된 방문이 없습니다." rows={sources.map((s) => ({ label: SOURCE_LABEL[s.source] ?? s.source, value: s.landings }))} />
+        <HBarList title={`유입 경로 (최근 ${range}일 랜딩)`} unit="회" empty="아직 수집된 방문이 없습니다." rows={sources.map((s) => ({ label: SOURCE_LABEL[s.source] ?? s.source, value: s.landings }))} />
         <HBarList title="검색엔진별 유입" unit="회" empty="검색 유입이 아직 없습니다." rows={searchRefs.map((r) => ({ label: r.host, value: r.landings }))} />
       </section>
 

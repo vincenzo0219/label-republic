@@ -12,7 +12,7 @@ export const GET = route(async () =>
 
 /** POST /api/board-requests {name, description} — 신규 보드 개설 요청 */
 export const POST = route(async (req) => {
-  if (!hit(`board:create:${fingerprint(req.headers)}`, 3, 60 * 60 * 1000)) throw tooMany();
+  if (!(await hit(`board:create:${fingerprint(req.headers)}`, 3, 60 * 60 * 1000))) throw tooMany();
   const { name, description } = await parseBody(req, boardRequestSchema);
   return json({ request: await createBoardRequest(name, description) }, 201);
 });

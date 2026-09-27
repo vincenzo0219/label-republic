@@ -53,12 +53,12 @@ describe("slugify", () => {
 });
 
 describe("rate limit", () => {
-  it("allows up to the limit within the window", () => {
-    resetRateLimits();
-    expect(hit("k", 2, 1000, 0)).toBe(true);
-    expect(hit("k", 2, 1000, 10)).toBe(true);
-    expect(hit("k", 2, 1000, 20)).toBe(false);
-    expect(hit("k", 2, 1000, 1500)).toBe(true);
+  it("allows up to the limit within the window", async () => {
+    await resetRateLimits();
+    expect(await hit("k", 2, 1000, 0)).toBe(true);
+    expect(await hit("k", 2, 1000, 10)).toBe(true);
+    expect(await hit("k", 2, 1000, 20)).toBe(false);
+    expect(await hit("k", 2, 1000, 1500)).toBe(true);
   });
 });
 

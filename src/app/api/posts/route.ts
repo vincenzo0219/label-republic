@@ -31,12 +31,12 @@ export const GET = route(async (req) => {
 /** POST /api/posts — 게시글 작성 (nickname, pw, title, body, category, summary?, summaryToken?) */
 export const POST = route(async (req) => {
   const fp = fingerprint(req.headers);
-  if (!hit(`post:create:${fp}`, 10, 10 * 60 * 1000)) throw tooMany();
+  if (!(await hit(`post:create:${fp}`, 10, 10 * 60 * 1000))) throw tooMany();
   const input = await parseBody(req, createPostSchema);
   if (input.postType === "meetup") {
     if (!input.meetup) throw new HttpError(400, "invalid_input", "정모 일시·장소·인원을 입력해주세요.");
     // 정모 제안은 하루 3건까지 (도배 방지)
-    if (!hit(`meetup:create:${fp}`, 3, 24 * 60 * 60 * 1000)) throw tooMany();
+    if (!(await hit(`meetup:create:${fp}`, 3, 24 * 60 * 60 * 1000))) throw tooMany();
   }
   const post = await createPost({
     categorySlug: input.category,

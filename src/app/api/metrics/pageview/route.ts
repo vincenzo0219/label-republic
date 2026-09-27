@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       });
     }
     const vh = visitorHash(vid);
-    if (!hit(`pv:${vh}`, 120, 60 * 1000)) return res;
+    if (!(await hit(`pv:${vh}`, 120, 60 * 1000))) return res;
 
     const { source, host } = classifySource({
       landing: parsed.data.landing,

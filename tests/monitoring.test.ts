@@ -97,7 +97,7 @@ d("monitoring (database)", async () => {
   });
 
   beforeEach(async () => {
-    resetRateLimits();
+    await resetRateLimits();
     await query(
       "TRUNCATE posts, board_requests, fingerprints, abuse_alerts, maintenance_runs, page_views, visitors RESTART IDENTITY CASCADE",
     );

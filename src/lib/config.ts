@@ -78,6 +78,12 @@ export const config = {
   get hostingProvider() {
     return process.env.HOSTING_PROVIDER || null;
   },
+  /** 레이트 리밋 저장소: postgres(여러 인스턴스 공유, 운영 기본) / memory(단일 프로세스, 개발 기본) */
+  get rateLimitBackend(): "memory" | "postgres" {
+    const v = process.env.RATE_LIMIT_BACKEND;
+    if (v === "memory" || v === "postgres") return v;
+    return isProd ? "postgres" : "memory";
+  },
   get boardPromotionThreshold() {
     const n = Number(process.env.BOARD_PROMOTION_THRESHOLD);
     return Number.isInteger(n) && n > 0 ? n : 50;

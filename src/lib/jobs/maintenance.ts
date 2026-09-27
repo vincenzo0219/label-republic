@@ -32,11 +32,13 @@ async function burstCandidates(
          FROM ${table} e LEFT JOIN fingerprints f ON f.fingerprint = e.${fpCol}
         WHERE e.created_at > $1::timestamptz - interval '24 hours' AND e.created_at <= $1::timestamptz
      ), win AS (
-       SELECT a.subject, a.created_at AS window_start,
-              count(*)::int AS n, count(*) FILTER (WHERE b.is_new)::int AS n_new
-         FROM ev a JOIN ev b
-           ON b.subject = a.subject AND b.created_at >= a.created_at AND b.created_at < a.created_at + interval '15 minutes'
-        GROUP BY a.subject, a.created_at
+       -- 각 이벤트에서 시작하는 15분 창의 이벤트 수를 윈도 함수로 한 번에 센다.
+       -- (이전의 자기 조인은 대상별 O(n²) — 4만 건 합성 데이터에서 4.8초 → 55ms)
+       SELECT subject, created_at AS window_start,
+              (count(*) OVER w)::int AS n,
+              (count(*) FILTER (WHERE is_new) OVER w)::int AS n_new
+         FROM ev
+       WINDOW w AS (PARTITION BY subject ORDER BY created_at RANGE BETWEEN CURRENT ROW AND interval '15 minutes' FOLLOWING)
      )
      SELECT DISTINCT ON (subject) subject, n, n_new, window_start
        FROM win
@@ -147,6 +149,7 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       // fingerprint 활동 이력도 조회 기록과 같은 400일 보관 (개인정보처리방침과 일치)
       await client.query("DELETE FROM fingerprints WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM visitors WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
+      await client.query("DELETE FROM rate_limits WHERE expires_at < now()");
       const result: MaintenanceResult = {
         ran: true,
         alerts: alerts.length,

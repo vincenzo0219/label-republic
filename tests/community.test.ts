@@ -58,7 +58,7 @@ d("chat tag and meetups (database)", async () => {
   });
 
   beforeEach(async () => {
-    resetRateLimits();
+    await resetRateLimits();
     await query("TRUNCATE posts, fingerprints, curator_queue, curator_runs RESTART IDENTITY CASCADE");
   });
 

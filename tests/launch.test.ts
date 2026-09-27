@@ -69,7 +69,7 @@ d("legal hold and transparency (database)", async () => {
   });
 
   beforeEach(async () => {
-    resetRateLimits();
+    await resetRateLimits();
     await query("TRUNCATE posts, moderation_log, fingerprints, visitors RESTART IDENTITY CASCADE");
   });
 
@@ -127,3 +127,4 @@ d("legal hold and transparency (database)", async () => {
     expect(await query("SELECT 1 FROM visitors")).toHaveLength(0);
   });
 });
+

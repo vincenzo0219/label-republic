@@ -9,7 +9,10 @@ RUN npm ci --no-audit --no-fund
 FROM deps AS build
 COPY . .
 # 빌드 시점에는 DB가 필요 없다 (모든 페이지가 동적 렌더링)
-RUN npx next build && npm prune --omit=dev --no-audit --no-fund
+RUN npx next build && npm prune --omit=dev --no-audit --no-fund \
+ # 런타임에 필요 없는 것 제거 (~180MB): 빌드 캐시, 이 이미지(glibc)와 맞지 않는 musl·wasm 네이티브 바이너리
+ && rm -rf .next/cache \
+    node_modules/@next/swc-*-musl node_modules/@img/*-linuxmusl-* node_modules/@img/sharp-wasm32
 
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production \

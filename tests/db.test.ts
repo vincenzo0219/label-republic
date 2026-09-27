@@ -52,7 +52,7 @@ d("database rules", async () => {
   });
 
   beforeEach(async () => {
-    resetRateLimits();
+    await resetRateLimits();
     await query("TRUNCATE posts, board_requests, trust_batch_runs, curator_queue, curator_runs, fingerprints RESTART IDENTITY CASCADE");
     await query("DELETE FROM categories WHERE auto_promoted_at IS NOT NULL");
     await query("UPDATE categories SET post_count = 0");

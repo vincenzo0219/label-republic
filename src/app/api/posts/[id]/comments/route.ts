@@ -12,7 +12,7 @@ export const GET = route<P>(async (_req, { id }) => json({ comments: await listC
 /** POST /api/posts/:id/comments {nickname, pw, body} */
 export const POST = route<P>(async (req, { id }) => {
   const fp = fingerprint(req.headers);
-  if (!hit(`comment:create:${fp}`, 20, 60 * 1000)) throw tooMany();
+  if (!(await hit(`comment:create:${fp}`, 20, 60 * 1000))) throw tooMany();
   const input = await parseBody(req, commentSchema);
   const comment = await createComment(id, { nickname: input.nickname, pin: input.pw, body: input.body, fingerprint: fp });
   return json({ comment }, 201);

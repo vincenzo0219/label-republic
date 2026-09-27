@@ -15,7 +15,7 @@ export const GET = route<P>(async (_req, { id }) => json({ participants: await l
  */
 export const POST = route<P>(async (req, { id }) => {
   const fp = fingerprint(req.headers);
-  if (!hit(`rsvp:${fp}`, 20, 60 * 1000)) throw tooMany();
+  if (!(await hit(`rsvp:${fp}`, 20, 60 * 1000))) throw tooMany();
   const { nickname } = await parseBody(req, rsvpSchema);
   const result = await toggleRsvp(id, fp, nickname);
   return json({ ...result, participants: await listParticipants(id) });

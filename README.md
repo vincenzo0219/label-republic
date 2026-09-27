@@ -74,6 +74,16 @@
 | 접근성 | 본문 건너뛰기 링크, 페이지별 `h1`, 검색 랜드마크 구분, 포커스 링, `prefers-reduced-motion`, 대비 보정 — **axe-core 위반 0건** (13개 페이지 × 라이트/다크) |
 | 보존 기간 | fingerprint 활동 이력·방문자도 400일 후 삭제 (방침과 일치) |
 
+### Sprint 7 — 운영 인프라 강화
+
+| 영역 | 구현 |
+|---|---|
+| CI (GitHub Actions) | PR·main push마다 타입체크 → 마이그레이션 2회(멱등성) → 단위+DB 통합 테스트(Postgres 서비스) → 운영 빌드 → **실제 서버 기동 스모크 테스트**(헬스체크·주요 페이지 200·관리자 비활성) + Docker 이미지 빌드. actionlint 통과 |
+| 공유 레이트 리밋 | `RATE_LIMIT_BACKEND=postgres`(운영 기본): 모든 인스턴스가 같은 한도 공유. 현재·직전 고정 창 가중 합산 근사 슬라이딩 윈도우(창 경계 버스트 차단), UNLOGGED 테이블, 만료 버킷 자동 정리. 개발·테스트는 `memory` |
+| 이미지 경량화 | 1.12GB → **838MB** — 빌드 캐시와 이미지 플랫폼(glibc)에 맞지 않는 musl·wasm 네이티브 바이너리 제거 |
+| 어뷰징 탐지 최적화 | 15분 창 집계를 자기 조인(대상별 O(n²)) → 윈도 함수로 교체. 합성 4만 건 기준 **4.8초 → 55ms**, 결과 동일 |
+| 대시보드 기간 | `/admin?range=7\|30\|90` — 같은 길이의 직전 기간과 비교 |
+
 **개인정보**: 방문자는 무작위 쿠키(`lr_vid`, httpOnly, 1년) 값의 HMAC으로만 식별하고 IP·UA는 저장하지 않습니다. 레퍼러는 호스트만 저장합니다. 개인정보처리방침에 분석 쿠키 사용을 고지하세요.
 
 ## 기술 스택
@@ -144,6 +154,7 @@ docker compose up --build
 | `OPERATOR_NAME` / `HOSTING_PROVIDER` | 개인정보처리방침의 운영 주체 / 처리위탁 고지 |
 | `LEGAL_EFFECTIVE_DATE` | 법률 검토를 마친 약관·방침 시행일. 비우면 "검토 전 초안" 배너 |
 | `RUN_MIGRATIONS` | Docker 시작 시 마이그레이션 적용 |
+| `RATE_LIMIT_BACKEND` | `postgres`(운영 기본, 인스턴스 간 공유) / `memory`(개발 기본) |
 | `ENV_CHECK=warn` | 로컬에서 운영 빌드 시험용 — 환경변수 오류를 경고로 낮춤 (운영 금지) |
 
 ### 테스트
@@ -219,12 +230,11 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 - Claude 요약·스팸 분류·시드 초안 생성은 API 키가 없는 환경에서 개발되어 **실제 호출 검증이 필요**합니다 (키가 없으면 추출 요약 / 규칙 기반 판정으로 동작).
 - 시드 콘텐츠 35건은 **사람의 사실관계 검수 후 게시**해야 합니다 (`reviewedBy`).
 - 조직적 신고·투표는 "갓 생긴 fingerprint의 집중" 패턴으로 탐지하지만, 오래 묵힌 계정을 동원하는 공격은 잡지 못합니다. 알림은 자동 처분 없이 기록만 합니다.
-- 어뷰징 탐지 쿼리는 최근 24시간 이벤트를 자기 조인하므로, 트래픽이 커지면 창 집계 테이블로 바꿔야 합니다.
 
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 007_legal_hold.sql
+db/migrations/        001_schema.sql … 008_rate_limits.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
@@ -232,10 +242,10 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit (*.test.ts)
+.github/workflows/    ci.yml
 ```
 
 ## 다음 스프린트로 넘긴 것
 
-- 레이트 리밋이 인메모리라 **단일 인스턴스 전제** — 수평 확장 시 Redis 등으로 교체 (WebSocket·배치·큐레이터는 이미 DB 기반이라 다중 인스턴스 가능)
 - 대시보드 기간 선택(현재 7일/30일 고정), 알림 → 커뮤니티 공개(투명성 로그) 여부 결정

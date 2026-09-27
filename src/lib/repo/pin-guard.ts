@@ -12,11 +12,14 @@ const PER_TARGET = { limit: 30, windowMs: 60 * 60 * 1000 };
 export async function assertPin(target: string, fp: string, pin: string, storedHash: string): Promise<void> {
   const clientKey = `pin:${target}:${fp}`;
   const targetKey = `pin:${target}`;
-  if (isLimited(clientKey, PER_CLIENT.limit, PER_CLIENT.windowMs) || isLimited(targetKey, PER_TARGET.limit, PER_TARGET.windowMs)) {
+  const [clientLimited, targetLimited] = await Promise.all([
+    isLimited(clientKey, PER_CLIENT.limit, PER_CLIENT.windowMs),
+    isLimited(targetKey, PER_TARGET.limit, PER_TARGET.windowMs),
+  ]);
+  if (clientLimited || targetLimited) {
     throw tooMany();
   }
   if (await verifyPin(pin, storedHash)) return;
-  hit(clientKey, PER_CLIENT.limit, PER_CLIENT.windowMs);
-  hit(targetKey, PER_TARGET.limit, PER_TARGET.windowMs);
+  await Promise.all([hit(clientKey, PER_CLIENT.limit, PER_CLIENT.windowMs), hit(targetKey, PER_TARGET.limit, PER_TARGET.windowMs)]);
   throw wrongPin();
 }

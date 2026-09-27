@@ -208,7 +208,7 @@ export async function replaceSummary(
   if (lines) {
     summary = { lines, model: "author", isAuthorEdited: true };
   } else {
-    if (!hit(`summary:${fp}`, 10, 60_000)) throw tooMany();
+    if (!(await hit(`summary:${fp}`, 10, 60_000))) throw tooMany();
     summary = { ...(await generateSummary(post.title, post.body)), isAuthorEdited: false };
   }
   await tx((client) => insertSummary(client, id, summary));
@@ -293,7 +293,7 @@ export async function reportPost(id: string, fp: string, reason: string): Promis
   const post = await loadPost(id);
   if (!post) throw notFound();
   // 한 클라이언트가 짧은 시간에 대량 신고하는 것을 1차 차단 (정교한 가중치 하향은 Sprint 4)
-  if (!hit(`report:${fp}`, 20, 60 * 60 * 1000)) throw tooMany();
+  if (!(await hit(`report:${fp}`, 20, 60 * 60 * 1000))) throw tooMany();
   let alreadyReported = false;
   try {
     await query("INSERT INTO reports (post_id, reporter_fingerprint, reason) VALUES ($1, $2, $3)", [id, fp, reason]);
