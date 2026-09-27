@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
@@ -96,12 +96,41 @@ async function claudeSummary(title: string, body: string): Promise<GeneratedSumm
   return { lines: lines as SummaryLines, model };
 }
 
-/** Claude 요약을 시도하고, 키가 없거나 실패하면 추출 요약으로 대체한다. */
+// 같은 본문으로 미리보기를 반복 요청해도 LLM을 다시 호출하지 않도록 하는 인메모리 캐시 (LRU, 1시간)
+const CACHE_TTL_MS = 60 * 60 * 1000;
+const CACHE_MAX = 500;
+const g = globalThis as unknown as { __labelRepSummaryCache?: Map<string, { at: number; value: GeneratedSummary }> };
+const cache = (g.__labelRepSummaryCache ??= new Map());
+
+function cacheKey(title: string, body: string) {
+  return createHash("sha256").update(`${config.summaryModel}\0${title}\0${body}`).digest("hex");
+}
+
+export function clearSummaryCache() {
+  cache.clear();
+}
+
+/**
+ * Claude 요약을 시도하고, 키가 없거나 실패하면 추출 요약으로 대체한다.
+ * Claude 결과만 캐시한다 (fallback 결과를 캐시하면 일시 장애가 1시간 동안 굳어버림).
+ */
 export async function generateSummary(title: string, body: string): Promise<GeneratedSummary> {
   if (config.anthropicApiKey) {
+    const key = cacheKey(title, body);
+    const hitEntry = cache.get(key);
+    if (hitEntry && Date.now() - hitEntry.at < CACHE_TTL_MS) {
+      cache.delete(key);
+      cache.set(key, hitEntry); // LRU 갱신
+      return hitEntry.value;
+    }
+
     try {
       const result = await claudeSummary(title, body);
-      if (result) return result;
+      if (result) {
+        cache.set(key, { at: Date.now(), value: result });
+        if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value!);
+        return result;
+      }
     } catch (err) {
       if (err instanceof Anthropic.RateLimitError) {
         console.warn("[summary] Claude rate limited; using extractive fallback");

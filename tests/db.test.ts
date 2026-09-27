@@ -17,6 +17,7 @@ d("database rules", async () => {
   const comments = await import("@/lib/repo/comments");
   const boards = await import("@/lib/repo/board-requests");
   const { listCategories } = await import("@/lib/repo/categories");
+  const { runTrustBatch } = await import("@/lib/jobs/trust");
 
   const fp = (n: number | string) => String(n).padStart(64, "0");
   const newPost = (slug = "supplements", title = "테스트 글 제목") =>
@@ -40,7 +41,7 @@ d("database rules", async () => {
 
   beforeEach(async () => {
     resetRateLimits();
-    await query("TRUNCATE posts, board_requests RESTART IDENTITY CASCADE");
+    await query("TRUNCATE posts, board_requests, trust_batch_runs RESTART IDENTITY CASCADE");
     await query("DELETE FROM categories WHERE auto_promoted_at IS NOT NULL");
     await query("UPDATE categories SET post_count = 0");
   });
@@ -105,7 +106,7 @@ d("database rules", async () => {
         [id, i + 3],
       );
     }
-    await query("SELECT refresh_trust_tiers(2)");
+    expect(await runTrustBatch()).toMatchObject({ ran: true, categories: 5 });
     const tier = async (id: string) => (await posts.getPost(id))!.trust_tier;
     expect(await tier(ids[19]!)).toBe("top5"); // percent_rank 0
     expect(await tier(ids[18]!)).toBe("top12"); // 1/19 ≈ 0.053
@@ -116,10 +117,86 @@ d("database rules", async () => {
 
     const young = await newPost("keyboards", "새 글");
     for (let v = 1; v <= 30; v++) await posts.votePost(young.id, fp(`y${v}`), 1);
+    await runTrustBatch();
     expect(await tier(young.id)).toBe("pending"); // 24시간 미만
 
     const feed = await posts.listPosts({ categoryId: 2, sort: "trust" });
     expect(feed.items[0]!.id).toBe(ids[19]);
+  });
+
+  it("does not re-tier on the vote path; the batch picks it up", async () => {
+    const post = await newPost();
+    await query("UPDATE posts SET created_at = now() - interval '2 days'");
+    for (let v = 1; v <= 3; v++) await posts.votePost(post.id, fp(v), 1);
+    expect((await posts.getPost(post.id))!.trust_tier).toBe("pending");
+    await runTrustBatch();
+    expect((await posts.getPost(post.id))!.trust_tier).toBe("top5");
+  });
+
+  it("skips the trust batch while another instance holds the lock, and logs runs", async () => {
+    const other = await pool().connect();
+    try {
+      await other.query("SELECT pg_advisory_lock(4823001)");
+      expect(await runTrustBatch()).toEqual({ ran: false, categories: 0, changed: 0 });
+    } finally {
+      await other.query("SELECT pg_advisory_unlock(4823001)");
+      other.release();
+    }
+    expect((await runTrustBatch()).ran).toBe(true);
+    const runs = await query<{ finished_at: string | null; error: string | null }>("SELECT finished_at, error FROM trust_batch_runs");
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.finished_at).toBeTruthy();
+    expect(runs[0]!.error).toBeNull();
+  });
+
+  it("down-weights reports from a mass-reporting fingerprint", async () => {
+    const abuser = fp("abuser");
+    for (let i = 0; i < 10; i++) await posts.reportPost((await newPost("keyboards", `다른 글 ${i}`)).id, abuser, "도배");
+    const target = await newPost();
+    await posts.reportPost(target.id, abuser, "광고");
+    const w = await query<{ weight: number }>("SELECT weight FROM reports WHERE post_id = $1", [target.id]);
+    expect(w[0]!.weight).toBeCloseTo(0.2);
+
+    for (let i = 1; i <= 4; i++) await posts.reportPost(target.id, fp(i), "광고");
+    // 고유 신고자 5명이지만 가중치 합 4.2 < 5 → 아직 블라인드 아님
+    expect(await posts.reportPost(target.id, fp(4), "dup")).toMatchObject({ report_count: 5, is_blinded: false });
+    expect(await posts.reportPost(target.id, fp(5), "광고")).toMatchObject({ report_count: 6, is_blinded: true });
+  });
+
+  it("suppresses spammy posts: sorted last, no trust badge, flagged in detail", async () => {
+    const good = await newPost("supplements", "정상 글");
+    const spam = await posts.createPost({
+      categorySlug: "supplements",
+      nickname: "광고맨",
+      pin: "1234",
+      title: "최저가 공동구매 진행",
+      body: "문의주세요 010-1234-5678 오픈채팅 https://open.kakao.com/o/abc 할인코드 SALE",
+      summary: null,
+    });
+    expect(spam.is_suppressed).toBe(true);
+    expect(spam.moderation_note).toContain("메신저 유도");
+    const feed = await posts.listPosts({ sort: "latest" });
+    expect(feed.items.map((p) => p.id)).toEqual([good.id, spam.id]);
+
+    await query("UPDATE posts SET created_at = now() - interval '2 days'");
+    for (let v = 1; v <= 10; v++) await posts.votePost(spam.id, fp(v), 1);
+    await runTrustBatch();
+    expect((await posts.getPost(spam.id))!.trust_tier).toBe("none");
+
+    // 수정으로 광고 문구를 걷어내면 규칙 판정이 다시 계산된다
+    const fixed = await posts.updatePost(spam.id, fp(1), "1234", { body: "마그네슘 200mg 제품 두 개를 비교해봤습니다." , title: "마그네슘 비교" });
+    expect(fixed.is_suppressed).toBe(false);
+  });
+
+  it("matches updated_at at millisecond precision for the async moderation guard", async () => {
+    const post = await newPost();
+    const rows = await query("SELECT 1 FROM posts WHERE id = $1 AND date_trunc('milliseconds', updated_at) = $2::timestamptz", [
+      post.id,
+      post.updated_at,
+    ]);
+    expect(rows).toHaveLength(1);
+    // API 키가 없으면 AI 판정은 건너뛴다
+    expect(await posts.aiModeratePost(post.id)).toBeNull();
   });
 
   it("searches with AND across terms and escapes LIKE wildcards", async () => {

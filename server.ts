@@ -12,7 +12,9 @@ import { createServer, type IncomingMessage } from "node:http";
 import next from "next";
 import { Client } from "pg";
 import { WebSocket, WebSocketServer } from "ws";
+import { config } from "./src/lib/config";
 import { CLIENT_IP_HEADER } from "./src/lib/fingerprint";
+import { startTrustScheduler } from "./src/lib/jobs/trust";
 
 const dev = process.env.NODE_ENV !== "production";
 const port = Number(process.env.PORT) || 3000;
@@ -127,6 +129,8 @@ app.prepare().then(async () => {
   wss.on("close", () => clearInterval(heartbeat));
 
   await listen();
+  // 신뢰도 배지 배치 — advisory lock으로 여러 인스턴스 중 한 곳에서만 실행된다.
+  if (config.trustRefreshIntervalSec > 0) startTrustScheduler(config.trustRefreshIntervalSec * 1000);
   server.listen(port, hostname, () => {
     console.log(`> 라벨공화국 ready on http://${hostname}:${port} (${dev ? "dev" : "prod"})`);
   });

@@ -5,6 +5,7 @@ import { slugify } from "@/lib/slug";
 import { hit, resetRateLimits } from "@/lib/rate-limit";
 import { extractiveSummary, resolveSummary, signSummary, verifySummaryToken, type SummaryLines } from "@/lib/summary";
 import { createPostSchema, sortSchema } from "@/lib/validation";
+import { combine, heuristicSpam, shouldSuppress } from "@/lib/moderation";
 
 describe("password", () => {
   it("hashes with a random salt and verifies", async () => {
@@ -114,5 +115,34 @@ describe("validation", () => {
     expect(sortSchema.parse("votes")).toBe("votes");
     expect(sortSchema.parse("nope")).toBe("trust");
     expect(sortSchema.parse(undefined)).toBe("trust");
+  });
+});
+
+describe("moderation heuristics", () => {
+  it("leaves factual reviews alone, even with a spec link and prices", () => {
+    const v = heuristicSpam(
+      "저소음 적축 측정",
+      "입력압 45gf, 38dB 측정. 제조사 스펙: https://example.com/spec 가격은 2만원대입니다.",
+    );
+    expect(v.score).toBeLessThan(0.3);
+    expect(shouldSuppress(v)).toBe(false);
+  });
+
+  it("flags messenger/phone/promo spam", () => {
+    const v = heuristicSpam("최저가 공구", "카톡 아이디 abc 로 문의주세요 010-1234-5678 https://bit.ly/x");
+    expect(shouldSuppress(v)).toBe(true);
+    expect(v.reasons).toEqual(expect.arrayContaining(["메신저 유도", "전화번호", "판촉 문구", "단축/제휴 링크"]));
+  });
+
+  it("caps link scores so a well-sourced post is not suppressed by links alone", () => {
+    const links = Array.from({ length: 10 }, (_, i) => `https://docs.example.com/${i}`).join("\n");
+    expect(shouldSuppress(heuristicSpam("출처 모음", links))).toBe(false);
+  });
+
+  it("lets the AI verdict override heuristic false positives", () => {
+    const h = { score: 1, reasons: ["전화번호"], model: "heuristic-v1" };
+    expect(shouldSuppress(combine(h, { score: 0.05, reasons: ["정상 후기"], model: "m" }))).toBe(false);
+    expect(shouldSuppress(combine({ ...h, score: 0.3 }, { score: 0.98, reasons: ["광고"], model: "m" }))).toBe(true);
+    expect(combine(h, null)).toBe(h);
   });
 });

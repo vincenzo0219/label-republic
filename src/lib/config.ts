@@ -27,6 +27,11 @@ export const config = {
   get summaryModel() {
     return process.env.SUMMARY_MODEL || "claude-opus-5";
   },
+  /** 신뢰도 배지 배치 주기(초). 0이면 서버 내장 스케줄러를 끈다. */
+  get trustRefreshIntervalSec() {
+    const n = Number(process.env.TRUST_REFRESH_INTERVAL_SEC ?? 120);
+    return Number.isFinite(n) && n >= 0 ? n : 120;
+  },
   get boardPromotionThreshold() {
     const n = Number(process.env.BOARD_PROMOTION_THRESHOLD);
     return Number.isInteger(n) && n > 0 ? n : 50;
@@ -34,6 +39,7 @@ export const config = {
 };
 
 /** 도메인 상수 */
-export const BLIND_REPORT_THRESHOLD = 5; // db/migrations/001_schema.sql 트리거와 동일해야 함
+export const BLIND_REPORT_THRESHOLD = 5; // db/migrations/003 트리거와 동일해야 함 (고유 신고자 수 & 가중치 합)
+export const SUPPRESS_SPAM_SCORE = 0.8;
 export const TRUST_MIN_VOTES = 3;
 export const PAGE_SIZE = 20;

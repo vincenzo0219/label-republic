@@ -4,7 +4,9 @@
 
 회원가입 없이 닉네임 + 4자리 비밀번호로 글/댓글을 쓰고, 추천·비추천과 **신고 5회 자동 블라인드**로 커뮤니티가 스스로 정화하는 Mobile-first SSR 게시판입니다.
 
-## Sprint 1 범위
+## 구현 범위
+
+### Sprint 1 — 핵심 골격
 
 | 영역 | 구현 |
 |---|---|
@@ -13,6 +15,16 @@
 | API | 게시글 CRUD, 댓글, 추천/비추천, 신고, AI 3줄 요약, 보드 개설 요청 + 투표(자동 승격) |
 | 실시간 | 댓글 WebSocket (`/ws/comments?postId=`) — Postgres `LISTEN/NOTIFY` 기반 |
 | SEO | 서버 렌더링, 게시글별 title/description(3줄 요약)/canonical/OG, JSON-LD `DiscussionForumPosting`, `sitemap.xml`, `robots.txt` |
+
+### Sprint 2 — 신뢰 시스템 + AI 강화
+
+| 영역 | 구현 |
+|---|---|
+| 신고 어뷰징 대응 | 1시간 내 5건 이상 신고한 fingerprint의 신고는 가중치 0.5, 1시간 10건·24시간 30건 이상이면 0.2. 블라인드 조건은 **고유 신고자 5명 AND 가중치 합 ≥ 5** |
+| AI 1차 정화 | 게시·수정 즉시 규칙 기반 스팸 점수(메신저/전화번호/판촉 문구/단축·제휴 링크 등), 응답 후 Claude 분류로 보정. 0.8 이상이면 모든 정렬에서 맨 뒤로 + 신뢰도 배지 제외 + "광고 의심" 표시 (삭제·숨김 아님) |
+| 신뢰도 배지 배치 | 투표 경로의 동기 재계산 제거(같은 카테고리 동시 투표 간 잠금 경합·교착 위험). 서버 내장 스케줄러가 `TRUST_REFRESH_INTERVAL_SEC`(기본 120초)마다 실행, `pg_try_advisory_lock`으로 다중 인스턴스에서도 한 번만, 실행 이력은 `trust_batch_runs`(7일 보관) |
+| AI 요약 | 미리보기 결과 캐시(같은 본문 재요청 시 LLM 재호출 없음, 1시간), 추출 요약 → Claude 요약 백필 스크립트, 요약 출처 표시 정정(자동 추출 / AI 생성 / 작성자 수정 / 작성자 작성) |
+| 기타 | 투표 레이트 리밋(분당 60회) |
 
 ## 기술 스택
 
@@ -57,6 +69,7 @@ npm run build && npm start
 | `ANTHROPIC_API_KEY` | 설정 시 Claude로 3줄 요약, 비우면 추출 요약 |
 | `SUMMARY_MODEL` | 기본 `claude-opus-5` |
 | `BOARD_PROMOTION_THRESHOLD` | 보드 자동 승격 임계치 (기본 50) |
+| `TRUST_REFRESH_INTERVAL_SEC` | 신뢰도 배지 배치 주기 (기본 120초, 0이면 끔) |
 
 ### 테스트
 
@@ -66,12 +79,11 @@ npm test                                            # 단위 테스트
 TEST_DATABASE_URL=postgres://.../labelrep_test npm test   # + DB 통합 테스트 (해당 DB의 public 스키마를 초기화함!)
 ```
 
-### 신뢰도 배지 배치
-
-투표가 없어도 "게시 24시간 경과"로 검증 대기가 풀리는 글을 반영하도록 주기 실행하세요.
+### 운영 스크립트
 
 ```bash
-*/10 * * * * cd /app && npm run trust:refresh
+npm run trust:refresh                          # 신뢰도 배지 즉시 재계산 (평소엔 서버 내장 스케줄러가 실행)
+npm run summary:backfill -- --limit 50         # 추출 요약으로 저장된 글을 Claude 요약으로 재생성 (--dry-run 지원)
 ```
 
 ## 핵심 규칙
@@ -79,8 +91,9 @@ TEST_DATABASE_URL=postgres://.../labelrep_test npm test   # + DB 통합 테스�
 - **인증 없음**: 글/댓글은 닉네임 + 숫자 4자리 비밀번호. 비밀번호는 `scrypt`(랜덤 salt) 해시로만 저장. 틀린 비밀번호는 클라이언트당 15분 5회, 대상 글/댓글당 1시간 30회로 제한(1만 가지 조합 무차별 대입 방어).
 - **fingerprint**: `HMAC-SHA256(APP_SECRET, IP | User-Agent)`. 원본 IP는 저장하지 않음. IP는 `server.ts`가 소켓 주소로 덮어쓴 헤더에서만 읽어 위조 불가. `votes(post_id, voter_fingerprint)`, `reports(post_id, reporter_fingerprint)` 유니크 제약으로 1인 1회를 DB가 강제.
 - **추천/비추천**: 같은 버튼 재클릭 = 취소, 반대 버튼 = 변경. 카운터는 트리거가 유지.
-- **자동 블라인드**: 고유 신고 5건이면 트리거가 `is_blinded = true` (사람 승인 없음). 블라인드 글은 피드/검색/사이트맵에서 제외되고 본문·요약 비노출, 투표·댓글 불가.
-- **신뢰도 배지** (`refresh_trust_tiers`): 카테고리별 최근 30일 글 중 게시 24시간 이상 + 투표 3표 이상인 글을 순추천 `percent_rank`로 상위 5% / 12% / 19% 부여. 조건 미달은 "검증 대기". 투표 시 해당 카테고리를 즉시 재계산하고, 배치로도 갱신.
+- **자동 블라인드**: 고유 신고자 5명 이상이고 신고 가중치 합이 5 이상이면 트리거가 `is_blinded = true` (사람 승인 없음). 대량 신고 fingerprint의 신고는 가중치가 자동으로 낮아진다. 블라인드 글은 피드/검색/사이트맵에서 제외되고 본문·요약 비노출, 투표·댓글 불가.
+- **신뢰도 배지** (`refresh_trust_tiers`): 카테고리별 최근 30일 글 중 게시 24시간 이상 + 투표 3표 이상인 글을 순추천 `percent_rank`로 상위 5% / 12% / 19% 부여. 조건 미달은 "검증 대기", 광고 의심 글은 배지 없음. 배치로만 갱신(기본 2분).
+- **AI 1차 정화**: 스팸 점수 0.8 이상이면 `is_suppressed` — 노출 순위만 낮추고 최종 판단은 추천·신고에 맡긴다. 작성자가 수정하면 다시 판정.
 - **정렬**: 신뢰도순(배지 → 순추천 → 최신) / 최신순 / 추천순(순추천).
 - **검색**: 공백 구분 검색어 AND, 제목·본문 부분일치(`pg_trgm` GIN 인덱스), 서버에서 `<mark>` 하이라이트(HTML 주입 없이 React 노드로 분할).
 - **보드 자동 승격**: 요청 행을 `FOR UPDATE`로 잠그고 투표 → 임계치 도달 시 같은 트랜잭션에서 `categories`에 생성(`auto_promoted_at` 기록). 동시 투표에도 한 번만 승격.
@@ -116,15 +129,20 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 
 에러 응답 형식: `{"error": {"code": "wrong_password", "message": "비밀번호가 일치하지 않습니다."}}`
 
+## Sprint 2 기준 남은 과제
+
+- Claude 요약·스팸 분류는 API 키가 없는 환경에서 개발되어 **실제 호출 검증이 필요**합니다 (키가 없으면 추출 요약 / 규칙 기반 판정으로 동작).
+- 신고 가중치는 fingerprint 단위라 IP·UA를 바꿔가며 하는 조직적 신고는 막지 못합니다 — 신고 시점 군집(짧은 시간에 한 글로 몰리는 신규 fingerprint) 탐지는 Sprint 4.
+
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql, 002_seed_categories.sql
-scripts/              migrate.ts, refresh-trust.ts
+db/migrations/        001_schema.sql, 002_seed_categories.sql, 003_trust_and_moderation.sql
+scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts
 server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
-src/lib/              config, db, repo/*, summary, fingerprint, password, validation …
+src/lib/              config, db, repo/*, jobs/trust, moderation, summary, fingerprint, password, validation …
 tests/                unit.test.ts, db.test.ts
 ```
 

@@ -1,9 +1,10 @@
+import { after } from "next/server";
 import { json, parseBody, route } from "@/lib/http";
 import { HttpError, tooMany } from "@/lib/errors";
 import { fingerprint } from "@/lib/fingerprint";
 import { hit } from "@/lib/rate-limit";
 import { getCategoryBySlug } from "@/lib/repo/categories";
-import { createPost, listPosts } from "@/lib/repo/posts";
+import { aiModeratePost, createPost, listPosts } from "@/lib/repo/posts";
 import { resolveSummary } from "@/lib/summary";
 import { createPostSchema, sortSchema } from "@/lib/validation";
 
@@ -39,5 +40,7 @@ export const POST = route(async (req) => {
     body: input.body,
     summary: resolveSummary(input.summary, input.summaryToken),
   });
+  // 응답을 보낸 뒤 AI 스팸 분류로 규칙 기반 판정을 보정 (API 키가 있을 때만 동작)
+  after(() => aiModeratePost(post.id).catch((err) => console.error("[moderation]", err)));
   return json({ post }, 201);
 });

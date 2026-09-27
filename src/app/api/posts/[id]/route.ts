@@ -1,8 +1,9 @@
+import { after } from "next/server";
 import { json, parseBody, route } from "@/lib/http";
 import { notFound } from "@/lib/errors";
 import { fingerprint } from "@/lib/fingerprint";
 import { listComments } from "@/lib/repo/comments";
-import { deletePost, getMyVote, getPost, updatePost } from "@/lib/repo/posts";
+import { aiModeratePost, deletePost, getMyVote, getPost, updatePost } from "@/lib/repo/posts";
 import { resolveSummary } from "@/lib/summary";
 import { pinOnlySchema, updatePostSchema } from "@/lib/validation";
 
@@ -26,6 +27,9 @@ export const PATCH = route<P>(async (req, { id }) => {
     body: input.body,
     summary: input.summary ? resolveSummary(input.summary, input.summaryToken) : null,
   });
+  if (input.title !== undefined || input.body !== undefined) {
+    after(() => aiModeratePost(id).catch((err) => console.error("[moderation]", err)));
+  }
   return json({ post });
 });
 

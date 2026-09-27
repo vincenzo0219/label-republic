@@ -15,6 +15,11 @@ export function PostCard({ post, terms, showCategory = true }: { post: PostCardD
           {showCategory && <span className="badge badge-cat">{post.category.name}</span>}
           <TrustBadge tier={post.trust_tier} />
           {post.is_ai_curated && <AiBadge />}
+          {post.is_suppressed && (
+            <span className="badge badge-pending" title="스팸·광고 패턴이 감지되어 노출 순위가 낮아진 글">
+              ⚠ 광고 의심
+            </span>
+          )}
         </div>
         <h2 className="card-title">
           <Highlight text={post.title} terms={terms} />

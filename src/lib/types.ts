@@ -27,6 +27,8 @@ export type PostCard = {
   comment_count: number;
   trust_tier: TrustTier;
   is_ai_curated: boolean;
+  /** AI 1차 정화로 노출 순위가 낮아진 글 */
+  is_suppressed: boolean;
   created_at: string;
 };
 
@@ -34,6 +36,7 @@ export type PostDetail = PostCard & {
   body: string;
   report_count: number;
   is_blinded: boolean;
+  moderation_note: string;
   updated_at: string;
 };
 

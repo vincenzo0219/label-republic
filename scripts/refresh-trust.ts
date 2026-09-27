@@ -1,24 +1,15 @@
 /**
- * 신뢰도 배지 배치 재계산 — cron 등으로 주기 실행 (예: 10분마다).
- * 투표가 없어도 "게시 24시간 경과"로 검증 대기가 풀리는 글을 반영하기 위해 필요하다.
+ * 신뢰도 배지 수동 재계산. 평소에는 server.ts 내장 스케줄러(TRUST_REFRESH_INTERVAL_SEC)가 주기 실행한다.
  */
-import { Client } from "pg";
+import { pool } from "../src/lib/db";
+import { runTrustBatch } from "../src/lib/jobs/trust";
 
-async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
-  await client.connect();
-  try {
-    const { rows } = await client.query<{ id: number; name: string }>("SELECT id, name FROM categories ORDER BY id");
-    for (const c of rows) {
-      const res = await client.query<{ changed: number }>("SELECT refresh_trust_tiers($1) AS changed", [c.id]);
-      console.log(`${c.name}: ${res.rows[0]!.changed} posts updated`);
-    }
-  } finally {
-    await client.end();
-  }
-}
-
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+runTrustBatch()
+  .then((r) => {
+    console.log(r.ran ? `re-tiered ${r.changed} posts across ${r.categories} categories` : "another batch is running; skipped");
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  })
+  .finally(() => pool().end());

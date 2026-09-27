@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:migrate": "tsx scripts/migrate.ts",
-    "trust:refresh": "tsx scripts/refresh-trust.ts"
+    "trust:refresh": "tsx scripts/refresh-trust.ts",
+    "summary:backfill": "tsx scripts/backfill-summaries.ts"
   },
   "engines": {
     "node": ">=20"

@@ -1,9 +1,10 @@
 import type { PoolClient } from "pg";
 import { query, tx, isUniqueViolation } from "../db";
-import { PAGE_SIZE, TRUST_MIN_VOTES } from "../config";
+import { PAGE_SIZE } from "../config";
 import { HttpError, blinded, notFound, tooMany } from "../errors";
 import { hashPin } from "../password";
 import { hit } from "../rate-limit";
+import { aiSpam, combine, heuristicSpam, moderationNote, shouldSuppress, type SpamVerdict } from "../moderation";
 import { searchTerms } from "../highlight";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
@@ -12,7 +13,7 @@ import { assertPin } from "./pin-guard";
 
 const CARD_SELECT = `
   p.id, p.nickname, p.title, p.upvotes, p.downvotes, p.comment_count,
-  p.trust_tier, p.is_ai_curated, p.created_at,
+  p.trust_tier, p.is_ai_curated, p.is_suppressed, p.created_at,
   json_build_object('slug', c.slug, 'name', c.name) AS category,
   left(regexp_replace(p.body, '\\s+', ' ', 'g'), 400) AS excerpt,
   CASE WHEN s.id IS NULL THEN NULL ELSE json_build_object(
@@ -24,11 +25,12 @@ const FROM = `
   JOIN categories c ON c.id = p.category_id
   LEFT JOIN ai_summaries s ON s.id = p.ai_summary_id`;
 
+// 스팸 의심(is_suppressed) 글은 모든 정렬에서 맨 뒤로 보낸다 (AI 1차 정화 — 노출 순위 하향)
 const ORDER: Record<SortKey, string> = {
   // enum 순서: pending < none < top19 < top12 < top5
-  trust: "p.trust_tier DESC, (p.upvotes - p.downvotes) DESC, p.created_at DESC, p.id DESC",
-  latest: "p.created_at DESC, p.id DESC",
-  votes: "(p.upvotes - p.downvotes) DESC, p.upvotes DESC, p.created_at DESC, p.id DESC",
+  trust: "p.is_suppressed, p.trust_tier DESC, (p.upvotes - p.downvotes) DESC, p.created_at DESC, p.id DESC",
+  latest: "p.is_suppressed, p.created_at DESC, p.id DESC",
+  votes: "p.is_suppressed, (p.upvotes - p.downvotes) DESC, p.upvotes DESC, p.created_at DESC, p.id DESC",
 };
 
 function escapeLike(term: string) {
@@ -68,7 +70,7 @@ type PostRow = PostDetail & { pw_hash: string; category_id: number };
 
 async function loadPost(id: string, client?: PoolClient, forUpdate = false): Promise<PostRow | null> {
   if (!/^\d{1,18}$/.test(id)) return null;
-  const sql = `SELECT ${CARD_SELECT}, p.body, p.report_count, p.is_blinded, p.updated_at, p.pw_hash, p.category_id
+  const sql = `SELECT ${CARD_SELECT}, p.body, p.report_count, p.is_blinded, p.updated_at, p.moderation_note, p.pw_hash, p.category_id
     ${FROM} WHERE p.id = $1 ${forUpdate ? "FOR UPDATE OF p" : ""}`;
   const rows = client ? (await client.query<PostRow>(sql, [id])).rows : await query<PostRow>(sql, [id]);
   return rows[0] ?? null;
@@ -109,13 +111,15 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
   const summary: ResolvedSummary =
     input.summary ?? { ...(await generateSummary(input.title, input.body)), isAuthorEdited: false };
   const pwHash = await hashPin(input.pin);
+  const spam = heuristicSpam(input.title, input.body);
 
   const id = await tx(async (client) => {
     const cat = await client.query<{ id: number }>("SELECT id FROM categories WHERE slug = $1", [input.categorySlug]);
     if (!cat.rows[0]) throw new HttpError(400, "invalid_category", "존재하지 않는 카테고리입니다.");
     const { rows } = await client.query<{ id: string }>(
-      `INSERT INTO posts (category_id, nickname, pw_hash, title, body) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [cat.rows[0].id, input.nickname, pwHash, input.title, input.body],
+      `INSERT INTO posts (category_id, nickname, pw_hash, title, body, spam_score, is_suppressed, moderation_note, moderated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [cat.rows[0].id, input.nickname, pwHash, input.title, input.body, ...moderationParams(spam)],
     );
     await insertSummary(client, rows[0]!.id, summary);
     return rows[0]!.id;
@@ -131,9 +135,13 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
     if (!post) throw notFound();
     if (post.is_blinded) throw blinded();
     await assertPin(`post:${id}`, fp, pin, post.pw_hash);
+    const title = input.title ?? post.title;
+    const body = input.body ?? post.body;
     await client.query(
-      `UPDATE posts SET title = COALESCE($2, title), body = COALESCE($3, body), updated_at = now() WHERE id = $1`,
-      [id, input.title ?? null, input.body ?? null],
+      `UPDATE posts SET title = $2, body = $3, updated_at = now(),
+         spam_score = $4, is_suppressed = $5, moderation_note = $6, moderated_by = $7
+       WHERE id = $1`,
+      [id, title, body, ...moderationParams(heuristicSpam(title, body))],
     );
     if (input.summary) await insertSummary(client, id, input.summary);
   });
@@ -172,6 +180,33 @@ export async function replaceSummary(
 }
 
 // ---------------------------------------------------------------------------
+// AI 1차 정화
+// ---------------------------------------------------------------------------
+
+function moderationParams(v: SpamVerdict): [number, boolean, string, string] {
+  return [v.score, shouldSuppress(v), moderationNote(v), v.model];
+}
+
+/**
+ * 게시 직후 비동기로 호출: Claude 분류로 규칙 기반 점수를 보정한다.
+ * API 키가 없거나 호출이 실패하면 규칙 기반 판정을 그대로 둔다.
+ * 판정 중 글이 수정됐으면(updated_at 변경) 덮어쓰지 않는다. JS Date는 밀리초 정밀도라 DB 값도 밀리초로 잘라 비교한다.
+ */
+export async function aiModeratePost(id: string): Promise<SpamVerdict | null> {
+  const post = await loadPost(id);
+  if (!post || post.is_blinded) return null;
+  const ai = await aiSpam(post.title, post.body);
+  if (!ai) return null;
+  const verdict = combine(heuristicSpam(post.title, post.body), ai);
+  await query(
+    `UPDATE posts SET spam_score = $2, is_suppressed = $3, moderation_note = $4, moderated_by = $5
+     WHERE id = $1 AND date_trunc('milliseconds', updated_at) = $6::timestamptz`,
+    [id, ...moderationParams(verdict), post.updated_at],
+  );
+  return verdict;
+}
+
+// ---------------------------------------------------------------------------
 // 추천/비추천 — fingerprint당 1표. 같은 값을 다시 누르면 취소, 반대 값이면 변경.
 // ---------------------------------------------------------------------------
 
@@ -196,8 +231,8 @@ export async function votePost(id: string, fp: string, value: 1 | -1): Promise<V
     } else {
       await client.query("UPDATE votes SET value = $3, created_at = now() WHERE post_id = $1 AND voter_fingerprint = $2", [id, fp, value]);
     }
-    // 카테고리별 신뢰도 배지 재계산 (Sprint 2에서 배치 전용으로 옮길 수 있음 — scripts/refresh-trust.ts)
-    await client.query("SELECT refresh_trust_tiers($1, $2)", [post.category_id, TRUST_MIN_VOTES]);
+    // 신뢰도 배지는 투표마다 재계산하지 않고 배치(src/lib/jobs/trust.ts)가 주기적으로 갱신한다.
+    // 투표 경로에서 카테고리 전체를 UPDATE 하면 같은 카테고리 동시 투표끼리 잠금 경합·교착이 생긴다.
     const { rows } = await client.query<{ upvotes: number; downvotes: number; trust_tier: string }>(
       "SELECT upvotes, downvotes, trust_tier FROM posts WHERE id = $1",
       [id],

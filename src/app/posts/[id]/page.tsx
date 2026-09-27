@@ -13,10 +13,17 @@ import { fingerprint } from "@/lib/fingerprint";
 import { timeAgo } from "@/lib/format";
 import { listComments } from "@/lib/repo/comments";
 import { getMyVote, getPost } from "@/lib/repo/posts";
+import { EXTRACTIVE_MODEL } from "@/lib/summary";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
+
+function summarySource(s: { model_version: string; is_author_edited: boolean }): string {
+  if (s.model_version === "author") return "작성자 작성";
+  const base = s.model_version === EXTRACTIVE_MODEL ? "자동 추출 요약" : "AI 생성";
+  return s.is_author_edited ? `${base} · 작성자 수정` : base;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await getPost((await params).id);
@@ -89,17 +96,18 @@ export default async function PostPage({ params }: Props) {
         </div>
       </header>
 
+      {post.is_suppressed && (
+        <div className="notice" style={{ marginTop: 12 }}>
+          ⚠ 스팸·광고 패턴이 감지되어 노출 순위가 낮아진 글입니다{post.moderation_note ? ` (${post.moderation_note})` : ""}. 판단은
+          추천/비추천과 신고로 커뮤니티가 최종 결정합니다.
+        </div>
+      )}
+
       {post.summary && (
         <section className="ai-card" aria-label="3줄 요약">
           <h2>
             📌 3줄 요약
-            <span>
-              {post.summary.model_version === "author"
-                ? "작성자 작성"
-                : post.summary.is_author_edited
-                  ? "AI 생성 · 작성자 수정"
-                  : "AI 생성 · 작성자 검수"}
-            </span>
+            <span>{summarySource(post.summary)}</span>
           </h2>
           <SummaryLines lines={post.summary.lines} />
         </section>
