@@ -343,3 +343,24 @@ mark { background: var(--mark); color: var(--text); border-radius: 3px; padding:
 .digest-inline .summary-lines { margin-top: 8px; }
 .meetup-list { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 8px; font-size: 14.5px; }
 .meetup-list a { font-weight: 600; }
+
+/* Sprint 11: 모더레이션 */
+.mod-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 10px; }
+.mod-list > li { border-top: 1px solid var(--line); padding-top: 10px; }
+.mod-list > li:first-child { border-top: 0; padding-top: 0; }
+.mod-list p { margin: 4px 0; }
+.mod-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; font-size: 14px; }
+.mod-row a { text-decoration: underline; text-underline-offset: 2px; }
+.mod-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.mod-actions .input-sm { flex: 1 1 220px; min-width: 0; }
+.input-sm { height: 32px; padding: 4px 10px; font-size: 13px; }
+select.input-sm { flex: 0 0 auto; }
+.count-badge { display: inline-block; min-width: 20px; padding: 0 6px; border: 1px solid var(--danger); border-radius: 10px; color: var(--danger); font-size: 12px; line-height: 18px; text-align: center; vertical-align: middle; }
+.appeal-msg { margin: 6px 0; padding: 8px 12px; border-left: 3px solid var(--line); color: var(--text); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.appeal-box { margin-top: 12px; }
+.appeal-box textarea { min-height: 72px; }
+.data-table th { white-space: nowrap; }
+/* 좁은 화면의 공개 기록 표: 글자 단위로 쪼개지지 않게 가로 스크롤 (메모 칸만 줄바꿈) */
+.legal .table-scroll .data-table td { white-space: nowrap; }
+.legal .log-table td:last-child { white-space: normal; min-width: 180px; }
+.legal .data-table th { white-space: normal; }

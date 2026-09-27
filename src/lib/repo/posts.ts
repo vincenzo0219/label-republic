@@ -368,7 +368,8 @@ export async function aiModeratePost(id: string): Promise<SpamVerdict | null> {
   const verdict = combine(heuristicSpam(post.title, post.body), ai);
   await query(
     `UPDATE posts SET spam_score = $2, is_suppressed = $3, moderation_note = $4, moderated_by = $5
-     WHERE id = $1 AND date_trunc('milliseconds', updated_at) = $6::timestamptz`,
+     WHERE id = $1 AND date_trunc('milliseconds', updated_at) = $6::timestamptz
+       AND moderated_by <> 'operator'`, // 운영자가 오탐으로 해제한 뒤 늦게 끝난 AI 판정이 덮어쓰지 않게
     [id, ...moderationParams(verdict), post.updated_at],
   );
   return verdict;

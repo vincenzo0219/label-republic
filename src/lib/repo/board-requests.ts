@@ -6,12 +6,13 @@ import { slugify } from "../slug";
 import type { BoardRequest } from "../types";
 
 const SELECT = `
-  SELECT r.id, r.requested_name, r.description, r.vote_count, r.status, r.created_at,
+  SELECT r.id, r.requested_name, r.description, r.vote_count, r.status, r.created_at, r.merged_into,
          c.slug AS promoted_category_slug
     FROM board_requests r LEFT JOIN categories c ON c.id = r.promoted_category_id`;
 
 export async function listBoardRequests(): Promise<BoardRequest[]> {
-  return query<BoardRequest>(`${SELECT} ORDER BY (r.status = 'open') DESC, r.vote_count DESC, r.id DESC LIMIT 100`);
+  // 거절된 요청은 이름 자체가 불법·유해할 수 있어 목록에 보이지 않는다 (거절 기록은 /transparency 에 번호로 공개)
+  return query<BoardRequest>(`${SELECT} WHERE r.status <> 'rejected' ORDER BY (r.status = 'open') DESC, r.vote_count DESC, r.id DESC LIMIT 100`);
 }
 
 export async function createBoardRequest(name: string, description: string): Promise<BoardRequest> {

@@ -71,7 +71,9 @@ export type BoardRequest = {
   requested_name: string;
   description: string;
   vote_count: number;
-  status: "open" | "promoted" | "duplicate";
+  status: "open" | "promoted" | "duplicate" | "rejected";
+  /** 다른 요청에 병합된 경우 그 요청 번호 */
+  merged_into: string | null;
   promoted_category_slug: string | null;
   created_at: string;
 };

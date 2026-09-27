@@ -110,13 +110,22 @@ export async function scanAbuse(client: PoolClient, now = new Date()): Promise<A
        VALUES ($1, $2, $3, $4, $5, $6, $6)
        ON CONFLICT (kind, subject_type, subject_id) DO UPDATE
          SET detail = EXCLUDED.detail, last_seen = EXCLUDED.last_seen,
-             severity = GREATEST(abuse_alerts.severity, EXCLUDED.severity), hits = abuse_alerts.hits + 1
+             severity = GREATEST(abuse_alerts.severity, EXCLUDED.severity), hits = abuse_alerts.hits + 1,
+             -- 운영자가 처리(무효화·오탐 닫기)한 뒤에 시작된 새 집중이면 알림을 다시 연다
+             status = CASE WHEN ${REOPEN} THEN 'open'::alert_status ELSE abuse_alerts.status END,
+             first_seen = CASE WHEN ${REOPEN} THEN EXCLUDED.first_seen ELSE abuse_alerts.first_seen END,
+             resolved_at = CASE WHEN ${REOPEN} THEN NULL ELSE abuse_alerts.resolved_at END,
+             resolution_note = CASE WHEN ${REOPEN} THEN '' ELSE abuse_alerts.resolution_note END
        WHERE abuse_alerts.detail IS DISTINCT FROM EXCLUDED.detail`,
       [a.kind, a.subjectType, a.subjectId, a.severity, JSON.stringify(a.detail), now.toISOString()],
     );
   }
   return alerts;
 }
+
+// 새 집중의 시작 시각(대량 신고자는 최근 1시간 창의 시작)이 처리 시각보다 뒤인가
+const REOPEN = `(abuse_alerts.status <> 'open' AND abuse_alerts.resolved_at IS NOT NULL
+  AND coalesce((EXCLUDED.detail->>'windowStart')::timestamptz, EXCLUDED.last_seen - interval '1 hour') > abuse_alerts.resolved_at)`;
 
 export type MaintenanceResult = {
   ran: boolean;

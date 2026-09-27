@@ -29,7 +29,7 @@ export async function applyLegalHold(postId: string, reason: LegalReason, note: 
        WHERE id = $1`,
       [postId, reason, LEGAL_HOLD_DAYS],
     );
-    await client.query("INSERT INTO moderation_log (action, post_id, reason, note) VALUES ('legal_hold', $1, $2, $3)", [postId, reason, note]);
+    await client.query("INSERT INTO moderation_log (action, post_id, subject_id, reason, note) VALUES ('legal_hold', $1, $4, $2, $3)", [postId, reason, note, postId]);
   });
 }
 
@@ -51,19 +51,34 @@ export async function releaseLegalHold(postId: string, note: string): Promise<{ 
        WHERE id = $1`,
       [postId, stillBlinded],
     );
-    await client.query("INSERT INTO moderation_log (action, post_id, reason, note) VALUES ('legal_release', $1, $2, $3)", [
+    await client.query("INSERT INTO moderation_log (action, post_id, subject_id, reason, note) VALUES ('legal_release', $1, $4, $2, $3)", [
       postId,
       row.legal_hold_reason,
       note,
+      postId,
     ]);
     return { stillBlinded };
   });
 }
 
-export type ModerationLogRow = { id: string; action: "legal_hold" | "legal_release"; post_id: string; reason: LegalReason | null; note: string; created_at: string };
+export type ModerationLogRow = {
+  id: string;
+  action: import("./operator").ModAction;
+  post_id: string | null;
+  subject_type: "post" | "board_request" | "fingerprint";
+  subject_id: string;
+  /** 법적 임시조치 사유(LegalReason) 또는 보드 요청 거절 사유(BoardRejectReason) */
+  reason: string | null;
+  note: string;
+  affected: number;
+  created_at: string;
+};
 
 export async function moderationLog(limit = 100): Promise<ModerationLogRow[]> {
-  return query<ModerationLogRow>("SELECT id, action, post_id, reason, note, created_at FROM moderation_log ORDER BY id DESC LIMIT $1", [limit]);
+  return query<ModerationLogRow>(
+    "SELECT id, action, post_id, subject_type, subject_id, reason, note, affected, created_at FROM moderation_log ORDER BY id DESC LIMIT $1",
+    [limit],
+  );
 }
 
 export type HeldPost = { id: string; title: string; reason: LegalReason; held_at: string; until: string; overdue: boolean };
@@ -77,7 +92,7 @@ export async function activeLegalHolds(): Promise<HeldPost[]> {
   );
 }
 
-export type MonthlyStats = { month: string; auto_blinds: number; legal_holds: number; legal_releases: number };
+export type MonthlyStats = { month: string; auto_blinds: number; legal_holds: number; legal_releases: number; corrections: number };
 
 /** 공개 투명성 통계: 최근 6개월 자동 블라인드 / 임시조치 / 해제 건수 */
 export async function transparencyStats(): Promise<MonthlyStats[]> {
@@ -93,7 +108,10 @@ export async function transparencyStats(): Promise<MonthlyStats[]> {
             (SELECT count(*)::int FROM moderation_log l WHERE l.action = 'legal_hold'
                AND to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS legal_holds,
             (SELECT count(*)::int FROM moderation_log l WHERE l.action = 'legal_release'
-               AND to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS legal_releases
+               AND to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS legal_releases,
+            -- 운영자 정정 (조작 무효화·AI 오탐 해제·재검토 기각·보드 요청 정리)
+            (SELECT count(*)::int FROM moderation_log l WHERE l.action NOT IN ('legal_hold', 'legal_release')
+               AND to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS corrections
        FROM m ORDER BY m.month DESC`,
   );
 }

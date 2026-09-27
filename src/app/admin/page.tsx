@@ -6,6 +6,8 @@ import { kstDay } from "@/lib/metrics";
 import * as m from "@/lib/repo/metrics";
 import { LegalHoldPanel } from "@/components/admin/LegalHoldPanel";
 import { activeLegalHolds, LEGAL_REASONS } from "@/lib/repo/legal";
+import { pendingCounts } from "@/lib/repo/operator";
+import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "운영 대시보드", robots: { index: false, follow: false } };
@@ -16,13 +18,6 @@ const SOURCE_LABEL: Record<string, string> = {
   referral: "다른 사이트",
   direct: "직접 방문",
   internal: "사이트 내부",
-};
-
-const ALERT_LABEL: Record<string, string> = {
-  report_burst: "신고 집중",
-  vote_burst: "투표 집중",
-  board_vote_burst: "보드 투표 집중",
-  mass_reporter: "대량 신고자",
 };
 
 function addDays(day: string, n: number) {
@@ -38,28 +33,6 @@ function sum<T>(rows: T[], f: (r: T) => number) {
 function fmtTime(iso: string | null) {
   if (!iso) return "-";
   return new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-function alertSubject(a: m.AlertRow) {
-  if (a.subject_type === "post") return <Link href={`/posts/${a.subject_id}`}>글 #{a.subject_id} {typeof a.detail.title === "string" ? `· ${a.detail.title}` : ""}</Link>;
-  if (a.subject_type === "board_request") return <Link href="/boards">보드 요청 #{a.subject_id} {typeof a.detail.name === "string" ? `· ${a.detail.name}` : ""}</Link>;
-  return <code>{a.subject_id}…</code>;
-}
-
-function alertSummary(a: m.AlertRow) {
-  const d = a.detail as Record<string, number | string | boolean | null>;
-  switch (a.kind) {
-    case "report_burst":
-      return `15분 내 신고 ${d.reports}건 중 ${d.fromNewFingerprints}건이 갓 생긴 fingerprint${d.blinded ? " · 블라인드됨" : ""}`;
-    case "vote_burst":
-      return `15분 내 투표 ${d.votes}건 중 ${d.fromNewFingerprints}건이 갓 생긴 fingerprint (현재 ▲${d.upvotes} ▼${d.downvotes})`;
-    case "board_vote_burst":
-      return `15분 내 투표 ${d.votes}건 중 ${d.fromNewFingerprints}건이 갓 생긴 fingerprint · 상태 ${d.status}`;
-    case "mass_reporter":
-      return `최근 1시간 신고 ${d.reportsLastHour}건 · ${d.note}`;
-    default:
-      return JSON.stringify(d);
-  }
 }
 
 const RANGES = [7, 30, 90] as const;
@@ -90,7 +63,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.jobHealth(),
       m.openBoardRequests(),
     ]);
-  const holds = await activeLegalHolds();
+  const [holds, pending] = await Promise.all([activeLegalHolds(), pendingCounts()]);
 
   const last7 = daily.slice(-range);
   const prev7 = daily.slice(-2 * range, -range);
@@ -107,6 +80,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <h1>운영 대시보드</h1>
         <p className="hint">
           최근 {range}일({cur[0]} ~ {cur[1]}, KST) · 직전 {range}일과 비교 · 지표 우선순위: 검색 유입 → 조회 → 참여 → 재방문
+        </p>
+        <p>
+          <Link className="btn btn-sm" href="/admin/moderation">
+            🛡 모더레이션{pending.appeals + pending.alerts > 0 ? ` · 재검토 요청 ${pending.appeals} · 열린 알림 ${pending.alerts}` : ""}
+          </Link>
         </p>
         <nav className="type-filter" aria-label="기간">
           {RANGES.map((r) => (
@@ -205,7 +183,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <section className="panel">
         <h2>
-          어뷰징 모니터링 <span className="hint">— 자동 처분 없이 기록만 합니다 (방장 없는 구조)</span>
+          어뷰징 모니터링 <span className="hint">— 탐지는 자동, 처분은 없음. 조작이 확인되면 <Link href="/admin/moderation">모더레이션</Link>에서 무효화(공개 기록)</span>
         </h2>
         <div className="stat-row small">
           <StatTile label="최근 24시간 알림" value={openAlerts.length} />

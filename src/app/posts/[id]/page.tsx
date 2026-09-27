@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { AppealBox } from "@/components/AppealBox";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
 import { ReportButton } from "@/components/ReportButton";
@@ -17,6 +18,7 @@ import { timeAgo } from "@/lib/format";
 import { listComments } from "@/lib/repo/comments";
 import { LEGAL_HOLD_DAYS, LEGAL_REASONS, type LegalReason } from "@/lib/repo/legal";
 import { isAttending, listParticipants } from "@/lib/repo/meetups";
+import { getAppeal } from "@/lib/repo/operator";
 import { getMyVote, getPost as getPostUncached } from "@/lib/repo/posts";
 import { EXTRACTIVE_MODEL } from "@/lib/summary";
 
@@ -75,20 +77,24 @@ export default async function PostPage({ params }: Props) {
             게시글입니다. 임시조치는 최대 {LEGAL_HOLD_DAYS}일이며, 모든 조치는 <Link href="/transparency">투명성 기록</Link>에 공개됩니다.
           </div>
         ) : (
-          <div className="notice" style={{ marginTop: 24 }}>
-            🚫 신고 {post.report_count}회 누적으로 자동 블라인드된 게시글입니다. 라벨공화국은 방장 없이 커뮤니티 신고로만 정화됩니다.
-          </div>
+          <>
+            <div className="notice" style={{ marginTop: 24 }}>
+              🚫 신고 {post.report_count}회 누적으로 자동 블라인드된 게시글입니다. 라벨공화국은 방장 없이 커뮤니티 신고로만 정화됩니다.
+            </div>
+            {!post.is_ai_curated && <AppealBox postId={post.id} initial={await getAppeal(post.id)} />}
+          </>
         )}
       </>
     );
   }
 
   const fp = fingerprint(await headers());
-  const [comments, myVote, participants, attending] = await Promise.all([
+  const [comments, myVote, participants, attending, appeal] = await Promise.all([
     listComments(id),
     getMyVote(id, fp),
     post.meetup ? listParticipants(id) : Promise.resolve([]),
     post.meetup ? isAttending(id, fp) : Promise.resolve(false),
+    post.is_suppressed && !post.is_ai_curated ? getAppeal(id) : Promise.resolve(null),
   ]);
 
   // 검색엔진용 구조화 데이터 (SEO) — 정모는 Event 로 표시
@@ -154,6 +160,7 @@ export default async function PostPage({ params }: Props) {
         <div className="notice" style={{ marginTop: 12 }}>
           ⚠ 스팸·광고 패턴이 감지되어 노출 순위가 낮아진 글입니다{post.moderation_note ? ` (${post.moderation_note})` : ""}. 판단은
           추천/비추천과 신고로 커뮤니티가 최종 결정합니다.
+          {!post.is_ai_curated && <AppealBox postId={post.id} initial={appeal} />}
         </div>
       )}
 

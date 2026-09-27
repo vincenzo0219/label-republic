@@ -56,8 +56,11 @@ export function BoardRequests({ initial, threshold }: { initial: BoardRequest[];
           <div className="card-top">
             {r.status === "promoted" ? (
               <span className="badge badge-top5">개설됨</span>
+            ) : r.status === "duplicate" && r.merged_into ? (
+              <span className="badge badge-cat">같은 주제의 요청에 병합됨</span>
             ) : r.status === "duplicate" ? (
               <span className="badge badge-cat">기존 보드와 중복</span>
+
             ) : r.vote_count >= threshold ? (
               <span className="badge badge-pending">⏳ 개설 대기</span>
             ) : (

@@ -151,6 +151,21 @@ npm run perf:load -- --base http://localhost:3000 --duration 15 --concurrency 20
 
 > 마이그레이션 `010`은 인덱스를 잠금 모드로 만들므로, 글이 많은 운영 DB에서는 글쓰기가 잠시 멈춥니다(글 1만 건당 수 초). 트래픽이 적을 때 적용하세요.
 
+### Sprint 11 — 운영자 모더레이션 도구
+
+방장 없는 원칙은 그대로 두고, 오픈 후 운영자가 **자동 규칙의 오작동만 바로잡을 수 있게** 했습니다. 운영자가 글을 골라 숨기거나 되살리는 기능은 없습니다.
+
+| 조치 | 조건·동작 | 공개 |
+|---|---|---|
+| 조작 무효화 | 탐지 배치가 만든 어뷰징 알림에서만 실행. 대상은 탐지 기준과 같음(대상에 대한 "갓 생긴 fingerprint"의 신고·투표, 대량 신고자의 신고 전부). 미리보기로 건수 확인 후 실행 → 신고 수·블라인드·추천 수·보드 표를 **자동 규칙이 다시 계산**. 신고는 지우지 않고 무효 표시(같은 사람 재신고 불가) | ✅ |
+| 알림 오탐 닫기 | 아무것도 바꾸지 않음. 처리 뒤 새로 시작된 집중이면 알림이 다시 열림 | 내부 기록 |
+| AI 광고 의심 해제 | 오탐만 해제(운영자가 광고로 표시하는 기능은 없음). 늦게 끝난 AI 판정이 덮어쓰지 않음 | ✅ |
+| 재검토 요청 | 블라인드·광고 의심 글의 작성자가 글 화면에서 4자리 비밀번호로 **글당 한 번** 요청(설명은 운영자만 봄). 위 조치로 글이 다시 보이면 자동 수용, 아니면 사유를 공개하고 기각. 처리 상태는 글 화면에 표시 | ✅ |
+| 보드 요청 거절·병합 | 불법·광고·특정인 대상 요청 거절(공개 목록에서 숨김), 같은 주제 요청은 표를 합쳐(중복 투표자는 한 표) 병합. 개설은 여전히 투표로만, 이미 열린 보드는 닫지 않음 | ✅ |
+
+- 화면: `/admin/moderation` (대시보드에 대기 건수 표시), API: `POST /api/admin/moderation`, `GET /api/admin/moderation/preview`, `POST /api/posts/:id/appeal`
+- `/transparency`에 모든 운영자 조치(대상·사유·건수·메모)와 월별 "운영자 정정" 건수 공개. 운영 원칙·이용약관·개인정보처리방침 문구 갱신
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -284,6 +299,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | DELETE | `/api/posts/:id` | 삭제 `{pw}` |
 | POST | `/api/posts/:id/vote` | `{value: 1 \| -1}` |
 | POST | `/api/posts/:id/report` | `{reason}` — 5회 누적 자동 블라인드 |
+| GET/POST | `/api/posts/:id/appeal` | 재검토 요청 상태 / 작성자 요청 `{pw, message}` (블라인드·광고 의심 글, 글당 1회) |
 | GET/POST | `/api/posts/:id/comments` | 댓글 목록 / 작성 `{nickname, pw, body}` |
 | DELETE | `/api/comments/:id` | 댓글 삭제 `{pw}` |
 | GET | `/api/report?boards=&since=&count=` | 개인화 리포트 (관심 보드는 클라이언트가 전달, 서버 미저장) |
@@ -293,6 +309,9 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/posts/:id/summary` | 등록된 글 요약 재생성/교체 `{pw, summary?}` |
 | GET/POST | `/api/board-requests` | 보드 요청 목록 / 생성 `{name, description}` |
 | POST | `/api/board-requests/:id/vote` | 보드 요청 투표 (임계치 도달 시 자동 승격) |
+| POST | `/api/admin/legal-hold` | 🔒 법적 임시조치 `{action: hold\|release, postId, reason?, note}` |
+| POST | `/api/admin/moderation` | 🔒 `{action: void_alert\|dismiss_alert\|release_suppression\|reject_appeal\|reject_board_request\|merge_board_request, ...}` |
+| GET | `/api/admin/moderation/preview?alertId=` | 🔒 무효화 대상 건수 |
 | WS | `/ws/comments?postId=` | 댓글 `created`/`deleted` 이벤트 푸시 |
 
 에러 응답 형식: `{"error": {"code": "wrong_password", "message": "비밀번호가 일치하지 않습니다."}}`
@@ -321,5 +340,4 @@ tests/                unit, curator, db, monitoring, community, launch, ratelimi
 
 ## 다음 스프린트로 넘긴 것
 
-- 어뷰징 알림을 커뮤니티에 공개(투명성 로그)할지 결정
 - 한 글에 초당 수백 건 넘는 투표가 필요해지면 투표 카운터를 별도 테이블로 분리 (지금은 글 행 갱신 시 검색 인덱스도 다시 써서 한 글당 약 250 votes/s)
