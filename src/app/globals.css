@@ -332,3 +332,14 @@ mark { background: var(--mark); color: var(--text); border-radius: 3px; padding:
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Sprint 8: 개인화 리포트 */
+.report-link { position: relative; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 17px; flex: 0 0 auto; }
+.report-badge { position: absolute; top: -4px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+.report-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.board-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 8px; }
+.digest-inline { margin: 0 0 10px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--brand) 6%, var(--surface)); font-size: 14px; }
+.digest-inline summary { cursor: pointer; font-weight: 600; }
+.digest-inline .summary-lines { margin-top: 8px; }
+.meetup-list { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 8px; font-size: 14.5px; }
+.meetup-list a { font-weight: 600; }

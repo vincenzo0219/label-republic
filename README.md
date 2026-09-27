@@ -84,6 +84,19 @@
 | 어뷰징 탐지 최적화 | 15분 창 집계를 자기 조인(대상별 O(n²)) → 윈도 함수로 교체. 합성 4만 건 기준 **4.8초 → 55ms**, 결과 동일 |
 | 대시보드 기간 | `/admin?range=7\|30\|90` — 같은 길이의 직전 기간과 비교 |
 
+### Sprint 8 — 개인화 리포트 (개인정보 없는 방식)
+
+기획안의 P2 "개인화 리포트"를 **회원가입·이메일 없이** 구현했습니다.
+
+| 영역 | 구현 |
+|---|---|
+| 관심 보드 | 보드 페이지의 ☆ 버튼 또는 `/me`에서 선택. **브라우저 localStorage에만 저장**, 서버 저장 없음 |
+| `/me` 내 리포트 | 마지막 확인 이후 관심 보드의 새 [정보]·[정모] 글(신뢰도순, 3줄 요약), 다가오는 정모, 보드별 주간 다이제스트. 리포트를 보여준 뒤에만 "확인함" 기록 (첫 방문은 최근 7일) |
+| 헤더 📬 배지 | 관심 보드의 새 글 개수 |
+| 주간 다이제스트 | 보드 단위로 배치(`DIGEST_INTERVAL_SEC`, 기본 1시간, 보드당 20시간에 한 번)에서 생성해 공유 — **LLM 비용이 사용자 수와 무관**, 사용자 데이터가 LLM으로 가지 않음. 사람이 쓴 정보 글만 대상(AI 큐레이터·광고 의심·블라인드 제외). Claude 요약 + 키 없을 때 추출식. 보드 페이지 상단에도 표시 |
+| RSS/Atom | `/feed.xml`, `/c/:slug/feed.xml` — 정보·정모 글, `<link rel="alternate">` 자동 발견 |
+| API | `GET /api/report?boards=a,b&since=ISO[&count=1]` — 사용자별 정보가 없어 60초 공유 캐시 |
+
 **개인정보**: 방문자는 무작위 쿠키(`lr_vid`, httpOnly, 1년) 값의 HMAC으로만 식별하고 IP·UA는 저장하지 않습니다. 레퍼러는 호스트만 저장합니다. 개인정보처리방침에 분석 쿠키 사용을 고지하세요.
 
 ## 기술 스택
@@ -154,6 +167,7 @@ docker compose up --build
 | `OPERATOR_NAME` / `HOSTING_PROVIDER` | 개인정보처리방침의 운영 주체 / 처리위탁 고지 |
 | `LEGAL_EFFECTIVE_DATE` | 법률 검토를 마친 약관·방침 시행일. 비우면 "검토 전 초안" 배너 |
 | `RUN_MIGRATIONS` | Docker 시작 시 마이그레이션 적용 |
+| `DIGEST_INTERVAL_SEC` | 보드 주간 다이제스트 배치 주기 (기본 3600초, 0이면 끔) |
 | `RATE_LIMIT_BACKEND` | `postgres`(운영 기본, 인스턴스 간 공유) / `memory`(개발 기본) |
 | `ENV_CHECK=warn` | 로컬에서 운영 빌드 시험용 — 환경변수 오류를 경고로 낮춤 (운영 금지) |
 
@@ -216,6 +230,8 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/posts/:id/report` | `{reason}` — 5회 누적 자동 블라인드 |
 | GET/POST | `/api/posts/:id/comments` | 댓글 목록 / 작성 `{nickname, pw, body}` |
 | DELETE | `/api/comments/:id` | 댓글 삭제 `{pw}` |
+| GET | `/api/report?boards=&since=&count=` | 개인화 리포트 (관심 보드는 클라이언트가 전달, 서버 미저장) |
+| GET | `/feed.xml`, `/c/:slug/feed.xml` | Atom 피드 |
 | GET/POST | `/api/posts/:id/rsvp` | 정모 참가자 목록 / 참가 토글 `{nickname}` (확정 인원 도달 시 자동 확정) |
 | POST | `/api/summary/preview` | 글쓰기 단계 요약 미리보기 `{title, body}` |
 | POST | `/api/posts/:id/summary` | 등록된 글 요약 재생성/교체 `{pw, summary?}` |
@@ -234,7 +250,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 008_rate_limits.sql
+db/migrations/        001_schema.sql … 009_board_digests.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
@@ -242,7 +258,7 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch, ratelimit (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit, report (*.test.ts)
 .github/workflows/    ci.yml
 ```
 

@@ -78,6 +78,43 @@ export async function listPosts(params: ListParams): Promise<{ items: PostCard[]
   return { items, total: count[0]!.total, page, pageSize };
 }
 
+/**
+ * 개인화 리포트용: 선택한 보드들의 since 이후 새 [정보]·[정모] 글 (잡담·블라인드·광고 의심 제외), 신뢰도순.
+ * total 은 limit 과 무관한 전체 개수.
+ */
+export async function listNewPosts(categoryIds: number[], since: Date, limit = 30): Promise<{ items: PostCard[]; total: number }> {
+  if (!categoryIds.length) return { items: [], total: 0 };
+  const where = `NOT p.is_blinded AND NOT p.is_suppressed AND p.post_type <> 'chat'
+    AND p.category_id = ANY($1::int[]) AND p.created_at > $2::timestamptz`;
+  const [items, count] = await Promise.all([
+    query<PostCard>(`SELECT ${CARD_SELECT} ${FROM} WHERE ${where} ORDER BY ${ORDER.trust} LIMIT $3`, [categoryIds, since.toISOString(), limit]),
+    query<{ total: number }>(`SELECT count(*)::int AS total FROM posts p WHERE ${where}`, [categoryIds, since.toISOString()]),
+  ]);
+  return { items, total: count[0]!.total };
+}
+
+/** RSS/Atom 피드용: 최신 [정보]·[정모] 글 (잡담·블라인드·광고 의심 제외) */
+export async function listFeedPosts(categoryId?: number, limit = 30): Promise<(PostCard & { updated_at: string })[]> {
+  return query(
+    `SELECT ${CARD_SELECT}, p.updated_at ${FROM}
+      WHERE NOT p.is_blinded AND NOT p.is_suppressed AND p.post_type <> 'chat' ${categoryId ? "AND p.category_id = $2" : ""}
+      ORDER BY p.created_at DESC, p.id DESC LIMIT $1`,
+    categoryId ? [limit, categoryId] : [limit],
+  );
+}
+
+/** 선택한 보드들의 다가오는 정모 (확정·모집 중) */
+export async function listUpcomingMeetups(categoryIds: number[], now = new Date(), limit = 10): Promise<PostCard[]> {
+  if (!categoryIds.length) return [];
+  return query<PostCard>(
+    `SELECT ${CARD_SELECT} ${FROM}
+      WHERE NOT p.is_blinded AND NOT p.is_suppressed AND p.category_id = ANY($1::int[])
+        AND mt.post_id IS NOT NULL AND mt.status <> 'expired' AND mt.meet_at > $2::timestamptz
+      ORDER BY mt.meet_at LIMIT $3`,
+    [categoryIds, now.toISOString(), limit],
+  );
+}
+
 type PostRow = PostDetail & { pw_hash: string; category_id: number };
 
 async function loadPost(id: string, client?: PoolClient, forUpdate = false): Promise<PostRow | null> {

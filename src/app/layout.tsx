@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
+import { ReportLink } from "@/components/ReportLink";
 import { config } from "@/lib/config";
 import "./globals.css";
 
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
     "노방장 커뮤니티 라벨공화국. 영양제·사료 성분표부터 키보드 스위치, 데스크테리어, 향수·오디오까지 — 완장질 없이 집단지성으로 검증하는 성분/취미 정보 아카이브.",
   applicationName: "라벨공화국",
   openGraph: { siteName: "라벨공화국", type: "website", locale: "ko_KR" },
-  alternates: { canonical: "/" },
+  alternates: { canonical: "/", types: { "application/atom+xml": [{ url: "/feed.xml", title: "라벨공화국 새 글" }] } },
 };
 
 export const viewport: Viewport = {
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <form action="/search" method="get" role="search" aria-label="사이트 검색" className="header-search">
               <input type="search" name="q" placeholder="성분, 제품, 스위치 검색" aria-label="검색어" maxLength={100} />
             </form>
+            <ReportLink />
             <Link href="/write" className="btn btn-primary">
               글쓰기
             </Link>

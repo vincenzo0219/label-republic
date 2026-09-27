@@ -18,6 +18,7 @@ import { pool } from "./src/lib/db";
 import { checkEnv } from "./src/lib/env-check";
 import { CLIENT_IP_HEADER } from "./src/lib/fingerprint";
 import { startCuratorScheduler } from "./src/lib/jobs/curator";
+import { startDigestScheduler } from "./src/lib/jobs/digest";
 import { startMaintenanceScheduler } from "./src/lib/jobs/maintenance";
 import { startTrustScheduler } from "./src/lib/jobs/trust";
 
@@ -174,6 +175,8 @@ app.prepare().then(async () => {
   if (config.curatorIntervalSec > 0) startCuratorScheduler(config.curatorIntervalSec * 1000);
   // 어뷰징 탐지 · 보류된 보드 승격 · 오래된 지표 정리
   if (config.maintenanceIntervalSec > 0) startMaintenanceScheduler(config.maintenanceIntervalSec * 1000);
+  // 보드별 주간 다이제스트 (개인화 리포트용, 보드 단위 공유 캐시)
+  if (config.digestIntervalSec > 0) startDigestScheduler(config.digestIntervalSec * 1000);
   server.listen(port, hostname, () => {
     console.log(`> 라벨공화국 ready on http://${hostname}:${port} (${dev ? "dev" : "prod"})`);
   });

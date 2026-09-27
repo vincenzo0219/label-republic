@@ -84,6 +84,11 @@ export const config = {
     if (v === "memory" || v === "postgres") return v;
     return isProd ? "postgres" : "memory";
   },
+  /** 보드 주간 다이제스트 배치 주기(초). 0이면 끔 */
+  get digestIntervalSec() {
+    const n = Number(process.env.DIGEST_INTERVAL_SEC ?? 3600);
+    return Number.isFinite(n) && n >= 0 ? n : 3600;
+  },
   get boardPromotionThreshold() {
     const n = Number(process.env.BOARD_PROMOTION_THRESHOLD);
     return Number.isInteger(n) && n > 0 ? n : 50;
