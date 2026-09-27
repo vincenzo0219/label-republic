@@ -20,8 +20,38 @@ export type DailyRow = {
 
 const KST = "Asia/Seoul";
 
+// 지난 날짜의 일별 집계는 바뀌지 않으므로 프로세스 메모리에 보관하고, 오늘과 아직 없는 날짜만 다시 센다.
+// (투표·댓글·조회가 많으면 90일 집계 한 번에 수 초가 걸린다)
+const g = globalThis as unknown as { __labelRepDailyCache?: Map<string, DailyRow> };
+const dailyCache = (g.__labelRepDailyCache ??= new Map<string, DailyRow>());
+
+function shiftDay(day: string, delta: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
 export async function dailySeries(days = 30, now = new Date()): Promise<DailyRow[]> {
   const today = kstDay(now);
+  const wanted = Array.from({ length: days }, (_, i) => shiftDay(today, i - days + 1));
+  const firstMissing = wanted.find((d) => d !== today && !dailyCache.has(d));
+  // 비어 있는 가장 이른 날부터 오늘까지 한 번에 센다 (보통은 오늘 하루)
+  const span = firstMissing ? wanted.length - wanted.indexOf(firstMissing) : 1;
+  const fresh = await dailyRows(today, span);
+  for (const r of fresh) if (r.day !== today) dailyCache.set(r.day, r);
+  if (dailyCache.size > 400) {
+    for (const k of [...dailyCache.keys()].sort().slice(0, dailyCache.size - 400)) dailyCache.delete(k);
+  }
+  const byDay = new Map(fresh.map((r) => [r.day, r]));
+  return wanted.map((d) => byDay.get(d) ?? dailyCache.get(d)!);
+}
+
+/** 테스트용: 일별 집계 캐시 비우기 */
+export function clearDailyCache() {
+  dailyCache.clear();
+}
+
+async function dailyRows(today: string, days: number): Promise<DailyRow[]> {
   return query<DailyRow>(
     `WITH d AS (SELECT generate_series($1::date - ($2::int - 1), $1::date, interval '1 day')::date AS day),
      pv AS (
@@ -133,16 +163,33 @@ export type BoardRow = {
 };
 
 export async function boardStats(): Promise<BoardRow[]> {
+  // 보드별 상관 서브쿼리(보드 수 × 전체 스캔) 대신 최근 7일 범위를 한 번씩만 집계해 붙인다
   const rows = await query<Omit<BoardRow, "curator_interval_hours">>(
-    `SELECT c.slug, c.name, c.auto_promoted_at IS NOT NULL AS auto_promoted,
-            (SELECT count(*)::int FROM posts p WHERE p.category_id = c.id AND NOT p.is_ai_curated AND p.post_type = 'info' AND p.created_at > now() - interval '7 days') AS human_posts_7d,
-            (SELECT count(*)::int FROM posts p WHERE p.category_id = c.id AND p.is_ai_curated AND p.created_at > now() - interval '7 days') AS ai_posts_7d,
-            (SELECT count(*)::int FROM comments m JOIN posts p ON p.id = m.post_id
-              WHERE p.category_id = c.id AND NOT m.is_ai_curated AND m.created_at > now() - interval '7 days') AS comments_7d,
-            (SELECT count(*)::int FROM page_views v JOIN posts p ON p.id = v.post_id
-              WHERE p.category_id = c.id AND v.occurred_at > now() - interval '7 days') AS views_7d,
-            (SELECT count(*)::int FROM curator_queue q WHERE q.category_id = c.id AND q.status = 'queued') AS queued
-       FROM categories c ORDER BY c.sort_order, c.id`,
+    `WITH p7 AS (
+       SELECT category_id,
+              count(*) FILTER (WHERE NOT is_ai_curated AND post_type = 'info')::int AS human_posts_7d,
+              count(*) FILTER (WHERE is_ai_curated)::int AS ai_posts_7d
+         FROM posts WHERE created_at > now() - interval '7 days' GROUP BY category_id
+     ),
+     c7 AS (
+       SELECT p.category_id, count(*)::int AS n FROM comments m JOIN posts p ON p.id = m.post_id
+        WHERE NOT m.is_ai_curated AND m.created_at > now() - interval '7 days' GROUP BY p.category_id
+     ),
+     v7 AS (
+       SELECT p.category_id, count(*)::int AS n FROM page_views v JOIN posts p ON p.id = v.post_id
+        WHERE v.post_id IS NOT NULL AND v.day >= (now() AT TIME ZONE '${KST}')::date - 8 AND v.occurred_at > now() - interval '7 days'
+        GROUP BY p.category_id
+     ),
+     q AS (SELECT category_id, count(*)::int AS n FROM curator_queue WHERE status = 'queued' GROUP BY category_id)
+     SELECT c.slug, c.name, c.auto_promoted_at IS NOT NULL AS auto_promoted,
+            coalesce(p7.human_posts_7d, 0) AS human_posts_7d, coalesce(p7.ai_posts_7d, 0) AS ai_posts_7d,
+            coalesce(c7.n, 0) AS comments_7d, coalesce(v7.n, 0) AS views_7d, coalesce(q.n, 0) AS queued
+       FROM categories c
+       LEFT JOIN p7 ON p7.category_id = c.id
+       LEFT JOIN c7 ON c7.category_id = c.id
+       LEFT JOIN v7 ON v7.category_id = c.id
+       LEFT JOIN q ON q.category_id = c.id
+      ORDER BY c.sort_order, c.id`,
   );
   return rows.map((r) => ({ ...r, curator_interval_hours: curatorIntervalHours({ humanPosts7d: r.human_posts_7d, aiPosts7d: r.ai_posts_7d }) }));
 }

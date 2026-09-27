@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
 import { ReportButton } from "@/components/ReportButton";
@@ -16,10 +17,13 @@ import { timeAgo } from "@/lib/format";
 import { listComments } from "@/lib/repo/comments";
 import { LEGAL_HOLD_DAYS, LEGAL_REASONS, type LegalReason } from "@/lib/repo/legal";
 import { isAttending, listParticipants } from "@/lib/repo/meetups";
-import { getMyVote, getPost } from "@/lib/repo/posts";
+import { getMyVote, getPost as getPostUncached } from "@/lib/repo/posts";
 import { EXTRACTIVE_MODEL } from "@/lib/summary";
 
 export const dynamic = "force-dynamic";
+
+// generateMetadata 와 페이지가 같은 글을 읽으므로 요청 하나 안에서는 한 번만 조회한다
+const getPost = cache(getPostUncached);
 
 type Props = { params: Promise<{ id: string }> };
 

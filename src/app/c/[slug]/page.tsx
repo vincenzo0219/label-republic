@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { FeedView } from "@/components/FeedView";
-import { getCategoryBySlug } from "@/lib/repo/categories";
+import { getCategoryBySlug as getCategoryUncached } from "@/lib/repo/categories";
 import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
+
+// generateMetadata 와 페이지가 같은 보드를 읽으므로 요청 하나 안에서는 한 번만 조회한다
+const getCategoryBySlug = cache(getCategoryUncached);
 
 function decodeSlug(raw: string) {
   try {

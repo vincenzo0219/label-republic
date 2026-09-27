@@ -13,7 +13,10 @@
     "trust:refresh": "tsx scripts/refresh-trust.ts",
     "summary:backfill": "tsx scripts/backfill-summaries.ts",
     "seed:curator": "tsx scripts/seed-curator.ts",
-    "curator:generate": "tsx scripts/curator-generate.ts"
+    "curator:generate": "tsx scripts/curator-generate.ts",
+    "perf:load": "tsx scripts/perf/load.ts",
+    "perf:queries": "tsx scripts/perf/queries.ts",
+    "perf:jobs": "tsx scripts/perf/jobs.ts"
   },
   "engines": {
     "node": ">=20"

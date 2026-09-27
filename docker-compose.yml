@@ -21,6 +21,8 @@ services:
     environment:
       DATABASE_URL: postgres://labelrep:labelrep@db:5432/labelrep
       RUN_MIGRATIONS: "true"
+      # CPU 코어 수만큼 워커 (Sprint 10)
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-auto}
     ports:
       - "3000:3000"
     depends_on:

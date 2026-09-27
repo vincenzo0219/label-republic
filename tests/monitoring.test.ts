@@ -232,17 +232,30 @@ d("monitoring (database)", async () => {
     await metrics.recordPageView({ visitorHash: other, path: p, source: "search", referrerHost: "search.naver.com", landing: true });
 
     expect((await posts.getPost(post.id)) as unknown as { view_count?: number }).toBeTruthy();
+    // 조회수는 버퍼에 모았다가 한 번에 반영된다
+    const [{ view_count: before }] = await query<{ view_count: number }>("SELECT view_count FROM posts WHERE id = $1", [post.id]);
+    expect(before).toBe(0);
+    expect(await metrics.flushViewCounts()).toBe(1);
+    expect(await metrics.flushViewCounts()).toBe(0);
     const [{ view_count }] = await query<{ view_count: number }>("SELECT view_count FROM posts WHERE id = $1", [post.id]);
     expect(view_count).toBe(3);
 
     const [v] = await query<{ visit_days: number }>("SELECT visit_days FROM visitors WHERE visitor_hash = $1", [vh]);
     expect(v!.visit_days).toBe(2);
 
+    dash.clearDailyCache();
     const series = await dash.dailySeries(7);
     expect(series).toHaveLength(7);
     expect(series.reduce((s, r) => s + r.page_views, 0)).toBe(4);
     expect(series.reduce((s, r) => s + r.search_landings, 0)).toBe(2);
     expect(series.at(-1)).toMatchObject({ page_views: 2, visitors: 2, returning_visitors: 1 });
+    // 지난 날짜는 캐시에서, 오늘은 다시 센다
+    await metrics.recordPageView({ visitorHash: other, path: p, source: "direct", referrerHost: null, landing: false });
+    const again = await dash.dailySeries(7);
+    expect(again.slice(0, -1)).toEqual(series.slice(0, -1));
+    expect(again.at(-1)!.page_views).toBe(3);
+    expect((await dash.dailySeries(14)).slice(-7)).toEqual(again);
+    await metrics.flushViewCounts();
 
     const today = metrics.kstDay();
     const weekAgo = metrics.kstDay(new Date(Date.now() - 6 * 86400_000));

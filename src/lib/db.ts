@@ -9,7 +9,7 @@ const g = globalThis as unknown as { __labelRepPool?: Pool };
 
 export function pool(): Pool {
   if (!g.__labelRepPool) {
-    g.__labelRepPool = new Pool({ connectionString: config.databaseUrl, max: 10 });
+    g.__labelRepPool = new Pool({ connectionString: config.databaseUrl, max: config.dbPoolMax });
   }
   return g.__labelRepPool;
 }
@@ -17,6 +17,29 @@ export function pool(): Pool {
 export async function query<T extends QueryResultRow>(text: string, params: unknown[] = []): Promise<T[]> {
   const res = await pool().query<T>(text, params);
   return res.rows;
+}
+
+/** Postgres query_canceled (statement_timeout 초과 포함) */
+export function isQueryCanceled(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { code?: string }).code === "57014";
+}
+
+/**
+ * 실행 시간 상한을 걸고 조회한다 (검색처럼 입력에 따라 비용이 크게 달라지는 쿼리용).
+ * 넘으면 Postgres가 쿼리를 취소하고 isQueryCanceled(err) 인 오류를 던진다.
+ */
+export async function queryWithTimeout<T extends QueryResultRow>(
+  timeoutMs: number,
+  text: string,
+  params: unknown[] = [],
+  opts: { noParallel?: boolean } = {},
+): Promise<T[]> {
+  return tx(async (client) => {
+    await client.query(`SET LOCAL statement_timeout = ${Math.max(1, Math.floor(timeoutMs))}`);
+    // LIMIT 이 있는 쿼리에서 병렬 워커는 필요 이상으로 앞서 읽어 동시 요청이 많을 때 오히려 CPU를 낭비한다
+    if (opts.noParallel) await client.query("SET LOCAL max_parallel_workers_per_gather = 0");
+    return (await client.query<T>(text, params)).rows;
+  });
 }
 
 export async function tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {

@@ -113,6 +113,44 @@
 
 > ⚠️ `TRUST_PROXY=true`는 `X-Forwarded-For`를 **덧붙이는** 프록시 뒤에서만 켜세요. 프록시를 여러 단 거치면 `TRUST_PROXY_HOPS`를 그 수로 맞추세요 (예: CDN → Nginx → 앱 = 2).
 
+### Sprint 10 — 성능·부하 대비
+
+글 20만·댓글 58만·투표 350만·페이지뷰 100만 건을 넣은 DB(`scripts/perf/seed.sql`)에 운영 빌드를 띄우고 부하를 걸어 병목을 찾았습니다. 표의 값은 동시 요청 20개에서의 처리량(req/s)과 p50 지연입니다.
+
+| 화면 | 수정 전 | 수정 후 (프로세스 1개) | 수정 후 (`WEB_CONCURRENCY=4`) |
+|---|---|---|---|
+| 홈 (신뢰도순) | 0.3 req/s · **70초** | 67 · 276ms | 153 · 118ms |
+| 홈 최신순 3페이지 | 0.3 · **64초** | 87 · 225ms | 183 · 107ms |
+| 보드 (신뢰도순) | 18 · 1.1초 | 70 · 275ms | 166 · 118ms |
+| 보드 추천순 깊은 페이지 | 17 · 1.1초 | 63 · 316ms | 160 · 120ms |
+| 검색 | 1 · **23초** | 60 · 326ms | 119 · 161ms |
+| 글 상세 | 111 · 176ms | 129 · 151ms | 295 · 68ms |
+| API 목록 | 22 · 832ms | 338 · 58ms | 560 · 34ms |
+
+| 원인 | 수정 |
+|---|---|
+| 피드 쿼리가 **모든 후보 글의 본문에 `regexp_replace`를 돌린 뒤** 정렬 (홈 1회 4.7초), 정렬 키(`is_suppressed` 선두)에 맞는 인덱스 없음 | 좁은 컬럼으로 정렬·페이지를 먼저 자르고 20건에만 본문 발췌·JOIN. 신뢰도/최신/추천순 × 전체/보드 정렬 인덱스 6개 → 홈 4~8ms |
+| 두 글자 검색어("비교", "철분")는 pg_trgm 인덱스를 못 써 본문 전체 스캔 (드문 검색어 2초+) | 제목+본문 두 글자 조각 GIN 인덱스(`lr_bigrams`). 흔한 조각(Postgres 통계상 1% 이상)은 정렬 인덱스를 따라가는 편이 빨라 자동으로 건너뜀 → 모든 검색어 20ms 이하 |
+| 검색 결과 개수 세기가 결과 조회보다 수십 배 비쌈 | 검색은 개수를 세지 않고 한 건 더 읽어 "다음" 여부만 판단 ("20+개의 글"). 한 글자 검색어만 있으면 안내. 검색 쿼리 3초 상한(넘으면 안내 문구) |
+| 목록 개수 `count(*)` 매 요청 | 1,000건 이상일 때만 15초 캐시. 500페이지 이후는 조회하지 않음 |
+| Node 프로세스 하나가 CPU 코어 1개만 사용 | `WEB_CONCURRENCY`로 cluster 워커 (배치 스케줄러는 0번 워커만, 죽으면 재시작) |
+| 인기 글 투표가 글 행 잠금을 오래 쥠 | 미리 잠그지 않고 카운터 트리거의 잠금만 사용, 커밋 WAL 기록 대기 생략(`synchronous_commit=off`, 투표 한정). 같은 사람 동시 투표는 재시도 → 한 글 몰림 196 → 230~276 votes/s |
+| 조회마다 글 행 UPDATE (인기 글 행 경합) + 페이지뷰 쿼리 3번 | 조회수는 메모리에 모아 10초마다 일괄 반영, 페이지뷰 기록은 쿼리 1번. `posts` fillfactor 85로 HOT 갱신 |
+| 대시보드: 보드별 상관 서브쿼리(9초), 일별 추이가 투표·댓글 전체 스캔(2~4초) | 기간 집계를 한 번씩, `created_at` 인덱스, 지난 날짜 일별 집계는 메모리 캐시 → 0.45초 / 재방문 즉시 |
+| 글 상세·보드 페이지가 메타데이터와 본문에서 같은 글·보드를 두 번 조회 | React `cache()`로 요청당 한 번 |
+
+**측정 도구** (부하 테스트 DB에서만 실행 — 운영 DB 금지)
+
+```bash
+createdb labelrep_perf && DATABASE_URL=.../labelrep_perf npm run db:migrate
+psql -v posts=200000 "postgres://<superuser>@.../labelrep_perf" -f scripts/perf/seed.sql   # 약 6분
+DATABASE_URL=.../labelrep_perf npm run perf:queries    # 피드·검색 쿼리 단건 지연
+DATABASE_URL=.../labelrep_perf npm run perf:jobs       # 배치·대시보드 집계 시간
+npm run perf:load -- --base http://localhost:3000 --duration 15 --concurrency 20 [--writes]
+```
+
+> 마이그레이션 `010`은 인덱스를 잠금 모드로 만들므로, 글이 많은 운영 DB에서는 글쓰기가 잠시 멈춥니다(글 1만 건당 수 초). 트래픽이 적을 때 적용하세요.
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -185,6 +223,8 @@ docker compose up --build
 | `RUN_MIGRATIONS` | Docker 시작 시 마이그레이션 적용 |
 | `DIGEST_INTERVAL_SEC` | 보드 주간 다이제스트 배치 주기 (기본 3600초, 0이면 끔) |
 | `RATE_LIMIT_BACKEND` | `postgres`(운영 기본, 인스턴스 간 공유) / `memory`(개발 기본) |
+| `WEB_CONCURRENCY` | 웹 워커 프로세스 수 (기본 1, `auto` = CPU 수). 2 이상이면 `RATE_LIMIT_BACKEND=postgres` 필수 |
+| `DB_POOL_MAX` | 프로세스당 DB 커넥션 수 (기본 10). 전체 ≈ (값+1) × 워커 × 인스턴스 |
 | `ENV_CHECK=warn` | 로컬에서 운영 빌드 시험용 — 환경변수 오류를 경고로 낮춤 (운영 금지) |
 
 ### 테스트
@@ -270,6 +310,7 @@ db/migrations/        001_schema.sql … 009_board_digests.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
+scripts/perf/         seed.sql(대량 데이터), load.ts(부하), queries.ts(쿼리 지연), jobs.ts(배치 시간)
 server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
@@ -280,4 +321,5 @@ tests/                unit, curator, db, monitoring, community, launch, ratelimi
 
 ## 다음 스프린트로 넘긴 것
 
-- 대시보드 기간 선택(현재 7일/30일 고정), 알림 → 커뮤니티 공개(투명성 로그) 여부 결정
+- 어뷰징 알림을 커뮤니티에 공개(투명성 로그)할지 결정
+- 한 글에 초당 수백 건 넘는 투표가 필요해지면 투표 카운터를 별도 테이블로 분리 (지금은 글 행 갱신 시 검색 인덱스도 다시 써서 한 글당 약 250 votes/s)

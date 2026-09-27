@@ -35,5 +35,9 @@ export function checkEnv(env: Record<string, string | undefined>, production: bo
   if (production && env.TRUST_PROXY !== "true") {
     warnings.push("TRUST_PROXY 가 꺼져 있습니다. 로드밸런서/리버스 프록시 뒤라면 모든 사용자가 같은 IP로 보여 투표·신고 중복 방지가 오작동합니다.");
   }
+  const workers = env.WEB_CONCURRENCY === "auto" ? 2 : Number(env.WEB_CONCURRENCY ?? 1);
+  if (workers > 1 && env.RATE_LIMIT_BACKEND === "memory") {
+    need.push("WEB_CONCURRENCY 가 2 이상인데 RATE_LIMIT_BACKEND=memory 입니다 — 워커마다 따로 세어 레이트 리밋이 워커 수만큼 느슨해집니다. postgres 를 쓰세요.");
+  }
   return { errors, warnings };
 }

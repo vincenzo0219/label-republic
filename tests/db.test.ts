@@ -324,8 +324,50 @@ d("database rules", async () => {
     expect((await posts.listPosts({ sort: "latest", q: "마그네슘 200mg" })).total).toBe(2); // 본문 공통
     expect((await posts.listPosts({ sort: "latest", q: "마그네슘 비교" })).total).toBe(1);
     expect((await posts.listPosts({ sort: "latest", q: "100%" })).total).toBe(1);
-    expect((await posts.listPosts({ sort: "latest", q: "%" })).total).toBe(1);
-    expect((await posts.listPosts({ sort: "latest", q: "_" })).total).toBe(0);
+    // 두 글자 검색어는 bigram 인덱스 경로 — 와일드카드 이스케이프·대소문자 무시가 그대로여야 한다
+    expect((await posts.listPosts({ sort: "latest", q: "0%" })).total).toBe(1);
+    expect((await posts.listPosts({ sort: "latest", q: "0_" })).total).toBe(0); // 이스케이프 안 되면 "00"에 걸림
+    expect((await posts.listPosts({ sort: "latest", q: "비교" })).total).toBe(1);
+    expect((await posts.listPosts({ sort: "latest", q: "적축 MG" })).total).toBe(1);
+    expect((await posts.listPosts({ sort: "trust", q: "없음" })).total).toBe(0);
+    // 한 글자만으로는 검색하지 않는다 (인덱스로 좁힐 수 없음). 다른 검색어와 함께면 추가 조건으로 쓴다.
+    expect(await posts.listPosts({ sort: "latest", q: "% _" })).toMatchObject({ total: 0, tooShort: true });
+    expect((await posts.listPosts({ sort: "latest", q: "스위치 %" })).total).toBe(1);
+  });
+
+  it("keeps vote counters consistent under concurrent votes", async () => {
+    const post = await newPost();
+    // 서로 다른 30명이 동시에 추천 — 글 행을 미리 잠그지 않아도 카운터가 정확해야 한다
+    await Promise.all(Array.from({ length: 30 }, (_, i) => posts.votePost(post.id, String(i).padStart(64, "f"), 1)));
+    // 같은 사람이 동시에 두 번 누른 경우 — 유니크 충돌은 재시도로 흡수되고 토글 규칙대로 끝난다
+    const same = "e".repeat(64);
+    const results = await Promise.all([posts.votePost(post.id, same, -1), posts.votePost(post.id, same, -1)]);
+    expect(results.map((r) => r.myVote).sort()).toEqual([-1, 0]);
+    const [{ up, down, n }] = await query<{ up: number; down: number; n: number }>(
+      `SELECT p.upvotes AS up, p.downvotes AS down, (SELECT count(*)::int FROM votes v WHERE v.post_id = p.id) AS n FROM posts p WHERE p.id = $1`,
+      [post.id],
+    );
+    expect({ up, down, n }).toEqual({ up: 30, down: 0, n: 30 });
+  });
+
+  it("pages feeds by sort index order and stops at MAX_PAGE", async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) ids.push((await newPost("supplements", `정렬 ${i}`)).id);
+    await query("UPDATE posts SET upvotes = 10 - (id % 5), created_at = now() - (id % 3) * interval '1 hour'");
+    await query("UPDATE posts SET is_suppressed = true WHERE id = $1", [ids[0]]);
+    const all = await posts.listPosts({ sort: "votes", pageSize: 50 });
+    const paged = [
+      ...(await posts.listPosts({ sort: "votes", pageSize: 2, page: 1 })).items,
+      ...(await posts.listPosts({ sort: "votes", pageSize: 2, page: 2 })).items,
+      ...(await posts.listPosts({ sort: "votes", pageSize: 2, page: 3 })).items,
+    ];
+    expect(paged.map((p) => p.id)).toEqual(all.items.map((p) => p.id));
+    expect(all.items.at(-1)!.id).toBe(ids[0]); // 광고 의심은 맨 뒤
+    const net = all.items.slice(0, -1).map((p) => p.upvotes - p.downvotes);
+    expect(net).toEqual([...net].sort((a, b) => b - a));
+    expect(all.items[0]).toMatchObject({ category: { slug: "supplements" } });
+    expect(all.items[0]!.summary?.lines).toHaveLength(3);
+    expect((await posts.listPosts({ sort: "latest", page: posts.MAX_PAGE + 1 })).items).toEqual([]);
   });
 
   it("promotes a board request to a category exactly once at the threshold", async () => {

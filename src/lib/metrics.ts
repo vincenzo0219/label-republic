@@ -95,32 +95,57 @@ export type PageViewInput = {
   now?: Date;
 };
 
-/** 조회 1건 기록 + 방문자 재방문 판정 + 게시글 조회수 증가 */
+// 게시글 조회수는 요청마다 UPDATE 하지 않고 모아서 주기적으로 반영한다.
+// 인기 글 한 행에 조회마다 행 잠금·갱신이 몰리는 것을 피하기 위함. 여러 인스턴스여도 덧셈이라 안전하고,
+// 비정상 종료 시 마지막 몇 초분의 조회수만 잃는다.
+// server.ts(tsx)와 Next 번들이 이 모듈을 따로 불러오므로 globalThis 에 하나만 둔다.
+const gv = globalThis as unknown as { __labelRepPendingViews?: Map<string, number> };
+const pendingViews = (gv.__labelRepPendingViews ??= new Map<string, number>());
+
+/** 모아 둔 조회수를 DB에 반영 (server.ts 가 주기적으로, 그리고 종료 시 호출) */
+export async function flushViewCounts(): Promise<number> {
+  if (!pendingViews.size) return 0;
+  const entries = [...pendingViews.entries()];
+  pendingViews.clear();
+  try {
+    await query(
+      `UPDATE posts p SET view_count = p.view_count + v.n
+         FROM unnest($1::bigint[], $2::int[]) AS v(id, n) WHERE p.id = v.id`,
+      [entries.map(([id]) => id), entries.map(([, n]) => n)],
+    );
+  } catch (err) {
+    // 실패하면 다음 주기에 다시 시도
+    for (const [id, n] of entries) pendingViews.set(id, (pendingViews.get(id) ?? 0) + n);
+    throw err;
+  }
+  return entries.length;
+}
+
+/** 조회 1건 기록 + 방문자 재방문 판정 (+ 게시글 조회수는 버퍼에 누적) — 왕복 1회 */
 export async function recordPageView(input: PageViewInput): Promise<{ isReturning: boolean }> {
   const now = input.now ?? new Date();
   const day = kstDay(now);
-  // 방문자 upsert: 날짜가 바뀌었으면 visit_days + 1. 반환값의 prev_day 로 "이전 날짜에 온 적 있는지" 판정.
-  const v = await query<{ first_day: string }>(
-    `WITH prev AS (SELECT (first_seen AT TIME ZONE 'Asia/Seoul')::date AS first_day FROM visitors WHERE visitor_hash = $1)
-     INSERT INTO visitors (visitor_hash, first_seen, last_seen, last_day, visit_days)
-     VALUES ($1, $2, $2, $3::date, 1)
-     ON CONFLICT (visitor_hash) DO UPDATE
-       SET last_seen = EXCLUDED.last_seen,
-           visit_days = visitors.visit_days + (visitors.last_day < EXCLUDED.last_day)::int,
-           last_day = GREATEST(visitors.last_day, EXCLUDED.last_day)
-     RETURNING (SELECT first_day FROM prev)::text AS first_day`,
-    [input.visitorHash, now.toISOString(), day],
-  );
-  const firstDay = v[0]?.first_day ?? null;
-  const isReturning = firstDay !== null && firstDay < day;
-  await query(
-    `INSERT INTO page_views (occurred_at, day, visitor_hash, is_returning, path, post_id, category_slug, source, referrer_host, is_landing, search_query)
-     VALUES ($1, $2::date, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+  // 방문자 upsert: 날짜가 바뀌었으면 visit_days + 1. prev 의 첫 방문일로 "이전 날짜에 온 적 있는지" 판정.
+  const rows = await query<{ is_returning: boolean }>(
+    `WITH prev AS (SELECT (first_seen AT TIME ZONE 'Asia/Seoul')::date AS first_day FROM visitors WHERE visitor_hash = $1),
+     v AS (
+       INSERT INTO visitors (visitor_hash, first_seen, last_seen, last_day, visit_days)
+       VALUES ($1, $2, $2, $3::date, 1)
+       ON CONFLICT (visitor_hash) DO UPDATE
+         SET last_seen = EXCLUDED.last_seen,
+             visit_days = visitors.visit_days + (visitors.last_day < EXCLUDED.last_day)::int,
+             last_day = GREATEST(visitors.last_day, EXCLUDED.last_day)
+       RETURNING coalesce((SELECT first_day FROM prev) < $3::date, false) AS is_returning
+     ),
+     pv AS (
+       INSERT INTO page_views (occurred_at, day, visitor_hash, is_returning, path, post_id, category_slug, source, referrer_host, is_landing, search_query)
+       SELECT $2, $3::date, $1, v.is_returning, $4, $5, $6, $7, $8, $9, $10 FROM v
+     )
+     SELECT is_returning FROM v`,
     [
+      input.visitorHash,
       now.toISOString(),
       day,
-      input.visitorHash,
-      isReturning,
       input.path.path,
       input.path.postId,
       input.path.categorySlug,
@@ -131,7 +156,7 @@ export async function recordPageView(input: PageViewInput): Promise<{ isReturnin
     ],
   );
   if (input.path.postId) {
-    await query("UPDATE posts SET view_count = view_count + 1 WHERE id = $1", [input.path.postId]);
+    pendingViews.set(input.path.postId, (pendingViews.get(input.path.postId) ?? 0) + 1);
   }
-  return { isReturning };
+  return { isReturning: rows[0]?.is_returning ?? false };
 }

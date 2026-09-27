@@ -3,6 +3,7 @@ import { CategoryTabs } from "@/components/CategoryTabs";
 import { Pagination } from "@/components/Pagination";
 import { PostCard } from "@/components/PostCard";
 import { SortBar } from "@/components/SortBar";
+import { HttpError } from "@/lib/errors";
 import { searchTerms } from "@/lib/highlight";
 import { getCategoryBySlug, listCategories } from "@/lib/repo/categories";
 import { listPosts } from "@/lib/repo/posts";
@@ -26,9 +27,18 @@ export default async function SearchPage({ searchParams }: Props) {
   const category = sp.category ? await getCategoryBySlug(sp.category) : null;
   const terms = searchTerms(q);
 
+  let timedOut = false;
   const [categories, results] = await Promise.all([
     listCategories(),
-    terms.length ? listPosts({ q, sort, page, categoryId: category?.id }) : Promise.resolve(null),
+    terms.length
+      ? listPosts({ q, sort, page, categoryId: category?.id }).catch((err) => {
+          if (err instanceof HttpError && err.code === "search_timeout") {
+            timedOut = true;
+            return null;
+          }
+          throw err;
+        })
+      : Promise.resolve(null),
   ]);
   const base: Record<string, string> = { q, ...(category ? { category: category.slug } : {}) };
 
@@ -42,7 +52,11 @@ export default async function SearchPage({ searchParams }: Props) {
           <button className="btn btn-primary" style={{ height: "auto" }}>검색</button>
         </div>
       </form>
-      {!results ? (
+      {timedOut ? (
+        <div className="empty" role="status">검색이 너무 오래 걸렸습니다. 검색어를 더 구체적으로 입력하거나 보드를 골라 다시 검색해주세요.</div>
+      ) : results?.tooShort ? (
+        <div className="empty" role="status">두 글자 이상 입력해주세요.</div>
+      ) : !results ? (
         <div className="empty">검색어를 입력해주세요. 공백으로 여러 단어를 모두 포함하는 글을 찾습니다.</div>
       ) : (
         <>
@@ -61,7 +75,7 @@ export default async function SearchPage({ searchParams }: Props) {
               </a>
             ))}
           </nav>
-          <SortBar basePath="/search" params={base} sort={sort} total={results.total} />
+          <SortBar basePath="/search" params={base} sort={sort} total={results.total} capped={results.totalCapped} />
           {results.items.length === 0 ? (
             <div className="empty">
               “{q}”에 대한 결과가 없습니다.
@@ -77,6 +91,7 @@ export default async function SearchPage({ searchParams }: Props) {
             page={results.page}
             pageSize={results.pageSize}
             total={results.total}
+            capped={results.totalCapped}
           />
         </>
       )}

@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { query, tx, isUniqueViolation } from "../db";
+import { isQueryCanceled, isUniqueViolation, query, queryWithTimeout, tx } from "../db";
 import { PAGE_SIZE } from "../config";
 import { HttpError, blinded, notFound, tooMany } from "../errors";
 import { hashPin } from "../password";
@@ -47,7 +47,80 @@ function escapeLike(term: string) {
 
 export type ListParams = { categoryId?: number; sort: SortKey; q?: string; page?: number; pageSize?: number; type?: PostType };
 
-export async function listPosts(params: ListParams): Promise<{ items: PostCard[]; total: number; page: number; pageSize: number }> {
+/** 이보다 깊은 페이지는 조회하지 않는다 (OFFSET 비용·크롤러 방어). 오래된 글은 검색·사이트맵으로 찾는다. */
+export const MAX_PAGE = 500;
+/**
+ * 전체 글의 1% 이상에 들어 있는 두 글자 조각은 bigram 인덱스로 좁혀도 이득이 없다.
+ * 이런 흔한 검색어는 정렬 인덱스를 따라가며 ILIKE 로 거르는 편이 빠르므로 bigram 조건을 붙이지 않는다.
+ * (조건을 붙이면 플래너가 정렬 인덱스를 고르더라도 lr_bigrams 를 행마다 계산해 수백 ms가 든다)
+ */
+const COMMON_BIGRAM_FREQ = 0.01;
+const BIGRAM_STATS_TTL_MS = 10 * 60_000;
+let bigramStats: { at: number; common: Set<string> } | null = null;
+
+/** ANALYZE 가 모은 bigram 인덱스 통계(most_common_elems)에서 흔한 조각 목록 */
+async function commonBigrams(): Promise<Set<string>> {
+  if (bigramStats && Date.now() - bigramStats.at < BIGRAM_STATS_TTL_MS) return bigramStats.common;
+  const common = new Set<string>();
+  try {
+    const rows = await query<{ elems: string[] | null; freqs: number[] | null }>(
+      `SELECT most_common_elems::text::text[] AS elems, most_common_elem_freqs AS freqs
+         FROM pg_stats WHERE schemaname = current_schema() AND tablename = 'posts_bigram_idx'`,
+    );
+    const { elems, freqs } = rows[0] ?? { elems: null, freqs: null };
+    elems?.forEach((e, i) => {
+      if ((freqs?.[i] ?? 0) >= COMMON_BIGRAM_FREQ) common.add(e);
+    });
+  } catch {
+    // 통계를 못 읽으면 항상 bigram 조건을 쓴다 (정확성에는 영향 없음)
+  }
+  bigramStats = { at: Date.now(), common };
+  return common;
+}
+
+/** 검색 쿼리 실행 시간 상한 — 넘으면 503 (한 요청이 DB를 오래 붙잡지 못하게) */
+export const SEARCH_TIMEOUT_MS = 3000;
+
+/**
+ * 정렬·페이지 자르기는 posts 의 좁은 컬럼만으로 먼저 하고(정렬 인덱스를 그대로 탄다),
+ * 본문 발췌·요약·보드·정모 JOIN 은 잘라낸 20건에만 한다.
+ * 한 번에 하면 모든 후보 글의 본문에 regexp_replace 를 돌린 뒤 정렬해 글이 많을수록 느려진다.
+ */
+function pagedCardsSql(whereSql: string, orderSql: string, limitParam: string, offsetParam = "0", extraSelect = "") {
+  return `WITH page AS MATERIALIZED (
+      SELECT p.id, row_number() OVER (ORDER BY ${orderSql}) AS rn
+        FROM posts p WHERE ${whereSql} ORDER BY ${orderSql} LIMIT ${limitParam} OFFSET ${offsetParam}
+    )
+    SELECT ${CARD_SELECT}${extraSelect} FROM page JOIN posts p ON p.id = page.id
+      JOIN categories c ON c.id = p.category_id
+      LEFT JOIN ai_summaries s ON s.id = p.ai_summary_id
+      LEFT JOIN meetups mt ON mt.post_id = p.id
+    ORDER BY page.rn`;
+}
+
+// 목록 개수가 크면 페이지마다 세지 않고 잠깐 캐시한다 (보드 20만 건이면 count 한 번에 수십 ms).
+// 인스턴스별 캐시라 몇 초 늦게 반영될 수 있지만 "N개의 글" 표시에는 충분하다.
+// 작은 개수는 세는 비용이 거의 없고 새 글이 바로 보여야 하므로 캐시하지 않는다.
+const COUNT_TTL_MS = 15_000;
+const COUNT_CACHE_MIN = 1000;
+const countCache = new Map<string, { value: number; at: number }>();
+
+async function cachedCount(sql: string, args: unknown[]): Promise<number> {
+  const key = sql + JSON.stringify(args);
+  const hitC = countCache.get(key);
+  if (hitC && Date.now() - hitC.at < COUNT_TTL_MS) return hitC.value;
+  const rows = await query<{ total: number }>(sql, args);
+  const value = rows[0]!.total;
+  if (value >= COUNT_CACHE_MIN) {
+    if (countCache.size > 500) countCache.clear();
+    countCache.set(key, { value, at: Date.now() });
+  } else countCache.delete(key);
+  return value;
+}
+
+export async function listPosts(
+  params: ListParams,
+): Promise<{ items: PostCard[]; total: number; totalCapped: boolean; tooShort?: boolean; page: number; pageSize: number }> {
   const where: string[] = ["NOT p.is_blinded"];
   const args: unknown[] = [];
   if (params.categoryId) {
@@ -58,24 +131,50 @@ export async function listPosts(params: ListParams): Promise<{ items: PostCard[]
     args.push(params.type);
     where.push(`p.post_type = $${args.length}::post_type`);
   }
-  // 검색: 공백 구분 검색어가 모두 제목 또는 본문에 포함 (AND). pg_trgm GIN 인덱스가 ILIKE를 가속한다.
-  for (const term of searchTerms(params.q ?? "")) {
-    args.push(`%${escapeLike(term)}%`);
-    where.push(`(p.title ILIKE $${args.length} OR p.body ILIKE $${args.length})`);
-  }
   const pageSize = Math.min(params.pageSize ?? PAGE_SIZE, 50);
   const page = Math.max(1, Math.floor(params.page ?? 1));
-  const whereSql = where.join(" AND ");
 
-  const [items, count] = await Promise.all([
-    query<PostCard>(
-      `SELECT ${CARD_SELECT} ${FROM} WHERE ${whereSql} ORDER BY ${ORDER[params.sort]}
-       LIMIT $${args.length + 1} OFFSET $${args.length + 2}`,
-      [...args, pageSize, (page - 1) * pageSize],
-    ),
-    query<{ total: number }>(`SELECT count(*)::int AS total FROM posts p WHERE ${whereSql}`, args),
+  // 검색: 공백 구분 검색어가 모두 제목 또는 본문에 포함 (AND).
+  // 세 글자 이상은 pg_trgm GIN 인덱스가, 두 글자는 lr_bigrams GIN 인덱스(010 마이그레이션)가 후보를 좁힌다.
+  // 한 글자 검색어는 인덱스로 좁힐 수 없어 다른 검색어의 추가 조건으로만 쓴다.
+  const terms = searchTerms(params.q ?? "");
+  if (terms.length && terms.every((t) => [...t].length < 2)) {
+    return { items: [], total: 0, totalCapped: false, tooShort: true, page, pageSize };
+  }
+  const common = terms.some((t) => [...t].length === 2) ? await commonBigrams() : new Set<string>();
+  for (const term of terms) {
+    args.push(`%${escapeLike(term)}%`);
+    where.push(`(p.title ILIKE $${args.length} OR p.body ILIKE $${args.length})`);
+    if ([...term].length === 2 && !common.has(term.toLowerCase())) {
+      args.push(term);
+      where.push(`lr_bigrams(p.title || ' ' || p.body) @> ARRAY[lower($${args.length})]`);
+    }
+  }
+  const whereSql = where.join(" AND ");
+  const pageSql = pagedCardsSql(whereSql, ORDER[params.sort], `$${args.length + 1}`, `$${args.length + 2}`);
+  const pageArgs = [...args, pageSize, (page - 1) * pageSize];
+
+  if (terms.length) {
+    // 검색은 전체 개수를 세지 않는다: 흔한 검색어는 일치하는 글을 끝까지 훑어야 해서 결과 20건보다 몇십 배 비싸다.
+    // 한 건 더 가져와서 다음 페이지가 있는지만 판단한다 (total 은 "지금까지 본 개수", totalCapped 면 "N+개").
+    if (page > MAX_PAGE) return { items: [], total: 0, totalCapped: false, page, pageSize };
+    let rows: PostCard[];
+    try {
+      rows = await queryWithTimeout<PostCard>(SEARCH_TIMEOUT_MS, pageSql, [...args, pageSize + 1, (page - 1) * pageSize], { noParallel: true });
+    } catch (err) {
+      if (isQueryCanceled(err)) throw new HttpError(503, "search_timeout", "검색이 너무 오래 걸립니다. 검색어를 더 구체적으로 입력해주세요.");
+      throw err;
+    }
+    const hasMore = rows.length > pageSize;
+    const items = rows.slice(0, pageSize);
+    return { items, total: (page - 1) * pageSize + items.length, totalCapped: hasMore, page, pageSize };
+  }
+
+  const [items, total] = await Promise.all([
+    page > MAX_PAGE ? Promise.resolve([] as PostCard[]) : query<PostCard>(pageSql, pageArgs),
+    cachedCount(`SELECT count(*)::int AS total FROM posts p WHERE ${whereSql}`, args),
   ]);
-  return { items, total: count[0]!.total, page, pageSize };
+  return { items, total, totalCapped: false, page, pageSize };
 }
 
 /**
@@ -87,7 +186,7 @@ export async function listNewPosts(categoryIds: number[], since: Date, limit = 3
   const where = `NOT p.is_blinded AND NOT p.is_suppressed AND p.post_type <> 'chat'
     AND p.category_id = ANY($1::int[]) AND p.created_at > $2::timestamptz`;
   const [items, count] = await Promise.all([
-    query<PostCard>(`SELECT ${CARD_SELECT} ${FROM} WHERE ${where} ORDER BY ${ORDER.trust} LIMIT $3`, [categoryIds, since.toISOString(), limit]),
+    query<PostCard>(pagedCardsSql(where, ORDER.trust, "$3"), [categoryIds, since.toISOString(), limit]),
     query<{ total: number }>(`SELECT count(*)::int AS total FROM posts p WHERE ${where}`, [categoryIds, since.toISOString()]),
   ]);
   return { items, total: count[0]!.total };
@@ -95,12 +194,8 @@ export async function listNewPosts(categoryIds: number[], since: Date, limit = 3
 
 /** RSS/Atom 피드용: 최신 [정보]·[정모] 글 (잡담·블라인드·광고 의심 제외) */
 export async function listFeedPosts(categoryId?: number, limit = 30): Promise<(PostCard & { updated_at: string })[]> {
-  return query(
-    `SELECT ${CARD_SELECT}, p.updated_at ${FROM}
-      WHERE NOT p.is_blinded AND NOT p.is_suppressed AND p.post_type <> 'chat' ${categoryId ? "AND p.category_id = $2" : ""}
-      ORDER BY p.created_at DESC, p.id DESC LIMIT $1`,
-    categoryId ? [limit, categoryId] : [limit],
-  );
+  const where = `NOT p.is_blinded AND NOT p.is_suppressed AND p.post_type <> 'chat' ${categoryId ? "AND p.category_id = $2" : ""}`;
+  return query(pagedCardsSql(where, "p.created_at DESC, p.id DESC", "$1", "0", ", p.updated_at"), categoryId ? [limit, categoryId] : [limit]);
 }
 
 /** 선택한 보드들의 다가오는 정모 (확정·모집 중) */
@@ -286,13 +381,28 @@ export async function aiModeratePost(id: string): Promise<SpamVerdict | null> {
 export type VoteResult = { upvotes: number; downvotes: number; myVote: 1 | -1 | 0; trust_tier: string };
 
 export async function votePost(id: string, fp: string, value: 1 | -1): Promise<VoteResult> {
+  if (!/^\d{1,18}$/.test(id)) throw notFound();
+  try {
+    return await votePostOnce(id, fp, value);
+  } catch (err) {
+    // 같은 사람의 동시 투표 두 건이 함께 INSERT 하려다 한쪽이 유니크 제약에 걸린 경우 — 한 번 더 하면 토글 규칙대로 처리된다
+    if (isUniqueViolation(err)) return votePostOnce(id, fp, value);
+    throw err;
+  }
+}
+
+async function votePostOnce(id: string, fp: string, value: 1 | -1): Promise<VoteResult> {
   return tx(async (client) => {
-    const post = await loadPost(id, client, true);
-    if (!post) throw notFound();
-    if (post.is_blinded) throw blinded();
+    // 인기 글에 투표가 몰려도 줄이 짧도록 글 행은 미리 잠그지 않는다.
+    // 카운터 트리거(trg_votes_count)의 UPDATE 가 행을 잠그고, 커밋까지 잠금 구간은 그 뒤 두 단계뿐이다.
+    // 투표는 커밋 WAL 디스크 기록을 기다리지 않는다 — 서버가 비정상 종료되면 마지막 순간의 투표 몇 건만 잃을 수 있다.
+    await client.query("SET LOCAL synchronous_commit = off");
+    const { rows: found } = await client.query<{ is_blinded: boolean }>("SELECT is_blinded FROM posts WHERE id = $1", [id]);
+    if (!found[0]) throw notFound();
+    if (found[0].is_blinded) throw blinded();
 
     const existing = await client.query<{ value: number }>(
-      "SELECT value FROM votes WHERE post_id = $1 AND voter_fingerprint = $2",
+      "SELECT value FROM votes WHERE post_id = $1 AND voter_fingerprint = $2 FOR UPDATE",
       [id, fp],
     );
     let myVote: 1 | -1 | 0 = value;

@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 /** 환경설정 — 모든 process.env 접근은 여기서만 한다. */
 const isProd = process.env.NODE_ENV === "production";
 
@@ -88,6 +89,18 @@ export const config = {
     return process.env.HOSTING_PROVIDER || null;
   },
   /** 레이트 리밋 저장소: postgres(여러 인스턴스 공유, 운영 기본) / memory(단일 프로세스, 개발 기본) */
+  /** 웹 워커 프로세스 수 (WEB_CONCURRENCY, 기본 1, "auto" 면 CPU 수). 2 이상이면 server.ts 가 cluster 로 띄운다. */
+  get webConcurrency(): number {
+    const v = process.env.WEB_CONCURRENCY;
+    if (v === "auto") return Math.max(1, Math.min(16, availableParallelism()));
+    const n = Math.floor(Number(v ?? 1));
+    return Number.isFinite(n) && n >= 1 ? Math.min(n, 16) : 1;
+  },
+  /** 프로세스당 DB 커넥션 풀 크기 (DB_POOL_MAX, 기본 10). 전체 커넥션 ≈ (풀 + LISTEN 1) × 워커 수 */
+  get dbPoolMax(): number {
+    const n = Math.floor(Number(process.env.DB_POOL_MAX ?? 10));
+    return Number.isFinite(n) && n >= 1 ? Math.min(n, 100) : 10;
+  },
   get rateLimitBackend(): "memory" | "postgres" {
     const v = process.env.RATE_LIMIT_BACKEND;
     if (v === "memory" || v === "postgres") return v;
