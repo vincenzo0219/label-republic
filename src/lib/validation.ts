@@ -15,8 +15,23 @@ export const summaryLines = z.tuple([trimmed(2, 120, "요약"), trimmed(2, 120, 
 export const sortSchema = z.enum(["trust", "latest", "votes"]).catch("trust");
 export type SortKey = z.infer<typeof sortSchema>;
 
+export const postTypeSchema = z.enum(["info", "chat", "meetup"], { error: "글 유형([정보]/[잡담]/[정모])을 선택해주세요." });
+export const postTypeFilterSchema = z.enum(["info", "chat", "meetup"]).optional().catch(undefined);
+
+export const meetupSchema = z.object({
+  meetAt: z.string().min(1, "정모 일시를 입력해주세요."),
+  location: trimmed(2, 100, "장소"),
+  minParticipants: z.coerce.number().int().min(2, "확정 인원은 2명 이상입니다.").max(50, "확정 인원은 50명 이하입니다."),
+  capacity: z.coerce.number().int().min(2, "정원은 2명 이상입니다.").max(200, "정원은 200명 이하입니다."),
+});
+
+export const rsvpSchema = z.object({ nickname });
+
 export const createPostSchema = z.object({
   category: z.string().min(1, "카테고리를 선택해주세요."),
+  /** 기획안: 글 작성 시 [정보]/[잡담] 태그 필수 선택 (+ 정모 제안) */
+  postType: postTypeSchema,
+  meetup: meetupSchema.optional(),
   nickname,
   pw: pin,
   title: trimmed(2, 120, "제목"),

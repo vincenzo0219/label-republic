@@ -8,12 +8,17 @@ import { aiSpam, combine, heuristicSpam, moderationNote, shouldSuppress, type Sp
 import { searchTerms } from "../highlight";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
-import type { PostCard, PostDetail } from "../types";
+import type { PostCard, PostDetail, PostType } from "../types";
+import { assertCanPropose, insertMeetup, type MeetupInput } from "./meetups";
 import { assertPin } from "./pin-guard";
 
 const CARD_SELECT = `
   p.id, p.nickname, p.title, p.upvotes, p.downvotes, p.comment_count,
-  p.trust_tier, p.is_ai_curated, p.is_suppressed, p.created_at,
+  p.trust_tier, p.is_ai_curated, p.is_suppressed, p.post_type, p.created_at,
+  CASE WHEN mt.post_id IS NULL THEN NULL ELSE json_build_object(
+    'meet_at', mt.meet_at, 'location', mt.location, 'min_participants', mt.min_participants,
+    'capacity', mt.capacity, 'rsvp_count', mt.rsvp_count, 'status', mt.status, 'confirmed_at', mt.confirmed_at
+  ) END AS meetup,
   json_build_object('slug', c.slug, 'name', c.name) AS category,
   left(regexp_replace(p.body, '\\s+', ' ', 'g'), 400) AS excerpt,
   CASE WHEN s.id IS NULL THEN NULL ELSE json_build_object(
@@ -23,12 +28,15 @@ const CARD_SELECT = `
 const FROM = `
   FROM posts p
   JOIN categories c ON c.id = p.category_id
-  LEFT JOIN ai_summaries s ON s.id = p.ai_summary_id`;
+  LEFT JOIN ai_summaries s ON s.id = p.ai_summary_id
+  LEFT JOIN meetups mt ON mt.post_id = p.id`;
 
 // 스팸 의심(is_suppressed) 글은 모든 정렬에서 맨 뒤로 보낸다 (AI 1차 정화 — 노출 순위 하향)
+// 신뢰도순에서는 [잡담] 글을 정보 글 아래로 내린다 (정보 오염 방지). 최신순·추천순은 유형과 무관.
 const ORDER: Record<SortKey, string> = {
   // enum 순서: pending < none < top19 < top12 < top5
-  trust: "p.is_suppressed, p.trust_tier DESC, (p.upvotes - p.downvotes) DESC, p.created_at DESC, p.id DESC",
+  // 정모는 배지 대상이 아니지만(none), 정렬에서는 "검증 대기" 정보 글과 같은 자리로 취급해 피드 상단을 독점하지 않게 한다.
+  trust: "p.is_suppressed, (p.post_type = 'chat'), CASE WHEN p.post_type = 'meetup' THEN 'pending'::trust_tier ELSE p.trust_tier END DESC, (p.upvotes - p.downvotes) DESC, p.created_at DESC, p.id DESC",
   latest: "p.is_suppressed, p.created_at DESC, p.id DESC",
   votes: "p.is_suppressed, (p.upvotes - p.downvotes) DESC, p.upvotes DESC, p.created_at DESC, p.id DESC",
 };
@@ -37,7 +45,7 @@ function escapeLike(term: string) {
   return term.replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
-export type ListParams = { categoryId?: number; sort: SortKey; q?: string; page?: number; pageSize?: number };
+export type ListParams = { categoryId?: number; sort: SortKey; q?: string; page?: number; pageSize?: number; type?: PostType };
 
 export async function listPosts(params: ListParams): Promise<{ items: PostCard[]; total: number; page: number; pageSize: number }> {
   const where: string[] = ["NOT p.is_blinded"];
@@ -45,6 +53,10 @@ export async function listPosts(params: ListParams): Promise<{ items: PostCard[]
   if (params.categoryId) {
     args.push(params.categoryId);
     where.push(`p.category_id = $${args.length}`);
+  }
+  if (params.type) {
+    args.push(params.type);
+    where.push(`p.post_type = $${args.length}::post_type`);
   }
   // 검색: 공백 구분 검색어가 모두 제목 또는 본문에 포함 (AND). pg_trgm GIN 인덱스가 ILIKE를 가속한다.
   for (const term of searchTerms(params.q ?? "")) {
@@ -107,9 +119,15 @@ export type CreatePostInput = {
   summary: ResolvedSummary | null;
   /** 작성자 fingerprint — 어뷰징 탐지의 "갓 생긴 fingerprint" 판별에만 쓰인다 */
   fingerprint?: string;
+  /** [정보]/[잡담]/[정모] — 기본 정보 */
+  postType?: PostType;
+  /** postType = meetup 일 때 필수 */
+  meetup?: MeetupInput;
 };
 
 export async function createPost(input: CreatePostInput): Promise<PostDetail> {
+  const postType: PostType = input.postType ?? "info";
+  if (postType === "meetup" && !input.meetup) throw new HttpError(400, "invalid_input", "정모 일시·장소·인원을 입력해주세요.");
   const summary: ResolvedSummary =
     input.summary ?? { ...(await generateSummary(input.title, input.body)), isAuthorEdited: false };
   const pwHash = await hashPin(input.pin);
@@ -118,12 +136,28 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
   const id = await tx(async (client) => {
     const cat = await client.query<{ id: number }>("SELECT id FROM categories WHERE slug = $1", [input.categorySlug]);
     if (!cat.rows[0]) throw new HttpError(400, "invalid_category", "존재하지 않는 카테고리입니다.");
+    if (postType === "meetup") await assertCanPropose(client, cat.rows[0].id, input.nickname, input.fingerprint);
     const { rows } = await client.query<{ id: string }>(
-      `INSERT INTO posts (category_id, nickname, pw_hash, title, body, spam_score, is_suppressed, moderation_note, moderated_by, author_fingerprint)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-      [cat.rows[0].id, input.nickname, pwHash, input.title, input.body, ...moderationParams(spam), input.fingerprint ?? null],
+      `INSERT INTO posts (category_id, nickname, pw_hash, title, body, spam_score, is_suppressed, moderation_note, moderated_by,
+                          author_fingerprint, post_type, trust_tier)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+      [
+        cat.rows[0].id,
+        input.nickname,
+        pwHash,
+        input.title,
+        input.body,
+        ...moderationParams(spam),
+        input.fingerprint ?? null,
+        postType,
+        // 잡담·정모 글은 신뢰도 배지 대상이 아니므로 "검증 대기" 대신 배지 없음으로 시작
+        postType === "info" ? "pending" : "none",
+      ],
     );
     await insertSummary(client, rows[0]!.id, summary);
+    if (postType === "meetup") {
+      await insertMeetup(client, rows[0]!.id, input.meetup!, { nickname: input.nickname, fingerprint: input.fingerprint });
+    }
     return rows[0]!.id;
   });
   return (await getPost(id))!;
@@ -276,5 +310,9 @@ export async function reportPost(id: string, fp: string, reason: string): Promis
 
 /** sitemap 용 */
 export async function listPostIdsForSitemap(limit = 5000): Promise<{ id: string; updated_at: string }[]> {
-  return query(`SELECT id, updated_at FROM posts WHERE NOT is_blinded AND NOT is_suppressed ORDER BY id DESC LIMIT $1`, [limit]);
+  // 잡담은 검색 노출 대상에서 제외 — 정보 아카이브로서의 SEO 품질 유지
+  return query(
+    `SELECT id, updated_at FROM posts WHERE NOT is_blinded AND NOT is_suppressed AND post_type <> 'chat' ORDER BY id DESC LIMIT $1`,
+    [limit],
+  );
 }

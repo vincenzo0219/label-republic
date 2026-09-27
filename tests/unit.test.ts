@@ -106,7 +106,7 @@ describe("summary", () => {
 
 describe("validation", () => {
   it("requires a 4-digit numeric pin", () => {
-    const base = { category: "supplements", nickname: "닉네임", title: "제목입니다", body: "본문은 열 글자 이상입니다." };
+    const base = { category: "supplements", postType: "info", nickname: "닉네임", title: "제목입니다", body: "본문은 열 글자 이상입니다." };
     expect(createPostSchema.safeParse({ ...base, pw: "1234" }).success).toBe(true);
     expect(createPostSchema.safeParse({ ...base, pw: "123" }).success).toBe(false);
     expect(createPostSchema.safeParse({ ...base, pw: "12a4" }).success).toBe(false);

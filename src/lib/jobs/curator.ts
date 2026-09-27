@@ -25,7 +25,8 @@ export async function runCuratorBatch(now = new Date()): Promise<CuratorBatchRes
     try {
       const states = await client.query<CategoryState>(
         `SELECT c.id, c.slug,
-                count(p.id) FILTER (WHERE NOT p.is_ai_curated)::int AS human,
+                -- 물러남 판단은 사람이 쓴 [정보] 글 기준 (잡담·정모는 정보 공백을 메우지 않음)
+                count(p.id) FILTER (WHERE NOT p.is_ai_curated AND p.post_type = 'info')::int AS human,
                 count(p.id) FILTER (WHERE p.is_ai_curated)::int     AS ai,
                 (SELECT max(created_at) FROM posts x WHERE x.category_id = c.id AND x.is_ai_curated) AS last_ai_at
            FROM categories c

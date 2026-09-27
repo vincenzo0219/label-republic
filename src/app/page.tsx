@@ -1,6 +1,6 @@
 import { FeedView } from "@/components/FeedView";
 import { config } from "@/lib/config";
-import { sortSchema } from "@/lib/validation";
+import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <FeedView sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} />
+      <FeedView sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} />
     </>
   );
 }

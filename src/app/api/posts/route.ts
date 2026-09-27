@@ -6,7 +6,7 @@ import { hit } from "@/lib/rate-limit";
 import { getCategoryBySlug } from "@/lib/repo/categories";
 import { aiModeratePost, createPost, listPosts } from "@/lib/repo/posts";
 import { resolveSummary } from "@/lib/summary";
-import { createPostSchema, sortSchema } from "@/lib/validation";
+import { createPostSchema, postTypeFilterSchema, sortSchema } from "@/lib/validation";
 
 /** GET /api/posts?category=&sort=trust|latest|votes&q=&page= — 피드/검색 */
 export const GET = route(async (req) => {
@@ -23,6 +23,7 @@ export const GET = route(async (req) => {
     sort: sortSchema.parse(sp.get("sort") ?? undefined),
     q: sp.get("q")?.slice(0, 100) ?? undefined,
     page: Number(sp.get("page")) || 1,
+    type: postTypeFilterSchema.parse(sp.get("type") ?? undefined),
   });
   return json(result);
 });
@@ -32,6 +33,11 @@ export const POST = route(async (req) => {
   const fp = fingerprint(req.headers);
   if (!hit(`post:create:${fp}`, 10, 10 * 60 * 1000)) throw tooMany();
   const input = await parseBody(req, createPostSchema);
+  if (input.postType === "meetup") {
+    if (!input.meetup) throw new HttpError(400, "invalid_input", "정모 일시·장소·인원을 입력해주세요.");
+    // 정모 제안은 하루 3건까지 (도배 방지)
+    if (!hit(`meetup:create:${fp}`, 3, 24 * 60 * 60 * 1000)) throw tooMany();
+  }
   const post = await createPost({
     categorySlug: input.category,
     nickname: input.nickname,
@@ -40,6 +46,8 @@ export const POST = route(async (req) => {
     body: input.body,
     summary: resolveSummary(input.summary, input.summaryToken),
     fingerprint: fp,
+    postType: input.postType,
+    meetup: input.postType === "meetup" ? input.meetup : undefined,
   });
   // 응답을 보낸 뒤 AI 스팸 분류로 규칙 기반 판정을 보정 (API 키가 있을 때만 동작)
   after(() => aiModeratePost(post.id).catch((err) => console.error("[moderation]", err)));

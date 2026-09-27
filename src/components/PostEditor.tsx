@@ -5,6 +5,24 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 
 type Lines = [string, string, string];
+type PostType = "info" | "chat" | "meetup";
+
+const TYPE_OPTIONS: { value: PostType; label: string; hint: string }[] = [
+  { value: "info", label: "📋 정보", hint: "성분·스펙·측정값 등 사실 정보. 신뢰도 배지 대상" },
+  { value: "chat", label: "💬 잡담", hint: "자유 이야기. 신뢰도 배지 없음, 신뢰도순에서 아래쪽 노출" },
+  { value: "meetup", label: "📅 정모 제안", hint: "오프라인 모임. 참가자가 확정 인원을 채우면 자동 확정" },
+];
+
+/** datetime-local 기본값: 한국 시간 기준 내일 저녁 7시 */
+function defaultMeetAt() {
+  const kstTomorrow = new Date(Date.now() + 9 * 3600_000 + 86400_000).toISOString().slice(0, 10);
+  return `${kstTomorrow}T19:00`;
+}
+
+/** 오프라인 모임은 한국에서 열리므로 입력값을 브라우저 시간대가 아닌 한국 시간(+09:00)으로 해석한다 */
+function kstToIso(local: string) {
+  return new Date(`${local}:00+09:00`).toISOString();
+}
 type CategoryOption = { slug: string; name: string };
 
 type Props =
@@ -18,6 +36,11 @@ export function PostEditor(props: Props) {
   const router = useRouter();
   const editing = props.mode === "edit";
   const [category, setCategory] = useState(props.mode === "create" ? props.initialCategory ?? "" : "");
+  const [postType, setPostType] = useState<PostType | "">("");
+  const [meetAt, setMeetAt] = useState(defaultMeetAt);
+  const [location, setLocation] = useState("");
+  const [minParticipants, setMinParticipants] = useState(4);
+  const [capacity, setCapacity] = useState(8);
   const [title, setTitle] = useState(editing ? props.initial.title : "");
   const [body, setBody] = useState(editing ? props.initial.body : "");
   const [nickname, setNickname] = useState("");
@@ -70,6 +93,10 @@ export function PostEditor(props: Props) {
       setError("카테고리를 선택해주세요.");
       return;
     }
+    if (!editing && !postType) {
+      setError("글 유형([정보]/[잡담]/[정모 제안])을 선택해주세요.");
+      return;
+    }
     if (!editing && !summary) {
       // 등록 전 반드시 AI 요약을 검수하도록 먼저 미리보기를 만든다.
       await generate();
@@ -79,7 +106,10 @@ export function PostEditor(props: Props) {
     try {
       if (props.mode === "create") {
         const { post } = await api<{ post: { id: string } }>("/api/posts", "POST", {
-          category, nickname, pw, title, body, summary, summaryToken: token,
+          category, postType, nickname, pw, title, body, summary, summaryToken: token,
+          ...(postType === "meetup"
+            ? { meetup: { meetAt: kstToIso(meetAt), location, minParticipants, capacity } }
+            : {}),
         });
         try {
           window.localStorage.setItem("lr:nickname", nickname);
@@ -113,6 +143,44 @@ export function PostEditor(props: Props) {
         </div>
       ) : (
         <p className="hint">카테고리: {props.categoryName}</p>
+      )}
+
+      {!editing && (
+        <div className="field">
+          <div className="steps"><b>1-2</b> 글 유형 (필수)</div>
+          <div className="chips" role="radiogroup" aria-label="글 유형">
+            {TYPE_OPTIONS.map((t) => (
+              <button type="button" key={t.value} className="chip" aria-pressed={postType === t.value} onClick={() => setPostType(t.value)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {postType && <span className="hint">{TYPE_OPTIONS.find((t) => t.value === postType)!.hint}</span>}
+        </div>
+      )}
+
+      {!editing && postType === "meetup" && (
+        <div className="field meetup-fields">
+          <label className="field">
+            <span>일시 (한국 시간)</span>
+            <input className="input" type="datetime-local" value={meetAt} required onChange={(e) => setMeetAt(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>장소 (공개된 장소 권장 — 개인 주소·연락처는 적지 마세요)</span>
+            <input className="input" value={location} maxLength={100} required placeholder="예: 강남역 11번 출구 근처 카페" onChange={(e) => setLocation(e.target.value)} />
+          </label>
+          <div className="row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+            <label className="field">
+              <span>확정 인원 (이만큼 모이면 자동 확정)</span>
+              <input className="input" type="number" min={2} max={50} value={minParticipants} required onChange={(e) => setMinParticipants(Number(e.target.value))} />
+            </label>
+            <label className="field">
+              <span>정원</span>
+              <input className="input" type="number" min={2} max={200} value={capacity} required onChange={(e) => setCapacity(Number(e.target.value))} />
+            </label>
+          </div>
+          <span className="hint">제안자는 첫 참가자로 등록됩니다. 한 사람이 같은 보드의 정모를 연속으로 제안할 수 있는 횟수에는 상한이 있어요.</span>
+        </div>
       )}
 
       <div className="field">

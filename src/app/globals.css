@@ -297,3 +297,21 @@ mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1
 .status-warning .status-dot { background: var(--status-warning); }
 .status-serious .status-dot { background: var(--status-serious); }
 .status-critical .status-dot { background: var(--status-critical); }
+
+/* Sprint 5: 글 유형 · 정모 */
+.type-filter { display: flex; gap: 14px; font-size: 14px; margin: 0 0 6px; color: var(--muted); }
+.type-filter a[aria-current="true"] { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+.badge-type { color: var(--muted); background: var(--pending-bg); }
+.badge-meetup { background: color-mix(in srgb, var(--brand) 10%, transparent); color: var(--brand); }
+.badge-meetup.confirmed { background: var(--brand); color: var(--brand-ink); }
+.badge-meetup.closed { background: var(--pending-bg); color: var(--pending); }
+.meetup-fields { padding: 12px; border: 1px dashed var(--line); border-radius: 12px; gap: 10px; }
+.meetup-card { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 14px 16px; margin: 14px 0; display: grid; gap: 10px; }
+.meetup-card h2 { font-size: 15px; margin: 0; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.meetup-card dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 14.5px; }
+.meetup-card dt { color: var(--muted); }
+.meetup-card dd { margin: 0; }
+.meetup-progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.meetup-progress > i { display: block; height: 100%; background: var(--brand); }
+.participants { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
+.participants span { padding: 2px 8px; border-radius: 999px; background: var(--pending-bg); }

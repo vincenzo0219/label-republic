@@ -57,6 +57,11 @@ export const config = {
     const n = Number(process.env.MAINTENANCE_INTERVAL_SEC ?? 300);
     return Number.isFinite(n) && n >= 0 ? n : 300;
   },
+  /** 한 보드에서 같은 사람이 연속으로 제안할 수 있는 정모 수 */
+  get meetupConsecutiveLimit() {
+    const n = Number(process.env.MEETUP_CONSECUTIVE_LIMIT ?? 2);
+    return Number.isInteger(n) && n >= 1 ? n : 2;
+  },
   get boardPromotionThreshold() {
     const n = Number(process.env.BOARD_PROMOTION_THRESHOLD);
     return Number.isInteger(n) && n > 0 ? n : 50;

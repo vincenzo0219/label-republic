@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { pool } from "../db";
 import { promotePendingBoardRequests } from "../repo/board-requests";
+import { expireMeetups } from "../repo/meetups";
 
 const MAINTENANCE_LOCK_KEY = 4_823_003;
 
@@ -120,6 +121,7 @@ export type MaintenanceResult = {
   alerts: number;
   promoted: string[];
   pruned: { pageViews: number; alerts: number };
+  expiredMeetups: number;
 };
 
 /**
@@ -130,13 +132,14 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
   const client = await pool().connect();
   try {
     const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [MAINTENANCE_LOCK_KEY]);
-    if (!lock.rows[0]!.ok) return { ran: false, alerts: 0, promoted: [], pruned: { pageViews: 0, alerts: 0 } };
+    if (!lock.rows[0]!.ok) return { ran: false, alerts: 0, promoted: [], pruned: { pageViews: 0, alerts: 0 }, expiredMeetups: 0 };
     const run = await client.query<{ id: string }>("INSERT INTO maintenance_runs DEFAULT VALUES RETURNING id");
     const runId = run.rows[0]!.id;
     try {
       const alerts = await scanAbuse(client, now);
       const promotions = await promotePendingBoardRequests(undefined, undefined, now);
       const promoted = promotions.filter((p) => p.outcome === "promoted").map((p) => p.id);
+      const expiredMeetups = await expireMeetups(client, now);
       // 개인 식별 가능성을 줄이기 위해 원본 조회 기록은 400일, 알림은 90일만 보관
       const pv = await client.query("DELETE FROM page_views WHERE occurred_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       const al = await client.query("DELETE FROM abuse_alerts WHERE last_seen < $1::timestamptz - interval '90 days'", [now.toISOString()]);
@@ -146,6 +149,7 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
         alerts: alerts.length,
         promoted,
         pruned: { pageViews: pv.rowCount ?? 0, alerts: al.rowCount ?? 0 },
+        expiredMeetups,
       };
       await client.query("UPDATE maintenance_runs SET finished_at = now(), detail = $2 WHERE id = $1", [runId, JSON.stringify(result)]);
       return result;

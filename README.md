@@ -49,6 +49,16 @@
 | 운영 대시보드 `/admin` | KPI(검색 유입·페이지뷰·방문자·재방문율·사람 글·참여, 직전 7일 대비), 30일 일별 추이, 유입 경로·검색엔진, 검색 유입 글·많이 본 글·사이트 내 검색어, 보드별 현황과 AI 큐레이터 상태, 어뷰징 알림·자동 블라인드, 보드 요청, 배치 상태. `ADMIN_PASSWORD` Basic 인증(미설정 시 404) |
 | 보존 기간 | 조회 원본 400일, 알림 90일, 배치 이력 30일 후 자동 삭제 |
 
+### Sprint 5 — 커뮤니티 확장 (잡담 태그 · 정모)
+
+| 영역 | 구현 |
+|---|---|
+| 글 유형 필수 선택 | 📋 정보 / 💬 잡담 / 📅 정모 제안. 피드에 유형 필터(`?type=info\|chat\|meetup`) |
+| 잡담 | 신뢰도 배지 산정 제외, 신뢰도순에서 정보 글 아래(최신순·추천순은 유형 무관), 검색엔진 `noindex`·sitemap 제외 |
+| 정모 | 일시(한국 시간)·장소·확정 인원·정원. 제안자가 첫 참가자. 참가 토글(fingerprint당 1인, 정원 초과 불가), **확정 인원 도달 시 사람 승인 없이 자동 확정**(행 잠금으로 동시 참가에도 1회). 확정 후 이탈해도 확정 유지. 지난 미확정 정모는 배치가 만료 처리. `Event` JSON-LD |
+| 비공식 방장화 방지 | 같은 보드의 최근 정모 `MEETUP_CONSECUTIVE_LIMIT`(기본 2)건이 모두 같은 사람이면 새 제안 거부 — 닉네임과 fingerprint를 함께 확인해 닉네임만 바꾼 우회 차단. 정모 제안 하루 3건 제한 |
+| AI 큐레이터 | 물러남 판단은 사람이 쓴 **정보** 글만 셈 (잡담이 많아도 정보 공백은 그대로) |
+
 **개인정보**: 방문자는 무작위 쿠키(`lr_vid`, httpOnly, 1년) 값의 HMAC으로만 식별하고 IP·UA는 저장하지 않습니다. 레퍼러는 호스트만 저장합니다. 개인정보처리방침에 분석 쿠키 사용을 고지하세요.
 
 ## 기술 스택
@@ -100,6 +110,7 @@ npm run build && npm start
 | `ADMIN_PASSWORD` | 운영 대시보드(`/admin`) 비밀번호. 비우면 대시보드 404 |
 | `BOARD_PROMOTION_MIN_AGE_HOURS` | 보드 요청 후 자동 승격까지 최소 대기 시간 (기본 24) |
 | `MAINTENANCE_INTERVAL_SEC` | 어뷰징 탐지·보류 승격·정리 배치 주기 (기본 300초, 0이면 끔) |
+| `MEETUP_CONSECUTIVE_LIMIT` | 한 보드에서 같은 사람이 연속으로 제안할 수 있는 정모 수 (기본 2) |
 
 ### 테스트
 
@@ -151,8 +162,8 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | Method | Endpoint | 설명 |
 |---|---|---|
 | GET | `/api/categories` | 카테고리 목록 |
-| GET | `/api/posts?category=&sort=trust\|latest\|votes&q=&page=` | 피드/검색 |
-| POST | `/api/posts` | 작성 `{category, nickname, pw, title, body, summary?, summaryToken?}` |
+| GET | `/api/posts?category=&sort=trust\|latest\|votes&q=&page=&type=` | 피드/검색 (type: info\|chat\|meetup) |
+| POST | `/api/posts` | 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}}` |
 | GET | `/api/posts/:id` | 상세 + 요약 + 댓글 + 내 투표 |
 | PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?}` |
 | DELETE | `/api/posts/:id` | 삭제 `{pw}` |
@@ -160,6 +171,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/posts/:id/report` | `{reason}` — 5회 누적 자동 블라인드 |
 | GET/POST | `/api/posts/:id/comments` | 댓글 목록 / 작성 `{nickname, pw, body}` |
 | DELETE | `/api/comments/:id` | 댓글 삭제 `{pw}` |
+| GET/POST | `/api/posts/:id/rsvp` | 정모 참가자 목록 / 참가 토글 `{nickname}` (확정 인원 도달 시 자동 확정) |
 | POST | `/api/summary/preview` | 글쓰기 단계 요약 미리보기 `{title, body}` |
 | POST | `/api/posts/:id/summary` | 등록된 글 요약 재생성/교체 `{pw, summary?}` |
 | GET/POST | `/api/board-requests` | 보드 요청 목록 / 생성 `{name, description}` |
@@ -178,7 +190,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 005_monitoring_and_metrics.sql
+db/migrations/        001_schema.sql … 006_chat_and_meetups.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
@@ -186,11 +198,10 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit.test.ts, curator.test.ts, db.test.ts, monitoring.test.ts
+tests/                unit.test.ts, curator.test.ts, db.test.ts, monitoring.test.ts, community.test.ts
 ```
 
 ## 다음 스프린트로 넘긴 것
 
 - 레이트 리밋이 인메모리라 **단일 인스턴스 전제** — 수평 확장 시 Redis 등으로 교체 (WebSocket·배치·큐레이터는 이미 DB 기반이라 다중 인스턴스 가능)
-- `[정보]/[잡담]` 태그, 정모 제안 글 타입
 - 대시보드 기간 선택(현재 7일/30일 고정), 알림 → 커뮤니티 공개(투명성 로그) 여부 결정

@@ -135,7 +135,7 @@ export type BoardRow = {
 export async function boardStats(): Promise<BoardRow[]> {
   const rows = await query<Omit<BoardRow, "curator_interval_hours">>(
     `SELECT c.slug, c.name, c.auto_promoted_at IS NOT NULL AS auto_promoted,
-            (SELECT count(*)::int FROM posts p WHERE p.category_id = c.id AND NOT p.is_ai_curated AND p.created_at > now() - interval '7 days') AS human_posts_7d,
+            (SELECT count(*)::int FROM posts p WHERE p.category_id = c.id AND NOT p.is_ai_curated AND p.post_type = 'info' AND p.created_at > now() - interval '7 days') AS human_posts_7d,
             (SELECT count(*)::int FROM posts p WHERE p.category_id = c.id AND p.is_ai_curated AND p.created_at > now() - interval '7 days') AS ai_posts_7d,
             (SELECT count(*)::int FROM comments m JOIN posts p ON p.id = m.post_id
               WHERE p.category_id = c.id AND NOT m.is_ai_curated AND m.created_at > now() - interval '7 days') AS comments_7d,

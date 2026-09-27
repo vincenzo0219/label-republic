@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
 import { ReportButton } from "@/components/ReportButton";
+import { RsvpPanel } from "@/components/RsvpPanel";
 import { ShareButton } from "@/components/ShareButton";
 import { SummaryLines } from "@/components/SummaryLines";
 import { AiBadge, TrustBadge } from "@/components/TrustBadge";
@@ -13,6 +14,7 @@ import { config } from "@/lib/config";
 import { fingerprint } from "@/lib/fingerprint";
 import { timeAgo } from "@/lib/format";
 import { listComments } from "@/lib/repo/comments";
+import { isAttending, listParticipants } from "@/lib/repo/meetups";
 import { getMyVote, getPost } from "@/lib/repo/posts";
 import { EXTRACTIVE_MODEL } from "@/lib/summary";
 
@@ -47,8 +49,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ...(ogImage ? { images: [ogImage] } : {}),
     },
     twitter: { card: ogImage ? "summary_large_image" : "summary", title: post.title, description, ...(ogImage ? { images: [ogImage.url] } : {}) },
-    // 광고 의심 글은 검색 노출에서 제외
-    ...(post.is_suppressed ? { robots: { index: false, follow: false } } : {}),
+    // 광고 의심 글과 잡담은 검색 노출에서 제외 (정보 아카이브로서의 SEO 품질 유지)
+    ...(post.is_suppressed || post.post_type === "chat" ? { robots: { index: false, follow: !post.is_suppressed } } : {}),
   };
 }
 
@@ -69,10 +71,29 @@ export default async function PostPage({ params }: Props) {
   }
 
   const fp = fingerprint(await headers());
-  const [comments, myVote] = await Promise.all([listComments(id), getMyVote(id, fp)]);
+  const [comments, myVote, participants, attending] = await Promise.all([
+    listComments(id),
+    getMyVote(id, fp),
+    post.meetup ? listParticipants(id) : Promise.resolve([]),
+    post.meetup ? isAttending(id, fp) : Promise.resolve(false),
+  ]);
 
-  // 검색엔진용 구조화 데이터 (SEO)
-  const jsonLd = {
+  // 검색엔진용 구조화 데이터 (SEO) — 정모는 Event 로 표시
+  const jsonLd = post.meetup
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Event",
+        name: post.title,
+        description: post.body.slice(0, 500),
+        startDate: post.meetup.meet_at,
+        eventStatus: "https://schema.org/EventScheduled",
+        eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+        location: { "@type": "Place", name: post.meetup.location },
+        organizer: { "@type": "Person", name: post.nickname },
+        maximumAttendeeCapacity: post.meetup.capacity,
+        url: `${config.siteUrl}/posts/${post.id}`,
+      }
+    : {
     "@context": "https://schema.org",
     "@type": "DiscussionForumPosting",
     headline: post.title,
@@ -99,6 +120,7 @@ export default async function PostPage({ params }: Props) {
         <div className="card-top">
           <Link href={`/c/${encodeURIComponent(post.category.slug)}`} className="badge badge-cat">{post.category.name}</Link>
           <TrustBadge tier={post.trust_tier} categoryName={post.category.name} />
+          {post.post_type === "chat" && <span className="badge badge-type">💬 잡담</span>}
           {post.is_ai_curated && <AiBadge />}
         </div>
         <h1>{post.title}</h1>
@@ -121,6 +143,8 @@ export default async function PostPage({ params }: Props) {
           추천/비추천과 신고로 커뮤니티가 최종 결정합니다.
         </div>
       )}
+
+      {post.meetup && <RsvpPanel postId={post.id} initial={post.meetup} participants={participants} attending={attending} />}
 
       {post.summary && (
         <section className="ai-card" aria-label="3줄 요약">

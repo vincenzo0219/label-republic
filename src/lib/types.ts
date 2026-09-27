@@ -15,6 +15,18 @@ export type Summary = {
   is_author_edited: boolean;
 };
 
+export type PostType = "info" | "chat" | "meetup";
+
+export type Meetup = {
+  meet_at: string;
+  location: string;
+  min_participants: number;
+  capacity: number;
+  rsvp_count: number;
+  status: "proposed" | "confirmed" | "expired";
+  confirmed_at: string | null;
+};
+
 export type PostCard = {
   id: string;
   category: { slug: string; name: string };
@@ -29,6 +41,8 @@ export type PostCard = {
   is_ai_curated: boolean;
   /** AI 1차 정화로 노출 순위가 낮아진 글 */
   is_suppressed: boolean;
+  post_type: PostType;
+  meetup: Meetup | null;
   created_at: string;
 };
 

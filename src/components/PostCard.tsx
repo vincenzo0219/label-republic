@@ -4,6 +4,7 @@ import { timeAgo } from "@/lib/format";
 import type { PostCard as PostCardData } from "@/lib/types";
 import { Highlight } from "./Highlight";
 import { SummaryLines } from "./SummaryLines";
+import { MeetupBadge } from "./Meetup";
 import { AiBadge, TrustBadge } from "./TrustBadge";
 
 export function PostCard({ post, terms, showCategory = true }: { post: PostCardData; terms?: string[]; showCategory?: boolean }) {
@@ -14,6 +15,8 @@ export function PostCard({ post, terms, showCategory = true }: { post: PostCardD
         <div className="card-top">
           {showCategory && <span className="badge badge-cat">{post.category.name}</span>}
           <TrustBadge tier={post.trust_tier} />
+          {post.post_type === "chat" && <span className="badge badge-type">💬 잡담</span>}
+          {post.meetup && <MeetupBadge meetup={post.meetup} />}
           {post.is_ai_curated && <AiBadge />}
           {post.is_suppressed && (
             <span className="badge badge-pending" title="스팸·광고 패턴이 감지되어 노출 순위가 낮아진 글">

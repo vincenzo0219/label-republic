@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FeedView } from "@/components/FeedView";
 import { getCategoryBySlug } from "@/lib/repo/categories";
-import { sortSchema } from "@/lib/validation";
+import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -30,5 +30,5 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) notFound();
   const sp = await searchParams;
-  return <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} />;
+  return <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} />;
 }
