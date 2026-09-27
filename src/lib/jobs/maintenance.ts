@@ -144,6 +144,9 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       const pv = await client.query("DELETE FROM page_views WHERE occurred_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       const al = await client.query("DELETE FROM abuse_alerts WHERE last_seen < $1::timestamptz - interval '90 days'", [now.toISOString()]);
       await client.query("DELETE FROM maintenance_runs WHERE started_at < $1::timestamptz - interval '30 days'", [now.toISOString()]);
+      // fingerprint 활동 이력도 조회 기록과 같은 400일 보관 (개인정보처리방침과 일치)
+      await client.query("DELETE FROM fingerprints WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
+      await client.query("DELETE FROM visitors WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       const result: MaintenanceResult = {
         ran: true,
         alerts: alerts.length,

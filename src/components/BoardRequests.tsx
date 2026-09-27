@@ -72,7 +72,7 @@ export function BoardRequests({ initial, threshold }: { initial: BoardRequest[];
             )}
           </h2>
           {r.description && <p className="excerpt">{r.description}</p>}
-          <div className="progress" aria-label={`${r.vote_count} / ${threshold}표`}>
+          <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={threshold} aria-valuenow={Math.min(r.vote_count, threshold)} aria-label={`개설 찬성 ${r.vote_count} / ${threshold}표`}>
             <i style={{ width: `${Math.min(100, (r.vote_count / threshold) * 100)}%` }} />
           </div>
           <div className="card-meta">

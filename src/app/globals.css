@@ -8,13 +8,13 @@
   --brand-ink: #ffffff;
   --accent: #c2410c;
   --mark: #fde68a;
-  --gold: #a16207;
+  --gold: #854d0e;
   --gold-bg: #fef3c7;
   --silver: #475569;
   --silver-bg: #e2e8f0;
   --bronze: #9a3412;
   --bronze-bg: #ffedd5;
-  --pending: #6b7280;
+  --pending: #565d68;
   --pending-bg: #f3f4f6;
   --danger: #b91c1c;
   --radius: 14px;
@@ -135,7 +135,7 @@ a.card:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); 
 .badge-ai { color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, transparent); }
 .badge-cat { color: var(--muted); background: transparent; border: 1px solid var(--line); font-weight: 600; }
 
-mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1px; }
+mark { background: var(--mark); color: var(--text); border-radius: 3px; padding: 0 1px; }
 
 /* Post detail */
 .post-head h1 { font-size: 22px; line-height: 1.35; margin: 6px 0 8px; letter-spacing: -0.01em; }
@@ -315,3 +315,20 @@ mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1
 .meetup-progress > i { display: block; height: 100%; background: var(--brand); }
 .participants { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
 .participants span { padding: 2px 8px; border-radius: 999px; background: var(--pending-bg); }
+
+/* Sprint 6: 정책 페이지 */
+.legal h1 { font-size: 22px; margin: 4px 0 10px; }
+.legal h2 { font-size: 16px; margin: 24px 0 8px; }
+.legal p, .legal li { font-size: 15px; line-height: 1.75; }
+.legal ul { padding-left: 20px; }
+.legal .data-table { margin: 8px 0; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 14px; }
+
+/* Sprint 6: 접근성 */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.skip-link { position: absolute; left: 8px; top: -48px; z-index: 100; padding: 8px 14px; border-radius: 8px; background: var(--brand); color: var(--brand-ink); font-weight: 700; }
+.skip-link:focus { top: 8px; }
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

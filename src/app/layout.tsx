@@ -28,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body>
+        <a className="skip-link" href="#main">본문으로 건너뛰기</a>
         <Suspense fallback={null}>
           <Analytics />
         </Suspense>
@@ -36,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="logo" aria-label="라벨공화국 홈">
               라벨공화국<small>노방장</small>
             </Link>
-            <form action="/search" method="get" role="search" className="header-search">
+            <form action="/search" method="get" role="search" aria-label="사이트 검색" className="header-search">
               <input type="search" name="q" placeholder="성분, 제품, 스위치 검색" aria-label="검색어" maxLength={100} />
             </form>
             <Link href="/write" className="btn btn-primary">
@@ -44,7 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
           </div>
         </header>
-        <main>
+        <main id="main" tabIndex={-1}>
           <div className="container">{children}</div>
         </main>
         <footer className="site-footer">
@@ -55,6 +56,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               원하는 보드가 없나요? <Link href="/boards">보드 개설 요청</Link>
             </p>
             <p>성분·스펙 정보는 사용자 제보이며 의학적 조언이 아닙니다.</p>
+            <nav className="footer-links" aria-label="정책">
+              <Link href="/policy">운영 원칙</Link>
+              <Link href="/transparency">투명성 기록</Link>
+              <Link href="/terms">이용약관</Link>
+              <Link href="/privacy">
+                <b>개인정보처리방침</b>
+              </Link>
+            </nav>
           </div>
         </footer>
       </body>

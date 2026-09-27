@@ -34,7 +34,8 @@ export default async function SearchPage({ searchParams }: Props) {
 
   return (
     <>
-      <form action="/search" method="get" role="search" className="form" style={{ marginBottom: 12 }}>
+      <h1 className="sr-only">{q ? `"${q}" 검색 결과` : "검색"}</h1>
+      <form action="/search" method="get" role="search" aria-label="검색어 수정" className="form" style={{ marginBottom: 12 }}>
         <div className="row" style={{ gridTemplateColumns: "1fr auto" }}>
           <input className="input" type="search" name="q" defaultValue={q} placeholder="예: 마그네슘 비스글리시네이트, 저소음 적축" maxLength={100} autoFocus={!q} />
           {category && <input type="hidden" name="category" value={category.slug} />}

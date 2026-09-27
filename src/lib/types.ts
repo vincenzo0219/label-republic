@@ -51,6 +51,9 @@ export type PostDetail = PostCard & {
   report_count: number;
   is_blinded: boolean;
   moderation_note: string;
+  /** 법적 요청에 의한 임시조치 (정보통신망법 제44조의2) */
+  legal_hold: boolean;
+  legal_hold_reason: string | null;
   updated_at: string;
 };
 

@@ -27,6 +27,7 @@ export async function FeedView({ category, sort, page, type }: { category?: Cate
   };
   return (
     <>
+      <h1 className="sr-only">{category ? `${category.name} 보드` : "라벨공화국 — 방장 없는 성분·취미 팩트체크 커뮤니티"}</h1>
       <CategoryTabs categories={categories} active={category?.slug} />
       {category && (
         <p className="hint" style={{ margin: "0 0 8px" }}>

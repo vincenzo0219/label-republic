@@ -14,6 +14,8 @@ import { Client } from "pg";
 import { WebSocket, WebSocketServer } from "ws";
 import { checkAdminAuth, isAdminPath } from "./src/lib/admin-auth";
 import { config } from "./src/lib/config";
+import { pool } from "./src/lib/db";
+import { checkEnv } from "./src/lib/env-check";
 import { CLIENT_IP_HEADER } from "./src/lib/fingerprint";
 import { startCuratorScheduler } from "./src/lib/jobs/curator";
 import { startMaintenanceScheduler } from "./src/lib/jobs/maintenance";
@@ -25,6 +27,21 @@ const hostname = process.env.HOST || "0.0.0.0";
 const databaseUrl = process.env.DATABASE_URL ?? "postgres://labelrep:labelrep@localhost:5432/labelrep";
 
 const MAX_SOCKETS_PER_POST = 500;
+
+// 운영에서 치명적인 설정 누락이 있으면 시작하지 않는다
+const envReport = checkEnv(process.env, !dev);
+for (const w of envReport.warnings) console.warn(`[env] 경고: ${w}`);
+// 로컬에서 운영 빌드를 시험할 때만 ENV_CHECK=warn 으로 오류를 경고로 낮출 수 있다 (운영 배포에서는 쓰지 말 것)
+if (envReport.errors.length && process.env.ENV_CHECK === "warn") {
+  for (const e of envReport.errors) console.warn(`[env] 경고(ENV_CHECK=warn): ${e}`);
+} else if (envReport.errors.length) {
+  for (const e of envReport.errors) console.error(`[env] 오류: ${e}`);
+  console.error("[env] 환경변수를 확인하세요 (.env.example 참고). 서버를 시작하지 않습니다.");
+  process.exit(1);
+}
+
+let shuttingDown = false;
+let listenClient: Client | null = null;
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -58,7 +75,9 @@ function broadcast(raw: string) {
 
 async function listen(): Promise<void> {
   const client = new Client({ connectionString: databaseUrl });
+  listenClient = client;
   const retry = () => {
+    if (shuttingDown) return;
     client.removeAllListeners();
     client.end().catch(() => {});
     setTimeout(() => listen().catch(() => {}), 3000);
@@ -89,8 +108,10 @@ app.prepare().then(async () => {
   const upgradeNext = app.getUpgradeHandler();
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 });
 
+  const hsts = config.siteUrl.startsWith("https://");
   const server = createServer((req, res) => {
     withClientIp(req);
+    if (hsts) res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     // 운영 대시보드: ADMIN_PASSWORD 가 없으면 404, 있으면 Basic 인증
     const pathname = (req.url ?? "/").split("?")[0]!;
     if (isAdminPath(pathname)) {
@@ -156,4 +177,27 @@ app.prepare().then(async () => {
   server.listen(port, hostname, () => {
     console.log(`> 라벨공화국 ready on http://${hostname}:${port} (${dev ? "dev" : "prod"})`);
   });
+
+  // 컨테이너 종료(SIGTERM) 시: 새 연결 거부 → 웹소켓 정리 → 진행 중 요청 마무리 → DB 풀 종료
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[shutdown] ${signal} 수신, 정리 중…`);
+    const force = setTimeout(() => {
+      console.error("[shutdown] 10초 안에 끝나지 않아 강제 종료합니다.");
+      process.exit(1);
+    }, 10_000);
+    force.unref();
+    for (const ws of wss.clients) ws.close(1001, "server shutting down");
+    clearInterval(heartbeat);
+    server.close(async () => {
+      await listenClient?.end().catch(() => {});
+      await pool().end().catch(() => {});
+      console.log("[shutdown] 완료");
+      process.exit(0);
+    });
+    server.closeIdleConnections?.();
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 });

@@ -59,6 +59,21 @@
 | 비공식 방장화 방지 | 같은 보드의 최근 정모 `MEETUP_CONSECUTIVE_LIMIT`(기본 2)건이 모두 같은 사람이면 새 제안 거부 — 닉네임과 fingerprint를 함께 확인해 닉네임만 바꾼 우회 차단. 정모 제안 하루 3건 제한 |
 | AI 큐레이터 | 물러남 판단은 사람이 쓴 **정보** 글만 셈 (잡담이 많아도 정보 공백은 그대로) |
 
+### Sprint 6 — 오픈 준비 마무리
+
+| 영역 | 구현 |
+|---|---|
+| 배포 | `Dockerfile`(멀티 스테이지, non-root, HEALTHCHECK), `docker-entrypoint.sh`(`RUN_MIGRATIONS=true` 시 마이그레이션), `docker-compose.yml`(앱 + Postgres) |
+| 헬스체크 | `GET /api/health` — DB 연결·적용된 마이그레이션 확인, 실패 시 503 |
+| 시작 전 점검 | 운영에서 `APP_SECRET`(32자+, 예시값 금지)·`SITE_URL`(https, localhost 금지)·`CONTACT_EMAIL`·`DATABASE_URL` 누락 시 시작 거부. AI 키·관리자 비밀번호·`TRUST_PROXY`는 경고 |
+| 무중단 종료 | SIGTERM 시 새 연결 거부 → 웹소켓 1001 종료 → 진행 중 요청 마무리 → DB 풀 종료 (10초 제한) |
+| 보안 헤더 | `X-Frame-Options`, `frame-ancestors`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HTTPS면 HSTS(런타임 `SITE_URL` 기준) |
+| 법적 페이지 | `/privacy`(개인정보처리방침 — 수집 항목·보유 기간·쿠키·**Anthropic 국외 이전** 고지), `/terms`, `/policy`(커뮤니티 운영 원칙). `LEGAL_EFFECTIVE_DATE` 전에는 "검토 전 초안" 배너 |
+| 법적 임시조치 | 정보통신망법 §44-2 권리침해 신고 대응용. `/admin`에서만 실행, 최대 30일, **모든 조치를 `/transparency`에 공개** (방장 권한이 되지 않도록) |
+| 에러 페이지 | `error.tsx`(재시도), `global-error.tsx`, 검색창이 있는 404 |
+| 접근성 | 본문 건너뛰기 링크, 페이지별 `h1`, 검색 랜드마크 구분, 포커스 링, `prefers-reduced-motion`, 대비 보정 — **axe-core 위반 0건** (13개 페이지 × 라이트/다크) |
+| 보존 기간 | fingerprint 활동 이력·방문자도 400일 후 삭제 (방침과 일치) |
+
 **개인정보**: 방문자는 무작위 쿠키(`lr_vid`, httpOnly, 1년) 값의 HMAC으로만 식별하고 IP·UA는 저장하지 않습니다. 레퍼러는 호스트만 저장합니다. 개인정보처리방침에 분석 쿠키 사용을 고지하세요.
 
 ## 기술 스택
@@ -91,6 +106,20 @@ npm run dev                     # http://localhost:3000
 npm run build && npm start
 ```
 
+### Docker로 배포
+
+```bash
+docker build -t labelrepublic .
+docker run -p 3000:3000 --env-file .env -e RUN_MIGRATIONS=true labelrepublic
+# 또는 로컬에서 앱 + Postgres 한 번에
+docker compose up --build
+```
+
+- 컨테이너는 `node --import tsx server.ts`로 실행됩니다 (`npx`를 거치면 SIGTERM이 서버에 전달되지 않음).
+- 리버스 프록시·로드밸런서 뒤라면 `TRUST_PROXY=true` 필수 — 아니면 모든 사용자가 같은 IP로 보여 중복 투표 방지가 오작동합니다.
+- WebSocket(`/ws/comments`) 업그레이드를 프록시에서 허용하세요.
+- 헬스체크: `GET /api/health`
+
 `pg_trgm`은 PG13+에서 trusted extension이라 DB 소유자 권한으로 생성됩니다. 관리형 DB에서 막혀 있으면 superuser로 `CREATE EXTENSION pg_trgm;`을 먼저 실행하세요.
 
 ### 환경변수
@@ -111,6 +140,11 @@ npm run build && npm start
 | `BOARD_PROMOTION_MIN_AGE_HOURS` | 보드 요청 후 자동 승격까지 최소 대기 시간 (기본 24) |
 | `MAINTENANCE_INTERVAL_SEC` | 어뷰징 탐지·보류 승격·정리 배치 주기 (기본 300초, 0이면 끔) |
 | `MEETUP_CONSECUTIVE_LIMIT` | 한 보드에서 같은 사람이 연속으로 제안할 수 있는 정모 수 (기본 2) |
+| `CONTACT_EMAIL` | 개인정보·권리침해 신고 연락처 (운영 필수) |
+| `OPERATOR_NAME` / `HOSTING_PROVIDER` | 개인정보처리방침의 운영 주체 / 처리위탁 고지 |
+| `LEGAL_EFFECTIVE_DATE` | 법률 검토를 마친 약관·방침 시행일. 비우면 "검토 전 초안" 배너 |
+| `RUN_MIGRATIONS` | Docker 시작 시 마이그레이션 적용 |
+| `ENV_CHECK=warn` | 로컬에서 운영 빌드 시험용 — 환경변수 오류를 경고로 낮춤 (운영 금지) |
 
 ### 테스트
 
@@ -190,7 +224,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 006_chat_and_meetups.sql
+db/migrations/        001_schema.sql … 007_legal_hold.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
@@ -198,7 +232,7 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit.test.ts, curator.test.ts, db.test.ts, monitoring.test.ts, community.test.ts
+tests/                unit, curator, db, monitoring, community, launch (*.test.ts)
 ```
 
 ## 다음 스프린트로 넘긴 것

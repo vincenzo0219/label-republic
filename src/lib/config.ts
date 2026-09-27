@@ -62,6 +62,22 @@ export const config = {
     const n = Number(process.env.MEETUP_CONSECUTIVE_LIMIT ?? 2);
     return Number.isInteger(n) && n >= 1 ? n : 2;
   },
+  /** 개인정보처리방침·권리침해 신고 창구 연락처 */
+  get contactEmail() {
+    return process.env.CONTACT_EMAIL || "contact@example.com";
+  },
+  /** 서비스 운영 주체 표기 (개인정보처리방침) */
+  get operatorName() {
+    return process.env.OPERATOR_NAME || "라벨공화국 운영팀";
+  },
+  /** 법률 검토를 마친 약관·방침의 시행일 (YYYY-MM-DD). 비우면 "검토 중 초안" 배너가 표시된다 */
+  get legalEffectiveDate() {
+    return process.env.LEGAL_EFFECTIVE_DATE || null;
+  },
+  /** 서버·DB 호스팅 사업자 (개인정보 처리위탁 고지) */
+  get hostingProvider() {
+    return process.env.HOSTING_PROVIDER || null;
+  },
   get boardPromotionThreshold() {
     const n = Number(process.env.BOARD_PROMOTION_THRESHOLD);
     return Number.isInteger(n) && n > 0 ? n : 50;

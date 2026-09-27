@@ -4,6 +4,8 @@ import { compact, DailyBars, HBarList, StatTile, StatusPill } from "@/components
 import { config } from "@/lib/config";
 import { kstDay } from "@/lib/metrics";
 import * as m from "@/lib/repo/metrics";
+import { LegalHoldPanel } from "@/components/admin/LegalHoldPanel";
+import { activeLegalHolds, LEGAL_REASONS } from "@/lib/repo/legal";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "운영 대시보드", robots: { index: false, follow: false } };
@@ -82,6 +84,7 @@ export default async function AdminPage() {
       m.jobHealth(),
       m.openBoardRequests(),
     ]);
+  const holds = await activeLegalHolds();
 
   const last7 = daily.slice(-7);
   const prev7 = daily.slice(-14, -7);
@@ -254,6 +257,44 @@ export default async function AdminPage() {
             </table>
           </>
         )}
+      </section>
+
+      <section className="panel">
+        <h2>
+          법적 임시조치 <span className="hint">— 정보통신망법 제44조의2 권리침해 신고 대응 전용. 모든 조치는 /transparency 에 공개됩니다</span>
+        </h2>
+        <div className="panel-grid">
+          <LegalHoldPanel />
+          <div>
+            {holds.length === 0 ? (
+              <p className="hint">임시조치 중인 글이 없습니다.</p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>글</th>
+                    <th>사유</th>
+                    <th>만료</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {holds.map((h) => (
+                    <tr key={h.id}>
+                      <td>
+                        <Link href={`/posts/${h.id}`}>#{h.id}</Link> {h.title}
+                      </td>
+                      <td>{LEGAL_REASONS[h.reason]}</td>
+                      <td>
+                        {h.overdue ? <StatusPill status="warning" /> : null} {fmtTime(h.until)}
+                        {h.overdue && <div className="hint">30일 경과 — 해제 또는 후속 조치 필요</div>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="panel-grid">

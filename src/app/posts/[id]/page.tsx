@@ -14,6 +14,7 @@ import { config } from "@/lib/config";
 import { fingerprint } from "@/lib/fingerprint";
 import { timeAgo } from "@/lib/format";
 import { listComments } from "@/lib/repo/comments";
+import { LEGAL_HOLD_DAYS, LEGAL_REASONS, type LegalReason } from "@/lib/repo/legal";
 import { isAttending, listParticipants } from "@/lib/repo/meetups";
 import { getMyVote, getPost } from "@/lib/repo/posts";
 import { EXTRACTIVE_MODEL } from "@/lib/summary";
@@ -63,9 +64,17 @@ export default async function PostPage({ params }: Props) {
     return (
       <>
         <p className="hint"><Link href={`/c/${encodeURIComponent(post.category.slug)}`}>← {post.category.name}</Link></p>
-        <div className="notice" style={{ marginTop: 24 }}>
-          🚫 신고 {post.report_count}회 누적으로 자동 블라인드된 게시글입니다. 라벨공화국은 방장 없이 커뮤니티 신고로만 정화됩니다.
-        </div>
+        <h1 className="sr-only">{post.legal_hold ? "임시조치된 게시글" : "블라인드된 게시글"}</h1>
+        {post.legal_hold ? (
+          <div className="notice" style={{ marginTop: 24 }}>
+            ⚖️ 권리침해 신고({LEGAL_REASONS[post.legal_hold_reason as LegalReason] ?? "법적 요청"})에 따라 정보통신망법 제44조의2에 의거 임시조치된
+            게시글입니다. 임시조치는 최대 {LEGAL_HOLD_DAYS}일이며, 모든 조치는 <Link href="/transparency">투명성 기록</Link>에 공개됩니다.
+          </div>
+        ) : (
+          <div className="notice" style={{ marginTop: 24 }}>
+            🚫 신고 {post.report_count}회 누적으로 자동 블라인드된 게시글입니다. 라벨공화국은 방장 없이 커뮤니티 신고로만 정화됩니다.
+          </div>
+        )}
       </>
     );
   }
