@@ -1,1 +1,135 @@
-# label-republic
+# 라벨공화국 (Label Republic)
+
+> 방장 없이, 정보는 죽지 않고, 신뢰만 남는 성분 정보 아카이브 — 마케팅명 **노방장**
+
+회원가입 없이 닉네임 + 4자리 비밀번호로 글/댓글을 쓰고, 추천·비추천과 **신고 5회 자동 블라인드**로 커뮤니티가 스스로 정화하는 Mobile-first SSR 게시판입니다.
+
+## Sprint 1 범위
+
+| 영역 | 구현 |
+|---|---|
+| DB | PostgreSQL 스키마 (`categories`, `posts`, `comments`, `votes`, `reports`, `ai_summaries`, `board_requests`, `board_request_votes`) + 카운터/자동 블라인드/실시간 알림 트리거 + 카테고리별 신뢰도 계산 함수 |
+| 화면 (SSR) | 홈 피드, 카테고리 피드(`/c/[slug]`), 게시글 상세, 글쓰기/수정, 검색 결과, 보드 개설 요청 |
+| API | 게시글 CRUD, 댓글, 추천/비추천, 신고, AI 3줄 요약, 보드 개설 요청 + 투표(자동 승격) |
+| 실시간 | 댓글 WebSocket (`/ws/comments?postId=`) — Postgres `LISTEN/NOTIFY` 기반 |
+| SEO | 서버 렌더링, 게시글별 title/description(3줄 요약)/canonical/OG, JSON-LD `DiscussionForumPosting`, `sitemap.xml`, `robots.txt` |
+
+## 기술 스택
+
+- **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
+- **PostgreSQL 16** (`pg`, `pg_trgm`) — ORM 없이 SQL 마이그레이션
+- **ws** — 경량 WebSocket (서버→클라이언트 단방향 푸시)
+- **@anthropic-ai/sdk** — AI 3줄 요약 (키가 없으면 로컬 추출 요약으로 동작)
+- **zod** 입력 검증, **vitest** 테스트
+
+## 시작하기
+
+```bash
+# 1) PostgreSQL 준비 (예: 로컬)
+createuser labelrep -P          # 비밀번호: labelrep
+createdb labelrep -O labelrep
+
+# 2) 환경변수
+cp .env.example .env            # 값 수정 후
+export $(grep -v '^#' .env | xargs)
+
+# 3) 설치 · 마이그레이션(초기 5개 보드 seed 포함)
+npm install
+npm run db:migrate
+
+# 4) 개발 서버 (Next dev + WebSocket)
+npm run dev                     # http://localhost:3000
+
+# 운영
+npm run build && npm start
+```
+
+`pg_trgm`은 PG13+에서 trusted extension이라 DB 소유자 권한으로 생성됩니다. 관리형 DB에서 막혀 있으면 superuser로 `CREATE EXTENSION pg_trgm;`을 먼저 실행하세요.
+
+### 환경변수
+
+| 변수 | 설명 |
+|---|---|
+| `DATABASE_URL` | Postgres 접속 문자열 |
+| `APP_SECRET` | fingerprint HMAC · 요약 토큰 서명 키 (운영 필수, 16자 이상) |
+| `TRUST_PROXY` | 리버스 프록시 뒤에서 `true` → `X-Forwarded-For` 첫 IP 사용 |
+| `SITE_URL` | canonical/OG/sitemap 절대 URL |
+| `ANTHROPIC_API_KEY` | 설정 시 Claude로 3줄 요약, 비우면 추출 요약 |
+| `SUMMARY_MODEL` | 기본 `claude-opus-5` |
+| `BOARD_PROMOTION_THRESHOLD` | 보드 자동 승격 임계치 (기본 50) |
+
+### 테스트
+
+```bash
+npm run typecheck
+npm test                                            # 단위 테스트
+TEST_DATABASE_URL=postgres://.../labelrep_test npm test   # + DB 통합 테스트 (해당 DB의 public 스키마를 초기화함!)
+```
+
+### 신뢰도 배지 배치
+
+투표가 없어도 "게시 24시간 경과"로 검증 대기가 풀리는 글을 반영하도록 주기 실행하세요.
+
+```bash
+*/10 * * * * cd /app && npm run trust:refresh
+```
+
+## 핵심 규칙
+
+- **인증 없음**: 글/댓글은 닉네임 + 숫자 4자리 비밀번호. 비밀번호는 `scrypt`(랜덤 salt) 해시로만 저장. 틀린 비밀번호는 클라이언트당 15분 5회, 대상 글/댓글당 1시간 30회로 제한(1만 가지 조합 무차별 대입 방어).
+- **fingerprint**: `HMAC-SHA256(APP_SECRET, IP | User-Agent)`. 원본 IP는 저장하지 않음. IP는 `server.ts`가 소켓 주소로 덮어쓴 헤더에서만 읽어 위조 불가. `votes(post_id, voter_fingerprint)`, `reports(post_id, reporter_fingerprint)` 유니크 제약으로 1인 1회를 DB가 강제.
+- **추천/비추천**: 같은 버튼 재클릭 = 취소, 반대 버튼 = 변경. 카운터는 트리거가 유지.
+- **자동 블라인드**: 고유 신고 5건이면 트리거가 `is_blinded = true` (사람 승인 없음). 블라인드 글은 피드/검색/사이트맵에서 제외되고 본문·요약 비노출, 투표·댓글 불가.
+- **신뢰도 배지** (`refresh_trust_tiers`): 카테고리별 최근 30일 글 중 게시 24시간 이상 + 투표 3표 이상인 글을 순추천 `percent_rank`로 상위 5% / 12% / 19% 부여. 조건 미달은 "검증 대기". 투표 시 해당 카테고리를 즉시 재계산하고, 배치로도 갱신.
+- **정렬**: 신뢰도순(배지 → 순추천 → 최신) / 최신순 / 추천순(순추천).
+- **검색**: 공백 구분 검색어 AND, 제목·본문 부분일치(`pg_trgm` GIN 인덱스), 서버에서 `<mark>` 하이라이트(HTML 주입 없이 React 노드로 분할).
+- **보드 자동 승격**: 요청 행을 `FOR UPDATE`로 잠그고 투표 → 임계치 도달 시 같은 트랜잭션에서 `categories`에 생성(`auto_promoted_at` 기록). 동시 투표에도 한 번만 승격.
+
+## AI 3줄 요약 흐름
+
+1. 글쓰기 화면에서 `POST /api/summary/preview` → `{lines, model, token}`
+2. 작성자가 미리보기 3줄을 직접 수정
+3. `POST /api/posts`에 최종 `summary` + `summaryToken` 전송 → 서버가 서명된 AI 원본과 비교해 `ai_summaries.is_author_edited` 기록 (토큰 없이 보낸 요약은 `model_version = "author"`)
+4. 요약 없이 등록하면 서버가 생성
+
+Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄을 받고, 게시글 본문은 데이터로만 취급하도록 지시하며, "치료/효능 보장" 같은 단정 표현을 피하도록 프롬프트에 명시합니다(표시광고법·건강기능식품법 리스크 대응). 키가 없거나 호출 실패·거절 시 숫자·단위·성분 키워드 기반 추출 요약으로 대체됩니다.
+
+## API
+
+| Method | Endpoint | 설명 |
+|---|---|---|
+| GET | `/api/categories` | 카테고리 목록 |
+| GET | `/api/posts?category=&sort=trust\|latest\|votes&q=&page=` | 피드/검색 |
+| POST | `/api/posts` | 작성 `{category, nickname, pw, title, body, summary?, summaryToken?}` |
+| GET | `/api/posts/:id` | 상세 + 요약 + 댓글 + 내 투표 |
+| PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?}` |
+| DELETE | `/api/posts/:id` | 삭제 `{pw}` |
+| POST | `/api/posts/:id/vote` | `{value: 1 \| -1}` |
+| POST | `/api/posts/:id/report` | `{reason}` — 5회 누적 자동 블라인드 |
+| GET/POST | `/api/posts/:id/comments` | 댓글 목록 / 작성 `{nickname, pw, body}` |
+| DELETE | `/api/comments/:id` | 댓글 삭제 `{pw}` |
+| POST | `/api/summary/preview` | 글쓰기 단계 요약 미리보기 `{title, body}` |
+| POST | `/api/posts/:id/summary` | 등록된 글 요약 재생성/교체 `{pw, summary?}` |
+| GET/POST | `/api/board-requests` | 보드 요청 목록 / 생성 `{name, description}` |
+| POST | `/api/board-requests/:id/vote` | 보드 요청 투표 (임계치 도달 시 자동 승격) |
+| WS | `/ws/comments?postId=` | 댓글 `created`/`deleted` 이벤트 푸시 |
+
+에러 응답 형식: `{"error": {"code": "wrong_password", "message": "비밀번호가 일치하지 않습니다."}}`
+
+## 디렉터리
+
+```
+db/migrations/        001_schema.sql, 002_seed_categories.sql
+scripts/              migrate.ts, refresh-trust.ts
+server.ts             Next 커스텀 서버 + WebSocket + LISTEN
+src/app/              페이지(SSR) 및 API 라우트
+src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
+src/lib/              config, db, repo/*, summary, fingerprint, password, validation …
+tests/                unit.test.ts, db.test.ts
+```
+
+## 다음 스프린트로 넘긴 것
+
+- 레이트 리밋이 인메모리라 **단일 인스턴스 전제** — 수평 확장 시 Redis 등으로 교체 (WebSocket은 이미 DB NOTIFY 기반이라 다중 인스턴스 가능)
+- `[정보]/[잡담]` 태그, 정모 제안 글 타입, AI 큐레이터 시드 게시(`posts.is_ai_curated` 컬럼과 🤖 배지는 준비됨)
+- 신고 어뷰징 패턴 탐지(가중치 하향), AI 스팸 1차 스캔, 카드뷰 이미지 공유
