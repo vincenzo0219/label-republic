@@ -44,6 +44,19 @@ export const config = {
     const d = new Date(v);
     return Number.isNaN(d.getTime()) ? null : d;
   },
+  /** 보드 요청이 올라온 뒤 자동 승격까지 최소 대기 시간 */
+  get boardPromotionMinAgeHours() {
+    const n = Number(process.env.BOARD_PROMOTION_MIN_AGE_HOURS ?? 24);
+    return Number.isFinite(n) && n >= 0 ? n : 24;
+  },
+  /** 운영 대시보드(/admin) 비밀번호. 비우면 대시보드 비활성화 */
+  get adminPassword() {
+    return process.env.ADMIN_PASSWORD || undefined;
+  },
+  get maintenanceIntervalSec() {
+    const n = Number(process.env.MAINTENANCE_INTERVAL_SEC ?? 300);
+    return Number.isFinite(n) && n >= 0 ? n : 300;
+  },
   get boardPromotionThreshold() {
     const n = Number(process.env.BOARD_PROMOTION_THRESHOLD);
     return Number.isInteger(n) && n > 0 ? n : 50;

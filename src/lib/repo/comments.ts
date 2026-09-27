@@ -12,7 +12,10 @@ export async function listComments(postId: string): Promise<Comment[]> {
 }
 
 /** INSERT 트리거가 pg_notify('comment_events') 로 실시간 구독자에게 전파한다. */
-export async function createComment(postId: string, input: { nickname: string; pin: string; body: string }): Promise<Comment> {
+export async function createComment(
+  postId: string,
+  input: { nickname: string; pin: string; body: string; fingerprint?: string },
+): Promise<Comment> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
   const pwHash = await hashPin(input.pin);
   return tx(async (client) => {
@@ -20,8 +23,8 @@ export async function createComment(postId: string, input: { nickname: string; p
     if (!post.rows[0]) throw notFound();
     if (post.rows[0].is_blinded) throw blinded();
     const { rows } = await client.query<Comment>(
-      `INSERT INTO comments (post_id, nickname, pw_hash, body) VALUES ($1, $2, $3, $4) RETURNING ${COLS}`,
-      [postId, input.nickname, pwHash, input.body],
+      `INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint) VALUES ($1, $2, $3, $4, $5) RETURNING ${COLS}`,
+      [postId, input.nickname, pwHash, input.body, input.fingerprint ?? null],
     );
     return rows[0]!;
   });

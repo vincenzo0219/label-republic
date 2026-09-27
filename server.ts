@@ -12,9 +12,11 @@ import { createServer, type IncomingMessage } from "node:http";
 import next from "next";
 import { Client } from "pg";
 import { WebSocket, WebSocketServer } from "ws";
+import { checkAdminAuth, isAdminPath } from "./src/lib/admin-auth";
 import { config } from "./src/lib/config";
 import { CLIENT_IP_HEADER } from "./src/lib/fingerprint";
 import { startCuratorScheduler } from "./src/lib/jobs/curator";
+import { startMaintenanceScheduler } from "./src/lib/jobs/maintenance";
 import { startTrustScheduler } from "./src/lib/jobs/trust";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -89,6 +91,21 @@ app.prepare().then(async () => {
 
   const server = createServer((req, res) => {
     withClientIp(req);
+    // 운영 대시보드: ADMIN_PASSWORD 가 없으면 404, 있으면 Basic 인증
+    const pathname = (req.url ?? "/").split("?")[0]!;
+    if (isAdminPath(pathname)) {
+      const auth = checkAdminAuth(req.headers.authorization, config.adminPassword);
+      if (auth !== "ok") {
+        res.statusCode = auth === "disabled" ? 404 : 401;
+        if (auth === "unauthorized") res.setHeader("WWW-Authenticate", 'Basic realm="labelrepublic-admin", charset="UTF-8"');
+        res.setHeader("X-Robots-Tag", "noindex, nofollow");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(auth === "disabled" ? "Not found" : "Unauthorized");
+        return;
+      }
+      res.setHeader("X-Robots-Tag", "noindex, nofollow");
+      res.setHeader("Cache-Control", "no-store");
+    }
     handle(req, res);
   });
 
@@ -134,6 +151,8 @@ app.prepare().then(async () => {
   if (config.trustRefreshIntervalSec > 0) startTrustScheduler(config.trustRefreshIntervalSec * 1000);
   // AI 큐레이터 "활성화 유지" — 사람 글이 늘면 자동으로 물러난다.
   if (config.curatorIntervalSec > 0) startCuratorScheduler(config.curatorIntervalSec * 1000);
+  // 어뷰징 탐지 · 보류된 보드 승격 · 오래된 지표 정리
+  if (config.maintenanceIntervalSec > 0) startMaintenanceScheduler(config.maintenanceIntervalSec * 1000);
   server.listen(port, hostname, () => {
     console.log(`> 라벨공화국 ready on http://${hostname}:${port} (${dev ? "dev" : "prod"})`);
   });

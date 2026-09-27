@@ -32,6 +32,16 @@ d("database rules", async () => {
       summary: { lines: ["하나", "둘", "셋"], model: "author", isAuthorEdited: true },
     });
 
+  // 기존 활동 이력이 있는 사용자 — Sprint 4의 "갓 생긴 fingerprint 집중 신고" 하향 대상이 아님
+  const establish = async (...fps: string[]) => {
+    for (const f of fps) {
+      await query(
+        "INSERT INTO fingerprints (fingerprint, first_seen, last_seen) VALUES ($1, now() - interval '3 days', now()) ON CONFLICT (fingerprint) DO UPDATE SET first_seen = EXCLUDED.first_seen",
+        [f],
+      );
+    }
+  };
+
   beforeAll(async () => {
     await query("DROP SCHEMA public CASCADE");
     await query("CREATE SCHEMA public");
@@ -43,7 +53,7 @@ d("database rules", async () => {
 
   beforeEach(async () => {
     resetRateLimits();
-    await query("TRUNCATE posts, board_requests, trust_batch_runs, curator_queue, curator_runs RESTART IDENTITY CASCADE");
+    await query("TRUNCATE posts, board_requests, trust_batch_runs, curator_queue, curator_runs, fingerprints RESTART IDENTITY CASCADE");
     await query("DELETE FROM categories WHERE auto_promoted_at IS NOT NULL");
     await query("UPDATE categories SET post_count = 0");
   });
@@ -85,6 +95,7 @@ d("database rules", async () => {
 
   it("auto-blinds after 5 distinct reporters, ignoring duplicates", async () => {
     const post = await newPost();
+    await establish(fp(1), fp(2), fp(3), fp(4), fp(5));
     for (let i = 1; i <= 4; i++) await posts.reportPost(post.id, fp(i), "광고");
     expect(await posts.reportPost(post.id, fp(4), "again")).toMatchObject({ report_count: 4, is_blinded: false, alreadyReported: true });
     expect(await posts.reportPost(post.id, fp(5), "광고")).toMatchObject({ report_count: 5, is_blinded: true });
@@ -159,6 +170,7 @@ d("database rules", async () => {
     const w = await query<{ weight: number }>("SELECT weight FROM reports WHERE post_id = $1", [target.id]);
     expect(w[0]!.weight).toBeCloseTo(0.2);
 
+    await establish(fp(1), fp(2), fp(3), fp(4), fp(5));
     for (let i = 1; i <= 4; i++) await posts.reportPost(target.id, fp(i), "광고");
     // 고유 신고자 5명이지만 가중치 합 4.2 < 5 → 아직 블라인드 아님
     expect(await posts.reportPost(target.id, fp(4), "dup")).toMatchObject({ report_count: 5, is_blinded: false });
@@ -321,10 +333,10 @@ d("database rules", async () => {
     await expect(boards.createBoardRequest("커피 원두", "")).rejects.toMatchObject({ status: 409 });
     await expect(boards.createBoardRequest("데스크테리어", "")).rejects.toMatchObject({ status: 409 });
 
-    expect(await boards.voteBoardRequest(req.id, fp(1), 3)).toMatchObject({ promoted: false });
-    expect(await boards.voteBoardRequest(req.id, fp(1), 3)).toMatchObject({ alreadyVoted: true });
+    expect(await boards.voteBoardRequest(req.id, fp(1), 3, 0)).toMatchObject({ promoted: false });
+    expect(await boards.voteBoardRequest(req.id, fp(1), 3, 0)).toMatchObject({ alreadyVoted: true });
     // 동시 투표에서도 승격은 한 번만
-    const results = await Promise.all([fp(2), fp(3), fp(4)].map((f) => boards.voteBoardRequest(req.id, f, 3)));
+    const results = await Promise.all([fp(2), fp(3), fp(4)].map((f) => boards.voteBoardRequest(req.id, f, 3, 0)));
     expect(results.filter((r) => r.promoted)).toHaveLength(1);
     const final = results.find((r) => r.promoted)!.request;
     expect(final).toMatchObject({ status: "promoted", vote_count: 3, promoted_category_slug: "커피-원두" });

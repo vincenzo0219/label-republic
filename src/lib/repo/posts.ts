@@ -105,6 +105,8 @@ export type CreatePostInput = {
   title: string;
   body: string;
   summary: ResolvedSummary | null;
+  /** 작성자 fingerprint — 어뷰징 탐지의 "갓 생긴 fingerprint" 판별에만 쓰인다 */
+  fingerprint?: string;
 };
 
 export async function createPost(input: CreatePostInput): Promise<PostDetail> {
@@ -117,9 +119,9 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
     const cat = await client.query<{ id: number }>("SELECT id FROM categories WHERE slug = $1", [input.categorySlug]);
     if (!cat.rows[0]) throw new HttpError(400, "invalid_category", "존재하지 않는 카테고리입니다.");
     const { rows } = await client.query<{ id: string }>(
-      `INSERT INTO posts (category_id, nickname, pw_hash, title, body, spam_score, is_suppressed, moderation_note, moderated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [cat.rows[0].id, input.nickname, pwHash, input.title, input.body, ...moderationParams(spam)],
+      `INSERT INTO posts (category_id, nickname, pw_hash, title, body, spam_score, is_suppressed, moderation_note, moderated_by, author_fingerprint)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [cat.rows[0].id, input.nickname, pwHash, input.title, input.body, ...moderationParams(spam), input.fingerprint ?? null],
     );
     await insertSummary(client, rows[0]!.id, summary);
     return rows[0]!.id;

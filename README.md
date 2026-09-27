@@ -38,6 +38,19 @@
 | 카드뷰 이미지 공유 | `/posts/:id/card?format=og|square` — 3줄 요약 카드 PNG(Pretendard 폰트 번들). 공유 메뉴: 모바일 Web Share(이미지 파일), 링크 공유·복사, X, 이미지 저장. 블라인드·광고 의심 글은 이미지 생성 안 함 |
 | SEO | 게시글 OG 이미지 = 요약 카드(1200×630, `summary_large_image`), 사이트 기본 OG 이미지, `WebSite` + `SearchAction` JSON-LD, `manifest.webmanifest`, 광고 의심 글 `noindex` 및 sitemap 제외 |
 
+### Sprint 4 — 오픈 후 안정화
+
+| 영역 | 구현 |
+|---|---|
+| 어뷰징 모니터링 | `fingerprints` 테이블로 첫 활동 시각 추적. 5분 주기 배치가 **갓 생긴 fingerprint(첫 활동 1시간 이내)가 75% 이상인 15분 집중 패턴**을 탐지 — 신고 집중(4건+), 투표 집중(10건+), 보드 투표 집중(10건+), 대량 신고자(1시간 10건+). 알림은 `abuse_alerts`에 기록만 하고 자동 처분하지 않음 |
+| 조직적 신고 완화 | 갓 생긴 fingerprint가 15분 내 이미 2건 이상 신고된 글을 신고하면 가중치 최대 0.5. 기존 이용자 신고와 스팸 의심 글(spam_score ≥ 0.5)은 제외 |
+| 보드 승격 검증 | 표가 차도 요청 후 `BOARD_PROMOTION_MIN_AGE_HOURS`(기본 24시간)가 지나야 승격 — 보류분은 배치가 승격. 그 사이 같은 이름 보드가 생기면 `duplicate`로 닫음 |
+| 지표 트래킹 | JS 비콘(`/api/metrics/pageview`)으로 조회 수집: 유입 경로(검색/SNS/외부/직접/내부), 랜딩 여부, 재방문(이전 날짜 방문 이력), 사이트 내 검색어, 글 조회수. 헤드리스·크롤러 UA 제외 |
+| 운영 대시보드 `/admin` | KPI(검색 유입·페이지뷰·방문자·재방문율·사람 글·참여, 직전 7일 대비), 30일 일별 추이, 유입 경로·검색엔진, 검색 유입 글·많이 본 글·사이트 내 검색어, 보드별 현황과 AI 큐레이터 상태, 어뷰징 알림·자동 블라인드, 보드 요청, 배치 상태. `ADMIN_PASSWORD` Basic 인증(미설정 시 404) |
+| 보존 기간 | 조회 원본 400일, 알림 90일, 배치 이력 30일 후 자동 삭제 |
+
+**개인정보**: 방문자는 무작위 쿠키(`lr_vid`, httpOnly, 1년) 값의 HMAC으로만 식별하고 IP·UA는 저장하지 않습니다. 레퍼러는 호스트만 저장합니다. 개인정보처리방침에 분석 쿠키 사용을 고지하세요.
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -84,6 +97,9 @@ npm run build && npm start
 | `TRUST_REFRESH_INTERVAL_SEC` | 신뢰도 배지 배치 주기 (기본 120초, 0이면 끔) |
 | `CURATOR_INTERVAL_SEC` | AI 큐레이터 스케줄러 주기 (기본 1800초, 0이면 끔) |
 | `CURATOR_ACTIVE_UNTIL` | 이 시각(ISO 8601) 이후 AI 큐레이터 게시 중단 — 오픈 후 초기 N주 |
+| `ADMIN_PASSWORD` | 운영 대시보드(`/admin`) 비밀번호. 비우면 대시보드 404 |
+| `BOARD_PROMOTION_MIN_AGE_HOURS` | 보드 요청 후 자동 승격까지 최소 대기 시간 (기본 24) |
+| `MAINTENANCE_INTERVAL_SEC` | 어뷰징 탐지·보류 승격·정리 배치 주기 (기본 300초, 0이면 끔) |
 
 ### 테스트
 
@@ -156,24 +172,25 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 
 - Claude 요약·스팸 분류·시드 초안 생성은 API 키가 없는 환경에서 개발되어 **실제 호출 검증이 필요**합니다 (키가 없으면 추출 요약 / 규칙 기반 판정으로 동작).
 - 시드 콘텐츠 35건은 **사람의 사실관계 검수 후 게시**해야 합니다 (`reviewedBy`).
-- 신고 가중치는 fingerprint 단위라 IP·UA를 바꿔가며 하는 조직적 신고는 막지 못합니다 — 신고 군집 탐지는 Sprint 4.
+- 조직적 신고·투표는 "갓 생긴 fingerprint의 집중" 패턴으로 탐지하지만, 오래 묵힌 계정을 동원하는 공격은 잡지 못합니다. 알림은 자동 처분 없이 기록만 합니다.
+- 어뷰징 탐지 쿼리는 최근 24시간 이벤트를 자기 조인하므로, 트래픽이 커지면 창 집계 테이블로 바꿔야 합니다.
 
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql, 002_seed_categories.sql, 003_trust_and_moderation.sql, 004_ai_curator.sql
+db/migrations/        001_schema.sql … 005_monitoring_and_metrics.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
 server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
-src/lib/              config, db, repo/*, jobs/{trust,curator}, curator, moderation, og/, summary, fingerprint, password, validation …
-tests/                unit.test.ts, curator.test.ts, db.test.ts
+src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
+tests/                unit.test.ts, curator.test.ts, db.test.ts, monitoring.test.ts
 ```
 
 ## 다음 스프린트로 넘긴 것
 
 - 레이트 리밋이 인메모리라 **단일 인스턴스 전제** — 수평 확장 시 Redis 등으로 교체 (WebSocket·배치·큐레이터는 이미 DB 기반이라 다중 인스턴스 가능)
 - `[정보]/[잡담]` 태그, 정모 제안 글 타입
-- Sprint 4: 어뷰징 패턴 모니터링, 보드 자동 승격 검증, 지표(검색 유입·재방문) 대시보드
+- 대시보드 기간 선택(현재 7일/30일 고정), 알림 → 커뮤니티 공개(투명성 로그) 여부 결정

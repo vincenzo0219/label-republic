@@ -54,7 +54,7 @@ export type BoardRequest = {
   requested_name: string;
   description: string;
   vote_count: number;
-  status: "open" | "promoted";
+  status: "open" | "promoted" | "duplicate";
   promoted_category_slug: string | null;
   created_at: string;
 };

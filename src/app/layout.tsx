@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
+import { Analytics } from "@/components/Analytics";
 import { config } from "@/lib/config";
 import "./globals.css";
 
@@ -26,6 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body>
+        <Suspense fallback={null}>
+          <Analytics />
+        </Suspense>
         <header className="site-header">
           <div className="container">
             <Link href="/" className="logo" aria-label="라벨공화국 홈">

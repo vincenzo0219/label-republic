@@ -27,11 +27,15 @@ export function BoardRequests({ initial, threshold }: { initial: BoardRequest[];
 
   async function vote(id: string) {
     try {
-      const res = await api<{ request: BoardRequest; alreadyVoted: boolean; promoted: boolean }>(`/api/board-requests/${id}/vote`, "POST");
+      const res = await api<{ request: BoardRequest; alreadyVoted: boolean; promoted: boolean; promotableAt: string | null }>(`/api/board-requests/${id}/vote`, "POST");
       setRequests((list) => list.map((r) => (r.id === id ? res.request : r)));
       setVoted((s) => new Set(s).add(id));
       if (res.alreadyVoted) window.alert("이미 투표했습니다.");
       if (res.promoted) window.alert(`🎉 "${res.request.requested_name}" 보드가 자동으로 개설되었습니다!`);
+      if (res.promotableAt) {
+        const at = new Date(res.promotableAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+        window.alert(`찬성표가 모였어요! 급하게 표를 몰아 보드를 여는 것을 막기 위해 ${at} 이후 자동으로 개설됩니다.`);
+      }
     } catch (err) {
       window.alert((err as Error).message);
     }
@@ -50,10 +54,18 @@ export function BoardRequests({ initial, threshold }: { initial: BoardRequest[];
       {requests.map((r) => (
         <div key={r.id} className="card">
           <div className="card-top">
-            {r.status === "promoted" ? <span className="badge badge-top5">개설됨</span> : <span className="badge badge-pending">투표 중</span>}
+            {r.status === "promoted" ? (
+              <span className="badge badge-top5">개설됨</span>
+            ) : r.status === "duplicate" ? (
+              <span className="badge badge-cat">기존 보드와 중복</span>
+            ) : r.vote_count >= threshold ? (
+              <span className="badge badge-pending">⏳ 개설 대기</span>
+            ) : (
+              <span className="badge badge-pending">투표 중</span>
+            )}
           </div>
           <h2 className="card-title">
-            {r.status === "promoted" && r.promoted_category_slug ? (
+            {r.status !== "open" && r.promoted_category_slug ? (
               <Link href={`/c/${encodeURIComponent(r.promoted_category_slug)}`}>{r.requested_name} →</Link>
             ) : (
               r.requested_name
