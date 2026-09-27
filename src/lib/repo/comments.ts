@@ -4,7 +4,7 @@ import { hashPin } from "../password";
 import type { Comment } from "../types";
 import { assertPin } from "./pin-guard";
 
-const COLS = "id, post_id, nickname, body, created_at";
+const COLS = "id, post_id, nickname, body, is_ai_curated, created_at";
 
 export async function listComments(postId: string): Promise<Comment[]> {
   if (!/^\d{1,18}$/.test(postId)) return [];

@@ -14,6 +14,7 @@ import { Client } from "pg";
 import { WebSocket, WebSocketServer } from "ws";
 import { config } from "./src/lib/config";
 import { CLIENT_IP_HEADER } from "./src/lib/fingerprint";
+import { startCuratorScheduler } from "./src/lib/jobs/curator";
 import { startTrustScheduler } from "./src/lib/jobs/trust";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -131,6 +132,8 @@ app.prepare().then(async () => {
   await listen();
   // 신뢰도 배지 배치 — advisory lock으로 여러 인스턴스 중 한 곳에서만 실행된다.
   if (config.trustRefreshIntervalSec > 0) startTrustScheduler(config.trustRefreshIntervalSec * 1000);
+  // AI 큐레이터 "활성화 유지" — 사람 글이 늘면 자동으로 물러난다.
+  if (config.curatorIntervalSec > 0) startCuratorScheduler(config.curatorIntervalSec * 1000);
   server.listen(port, hostname, () => {
     console.log(`> 라벨공화국 ready on http://${hostname}:${port} (${dev ? "dev" : "prod"})`);
   });

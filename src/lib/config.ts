@@ -32,6 +32,18 @@ export const config = {
     const n = Number(process.env.TRUST_REFRESH_INTERVAL_SEC ?? 120);
     return Number.isFinite(n) && n >= 0 ? n : 120;
   },
+  /** AI 큐레이터 스케줄러 주기(초). 0이면 끈다. */
+  get curatorIntervalSec() {
+    const n = Number(process.env.CURATOR_INTERVAL_SEC ?? 1800);
+    return Number.isFinite(n) && n >= 0 ? n : 1800;
+  },
+  /** 이 시각 이후 AI 큐레이터는 게시하지 않는다 (오픈 후 초기 N주). 비우면 물러남 정책만 적용. */
+  get curatorActiveUntil(): Date | null {
+    const v = process.env.CURATOR_ACTIVE_UNTIL;
+    if (!v) return null;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+  },
   get boardPromotionThreshold() {
     const n = Number(process.env.BOARD_PROMOTION_THRESHOLD);
     return Number.isInteger(n) && n > 0 ? n : 50;

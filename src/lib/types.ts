@@ -45,6 +45,7 @@ export type Comment = {
   post_id: string;
   nickname: string;
   body: string;
+  is_ai_curated: boolean;
   created_at: string;
 };
 

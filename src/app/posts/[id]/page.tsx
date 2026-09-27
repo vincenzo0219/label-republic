@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
 import { ReportButton } from "@/components/ReportButton";
+import { ShareButton } from "@/components/ShareButton";
 import { SummaryLines } from "@/components/SummaryLines";
 import { AiBadge, TrustBadge } from "@/components/TrustBadge";
 import { VoteButtons } from "@/components/VoteButtons";
@@ -30,12 +31,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!post) return {};
   if (post.is_blinded) return { title: "블라인드된 게시글", robots: { index: false, follow: false } };
   const description = post.summary ? post.summary.lines.join(" ") : post.excerpt.slice(0, 160);
+  // 3줄 요약 카드 이미지를 링크 미리보기(OG)로 사용 — 광고 의심 글은 카드 이미지를 만들지 않는다
+  const ogImage = post.is_suppressed ? null : { url: `/posts/${post.id}/card?format=og`, width: 1200, height: 630, alt: post.title };
   return {
     title: `${post.title} — ${post.category.name}`,
     description,
     alternates: { canonical: `/posts/${post.id}` },
-    openGraph: { type: "article", title: post.title, description, publishedTime: post.created_at, modifiedTime: post.updated_at },
-    twitter: { card: "summary", title: post.title, description },
+    openGraph: {
+      type: "article",
+      title: post.title,
+      description,
+      publishedTime: post.created_at,
+      modifiedTime: post.updated_at,
+      section: post.category.name,
+      ...(ogImage ? { images: [ogImage] } : {}),
+    },
+    twitter: { card: ogImage ? "summary_large_image" : "summary", title: post.title, description, ...(ogImage ? { images: [ogImage.url] } : {}) },
+    // 광고 의심 글은 검색 노출에서 제외
+    ...(post.is_suppressed ? { robots: { index: false, follow: false } } : {}),
   };
 }
 
@@ -75,7 +88,7 @@ export default async function PostPage({ params }: Props) {
       "@type": "Comment",
       text: c.body,
       datePublished: c.created_at,
-      author: { "@type": "Person", name: c.nickname },
+      author: { "@type": c.is_ai_curated ? "Organization" : "Person", name: c.nickname },
     })),
   };
 
@@ -95,6 +108,12 @@ export default async function PostPage({ params }: Props) {
           {post.updated_at !== post.created_at && <span>(수정됨)</span>}
         </div>
       </header>
+
+      {post.is_ai_curated && (
+        <div className="notice" style={{ marginTop: 12 }}>
+          🤖 초기 커뮤니티를 위해 AI 큐레이터가 작성한 정보 글입니다. 사실과 다른 부분은 댓글과 비추천·신고로 바로잡아 주세요.
+        </div>
+      )}
 
       {post.is_suppressed && (
         <div className="notice" style={{ marginTop: 12 }}>
@@ -118,7 +137,8 @@ export default async function PostPage({ params }: Props) {
       <VoteButtons postId={post.id} initial={{ upvotes: post.upvotes, downvotes: post.downvotes, myVote }} />
 
       <div className="post-actions">
-        <PostOwnerActions postId={post.id} />
+        <ShareButton postId={post.id} title={post.title} />
+        {!post.is_ai_curated && <PostOwnerActions postId={post.id} />}
         <ReportButton postId={post.id} />
       </div>
 

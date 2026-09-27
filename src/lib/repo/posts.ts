@@ -274,5 +274,5 @@ export async function reportPost(id: string, fp: string, reason: string): Promis
 
 /** sitemap 용 */
 export async function listPostIdsForSitemap(limit = 5000): Promise<{ id: string; updated_at: string }[]> {
-  return query(`SELECT id, updated_at FROM posts WHERE NOT is_blinded ORDER BY id DESC LIMIT $1`, [limit]);
+  return query(`SELECT id, updated_at FROM posts WHERE NOT is_blinded AND NOT is_suppressed ORDER BY id DESC LIMIT $1`, [limit]);
 }

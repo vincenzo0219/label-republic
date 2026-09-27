@@ -112,9 +112,12 @@ export function LiveComments({ postId, initial }: { postId: string; initial: Com
         <div key={c.id} className={`comment${fresh.has(String(c.id)) ? " new" : ""}`}>
           <div className="comment-head">
             <b>{c.nickname}</b>
+            {c.is_ai_curated && <span className="badge badge-ai">🤖 AI</span>}
             <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
             <span className="spacer" />
-            <button className="linkish" onClick={() => remove(String(c.id))}>삭제</button>
+            {!c.is_ai_curated && (
+              <button className="linkish" onClick={() => remove(String(c.id))}>삭제</button>
+            )}
           </div>
           <div className="comment-body">{c.body}</div>
         </div>

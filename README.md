@@ -26,6 +26,18 @@
 | AI 요약 | 미리보기 결과 캐시(같은 본문 재요청 시 LLM 재호출 없음, 1시간), 추출 요약 → Claude 요약 백필 스크립트, 요약 출처 표시 정정(자동 추출 / AI 생성 / 작성자 수정 / 작성자 작성) |
 | 기타 | 투표 레이트 리밋(분당 60회) |
 
+### Sprint 3 — 콜드스타트 준비
+
+| 영역 | 구현 |
+|---|---|
+| AI 큐레이터 시드 | `db/seed/curator/*.json` — 5개 보드 × 7건(launch 5 + drip 2) = 35건, launch 글마다 FAQ형 댓글 2개. 라벨·스펙 읽는 법과 널리 확립된 사실 위주, 브랜드 추천·효능 단정 표현 없음 |
+| 투명성 | AI 글·댓글은 `is_ai_curated`로 저장, 🤖 배지와 안내문 표시, JSON-LD 작성자도 Organization. 댓글도 사람 댓글로 꾸미지 않고 "Q./A." FAQ 형식. 비밀번호로 수정·삭제 불가(신고 블라인드는 동일 적용) |
+| 검수 게이트 | `reviewedBy`(사람 검수자)가 없는 시드는 게시 거부. 개발·스테이징만 `--allow-unreviewed` |
+| 활성화 유지 + 자동 물러남 | 서버 내장 스케줄러(`CURATOR_INTERVAL_SEC`, 기본 30분)가 보드별 대기열에서 게시. 최근 7일 사람 글 수에 따라 12시간 → 24시간 → 48시간 간격, 사람 글 20건 이상 또는 사람 비중 80% 이상이면 중단. `CURATOR_ACTIVE_UNTIL` 이후 전면 중단. 실행 이력 `curator_runs` |
+| 초안 생성 | `npm run curator:generate` — Claude로 시드 초안 생성 → `db/seed/drafts/`(검수 전) |
+| 카드뷰 이미지 공유 | `/posts/:id/card?format=og|square` — 3줄 요약 카드 PNG(Pretendard 폰트 번들). 공유 메뉴: 모바일 Web Share(이미지 파일), 링크 공유·복사, X, 이미지 저장. 블라인드·광고 의심 글은 이미지 생성 안 함 |
+| SEO | 게시글 OG 이미지 = 요약 카드(1200×630, `summary_large_image`), 사이트 기본 OG 이미지, `WebSite` + `SearchAction` JSON-LD, `manifest.webmanifest`, 광고 의심 글 `noindex` 및 sitemap 제외 |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -70,6 +82,8 @@ npm run build && npm start
 | `SUMMARY_MODEL` | 기본 `claude-opus-5` |
 | `BOARD_PROMOTION_THRESHOLD` | 보드 자동 승격 임계치 (기본 50) |
 | `TRUST_REFRESH_INTERVAL_SEC` | 신뢰도 배지 배치 주기 (기본 120초, 0이면 끔) |
+| `CURATOR_INTERVAL_SEC` | AI 큐레이터 스케줄러 주기 (기본 1800초, 0이면 끔) |
+| `CURATOR_ACTIVE_UNTIL` | 이 시각(ISO 8601) 이후 AI 큐레이터 게시 중단 — 오픈 후 초기 N주 |
 
 ### 테스트
 
@@ -84,7 +98,16 @@ TEST_DATABASE_URL=postgres://.../labelrep_test npm test   # + DB 통합 테스�
 ```bash
 npm run trust:refresh                          # 신뢰도 배지 즉시 재계산 (평소엔 서버 내장 스케줄러가 실행)
 npm run summary:backfill -- --limit 50         # 추출 요약으로 저장된 글을 Claude 요약으로 재생성 (--dry-run 지원)
+npm run seed:curator                           # AI 큐레이터 시드 게시(launch)·대기열 등록(drip). 재실행 안전, --dry-run 지원
+npm run curator:generate -- --category pet-food "주제1" "주제2"   # Claude로 시드 초안 생성 (검수 후 db/seed/curator 로 이동)
 ```
+
+### 오픈 전 체크리스트 (Sprint 3)
+
+1. `db/seed/curator/*.json`의 각 항목을 사람이 사실관계 검수 → `"reviewedBy": "이름"` 추가
+2. `npm run seed:curator` (reviewedBy 없는 항목이 있으면 게시하지 않고 종료)
+3. `.env`에 `SITE_URL`(실도메인), `CURATOR_ACTIVE_UNTIL`(예: 오픈 후 6주) 설정
+4. Google Search Console / 네이버 서치어드바이저에 `sitemap.xml` 제출
 
 ## 핵심 규칙
 
@@ -129,25 +152,28 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 
 에러 응답 형식: `{"error": {"code": "wrong_password", "message": "비밀번호가 일치하지 않습니다."}}`
 
-## Sprint 2 기준 남은 과제
+## 남은 과제
 
-- Claude 요약·스팸 분류는 API 키가 없는 환경에서 개발되어 **실제 호출 검증이 필요**합니다 (키가 없으면 추출 요약 / 규칙 기반 판정으로 동작).
-- 신고 가중치는 fingerprint 단위라 IP·UA를 바꿔가며 하는 조직적 신고는 막지 못합니다 — 신고 시점 군집(짧은 시간에 한 글로 몰리는 신규 fingerprint) 탐지는 Sprint 4.
+- Claude 요약·스팸 분류·시드 초안 생성은 API 키가 없는 환경에서 개발되어 **실제 호출 검증이 필요**합니다 (키가 없으면 추출 요약 / 규칙 기반 판정으로 동작).
+- 시드 콘텐츠 35건은 **사람의 사실관계 검수 후 게시**해야 합니다 (`reviewedBy`).
+- 신고 가중치는 fingerprint 단위라 IP·UA를 바꿔가며 하는 조직적 신고는 막지 못합니다 — 신고 군집 탐지는 Sprint 4.
 
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql, 002_seed_categories.sql, 003_trust_and_moderation.sql
-scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts
+db/migrations/        001_schema.sql, 002_seed_categories.sql, 003_trust_and_moderation.sql, 004_ai_curator.sql
+db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
+assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
+scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
 server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
-src/lib/              config, db, repo/*, jobs/trust, moderation, summary, fingerprint, password, validation …
-tests/                unit.test.ts, db.test.ts
+src/lib/              config, db, repo/*, jobs/{trust,curator}, curator, moderation, og/, summary, fingerprint, password, validation …
+tests/                unit.test.ts, curator.test.ts, db.test.ts
 ```
 
 ## 다음 스프린트로 넘긴 것
 
-- 레이트 리밋이 인메모리라 **단일 인스턴스 전제** — 수평 확장 시 Redis 등으로 교체 (WebSocket은 이미 DB NOTIFY 기반이라 다중 인스턴스 가능)
-- `[정보]/[잡담]` 태그, 정모 제안 글 타입, AI 큐레이터 시드 게시(`posts.is_ai_curated` 컬럼과 🤖 배지는 준비됨)
-- 신고 어뷰징 패턴 탐지(가중치 하향), AI 스팸 1차 스캔, 카드뷰 이미지 공유
+- 레이트 리밋이 인메모리라 **단일 인스턴스 전제** — 수평 확장 시 Redis 등으로 교체 (WebSocket·배치·큐레이터는 이미 DB 기반이라 다중 인스턴스 가능)
+- `[정보]/[잡담]` 태그, 정모 제안 글 타입
+- Sprint 4: 어뷰징 패턴 모니터링, 보드 자동 승격 검증, 지표(검색 유입·재방문) 대시보드

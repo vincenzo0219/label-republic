@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [categories, posts] = await Promise.all([listCategories(), listPostIdsForSitemap()]);
+  // 광고 의심 글은 listPostIdsForSitemap 에서 제외된다
   return [
     { url: `${config.siteUrl}/`, changeFrequency: "hourly", priority: 1 },
     ...categories.map((c) => ({

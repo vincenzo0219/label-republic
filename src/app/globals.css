@@ -199,3 +199,13 @@ mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1
   .post-head h1 { font-size: 26px; }
   .card { padding: 16px 20px; }
 }
+
+.share-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 220px;
+  display: grid; padding: 6px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.share-menu button, .share-menu a {
+  text-align: left; padding: 10px 10px; border: 0; background: none; border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+.share-menu button:hover, .share-menu a:hover { background: var(--bg); }

@@ -18,6 +18,8 @@ d("database rules", async () => {
   const boards = await import("@/lib/repo/board-requests");
   const { listCategories } = await import("@/lib/repo/categories");
   const { runTrustBatch } = await import("@/lib/jobs/trust");
+  const { runCuratorBatch } = await import("@/lib/jobs/curator");
+  const curator = await import("@/lib/curator");
 
   const fp = (n: number | string) => String(n).padStart(64, "0");
   const newPost = (slug = "supplements", title = "테스트 글 제목") =>
@@ -41,7 +43,7 @@ d("database rules", async () => {
 
   beforeEach(async () => {
     resetRateLimits();
-    await query("TRUNCATE posts, board_requests, trust_batch_runs RESTART IDENTITY CASCADE");
+    await query("TRUNCATE posts, board_requests, trust_batch_runs, curator_queue, curator_runs RESTART IDENTITY CASCADE");
     await query("DELETE FROM categories WHERE auto_promoted_at IS NOT NULL");
     await query("UPDATE categories SET post_count = 0");
   });
@@ -197,6 +199,111 @@ d("database rules", async () => {
     expect(rows).toHaveLength(1);
     // API 키가 없으면 AI 판정은 건너뛴다
     expect(await posts.aiModeratePost(post.id)).toBeNull();
+  });
+
+  const seed = (key: string, category: string, phase: "launch" | "drip", extra: Partial<Parameters<typeof curator.seedPostSchema.parse>[0]> = {}) =>
+    curator.seedPostSchema.parse({
+      key,
+      category,
+      phase,
+      title: `시드 ${key}`,
+      body: "라벨을 읽는 법에 대한 정보 글입니다. ".repeat(6),
+      summary: ["첫째 줄 요약", "둘째 줄 요약", "셋째 줄 요약"],
+      comments: ["Q. 질문 / A. 답변", "Q. 질문2 / A. 답변2"],
+      ...extra,
+    });
+
+  it("refuses unreviewed seeds unless explicitly allowed, and is idempotent", async () => {
+    const seeds = [seed("s-launch", "supplements", "launch"), seed("s-drip", "supplements", "drip", { reviewedBy: "검수자" })];
+    const client = await pool().connect();
+    try {
+      const refused = await curator.importSeeds(client, seeds);
+      expect(refused).toMatchObject({ published: 0, queued: 0, unreviewed: ["s-launch"] });
+      expect((await posts.listPosts({ sort: "latest" })).total).toBe(0);
+
+      expect(await curator.importSeeds(client, seeds, { allowUnreviewed: true, dryRun: true })).toMatchObject({ published: 1, queued: 1 });
+      expect((await posts.listPosts({ sort: "latest" })).total).toBe(0); // dry run rolled back
+
+      expect(await curator.importSeeds(client, seeds, { allowUnreviewed: true })).toMatchObject({ published: 1, queued: 1, skipped: 0 });
+      await curator.importSeeds(client, [
+        seed("s-first", "supplements", "launch", { priority: 1 }),
+        seed("s-second", "supplements", "launch", { priority: 2 }),
+      ], { allowUnreviewed: true });
+      const latest = (await posts.listPosts({ sort: "latest" })).items.map((p) => p.title);
+      expect(latest.slice(0, 2)).toEqual(["시드 s-first", "시드 s-second"]);
+      expect(await curator.importSeeds(client, seeds, { allowUnreviewed: true })).toMatchObject({ published: 0, queued: 0, skipped: 2 });
+      await expect(curator.importSeeds(client, [seed("bad-board", "no-such-board", "launch", { reviewedBy: "r" })])).rejects.toThrow(/unknown categories/);
+    } finally {
+      client.release();
+    }
+  });
+
+  it("publishes curator posts transparently and locks them against PIN edits", async () => {
+    const client = await pool().connect();
+    try {
+      await curator.importSeeds(client, [seed("s-ai", "keyboards", "launch", { reviewedBy: "r" })]);
+    } finally {
+      client.release();
+    }
+    const [card] = (await posts.listPosts({ sort: "latest" })).items;
+    expect(card).toMatchObject({ is_ai_curated: true, nickname: curator.CURATOR_NICKNAME, comment_count: 2 });
+    expect(card!.summary).toMatchObject({ model_version: "ai-curator", is_author_edited: false });
+    const cs = await comments.listComments(card!.id);
+    expect(cs.every((c) => c.is_ai_curated)).toBe(true);
+    for (const pin of ["0000", "1234", "9999"]) {
+      await expect(posts.deletePost(card!.id, fp(`p${pin}`), pin)).rejects.toMatchObject({ status: 403 });
+    }
+    await expect(comments.deleteComment(cs[0]!.id, fp(1), "0000")).rejects.toMatchObject({ status: 403 });
+    // 일반 댓글은 AI 글에도 달 수 있다
+    const human = await comments.createComment(card!.id, { nickname: "사람", pin: "1111", body: "출처 추가합니다" });
+    expect(human.is_ai_curated).toBe(false);
+  });
+
+  it("drips queued posts per board and retreats as human posts grow", async () => {
+    const client = await pool().connect();
+    try {
+      await curator.importSeeds(
+        client,
+        ["a", "b", "c"].flatMap((k) => [seed(`kb-${k}`, "keyboards", "drip", { reviewedBy: "r" }), seed(`pf-${k}`, "pet-food", "drip", { reviewedBy: "r" })]),
+      );
+    } finally {
+      client.release();
+    }
+    const t0 = new Date();
+    const first = await runCuratorBatch(t0);
+    expect(first.published).toBe(2);
+    expect(first.categories.find((c) => c.slug === "supplements")).toMatchObject({ reason: "queue empty" });
+
+    // 12시간이 지나지 않았으면 게시하지 않는다
+    expect((await runCuratorBatch(new Date(t0.getTime() + 3600_000))).published).toBe(0);
+    const later = await runCuratorBatch(new Date(t0.getTime() + 13 * 3600_000));
+    expect(later.published).toBe(2);
+
+    // 키보드 보드에 사람 글이 20개 쌓이면 그 보드만 물러난다
+    for (let i = 0; i < 20; i++) await newPost("keyboards", `사람 글 ${i}`);
+    const retreat = await runCuratorBatch(new Date(t0.getTime() + 30 * 3600_000));
+    expect(retreat.categories.find((c) => c.slug === "keyboards")).toMatchObject({ intervalHours: null, published: null });
+    expect(retreat.categories.find((c) => c.slug === "pet-food")!.published).toBeTruthy();
+
+    const runs = await query<{ published: number }>("SELECT published FROM curator_runs ORDER BY id");
+    expect(runs.map((r) => r.published)).toEqual([2, 0, 2, 1]);
+  });
+
+  it("stops the curator after CURATOR_ACTIVE_UNTIL", async () => {
+    const client = await pool().connect();
+    try {
+      await curator.importSeeds(client, [seed("late", "supplements", "drip", { reviewedBy: "r" })]);
+    } finally {
+      client.release();
+    }
+    process.env.CURATOR_ACTIVE_UNTIL = "2000-01-01T00:00:00Z";
+    try {
+      const r = await runCuratorBatch();
+      expect(r.published).toBe(0);
+      expect(r.categories[0]!.reason).toBe("active period ended");
+    } finally {
+      delete process.env.CURATOR_ACTIVE_UNTIL;
+    }
   });
 
   it("searches with AND across terms and escapes LIKE wildcards", async () => {

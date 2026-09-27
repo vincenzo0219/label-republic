@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "글 수정", robots: { index: false 
 
 export default async function EditPage({ params }: { params: Promise<{ id: string }> }) {
   const post = await getPost((await params).id);
-  if (!post || post.is_blinded) notFound();
+  if (!post || post.is_blinded || post.is_ai_curated) notFound();
   return (
     <>
       <h1 style={{ fontSize: 20, margin: "4px 0 16px" }}>글 수정</h1>
