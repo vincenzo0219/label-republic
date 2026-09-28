@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AppealBox } from "@/components/AppealBox";
+import { CorrectionsPanel } from "@/components/CorrectionsPanel";
 import { Gallery } from "@/components/Gallery";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
@@ -20,6 +21,8 @@ import { imageUrl } from "@/lib/media-url";
 import { fingerprint } from "@/lib/fingerprint";
 import { timeAgo } from "@/lib/format";
 import { listComments } from "@/lib/repo/comments";
+import { listCorrections } from "@/lib/repo/corrections";
+import { FACT_KIND_LABEL, formatValue } from "@/lib/products";
 import { LEGAL_HOLD_DAYS, LEGAL_REASONS, type LegalReason } from "@/lib/repo/legal";
 import { isAttending, listParticipants } from "@/lib/repo/meetups";
 import { getAppeal } from "@/lib/repo/operator";
@@ -93,13 +96,18 @@ export default async function PostPage({ params }: Props) {
   }
 
   const fp = fingerprint(await headers());
-  const [comments, myVote, participants, attending, appeal] = await Promise.all([
+  const [comments, myVote, participants, attending, appeal, corrections] = await Promise.all([
     listComments(id),
     getMyVote(id, fp),
     post.meetup ? listParticipants(id) : Promise.resolve([]),
     post.meetup ? isAttending(id, fp) : Promise.resolve(false),
     post.is_suppressed && !post.is_ai_curated ? getAppeal(id) : Promise.resolve(null),
+    listCorrections(id, fp),
   ]);
+  const productName = new Map(post.products.map((p) => [p.id, `${p.brand} ${p.name}`]));
+  const factLabels = post.facts.map(
+    (f) => `${productName.get(f.product_id) ?? ""} · ${f.attribute} ${formatValue(f.value)} ${f.unit}${f.basis ? ` (${f.basis})` : ""} · ${FACT_KIND_LABEL[f.kind]}`,
+  );
 
   // 검색엔진용 구조화 데이터 (SEO) — 정모는 Event 로 표시
   const jsonLd = post.meetup
@@ -155,10 +163,21 @@ export default async function PostPage({ params }: Props) {
         <div className="post-meta">
           <span>{post.nickname}</span>
           <time dateTime={post.created_at}>{timeAgo(post.created_at)}</time>
-          {post.updated_at !== post.created_at && <span>(수정됨)</span>}
+          {post.revision_count > 0 ? (
+            <Link href={`/posts/${post.id}/history`}>수정 이력 {post.revision_count}</Link>
+          ) : (
+            post.updated_at !== post.created_at && <span>(수정됨)</span>
+          )}
         </div>
         <ProductChips products={post.products} />
       </header>
+
+      {post.disputed_count > 0 && (
+        <div className="notice notice-disputed" role="note" style={{ marginTop: 12 }}>
+          🛠 커뮤니티가 동의한 <a href="#corrections">정정 제안 {post.disputed_count}건</a>이 아직 반영되지 않았습니다. 본문과 함께 확인하세요. 반영될 때까지 이 글은
+          신뢰도 상위 배지를 받지 못하고, 해당 수치는 제품 페이지 집계에서 빠집니다.
+        </div>
+      )}
 
       {post.is_ai_curated && (
         <div className="notice" style={{ marginTop: 12 }}>
@@ -198,6 +217,8 @@ export default async function PostPage({ params }: Props) {
         {!post.is_ai_curated && <PostOwnerActions postId={post.id} />}
         <ReportButton postId={post.id} />
       </div>
+
+      <CorrectionsPanel postId={post.id} facts={factLabels} initial={corrections} hasAuthor={!post.is_ai_curated} />
 
       <LiveComments postId={post.id} initial={comments} />
     </article>

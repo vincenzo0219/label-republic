@@ -149,3 +149,21 @@ export const boardRequestSchema = z.object({
 export function firstIssue(err: z.ZodError): string {
   return err.issues[0]?.message ?? "입력값이 올바르지 않습니다.";
 }
+
+/** 정정 제안 (Sprint 15) — 인용·수치 확인은 저장할 때(src/lib/repo/corrections.ts) */
+export const correctionSchema = z.object({
+  nickname,
+  pw: pin,
+  target: z.enum(["fact", "text", "other"], { error: "무엇을 정정할지 골라주세요." }),
+  factIndex: z.number().int().min(0).max(19).optional(),
+  quote: z.string().trim().max(300, "인용은 300자까지 쓸 수 있습니다.").default(""),
+  proposal: trimmed(2, 300, "정정 내용"),
+  reason: trimmed(10, 1000, "근거 설명"),
+  sourceUrl: z.string().trim().max(600, "근거 링크가 너무 깁니다.").default(""),
+});
+
+export const correctionRespondSchema = z.object({
+  pw: pin,
+  action: z.enum(["applied", "answered"]),
+  note: z.string().trim().max(300, "답변은 300자까지 쓸 수 있습니다.").default(""),
+});

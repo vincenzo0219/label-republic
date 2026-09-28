@@ -55,7 +55,9 @@ export function ProductFacts({ groups }: { groups: FactGroup[] }) {
                   )}
                 </td>
                 <td>
-                  {g.diff_pct === null ? (
+                  {g.disputed_n > 0 && !g.label && !g.measured ? (
+                    <span className="hint">정정 제안으로 집계 제외</span>
+                  ) : g.diff_pct === null ? (
                     <span className="hint">-</span>
                   ) : (
                     <span className={Math.abs(g.diff_pct) >= NOTABLE_DIFF_PCT ? "diff diff-notable" : "diff"}>
@@ -64,11 +66,20 @@ export function ProductFacts({ groups }: { groups: FactGroup[] }) {
                     </span>
                   )}
                   <details className="fact-entries">
-                    <summary>글별 값 {g.entries.length}</summary>
+                    <summary>
+                      글별 값 {g.entries.length}
+                      {g.disputed_n > 0 && ` · 정정 제안 ${g.disputed_n}건 제외`}
+                    </summary>
                     <ul>
                       {g.entries.map((e, i) => (
                         <li key={i}>
                           <Link href={`/posts/${e.post_id}`}>글 #{e.post_id}</Link> · {formatValue(e.value)} {e.unit} ({e.kind === "label" ? "표시" : "실측"})
+                          {e.disputed && (
+                            <>
+                              {" "}
+                              · <Link href={`/posts/${e.post_id}#corrections`}>🛠 동의된 정정 제안 — 집계 제외</Link>
+                            </>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -81,7 +92,7 @@ export function ProductFacts({ groups }: { groups: FactGroup[] }) {
       </div>
       <p className="hint">
         여러 글이 같은 항목을 적었으면 중앙값을 보여줍니다. mg·µg·g 처럼 바꿔 계산할 수 있는 단위는 맞춰서 비교하고, 기준(1정, 1일 섭취량 등)이 다르면 따로 봅니다.
-        블라인드·광고 의심 글의 값은 빠집니다.
+        블라인드·광고 의심 글의 값과, 커뮤니티가 동의한 정정 제안이 걸린 값은 빠집니다.
       </p>
     </>
   );

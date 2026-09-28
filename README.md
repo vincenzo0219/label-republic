@@ -213,6 +213,20 @@ npm run perf:load -- --base http://localhost:3000 --duration 15 --concurrency 20
 | 운영자 | 모더레이션 화면 "중복 의심 제품"(pg_trgm 이름 유사도, 최근 제품 100개 기준 GiST 거리순) → 방향을 골라 병합. 글 태그·수치를 옮기고 옛 제품 주소는 308로 합쳐진 제품에 연결. 투명성 기록에 "중복 제품 병합"으로 공개, 운영 원칙에 추가 |
 | 성능 (글 20만·제품 3만·태그 4만·수치 10만, 태그 8천 개짜리 제품 포함) | 피드 카드 5~6ms, 제품 페이지 조회 21ms·수치 집계 29ms·관련 글 8ms, 자동완성 3~11ms(후보를 먼저 좁히고 글 수는 후보에만), 비교 57ms, 보드 제품 목록 113ms(인스턴스별 60초 캐시), 중복 후보 550ms(운영자 화면만) |
 
+### Sprint 15 — 정정 제안
+
+글의 수치·문장이 틀렸다고 생각하면 누구나 **무엇이 틀렸고(인용·수치) 어떻게 고쳐야 하며 근거는 무엇인지** 구조화해서 제안합니다. 방장이 판정하지 않고, 동의·반대와 자동 규칙만 적용됩니다 (운영 원칙에 명시).
+
+| 영역 | 구현 |
+|---|---|
+| 제안 | 대상: 글의 **수치**(목록에서 고름 — 제안 시점 값 스냅샷), **본문 문장**(본문에 실제로 있는 문장만, "본문에서 선택한 문장 가져오기"), 그 밖의 부분. 고칠 내용·근거(10자+)·근거 링크(Sprint 13 출처 규칙: 단축·제휴·내부망 거부). 광고성 문구는 글과 같은 규칙으로 거부. 한 사람이 한 글에 열린 제안 3건, 글당 30건, 시간당 5건 |
+| 동의 판정 | 동의 가중치 합 ≥ 3 이고 반대의 2배 이상이면 "커뮤니티 동의". 갓 생긴 fingerprint(첫 활동 1시간 이내) 표는 0.5, 제안자·글 작성자는 투표 불가 (`src/lib/corrections.ts`) |
+| 자동 효과 | 동의된 제안이 반영되지 않은 글: 글 위 안내 + 카드 "🛠 정정 제안 N" 배지, **신뢰도 상위 배지 제외**(`refresh_trust_tiers`), 대상 수치는 **제품 페이지·비교 중앙값에서 제외**("집계 제외" 표시) |
+| 작성자 응답 | 글 비밀번호로 "반영함" — 글을 고친 뒤에만, 수치·문장 제안이면 그 수치·문장이 실제로 바뀌었어야 함(말로만 닫기 방지). "답변"(반영하지 않는 이유)은 남지만 자동 효과는 풀리지 않음 |
+| 제안자·신고 | 제안 비밀번호로 철회. 고유 신고 5건이면 자동으로 가려짐 (글 자동 블라인드와 같은 기준) |
+| 수정 이력 | 글을 고칠 때마다 이전 판(제목·본문·수치)을 저장. `/posts/:id/history`에서 줄 단위 비교(바뀐 줄 앞뒤만), 반영된 정정 제안 목록, 이전 판 전체 보기. 글 머리 "수정 이력 N" 링크 |
+| 성능 | 카드·피드는 캐시 컬럼(`correction_count`, `disputed_count`)만 읽음. 제품 수치 집계의 제외 판단은 동의된 제안이 있는 글에만 조회 (정정 제안 2천 건이 걸린 제품에서도 수치 집계 47ms) |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -345,6 +359,11 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 |---|---|---|
 | GET | `/api/categories` | 카테고리 목록 |
 | GET | `/api/posts?category=&sort=trust\|latest\|votes&q=&page=&type=&sourced=1` | 피드/검색 (type: info\|chat\|meetup, sourced=1: 출처 있는 글만) |
+| GET/POST | `/api/posts/:id/corrections` | 정정 제안 목록(+내 투표) / 작성 `{nickname, pw, target: fact\|text\|other, factIndex?, quote?, proposal, reason, sourceUrl?}` |
+| POST | `/api/corrections/:id/vote` | `{value: 1 동의 \| -1 반대}` (다시 누르면 취소) |
+| POST | `/api/corrections/:id/respond` | 글 작성자 응답 `{pw, action: applied\|answered, note}` |
+| POST | `/api/corrections/:id/withdraw` | 제안자 철회 `{pw}` |
+| POST | `/api/corrections/:id/report` | 신고 (고유 5건이면 자동으로 가림) |
 | GET | `/api/products?q=&category=` | 제품 자동완성 (보이는 글이 있는 제품만, 검색어 AND) |
 | POST | `/api/posts` | 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}, images?: [{id, token, alt}], sources?: [{url, label}], products?: [{id} \| {brand, name}], facts?: [{product, attribute, value, unit, basis?, kind: label\|measured}]}` (facts.product 는 products 순서) |
 | GET | `/api/posts/:id` | 상세 + 요약 + 댓글 + 내 투표 |
@@ -380,7 +399,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 014_products.sql
+db/migrations/        001_schema.sql … 015_corrections.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
@@ -389,7 +408,7 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, security (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, security (*.test.ts)
 .github/workflows/    ci.yml
 ```
 

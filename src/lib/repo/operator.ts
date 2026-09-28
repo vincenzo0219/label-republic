@@ -384,6 +384,8 @@ export async function mergeProduct(productId: string, intoId: string, note: stri
     );
     await client.query("DELETE FROM post_products WHERE product_id = $1", [productId]);
     await client.query("UPDATE product_facts SET product_id = $2 WHERE product_id = $1", [productId, intoId]);
+    // 정정 제안이 가리키는 수치도 따라가게 (안 옮기면 "수치가 이미 고쳐짐"으로 잘못 보인다)
+    await client.query("UPDATE corrections SET fact_product_id = $2 WHERE fact_product_id = $1", [productId, intoId]);
     // 이 제품으로 병합돼 있던 제품도 새 대상을 바로 가리키게 (체인을 펴 둔다)
     await client.query("UPDATE products SET merged_into = $2 WHERE id = $1 OR merged_into = $1", [productId, intoId]);
     await writeLog(client, {

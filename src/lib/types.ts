@@ -52,6 +52,10 @@ export type PostCard = {
   source_kinds: string[];
   /** 태그한 제품 (Sprint 14) */
   products: ProductTag[];
+  /** 보이는 정정 제안 수 (철회 제외) */
+  correction_count: number;
+  /** 커뮤니티가 동의했는데 아직 반영되지 않은 정정 제안 수 */
+  disputed_count: number;
 };
 
 export type ProductTag = { id: string; brand: string; name: string };
@@ -84,7 +88,33 @@ export type PostDetail = PostCard & {
   legal_hold: boolean;
   legal_hold_reason: string | null;
   updated_at: string;
+  revision_count: number;
 };
+
+export type Correction = {
+  id: string;
+  post_id: string;
+  nickname: string;
+  target: "fact" | "text" | "other";
+  quote: string;
+  proposal: string;
+  reason: string;
+  source_url: string | null;
+  source_host: string | null;
+  source_kind: "paper" | "gov" | "community" | "web" | null;
+  status: "open" | "applied" | "answered" | "withdrawn";
+  author_note: string;
+  agree_count: number;
+  disagree_count: number;
+  is_supported: boolean;
+  created_at: string;
+  resolved_at: string | null;
+  /** 제안한 수치·문장이 지금 글에도 그대로 있는가 (고쳐졌으면 false) */
+  target_current: boolean;
+  my_vote: 1 | -1 | 0;
+};
+
+export type PostRevision = { id: string; title: string; body: string; facts: (PostFact & { product: string })[]; created_at: string; replaced_at: string };
 
 export type Comment = {
   id: string;

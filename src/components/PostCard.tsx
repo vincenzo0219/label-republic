@@ -24,6 +24,7 @@ export function PostCard({ post, terms, showCategory = true }: { post: PostCardD
           ) : post.source_kinds.includes("gov") ? (
             <span className="badge badge-src badge-src-gov">🏛 공공기관 출처</span>
           ) : null}
+          {post.disputed_count > 0 && <span className="badge badge-disputed">🛠 정정 제안 {post.disputed_count}</span>}
           {post.is_suppressed && (
             <span className="badge badge-pending" title="스팸·광고 패턴이 감지되어 노출 순위가 낮아진 글">
               ⚠ 광고 의심
@@ -60,6 +61,7 @@ export function PostCard({ post, terms, showCategory = true }: { post: PostCardD
           <span aria-label="댓글 수">💬 {post.comment_count}</span>
           {post.image_count > 0 && <span aria-label={`사진 ${post.image_count}장`}>📷 {post.image_count}</span>}
           {post.source_count > 0 && <span aria-label={`출처 ${post.source_count}개`}>📚 {post.source_count}</span>}
+          {post.correction_count > 0 && <span aria-label={`정정 제안 ${post.correction_count}건`}>🛠 {post.correction_count}</span>}
         </div>
       </article>
     </Link>

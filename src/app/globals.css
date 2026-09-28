@@ -481,3 +481,47 @@ a.product-chip:hover { border-color: var(--brand); }
 .compare-table thead th { white-space: normal; vertical-align: bottom; color: var(--text); font-size: 13px; }
 .compare-table td.num div { white-space: nowrap; }
 .compare-add { margin-top: 16px; max-width: 420px; }
+
+/* Sprint 15: 정정 제안·수정 이력 */
+.btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.badge-disputed { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 700; }
+.notice-disputed { border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); color: var(--text); }
+.notice-disputed a { text-decoration: underline; font-weight: 700; }
+.corrections { margin-top: 24px; }
+.corrections-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.corrections h2 { font-size: 16px; margin: 0; }
+.correction-form { margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.correction-form textarea { resize: vertical; }
+.correction-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+.correction { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); display: grid; gap: 6px; }
+.correction.is-supported { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.correction-top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.correction-quote { margin: 0; padding: 6px 10px; border-left: 3px solid var(--line); color: var(--muted); font-size: 14px; overflow-wrap: anywhere; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.correction-quote .hint { text-decoration: none; display: inline-block; }
+.correction-proposal { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.correction-reason { margin: 0; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.correction-source { margin: 0; font-size: 13px; }
+.correction-source a { text-decoration: underline; overflow-wrap: anywhere; }
+.author-note { margin: 0; font-size: 13.5px; padding: 6px 10px; border-radius: 8px; background: var(--pending-bg); }
+.correction-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.correction-votes { display: flex; gap: 6px; }
+.correction-votes .btn[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.correction-manage summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.correction-manage-body { display: grid; gap: 6px; margin-top: 6px; }
+.correction-manage-body .input-sm { width: 100%; }
+.badge-cstatus-open { color: var(--pending); background: var(--pending-bg); }
+.badge-cstatus-answered { color: var(--silver); background: var(--silver-bg); }
+.badge-cstatus-applied { color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, transparent); font-weight: 700; }
+.badge-cstatus-withdrawn { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+
+.history .section-h { font-size: 15px; }
+.revision-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.revision-list > li { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); min-width: 0; }
+.diff-block h3, .revision-full h3 { font-size: 13px; margin: 10px 0 4px; color: var(--muted); }
+.diff-view { margin: 0; padding: 8px; border-radius: 8px; background: var(--bg); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; line-height: 1.6; }
+.diff-add { display: block; background: color-mix(in srgb, var(--brand) 16%, transparent); }
+.diff-del { display: block; background: color-mix(in srgb, var(--danger) 14%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 50%, transparent); }
+.diff-same, .diff-skip { display: block; color: var(--muted); }
+.revision-full summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-top: 8px; }
+.applied-list { padding-left: 18px; margin: 0; display: grid; gap: 4px; font-size: 14px; }
+.applied-list a { text-decoration: underline; }

@@ -8,7 +8,7 @@ import { aiSpam, combine, heuristicSpam, moderationNote, shouldSuppress, type Sp
 import { searchTerms } from "../highlight";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
-import type { PostCard, PostDetail, PostType } from "../types";
+import type { PostCard, PostDetail, PostRevision, PostType } from "../types";
 import { assertCanPropose, insertMeetup, type MeetupInput } from "./meetups";
 import { deleteFiles, listPostImages, setPostImages, type ImageRef } from "./images";
 import { assertPin } from "./pin-guard";
@@ -33,7 +33,8 @@ const CARD_SELECT = `
   CASE WHEN p.source_count = 0 THEN '{}'::text[]
        ELSE (SELECT array_agg(DISTINCT ps.kind::text) FROM post_sources ps WHERE ps.post_id = p.id) END AS source_kinds,
   coalesce((SELECT json_agg(json_build_object('id', pr.id::text, 'brand', pr.brand, 'name', pr.name) ORDER BY pp.position)
-              FROM post_products pp JOIN products pr ON pr.id = pp.product_id WHERE pp.post_id = p.id), '[]'::json) AS products`;
+              FROM post_products pp JOIN products pr ON pr.id = pp.product_id WHERE pp.post_id = p.id), '[]'::json) AS products,
+  p.correction_count, p.disputed_count`;
 
 const FROM = `
   FROM posts p
@@ -240,7 +241,7 @@ type PostRow = Omit<PostDetail, "images" | "sources" | "facts"> & { pw_hash: str
 
 async function loadPost(id: string, client?: PoolClient, forUpdate = false): Promise<PostRow | null> {
   if (!/^\d{1,18}$/.test(id)) return null;
-  const sql = `SELECT ${CARD_SELECT}, p.body, p.report_count, p.is_blinded, p.updated_at, p.moderation_note, p.legal_hold, p.legal_hold_reason, p.pw_hash, p.category_id
+  const sql = `SELECT ${CARD_SELECT}, p.body, p.report_count, p.is_blinded, p.updated_at, p.moderation_note, p.legal_hold, p.legal_hold_reason, p.pw_hash, p.category_id, p.revision_count
     ${FROM} WHERE p.id = $1 ${forUpdate ? "FOR UPDATE OF p" : ""}`;
   const rows = client ? (await client.query<PostRow>(sql, [id])).rows : await query<PostRow>(sql, [id]);
   return rows[0] ?? null;
@@ -256,7 +257,7 @@ function publicPost(
     // 블라인드 글은 본문/요약/이미지/출처/제품을 노출하지 않는다.
     return {
       ...rest, body: "", excerpt: "", summary: null, images: [], thumb_id: null, image_count: 0,
-      sources: [], source_count: 0, source_kinds: [], products: [], facts: [],
+      sources: [], source_count: 0, source_kinds: [], products: [], facts: [], correction_count: 0, disputed_count: 0,
     };
   }
   return { ...rest, images, sources, facts };
@@ -367,6 +368,22 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
     await assertPin(`post:${id}`, fp, pin, post.pw_hash);
     const title = input.title ?? post.title;
     const body = input.body ?? post.body;
+    // 수정 이력: 제목·본문·수치가 바뀌면 바뀌기 전 판을 남긴다 (정정 제안이 어떻게 반영됐는지 누구나 확인)
+    const oldFacts = await client.query<{ facts: unknown }>(
+      `SELECT coalesce(json_agg(json_build_object(
+                'product_id', f.product_id::text, 'product', pr.brand || ' ' || pr.name, 'attribute', f.attribute,
+                'value', f.value::float8, 'unit', f.unit, 'basis', f.basis, 'kind', f.kind) ORDER BY f.position), '[]'::json) AS facts
+         FROM product_facts f JOIN products pr ON pr.id = f.product_id WHERE f.post_id = $1`,
+      [id],
+    );
+    const factsChanged = input.facts !== undefined || input.products !== undefined;
+    if (title !== post.title || body !== post.body || factsChanged) {
+      await client.query(
+        "INSERT INTO post_revisions (post_id, title, body, facts, created_at) VALUES ($1, $2, $3, $4, $5)",
+        [id, post.title, post.body, JSON.stringify(oldFacts.rows[0]!.facts), post.updated_at],
+      );
+      await client.query("UPDATE posts SET revision_count = revision_count + 1 WHERE id = $1", [id]);
+    }
     await client.query(
       `UPDATE posts SET title = $2, body = $3, updated_at = now(),
          spam_score = $4, is_suppressed = $5, moderation_note = $6, moderated_by = $7
@@ -529,6 +546,14 @@ export async function reportPost(id: string, fp: string, reason: string): Promis
     [id],
   );
   return { ...rows[0]!, alreadyReported };
+}
+
+export async function listRevisions(postId: string): Promise<PostRevision[]> {
+  if (!/^\d{1,18}$/.test(postId)) return [];
+  return query<PostRevision>(
+    "SELECT id, title, body, facts, created_at, replaced_at FROM post_revisions WHERE post_id = $1 ORDER BY id DESC LIMIT 50",
+    [postId],
+  );
 }
 
 /** sitemap 용 */

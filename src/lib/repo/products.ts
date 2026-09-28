@@ -173,7 +173,7 @@ export async function getProduct(id: string): Promise<Product | { redirect: stri
   return product;
 }
 
-export type FactEntry = { post_id: string; value: number; unit: string; kind: FactKind };
+export type FactEntry = { post_id: string; value: number; unit: string; kind: FactKind; disputed: boolean };
 /** 같은 항목·기준·단위 묶음의 값 모음 (값은 display 단위로 환산) */
 export type FactGroup = {
   key: string;
@@ -185,9 +185,15 @@ export type FactGroup = {
   /** 실측 중앙값이 표시 중앙값과 몇 % 다른가 */
   diff_pct: number | null;
   entries: FactEntry[];
+  /** 정정 제안 때문에 집계에서 뺀 값 수 */
+  disputed_n: number;
 };
 
-type FactRow = { product_id: string; post_id: string; attribute: string; attr_key: string; value: number; unit: string; basis: string; kind: FactKind };
+type FactRow = {
+  product_id: string; post_id: string; attribute: string; attr_key: string; value: number; unit: string; basis: string; kind: FactKind;
+  /** 커뮤니티가 동의한 정정 제안이 걸린 수치 — 집계(중앙값)에서 뺀다 */
+  disputed?: boolean;
+};
 
 function mostCommon(xs: string[], tieBreak: (x: string) => number = () => 0): string {
   const counts = new Map<string, number>();
@@ -221,7 +227,7 @@ export function aggregateFacts(rows: FactRow[]): FactGroup[] {
       (u) => unitReadability(bases, u),
     );
     const stat = (kind: FactKind) => {
-      const vs = g.rows.filter((r) => r.kind === kind).map((r) => fromBase(r.base, unit));
+      const vs = g.rows.filter((r) => r.kind === kind && !r.disputed).map((r) => fromBase(r.base, unit));
       return vs.length ? { median: median(vs), n: vs.length } : null;
     };
     const label = stat("label");
@@ -234,7 +240,8 @@ export function aggregateFacts(rows: FactRow[]): FactGroup[] {
       label,
       measured,
       diff_pct: label && measured && label.median > 0 ? ((measured.median - label.median) / label.median) * 100 : null,
-      entries: g.rows.map((r) => ({ post_id: r.post_id, value: fromBase(r.base, unit), unit, kind: r.kind })),
+      entries: g.rows.map((r) => ({ post_id: r.post_id, value: fromBase(r.base, unit), unit, kind: r.kind, disputed: !!r.disputed })),
+      disputed_n: g.rows.filter((r) => r.disputed).length,
     });
   }
   // 글이 많이 적은 항목부터
@@ -243,7 +250,12 @@ export function aggregateFacts(rows: FactRow[]): FactGroup[] {
 
 async function factRows(productIds: string[]): Promise<FactRow[]> {
   return query<FactRow>(
-    `SELECT f.product_id::text, f.post_id::text, f.attribute, f.attr_key, f.value::float8 AS value, f.unit, f.basis, f.kind
+    `SELECT f.product_id::text, f.post_id::text, f.attribute, f.attr_key, f.value::float8 AS value, f.unit, f.basis, f.kind,
+            p.disputed_count > 0 AND EXISTS (
+              SELECT 1 FROM corrections c
+               WHERE c.post_id = f.post_id AND c.target = 'fact' AND c.status IN ('open', 'answered') AND c.is_supported AND NOT c.is_hidden
+                 AND c.fact_product_id = f.product_id AND c.fact_attr_key = f.attr_key AND c.fact_kind = f.kind
+                 AND c.fact_value = f.value AND c.fact_unit = f.unit AND c.fact_basis = f.basis) AS disputed
        FROM product_facts f JOIN posts p ON p.id = f.post_id
       WHERE f.product_id = ANY($1::bigint[]) AND ${VISIBLE}
       ORDER BY f.post_id DESC, f.position
