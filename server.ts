@@ -28,6 +28,7 @@ import { hit, isLimited } from "./src/lib/rate-limit";
 import { startCuratorScheduler } from "./src/lib/jobs/curator";
 import { startDigestScheduler } from "./src/lib/jobs/digest";
 import { startSourceCheckScheduler } from "./src/lib/jobs/sources";
+import { startPushScheduler } from "./src/lib/jobs/push";
 import { startMaintenanceScheduler } from "./src/lib/jobs/maintenance";
 import { startTrustScheduler } from "./src/lib/jobs/trust";
 
@@ -266,6 +267,7 @@ function startWorker() {
       if (config.digestIntervalSec > 0) startDigestScheduler(config.digestIntervalSec * 1000);
       // 출처 링크 생존 확인 (외부 사이트에 요청 — 사설 주소는 차단)
       if (config.sourceCheckIntervalSec > 0) startSourceCheckScheduler(config.sourceCheckIntervalSec * 1000);
+      if (config.pushEnabled && config.pushIntervalSec > 0) startPushScheduler(config.pushIntervalSec * 1000);
     }
     // 게시글 조회수 버퍼 반영
     const viewFlush = setInterval(() => flushViewCounts().catch((e) => console.error("[views] flush 실패:", (e as Error).message)), 10_000);

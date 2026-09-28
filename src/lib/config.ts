@@ -128,6 +128,30 @@ export const config = {
     const n = Number(process.env.SOURCE_CHECK_INTERVAL_SEC ?? 900);
     return Number.isFinite(n) && n >= 0 ? n : 900;
   },
+  /** 웹 푸시(VAPID). 두 키가 모두 있어야 푸시 알림을 켤 수 있다 — `npm run push:keys` 로 생성 */
+  get vapidPublicKey() {
+    return process.env.VAPID_PUBLIC_KEY ?? "";
+  },
+  get vapidPrivateKey() {
+    return process.env.VAPID_PRIVATE_KEY ?? "";
+  },
+  get pushEnabled() {
+    return Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+  },
+  /** 푸시 알림 배치 주기(초). 0이면 끔 */
+  get pushIntervalSec() {
+    const n = Number(process.env.PUSH_INTERVAL_SEC ?? 600);
+    return Number.isFinite(n) && n >= 0 ? n : 600;
+  },
+  /** 한 구독에 알림을 보내는 최소 간격(초) — 소식은 모였다가 한 번에 간다 */
+  get pushMinGapSec() {
+    const n = Number(process.env.PUSH_MIN_GAP_SEC ?? 3600);
+    return Number.isFinite(n) && n >= 0 ? n : 3600;
+  },
+  /** 테스트용: 알려진 푸시 서비스 외에 허용할 호스트 (쉼표 구분, https 만). 운영에서는 비워 둘 것 */
+  get pushExtraHosts(): string[] {
+    return (process.env.PUSH_EXTRA_HOSTS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  },
   get digestIntervalSec() {
     const n = Number(process.env.DIGEST_INTERVAL_SEC ?? 3600);
     return Number.isFinite(n) && n >= 0 ? n : 3600;

@@ -4,16 +4,16 @@
  */
 const KEY_BOARDS = "lr:interests";
 const KEY_SEEN = "lr:reportSeenAt";
-const EVENT = "lr:interests-changed";
+export const EVENT = "lr:interests-changed";
 
-function read(key: string): string | null {
+export function read(key: string): string | null {
   try {
     return window.localStorage.getItem(key);
   } catch {
     return null;
   }
 }
-function write(key: string, value: string) {
+export function write(key: string, value: string) {
   try {
     window.localStorage.setItem(key, value);
   } catch {}

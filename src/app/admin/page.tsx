@@ -324,14 +324,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               </tr>
             </thead>
             <tbody>
-              {(["trust", "curator", "maintenance", "sources"] as const).map((job) => {
+              {(["trust", "curator", "maintenance", "sources", "push"] as const).map((job) => {
                 const j = jobs.find((x) => x.job === job);
                 const status = !j ? "warning" : j.error ? "critical" : Date.now() - new Date(j.started_at!).getTime() > 3 * 3600_000 ? "warning" : "good";
                 return (
                   <tr key={job} title={j?.error ?? undefined}>
                     <td>
-                      {{ trust: "신뢰도 배지", curator: "AI 큐레이터", maintenance: "어뷰징 탐지·정리", sources: "출처 링크 확인" }[job]}
+                      {{ trust: "신뢰도 배지", curator: "AI 큐레이터", maintenance: "어뷰징 탐지·정리", sources: "출처 링크 확인", push: "푸시 알림" }[job]}
                       {job === "sources" && j?.detail ? <span className="hint"> · 확인/새로 깨짐 {j.detail}</span> : null}
+                      {job === "push" && j?.detail ? <span className="hint"> · 발송/확인 {j.detail}</span> : null}
                     </td>
                     <td>
                       <StatusPill status={status} />

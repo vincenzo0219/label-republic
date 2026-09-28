@@ -5,6 +5,7 @@ import { cache } from "react";
 import { Pagination } from "@/components/Pagination";
 import { PostCard } from "@/components/PostCard";
 import { ProductFacts } from "@/components/ProductFacts";
+import { WatchToggle } from "@/components/WatchToggle";
 import { config } from "@/lib/config";
 import { thumbUrl } from "@/lib/media-url";
 import { formatValue } from "@/lib/products";
@@ -82,6 +83,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
           <span>수치 항목 {facts.length}개</span>
         </div>
         <div className="product-actions">
+          <WatchToggle kind="product" id={product.id} name={name} />
           <Link className="btn btn-sm" href={`/compare?ids=${product.id}`}>
             ⚖ 다른 제품과 비교
           </Link>

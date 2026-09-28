@@ -525,3 +525,17 @@ a.product-chip:hover { border-color: var(--brand); }
 .revision-full summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-top: 8px; }
 .applied-list { padding-left: 18px; margin: 0; display: grid; gap: 4px; font-size: 14px; }
 .applied-list a { text-decoration: underline; }
+
+/* Sprint 16: 관심 제품·지켜보는 글·푸시 */
+.watch-list { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 8px; }
+.watch-list > li { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); display: grid; gap: 6px; min-width: 0; }
+.watch-list > li.is-quiet { background: transparent; }
+.watch-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.watch-title { font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
+.watch-counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.watch-count { font-size: 12.5px; padding: 2px 8px; border-radius: 999px; background: var(--pending-bg); color: var(--text); }
+.watch-count.is-strong { color: var(--bronze); background: var(--bronze-bg); font-weight: 700; }
+.watch-previews { margin: 0; padding-left: 18px; font-size: 14px; display: grid; gap: 2px; }
+.watch-previews a { text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.push-settings { margin: 16px 0; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; }
+.push-settings .section-title { margin-top: 0; }

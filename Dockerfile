@@ -28,6 +28,7 @@ COPY --from=build --chown=node:node /app/src ./src
 COPY --from=build --chown=node:node /app/scripts ./scripts
 COPY --from=build --chown=node:node /app/db ./db
 COPY --from=build --chown=node:node /app/assets ./assets
+COPY --from=build --chown=node:node /app/public ./public
 COPY --chown=node:node docker-entrypoint.sh ./
 # 로컬 이미지 저장소 (IMAGE_STORAGE=local). 컨테이너를 다시 만들어도 남도록 볼륨을 연결할 것
 ENV UPLOAD_DIR=/app/data/uploads

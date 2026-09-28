@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
 import { STATUS_LABEL, SUPPORT_MIN_SCORE, TARGET_LABEL, type CorrectionTarget } from "@/lib/corrections";
 import { timeAgo } from "@/lib/format";
+import { watchPost } from "@/lib/watchlist";
 import { displayHost, SOURCE_KIND_LABEL } from "@/lib/sources";
 import type { Correction } from "@/lib/types";
 
@@ -50,6 +51,8 @@ export function CorrectionsPanel({ postId, facts, initial, hasAuthor }: Props) {
           onCreated={(c) => {
             setItems((xs) => [c, ...xs]);
             setOpen(false);
+            // 내 제안이 달린 글은 자동으로 소식 받기 (동의·반영·답변을 📬 로)
+            watchPost(postId);
           }}
         />
       )}

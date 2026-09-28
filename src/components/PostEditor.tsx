@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
+import { watchPost } from "@/lib/watchlist";
 import { existingImages, ImagePicker, type PickedImage } from "./ImagePicker";
 import { checkDraft, newSourceDraft, SourceEditor, type SourceDraft } from "./SourceEditor";
 import { factProblem, newFactDraft, newProductDraft, ProductTagger, toRefs, type FactDraft, type ProductDraft } from "./ProductTagger";
@@ -187,6 +188,8 @@ export function PostEditor(props: Props) {
         try {
           window.localStorage.setItem("lr:nickname", nickname);
         } catch {}
+        // 내가 쓴 글은 자동으로 소식 받기 (댓글·정정 제안이 달리면 📬 에 표시)
+        watchPost(post.id);
         router.push(`/posts/${post.id}`);
       } else {
         await api(`/api/posts/${props.postId}`, "PATCH", {

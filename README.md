@@ -95,7 +95,7 @@
 | 헤더 📬 배지 | 관심 보드의 새 글 개수 |
 | 주간 다이제스트 | 보드 단위로 배치(`DIGEST_INTERVAL_SEC`, 기본 1시간, 보드당 20시간에 한 번)에서 생성해 공유 — **LLM 비용이 사용자 수와 무관**, 사용자 데이터가 LLM으로 가지 않음. 사람이 쓴 정보 글만 대상(AI 큐레이터·광고 의심·블라인드 제외). Claude 요약 + 키 없을 때 추출식. 보드 페이지 상단에도 표시 |
 | RSS/Atom | `/feed.xml`, `/c/:slug/feed.xml` — 정보·정모 글, `<link rel="alternate">` 자동 발견 |
-| API | `GET /api/report?boards=a,b&since=ISO[&count=1]` — 사용자별 정보가 없어 60초 공유 캐시 |
+| API | `GET /api/report?boards=a,b&since=ISO[&count=1]` — 사용자별 정보가 없어 60초 공유 캐시 (Sprint 16: 관심 제품·글을 함께 보내면 본인 활동을 빼고 세므로 캐시하지 않음) |
 
 **개인정보**: 방문자는 무작위 쿠키(`lr_vid`, httpOnly, 1년) 값의 HMAC으로만 식별하고 IP·UA는 저장하지 않습니다. 레퍼러는 호스트만 저장합니다. 개인정보처리방침에 분석 쿠키 사용을 고지하세요.
 
@@ -226,6 +226,22 @@ npm run perf:load -- --base http://localhost:3000 --duration 15 --concurrency 20
 | 제안자·신고 | 제안 비밀번호로 철회. 고유 신고 5건이면 자동으로 가려짐 (글 자동 블라인드와 같은 기준) |
 | 수정 이력 | 글을 고칠 때마다 이전 판(제목·본문·수치)을 저장. `/posts/:id/history`에서 줄 단위 비교(바뀐 줄 앞뒤만), 반영된 정정 제안 목록, 이전 판 전체 보기. 글 머리 "수정 이력 N" 링크 |
 | 성능 | 카드·피드는 캐시 컬럼(`correction_count`, `disputed_count`)만 읽음. 제품 수치 집계의 제외 판단은 동의된 제안이 있는 글에만 조회 (정정 제안 2천 건이 걸린 제품에서도 수치 집계 47ms) |
+
+### Sprint 16 — 관심 제품·알림
+
+제품과 글의 새 소식을 📬 내 리포트로 모으고, 원하면 휴대폰 푸시 알림으로도 받습니다. **관심 목록은 Sprint 8의 관심 보드처럼 브라우저에만 저장**하고, 푸시 알림을 켠 브라우저만 서버에 최소한의 정보를 남깁니다 (개인정보처리방침에 반영).
+
+| 영역 | 구현 |
+|---|---|
+| 관심 제품 | 제품 페이지 "☆ 관심 제품" (최대 30개). 새 글(블라인드·광고 의심 제외), 새로 "커뮤니티 동의"된 정정 제안을 모음. 병합된 제품은 리포트를 열 때 새 번호로 자동 교체 |
+| 지켜보는 글 | 글의 "🔕 이 글 소식 받기" (최대 50개). **내가 쓴 글, 댓글·정정 제안을 단 글은 자동 추가**. 새 댓글·새 정정 제안·동의된 제안·반영된 정정·글 수정을 모음. 지워진 글은 자동으로 빠짐 |
+| 내 활동 제외 | 내가 단 댓글·제안, 내가 반영한 정정, 내가 쓴 글·수정은 fingerprint로 빼고 셈 (그래서 이 응답은 `Cache-Control: private, no-store`) |
+| 📬 리포트·배지 | `/api/report?products=&posts=` 추가. 헤더 배지 = 관심 보드 새 글 + 관심 제품·글 새 소식. `/me`는 관심 보드 없이도 동작, 제품 새 글 미리보기(최신 3개)·해제 버튼 |
+| 푸시 알림 (선택) | `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`(`npm run push:keys`)가 있으면 `/me`에 "🔔 알림 켜기". 표준 Web Push(암호화, `web-push`), 서비스 워커 `public/sw.js`는 알림 표시만(캐시 없음). 배치(`PUSH_INTERVAL_SEC`, 기본 10분)가 구독마다 새 소식을 세어 **한 시간에 한 번까지 묶어서** 보냄(`PUSH_MIN_GAP_SEC`) |
+| 푸시 저장 정보 | 켠 경우에만: 푸시 주소·암호화 키, 관심 제품·글 번호, 내 활동 제외용 fingerprint. 끄면 즉시 삭제, 90일 동안 그 브라우저로 방문하지 않거나 푸시 서비스가 구독 종료(404·410)를 알리거나 5번 연속 실패하면 자동 삭제 |
+| 보안 | 서버가 사용자가 준 푸시 주소로 요청하므로 **알려진 푸시 서비스(FCM·Mozilla·Apple·Windows, https·기본 포트)만** 허용 — 내부망 요청 불가. 구독 수정·삭제는 등록 때 받은 HMAC 토큰 필요 |
+| 운영 | 대시보드 배치 상태에 "푸시 알림 (발송/확인)" |
+| 성능 (글 20만) | 관심 제품 30개(태그 8천 개짜리 포함)+글 50개 최대치에서 배지 54ms, `/me` 97ms |
 
 ## 기술 스택
 
@@ -376,7 +392,8 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | GET/POST | `/api/posts/:id/appeal` | 재검토 요청 상태 / 작성자 요청 `{pw, message}` (블라인드·광고 의심 글, 글당 1회) |
 | GET/POST | `/api/posts/:id/comments` | 댓글 목록 / 작성 `{nickname, pw, body}` |
 | DELETE | `/api/comments/:id` | 댓글 삭제 `{pw}` |
-| GET | `/api/report?boards=&since=&count=` | 개인화 리포트 (관심 보드는 클라이언트가 전달, 서버 미저장) |
+| GET | `/api/report?boards=&products=&posts=&since=&count=` | 개인화 리포트 (관심 보드·제품·글은 클라이언트가 전달, 서버 미저장) |
+| GET/POST/PUT/DELETE | `/api/push` | 푸시 사용 가능 여부·공개키 / 알림 켜기 `{subscription, products, posts}` → `{token}` / 목록 갱신 `{endpoint, token, products, posts}` / 끄기 `{endpoint, token}` |
 | GET | `/feed.xml`, `/c/:slug/feed.xml` | Atom 피드 |
 | GET/POST | `/api/posts/:id/rsvp` | 정모 참가자 목록 / 참가 토글 `{nickname}` (확정 인원 도달 시 자동 확정) |
 | POST | `/api/summary/preview` | 글쓰기 단계 요약 미리보기 `{title, body}` |
@@ -399,7 +416,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 015_corrections.sql
+db/migrations/        001_schema.sql … 016_watch_and_push.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
@@ -408,7 +425,7 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, security (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, security (*.test.ts)
 .github/workflows/    ci.yml
 ```
 

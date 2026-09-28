@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
+import { watchPost } from "@/lib/watchlist";
 import { timeAgo } from "@/lib/format";
 import type { Comment } from "@/lib/types";
 
@@ -83,6 +84,8 @@ export function LiveComments({ postId, initial }: { postId: string; initial: Com
       try {
         window.localStorage.setItem("lr:nickname", form.nickname);
       } catch {}
+      // 댓글을 단 글은 자동으로 소식 받기
+      watchPost(postId);
     } catch (err) {
       setError((err as Error).message);
     } finally {

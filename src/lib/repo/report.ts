@@ -5,6 +5,7 @@
 import { query } from "../db";
 import type { PostCard } from "../types";
 import { listNewPosts, listUpcomingMeetups } from "./posts";
+import { watchUpdates, type WatchUpdates } from "./watch";
 
 export const MAX_REPORT_BOARDS = 10;
 const MAX_LOOKBACK_MS = 30 * 86400_000;
@@ -27,7 +28,12 @@ export type Report = {
   posts: PostCard[];
   meetups: PostCard[];
   digests: BoardDigest[];
+  /** 관심 제품·지켜보는 글의 새 소식 */
+  watch: WatchUpdates;
 };
+
+export type Watched = { products: string[]; posts: string[]; fingerprint: string | null };
+const NO_WATCH: Watched = { products: [], posts: [], fingerprint: null };
 
 /** since 는 과거 30일 이내로 제한 (처음 방문자는 최근 7일) */
 export function clampSince(raw: string | null | undefined, now = new Date()): Date {
@@ -48,8 +54,18 @@ async function resolveBoards(slugs: string[]) {
   );
 }
 
-/** 헤더 배지용 가벼운 조회 — 새 글 개수만 */
-export async function countNew(slugs: string[], since: Date): Promise<number> {
+/** 헤더 배지용 가벼운 조회 — 새 글 + 관심 제품·지켜보는 글 새 소식 개수만 */
+export async function countNew(slugs: string[], since: Date, watched: Watched = NO_WATCH): Promise<number> {
+  const [boards, watch] = await Promise.all([
+    countBoardPosts(slugs, since),
+    watched.products.length || watched.posts.length
+      ? watchUpdates(watched.products, watched.posts, since, watched.fingerprint).then((w) => w.total)
+      : Promise.resolve(0),
+  ]);
+  return boards + watch;
+}
+
+async function countBoardPosts(slugs: string[], since: Date): Promise<number> {
   const cats = await resolveBoards(slugs);
   if (!cats.length) return 0;
   const rows = await query<{ n: number }>(
@@ -61,10 +77,10 @@ export async function countNew(slugs: string[], since: Date): Promise<number> {
   return rows[0]!.n;
 }
 
-export async function buildReport(slugs: string[], since: Date, now = new Date()): Promise<Report> {
+export async function buildReport(slugs: string[], since: Date, now = new Date(), watched: Watched = NO_WATCH): Promise<Report> {
   const cats = await resolveBoards(slugs);
   const ids = cats.map((c) => c.id);
-  const [newPosts, meetups, digests, perBoard] = await Promise.all([
+  const [newPosts, meetups, digests, perBoard, watch] = await Promise.all([
     listNewPosts(ids, since),
     listUpcomingMeetups(ids, now),
     ids.length
@@ -86,6 +102,7 @@ export async function buildReport(slugs: string[], since: Date, now = new Date()
           [ids, since.toISOString()],
         )
       : Promise.resolve([]),
+    watchUpdates(watched.products, watched.posts, since, watched.fingerprint, { previews: true }),
   ]);
   const counts = new Map(perBoard.map((r) => [r.category_id, r.n]));
   return {
@@ -95,6 +112,7 @@ export async function buildReport(slugs: string[], since: Date, now = new Date()
     posts: newPosts.items,
     meetups,
     digests,
+    watch,
   };
 }
 

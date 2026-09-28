@@ -67,6 +67,10 @@ export type ListParams = {
   sourced?: boolean;
   /** 이 제품을 태그한 글만 */
   productId?: string;
+  /** 이 시각 이후에 쓴 글만 */
+  since?: Date;
+  /** 이 fingerprint 가 쓴 글은 빼고 (관심 제품 새 글 미리보기에서 내 글 제외) */
+  excludeAuthor?: string | null;
 };
 
 /** 이보다 깊은 페이지는 조회하지 않는다 (OFFSET 비용·크롤러 방어). 오래된 글은 검색·사이트맵으로 찾는다. */
@@ -157,6 +161,14 @@ export async function listPosts(
   if (params.productId) {
     args.push(params.productId);
     where.push(`EXISTS (SELECT 1 FROM post_products pp WHERE pp.post_id = p.id AND pp.product_id = $${args.length})`);
+  }
+  if (params.since) {
+    args.push(params.since.toISOString());
+    where.push(`p.created_at > $${args.length}::timestamptz`);
+  }
+  if (params.excludeAuthor) {
+    args.push(params.excludeAuthor);
+    where.push(`p.author_fingerprint IS DISTINCT FROM $${args.length}`);
   }
   const pageSize = Math.min(params.pageSize ?? PAGE_SIZE, 50);
   const page = Math.max(1, Math.floor(params.page ?? 1));

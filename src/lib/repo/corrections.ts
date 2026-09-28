@@ -211,7 +211,9 @@ async function voteOnce(id: string, fp: string, value: 1 | -1): Promise<Correcti
     const a = agg[0]!;
     const supported = isSupported(a.agree_score, a.disagree_score);
     await client.query(
-      `UPDATE corrections SET agree_count = $2, disagree_count = $3, agree_score = $4, disagree_score = $5, is_supported = $6 WHERE id = $1`,
+      `UPDATE corrections SET agree_count = $2, disagree_count = $3, agree_score = $4, disagree_score = $5, is_supported = $6,
+              supported_at = CASE WHEN NOT $6 THEN NULL WHEN is_supported THEN supported_at ELSE now() END
+        WHERE id = $1`,
       [id, a.agree_count, a.disagree_count, a.agree_score, a.disagree_score, supported],
     );
     await refreshPostCounts(client, c.post_id);

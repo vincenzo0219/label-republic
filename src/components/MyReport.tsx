@@ -6,6 +6,9 @@ import { formatMeetAt } from "@/components/Meetup";
 import { PostCard } from "@/components/PostCard";
 import { getInterests, getSeenAt, onInterestsChange, setInterests, setSeenAt } from "@/lib/interests";
 import type { Report } from "@/lib/repo/report";
+import { getWatchedPosts, getWatchedProducts, reconcile, toggleWatchPost, toggleWatchProduct } from "@/lib/watchlist";
+import { PushSettings } from "./PushSettings";
+import { WatchedPosts, WatchedProducts } from "./WatchUpdates";
 
 type Board = { slug: string; name: string };
 
@@ -19,6 +22,7 @@ function fmtDate(iso: string) {
  */
 export function MyReport({ allBoards }: { allBoards: Board[] }) {
   const [interests, setLocal] = useState<string[] | null>(null);
+  const [watched, setWatched] = useState<{ products: string[]; posts: string[] }>({ products: [], posts: [] });
   const [since, setSince] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,21 +33,35 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
   useEffect(() => {
     setSince(getSeenAt());
     setLocal(getInterests());
+    setWatched({ products: getWatchedProducts(), posts: getWatchedPosts() });
     // 내용이 같은 변경 알림(확인 시각 저장 등)으로는 다시 불러오지 않는다
     return onInterestsChange(() => {
       const next = getInterests();
       setLocal((cur) => (cur && cur.join(",") === next.join(",") ? cur : next));
+      const w = { products: getWatchedProducts(), posts: getWatchedPosts() };
+      setWatched((cur) => (cur.products.join(",") === w.products.join(",") && cur.posts.join(",") === w.posts.join(",") ? cur : w));
     });
   }, []);
 
-  const load = useCallback(async (boards: string[], from: string | null) => {
+  const load = useCallback(async (boards: string[], w: { products: string[]; posts: string[] }, from: string | null) => {
     setError(null);
-    if (!boards.length) return setReport(null);
-    const qs = new URLSearchParams({ boards: boards.join(","), ...(from ? { since: from } : {}) });
+    if (!boards.length && !w.products.length && !w.posts.length) return setReport(null);
+    const qs = new URLSearchParams({
+      ...(boards.length ? { boards: boards.join(",") } : {}),
+      ...(w.products.length ? { products: w.products.join(",") } : {}),
+      ...(w.posts.length ? { posts: w.posts.join(",") } : {}),
+      ...(from ? { since: from } : {}),
+    });
     try {
       const res = await fetch(`/api/report?${qs}`);
       if (!res.ok) throw new Error(`리포트를 불러오지 못했어요 (${res.status})`);
-      setReport(await res.json());
+      const r: Report = await res.json();
+      setReport(r);
+      // 병합된 제품은 새 번호로, 지워진 글은 목록에서 뺀다
+      reconcile(
+        r.watch.products.filter((p) => p.merged_into).map((p) => [p.id, p.merged_into!] as [string, string]),
+        r.watch.gone,
+      );
       // 관심 보드가 있는 리포트를 실제로 보여준 뒤에만 "확인함"으로 기록 → 다음 방문은 이 페이지를 연 시각 이후 새 글만.
       // (관심 보드를 고르기 전 온보딩 화면만 본 경우에는 기록하지 않아 첫 리포트가 최근 7일로 나온다)
       if (!marked.current) {
@@ -56,8 +74,8 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
   }, []);
 
   useEffect(() => {
-    if (interests) void load(interests, since);
-  }, [interests, since, load]);
+    if (interests) void load(interests, watched, since);
+  }, [interests, watched, since, load]);
 
   if (interests === null) return <p className="hint">불러오는 중…</p>;
 
@@ -80,13 +98,21 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
     </div>
   );
 
-  if (!interests.length) {
+  const watching = watched.products.length + watched.posts.length > 0;
+  if (!interests.length && !watching) {
     return (
-      <section className="card">
-        <h2 className="card-title">관심 보드를 골라주세요</h2>
-        <p className="hint" style={{ marginTop: 0 }}>고른 보드의 새 글과 주간 요약을 여기에 모아 드려요.</p>
-        {picker}
-      </section>
+      <>
+        <section className="card">
+          <h2 className="card-title">관심 보드를 골라주세요</h2>
+          <p className="hint" style={{ marginTop: 0 }}>고른 보드의 새 글과 주간 요약을 여기에 모아 드려요.</p>
+          {picker}
+          <p className="hint">
+            제품 페이지의 <b>☆ 관심 제품</b>, 글의 <b>🔕 이 글 소식 받기</b>로 제품 새 글·댓글·정정 제안도 모을 수 있어요. 내가 쓴 글과 댓글·정정 제안을 단 글은 자동으로
+            모입니다.
+          </p>
+        </section>
+        <PushSettings />
+      </>
     );
   }
 
@@ -95,7 +121,8 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       <div className="report-head">
         <p className="hint" style={{ margin: 0 }}>
           {since ? `${fmtDate(since)} 이후` : "최근 7일"} · 관심 보드 {interests.length}개
-          {report ? ` · 새 글 ${report.total}개` : ""}
+          {watched.products.length > 0 && ` · 관심 제품 ${watched.products.length}개`}
+          {watched.posts.length > 0 && ` · 지켜보는 글 ${watched.posts.length}개`}
         </p>
         <div style={{ display: "flex", gap: 6 }}>
           {since && (
@@ -110,6 +137,11 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       </div>
       {editing && picker}
       {error && <p className="error">{error}</p>}
+
+      {report && watched.products.length > 0 && (
+        <WatchedProducts items={report.watch.products} onRemove={(id) => toggleWatchProduct(id)} />
+      )}
+      {report && watched.posts.length > 0 && <WatchedPosts items={report.watch.posts} onRemove={(id) => toggleWatchPost(id)} />}
 
       {report && report.digests.length > 0 && (
         <section aria-label="이번 주 요약">
@@ -151,8 +183,9 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
         </section>
       )}
 
+      {interests.length > 0 && (
       <section aria-label="새 글">
-        <h2 className="section-title">🆕 새 글 {report ? report.total : ""}</h2>
+        <h2 className="section-title">🆕 관심 보드 새 글 {report ? report.total : ""}</h2>
         {report && report.boards.length > 1 && (
           <p className="hint" style={{ marginTop: -4 }}>
             {report.boards.map((b) => `${b.name} ${b.newCount}`).join(" · ")}
@@ -164,7 +197,11 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
           <p className="hint">신뢰도 상위 {report.posts.length}개만 보여드려요. 나머지는 각 보드에서 확인하세요.</p>
         )}
       </section>
+      )}
 
+      <PushSettings />
+
+      {interests.length > 0 && (
       <p className="hint">
         RSS 리더로도 구독할 수 있어요:{" "}
         {report?.boards.map((b, i) => (
@@ -174,6 +211,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
           </span>
         ))}
       </p>
+      )}
     </>
   );
 }

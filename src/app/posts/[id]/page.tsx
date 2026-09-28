@@ -16,6 +16,7 @@ import { SourceList } from "@/components/SourceList";
 import { SummaryLines } from "@/components/SummaryLines";
 import { AiBadge, TrustBadge } from "@/components/TrustBadge";
 import { VoteButtons } from "@/components/VoteButtons";
+import { WatchToggle } from "@/components/WatchToggle";
 import { config } from "@/lib/config";
 import { imageUrl } from "@/lib/media-url";
 import { fingerprint } from "@/lib/fingerprint";
@@ -214,6 +215,7 @@ export default async function PostPage({ params }: Props) {
 
       <div className="post-actions">
         <ShareButton postId={post.id} title={post.title} />
+        <WatchToggle kind="post" id={post.id} name={post.title} />
         {!post.is_ai_curated && <PostOwnerActions postId={post.id} />}
         <ReportButton postId={post.id} />
       </div>
