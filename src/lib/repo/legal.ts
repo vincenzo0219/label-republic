@@ -65,7 +65,7 @@ export type ModerationLogRow = {
   id: string;
   action: import("./operator").ModAction;
   post_id: string | null;
-  subject_type: "post" | "board_request" | "fingerprint";
+  subject_type: "post" | "board_request" | "fingerprint" | "product";
   subject_id: string;
   /** 법적 임시조치 사유(LegalReason) 또는 보드 요청 거절 사유(BoardRejectReason) */
   reason: string | null;
@@ -109,7 +109,7 @@ export async function transparencyStats(): Promise<MonthlyStats[]> {
                AND to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS legal_holds,
             (SELECT count(*)::int FROM moderation_log l WHERE l.action = 'legal_release'
                AND to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS legal_releases,
-            -- 운영자 정정 (조작 무효화·AI 오탐 해제·재검토 기각·보드 요청 정리)
+            -- 운영자 정정 (조작 무효화·AI 오탐 해제·재검토 기각·보드 요청 정리·제품 병합)
             (SELECT count(*)::int FROM moderation_log l WHERE l.action NOT IN ('legal_hold', 'legal_release')
                AND to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS corrections
        FROM m ORDER BY m.month DESC`,

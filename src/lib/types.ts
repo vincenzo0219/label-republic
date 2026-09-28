@@ -50,7 +50,14 @@ export type PostCard = {
   source_count: number;
   /** 달린 출처의 종류 (paper·gov·community·web) */
   source_kinds: string[];
+  /** 태그한 제품 (Sprint 14) */
+  products: ProductTag[];
 };
+
+export type ProductTag = { id: string; brand: string; name: string };
+
+/** 글에 적은 제품 수치 (표시값·실측값) */
+export type PostFact = { product_id: string; attribute: string; value: number; unit: string; basis: string; kind: "label" | "measured" };
 
 export type PostSource = {
   id: string;
@@ -68,6 +75,7 @@ export type PostImage = { id: string; alt: string; width: number; height: number
 export type PostDetail = PostCard & {
   images: PostImage[];
   sources: PostSource[];
+  facts: PostFact[];
   body: string;
   report_count: number;
   is_blinded: boolean;

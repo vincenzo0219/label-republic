@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { existingImages, ImagePicker, type PickedImage } from "./ImagePicker";
 import { checkDraft, newSourceDraft, SourceEditor, type SourceDraft } from "./SourceEditor";
+import { factProblem, newFactDraft, newProductDraft, ProductTagger, toRefs, type FactDraft, type ProductDraft } from "./ProductTagger";
+import type { PostFact, ProductTag } from "@/lib/types";
 
 type Lines = [string, string, string];
 type PostType = "info" | "chat" | "meetup";
@@ -28,19 +30,34 @@ function kstToIso(local: string) {
 type CategoryOption = { slug: string; name: string };
 
 type Props =
-  | { mode: "create"; categories: CategoryOption[]; initialCategory?: string }
+  | { mode: "create"; categories: CategoryOption[]; initialCategory?: string; initialProduct?: ProductTag }
   | {
       mode: "edit";
       postId: string;
       categoryName: string;
+      categorySlug: string;
       initial: {
         title: string;
         body: string;
         summary: Lines | null;
         images: { id: string; alt: string }[];
         sources: { url: string; label: string }[];
+        products: ProductTag[];
+        facts: PostFact[];
       };
     };
+
+/** 수정 화면: 저장된 제품·수치를 편집 상태로 */
+function initialProductState(props: Props): { products: ProductDraft[]; facts: FactDraft[] } {
+  if (props.mode === "create") return { products: props.initialProduct ? [newProductDraft(props.initialProduct)] : [], facts: [] };
+  const products = props.initial.products.map((p) => newProductDraft(p));
+  const keyOf = new Map(props.initial.products.map((p, i) => [p.id, products[i]!.key]));
+  const facts = props.initial.facts.flatMap((f) => {
+    const product = keyOf.get(f.product_id);
+    return product ? [newFactDraft(product, { attribute: f.attribute, value: String(f.value), unit: f.unit, basis: f.basis, kind: f.kind })] : [];
+  });
+  return { products, facts };
+}
 
 /**
  * 글쓰기/수정 폼: 카테고리 선택 → 본문 → AI 3줄 요약 미리보기(작성자 수정 가능) → 등록
@@ -67,7 +84,20 @@ export function PostEditor(props: Props) {
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<PickedImage[]>(() => (editing ? existingImages(props.initial.images) : []));
   const [sources, setSources] = useState<SourceDraft[]>(() => (editing ? props.initial.sources.map((s) => newSourceDraft(s.url, s.label)) : []));
+  const [tagged, setTagged] = useState(() => initialProductState(props));
+  const initialTagRefs = useRef(JSON.stringify(toRefs(tagged.products, tagged.facts)));
   const summaryRef = useRef<HTMLDivElement>(null);
+  const prevCategory = useRef(category);
+
+  // 보드를 바꾸면 다른 보드의 기존 제품 태그는 뺀다 (새로 적은 제품 이름은 새 보드에서 다시 찾는다)
+  useEffect(() => {
+    if (prevCategory.current === category) return;
+    prevCategory.current = category;
+    setTagged((t) => {
+      const products = t.products.filter((p) => !p.id);
+      return { products, facts: t.facts.filter((f) => products.some((p) => p.key === f.product)) };
+    });
+  }, [category]);
 
   useEffect(() => {
     if (editing) return;
@@ -130,6 +160,13 @@ export function PostEditor(props: Props) {
       setError(`출처를 확인해주세요: ${badSource.error}`);
       return;
     }
+    const badFact = tagged.facts.filter((f) => f.attribute.trim() || f.value.trim()).map(factProblem).find(Boolean);
+    if (badFact) {
+      setError(`제품 수치를 확인해주세요: ${badFact}`);
+      return;
+    }
+    const tagRefs = toRefs(tagged.products, tagged.facts);
+    const tagsChanged = editing && JSON.stringify(tagRefs) !== initialTagRefs.current;
     const sourceRefs = sources.filter((s) => s.url.trim()).map((s) => ({ url: s.url.trim(), label: s.label.trim() }));
     const sourcesChanged = editing && JSON.stringify(sourceRefs) !== JSON.stringify(props.initial.sources);
     const imageRefs = images.map((i) => ({ id: i.id!, token: i.token, alt: i.alt }));
@@ -142,6 +179,7 @@ export function PostEditor(props: Props) {
           category, postType, nickname, pw, title, body, summary, summaryToken: token,
           ...(imageRefs.length ? { images: imageRefs } : {}),
           ...(sourceRefs.length ? { sources: sourceRefs } : {}),
+          ...(tagRefs.products.length ? tagRefs : {}),
           ...(postType === "meetup"
             ? { meetup: { meetAt: kstToIso(meetAt), location, minParticipants, capacity } }
             : {}),
@@ -155,6 +193,7 @@ export function PostEditor(props: Props) {
           pw, title, body, ...(summaryChanged && summary ? { summary, summaryToken: token } : {}),
           ...(imagesChanged ? { images: imageRefs } : {}),
           ...(sourcesChanged ? { sources: sourceRefs } : {}),
+          ...(tagsChanged ? tagRefs : {}),
         });
         router.push(`/posts/${props.postId}`);
       }
@@ -238,6 +277,16 @@ export function PostEditor(props: Props) {
       <div className="field">
         <div className="steps"><b>2-3</b> 출처 (선택)</div>
         <SourceEditor value={sources} onChange={setSources} body={body} />
+      </div>
+
+      <div className="field">
+        <div className="steps"><b>2-4</b> 제품 태그·수치 (선택)</div>
+        <ProductTagger
+          category={props.mode === "create" ? category : props.categorySlug}
+          products={tagged.products}
+          facts={tagged.facts}
+          onChange={(products, facts) => setTagged({ products, facts })}
+        />
       </div>
 
       <div className="field" ref={summaryRef}>

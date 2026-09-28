@@ -28,6 +28,8 @@ export const PATCH = route<P>(async (req, { id }) => {
     summary: input.summary ? resolveSummary(input.summary, input.summaryToken) : null,
     images: input.images,
     sources: input.sources,
+    products: input.products,
+    facts: input.facts,
   });
   if (input.title !== undefined || input.body !== undefined) {
     after(() => aiModeratePost(id).catch((err) => console.error("[moderation]", err)));

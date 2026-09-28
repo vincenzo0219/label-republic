@@ -13,6 +13,7 @@ import { assertCanPropose, insertMeetup, type MeetupInput } from "./meetups";
 import { deleteFiles, listPostImages, setPostImages, type ImageRef } from "./images";
 import { assertPin } from "./pin-guard";
 import { listPostSources, setPostSources, type SourceRef } from "./sources";
+import { currentProductIds, listPostFacts, setPostFacts, setPostProducts, type FactInput, type ProductRef } from "./products";
 
 const CARD_SELECT = `
   p.id, p.nickname, p.title, p.upvotes, p.downvotes, p.comment_count,
@@ -30,7 +31,9 @@ const CARD_SELECT = `
   (SELECT count(*)::int FROM post_images i WHERE i.post_id = p.id) AS image_count,
   p.source_count::int AS source_count,
   CASE WHEN p.source_count = 0 THEN '{}'::text[]
-       ELSE (SELECT array_agg(DISTINCT ps.kind::text) FROM post_sources ps WHERE ps.post_id = p.id) END AS source_kinds`;
+       ELSE (SELECT array_agg(DISTINCT ps.kind::text) FROM post_sources ps WHERE ps.post_id = p.id) END AS source_kinds,
+  coalesce((SELECT json_agg(json_build_object('id', pr.id::text, 'brand', pr.brand, 'name', pr.name) ORDER BY pp.position)
+              FROM post_products pp JOIN products pr ON pr.id = pp.product_id WHERE pp.post_id = p.id), '[]'::json) AS products`;
 
 const FROM = `
   FROM posts p
@@ -61,6 +64,8 @@ export type ListParams = {
   type?: PostType;
   /** 출처가 달린 글만 */
   sourced?: boolean;
+  /** 이 제품을 태그한 글만 */
+  productId?: string;
 };
 
 /** 이보다 깊은 페이지는 조회하지 않는다 (OFFSET 비용·크롤러 방어). 오래된 글은 검색·사이트맵으로 찾는다. */
@@ -148,6 +153,10 @@ export async function listPosts(
     where.push(`p.post_type = $${args.length}::post_type`);
   }
   if (params.sourced) where.push("p.source_count > 0");
+  if (params.productId) {
+    args.push(params.productId);
+    where.push(`EXISTS (SELECT 1 FROM post_products pp WHERE pp.post_id = p.id AND pp.product_id = $${args.length})`);
+  }
   const pageSize = Math.min(params.pageSize ?? PAGE_SIZE, 50);
   const page = Math.max(1, Math.floor(params.page ?? 1));
 
@@ -227,7 +236,7 @@ export async function listUpcomingMeetups(categoryIds: number[], now = new Date(
   );
 }
 
-type PostRow = Omit<PostDetail, "images" | "sources"> & { pw_hash: string; category_id: number };
+type PostRow = Omit<PostDetail, "images" | "sources" | "facts"> & { pw_hash: string; category_id: number };
 
 async function loadPost(id: string, client?: PoolClient, forUpdate = false): Promise<PostRow | null> {
   if (!/^\d{1,18}$/.test(id)) return null;
@@ -241,17 +250,21 @@ function publicPost(
   { pw_hash: _pw, category_id: _c, ...rest }: PostRow,
   images: PostDetail["images"],
   sources: PostDetail["sources"],
+  facts: PostDetail["facts"],
 ): PostDetail {
   if (rest.is_blinded) {
-    // 블라인드 글은 본문/요약/이미지/출처를 노출하지 않는다.
-    return { ...rest, body: "", excerpt: "", summary: null, images: [], thumb_id: null, image_count: 0, sources: [], source_count: 0, source_kinds: [] };
+    // 블라인드 글은 본문/요약/이미지/출처/제품을 노출하지 않는다.
+    return {
+      ...rest, body: "", excerpt: "", summary: null, images: [], thumb_id: null, image_count: 0,
+      sources: [], source_count: 0, source_kinds: [], products: [], facts: [],
+    };
   }
-  return { ...rest, images, sources };
+  return { ...rest, images, sources, facts };
 }
 
 export async function getPost(id: string): Promise<PostDetail | null> {
-  const [row, images, sources] = await Promise.all([loadPost(id), listPostImages(id), listPostSources(id)]);
-  return row ? publicPost(row, images, sources) : null;
+  const [row, images, sources, facts] = await Promise.all([loadPost(id), listPostImages(id), listPostSources(id), listPostFacts(id)]);
+  return row ? publicPost(row, images, sources, facts) : null;
 }
 
 async function insertSummary(client: PoolClient, postId: string, s: ResolvedSummary) {
@@ -280,6 +293,10 @@ export type CreatePostInput = {
   images?: ImageRef[];
   /** 출처 링크 */
   sources?: SourceRef[];
+  /** 제품 태그 (최대 3개) */
+  products?: ProductRef[];
+  /** 제품 수치 — product 는 products 의 순서 */
+  facts?: FactInput[];
 };
 
 export async function createPost(input: CreatePostInput): Promise<PostDetail> {
@@ -314,6 +331,12 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
     await insertSummary(client, rows[0]!.id, summary);
     if (input.images?.length) await setPostImages(client, rows[0]!.id, input.images);
     if (input.sources?.length) await setPostSources(client, rows[0]!.id, input.sources);
+    if (input.products?.length) {
+      const productIds = await setPostProducts(client, rows[0]!.id, cat.rows[0].id, input.products, input.fingerprint);
+      if (input.facts?.length) await setPostFacts(client, rows[0]!.id, productIds, input.facts);
+    } else if (input.facts?.length) {
+      throw new HttpError(400, "invalid_product", "수치를 적으려면 먼저 제품을 태그해주세요.");
+    }
     if (postType === "meetup") {
       await insertMeetup(client, rows[0]!.id, input.meetup!, { nickname: input.nickname, fingerprint: input.fingerprint });
     }
@@ -330,6 +353,10 @@ export type UpdatePostInput = {
   images?: ImageRef[];
   /** 있으면 그 목록이 최종 상태, 없으면 출처는 그대로 */
   sources?: SourceRef[];
+  /** 있으면 최종 상태 (빠진 제품의 수치도 지워진다) */
+  products?: ProductRef[];
+  /** 있으면 최종 상태. product 는 products(없으면 현재 태그)의 순서 */
+  facts?: FactInput[];
 };
 
 export async function updatePost(id: string, fp: string, pin: string, input: UpdatePostInput): Promise<PostDetail> {
@@ -348,6 +375,12 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
     );
     if (input.summary) await insertSummary(client, id, input.summary);
     if (input.sources) await setPostSources(client, id, input.sources);
+    if (input.products || input.facts) {
+      const productIds = input.products
+        ? await setPostProducts(client, id, post.category_id, input.products, fp)
+        : await currentProductIds(client, id);
+      if (input.facts) await setPostFacts(client, id, productIds, input.facts);
+    }
     return input.images ? setPostImages(client, id, input.images) : [];
   });
   // 파일은 커밋이 끝난 뒤 지운다 (롤백되면 파일이 남아 있어야 하므로)

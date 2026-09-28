@@ -60,6 +60,33 @@ export const sourceRefsSchema = z
   )
   .max(8, "출처는 8개까지 달 수 있습니다.");
 
+/** 제품 태그 — 이미 있는 제품은 id, 새 제품은 브랜드·제품명 (이름 규칙 검사는 저장할 때 src/lib/products.ts) */
+export const productRefsSchema = z
+  .array(
+    z.union([
+      z.object({ id: z.string().regex(/^\d{1,18}$/, "제품 정보가 올바르지 않습니다.") }),
+      z.object({
+        brand: z.string().trim().min(1, "브랜드를 입력해주세요.").max(60, "브랜드는 60자까지 입력할 수 있습니다."),
+        name: z.string().trim().min(1, "제품명을 입력해주세요.").max(120, "제품명은 120자까지 입력할 수 있습니다."),
+      }),
+    ]),
+  )
+  .max(3, "제품은 글당 3개까지 태그할 수 있습니다.");
+
+/** 제품 수치 — product 는 같은 요청 products 의 순서 */
+export const factsSchema = z
+  .array(
+    z.object({
+      product: z.number().int().min(0).max(2),
+      attribute: z.string().trim().min(1, "수치 항목 이름을 입력해주세요.").max(40, "수치 항목 이름은 40자까지 쓸 수 있습니다."),
+      value: z.number({ error: "수치 값을 숫자로 입력해주세요." }).finite().min(0, "수치는 0 이상이어야 합니다.").max(999_999_999_999, "수치가 너무 큽니다."),
+      unit: z.string().trim().min(1, "단위를 입력해주세요.").max(12, "단위는 12자까지 쓸 수 있습니다."),
+      basis: z.string().trim().max(30, "기준은 30자까지 쓸 수 있습니다.").default(""),
+      kind: z.enum(["label", "measured"], { error: "표시값/실측값을 선택해주세요." }),
+    }),
+  )
+  .max(20, "수치는 글당 20개까지 적을 수 있습니다.");
+
 export const createPostSchema = z.object({
   category: z.string().min(1, "카테고리를 선택해주세요."),
   /** 기획안: 글 작성 시 [정보]/[잡담] 태그 필수 선택 (+ 정모 제안) */
@@ -75,6 +102,8 @@ export const createPostSchema = z.object({
   summaryToken: z.string().max(4000).optional(),
   images: imageRefsSchema.optional(),
   sources: sourceRefsSchema.optional(),
+  products: productRefsSchema.optional(),
+  facts: factsSchema.optional(),
 });
 
 export const updatePostSchema = z.object({
@@ -85,6 +114,8 @@ export const updatePostSchema = z.object({
   summaryToken: z.string().max(4000).optional(),
   images: imageRefsSchema.optional(),
   sources: sourceRefsSchema.optional(),
+  products: productRefsSchema.optional(),
+  facts: factsSchema.optional(),
 });
 
 export const pinOnlySchema = z.object({ pw: pin });

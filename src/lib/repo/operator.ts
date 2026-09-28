@@ -29,12 +29,13 @@ export const MOD_ACTIONS = {
   appeal_rejected: "재검토 요청 기각",
   board_request_rejected: "보드 개설 요청 거절",
   board_request_merged: "중복 보드 요청 병합",
+  product_merged: "중복 제품 병합",
 } as const;
 export type ModAction = keyof typeof MOD_ACTIONS;
 
 type LogInput = {
   action: ModAction;
-  subjectType: "post" | "board_request" | "fingerprint";
+  subjectType: "post" | "board_request" | "fingerprint" | "product";
   subjectId: string;
   note: string;
   affected?: number;
@@ -354,6 +355,92 @@ export async function mergeBoardRequest(requestId: string, intoId: string, note:
     await writeLog(client, { action: "board_request_merged", subjectType: "board_request", subjectId: requestId, note: note || `요청 #${intoId}에 병합` });
     return { voteCount: cnt[0]!.vote_count };
   });
+}
+
+/**
+ * 표기가 달라 따로 생긴 같은 제품을 합친다 (예: "나우푸드 마그네슘" / "NOW Foods 마그네슘").
+ * 글 태그·수치를 옮기고 원래 제품은 merged_into 로 남겨 옛 주소가 새 제품 페이지로 이어지게 한다. 글 내용은 바꾸지 않는다.
+ */
+export async function mergeProduct(productId: string, intoId: string, note: string): Promise<{ moved: number }> {
+  assertId(productId, "제품");
+  assertId(intoId, "제품");
+  if (productId === intoId) throw new HttpError(400, "same_product", "같은 제품끼리는 병합할 수 없습니다.");
+  return tx(async (client) => {
+    const { rows } = await client.query<{ id: string; category_id: number; merged_into: string | null; brand: string; name: string }>(
+      "SELECT id, category_id, merged_into, brand, name FROM products WHERE id = ANY($1::bigint[]) ORDER BY id FOR UPDATE",
+      [[productId, intoId]],
+    );
+    const from = rows.find((r) => r.id === productId);
+    const into = rows.find((r) => r.id === intoId);
+    if (!from || !into) throw notFound("제품");
+    if (from.merged_into || into.merged_into) throw new HttpError(409, "product_merged", "이미 병합된 제품입니다.");
+    if (from.category_id !== into.category_id) throw new HttpError(400, "different_board", "같은 보드의 제품끼리만 병합할 수 있습니다.");
+    // 두 제품을 모두 태그한 글은 한 번만 남는다
+    const moved = await client.query(
+      `INSERT INTO post_products (post_id, product_id, position)
+       SELECT post_id, $2, position FROM post_products WHERE product_id = $1
+       ON CONFLICT DO NOTHING`,
+      [productId, intoId],
+    );
+    await client.query("DELETE FROM post_products WHERE product_id = $1", [productId]);
+    await client.query("UPDATE product_facts SET product_id = $2 WHERE product_id = $1", [productId, intoId]);
+    // 이 제품으로 병합돼 있던 제품도 새 대상을 바로 가리키게 (체인을 펴 둔다)
+    await client.query("UPDATE products SET merged_into = $2 WHERE id = $1 OR merged_into = $1", [productId, intoId]);
+    await writeLog(client, {
+      action: "product_merged",
+      subjectType: "product",
+      subjectId: productId,
+      note: note || `${from.brand} ${from.name} → 제품 #${intoId} ${into.brand} ${into.name}`,
+      affected: moved.rowCount ?? 0,
+    });
+    return { moved: moved.rowCount ?? 0 };
+  });
+}
+
+export type DuplicateProductPair = {
+  a_id: string;
+  a_label: string;
+  a_posts: number;
+  b_id: string;
+  b_label: string;
+  b_posts: number;
+  category_name: string;
+  similarity: number;
+};
+
+/**
+ * 같은 보드에서 이름이 비슷한 제품 쌍 (pg_trgm) — 병합 후보. 판단은 운영자가, 기록은 공개.
+ * 중복은 새 제품이 생길 때 생기므로 최근 제품 100개만 기준으로, 각각 이름이 가장 가까운 제품 3개를
+ * GiST 인덱스 거리순(<->)으로 찾는다. 모든 쌍을 비교하면 이름이 비슷한 제품이 많은 보드에서 끝나지 않는다.
+ */
+export async function listDuplicateProductCandidates(limit = 30): Promise<DuplicateProductPair[]> {
+  return query<DuplicateProductPair>(
+    `WITH recent AS MATERIALIZED (
+       SELECT pr.id, pr.category_id, pr.brand || ' ' || pr.name AS label
+         FROM products pr
+        WHERE pr.merged_into IS NULL AND EXISTS (SELECT 1 FROM post_products pp WHERE pp.product_id = pr.id)
+        ORDER BY pr.id DESC LIMIT 100
+     ), pairs AS (
+       SELECT a.id AS a_id, a.label AS a_label, a.category_id, n.id AS b_id, n.label AS b_label, similarity(a.label, n.label) AS sim
+         FROM recent a
+         CROSS JOIN LATERAL (
+           SELECT x.id, x.brand || ' ' || x.name AS label
+             FROM products x
+            WHERE x.merged_into IS NULL AND x.id <> a.id AND x.category_id = a.category_id
+            ORDER BY (x.brand || ' ' || x.name) <-> a.label
+            LIMIT 3
+         ) n
+     )
+     SELECT DISTINCT ON (least(a_id, b_id), greatest(a_id, b_id))
+            least(a_id, b_id)::text AS a_id, CASE WHEN a_id < b_id THEN a_label ELSE b_label END AS a_label,
+            greatest(a_id, b_id)::text AS b_id, CASE WHEN a_id < b_id THEN b_label ELSE a_label END AS b_label,
+            (SELECT count(*)::int FROM post_products pp WHERE pp.product_id = least(a_id, b_id)) AS a_posts,
+            (SELECT count(*)::int FROM post_products pp WHERE pp.product_id = greatest(a_id, b_id)) AS b_posts,
+            c.name AS category_name, sim::float8 AS similarity
+       FROM pairs JOIN categories c ON c.id = pairs.category_id
+      WHERE sim >= 0.45
+      ORDER BY least(a_id, b_id), greatest(a_id, b_id)`,
+  ).then((rows) => rows.filter((r) => r.a_posts > 0 && r.b_posts > 0).sort((x, y) => y.similarity - x.similarity).slice(0, limit));
 }
 
 // ---------------------------------------------------------------------------

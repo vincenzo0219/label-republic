@@ -415,3 +415,69 @@ select.input-sm { flex: 0 0 auto; }
 .source-inputs .input-sm { width: 100%; }
 .source-row-meta { display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
 .source-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Sprint 14: 제품 태그·수치·비교 */
+.chip[aria-checked="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); font-weight: 700; }
+.chip-sm { padding: 4px 10px; font-size: 13px; }
+.card-products { font-size: 13px; color: var(--muted); margin: -2px 0 8px; overflow-wrap: anywhere; }
+.product-chips { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.product-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line)); background: color-mix(in srgb, var(--brand) 8%, var(--surface)); color: var(--text);
+  overflow-wrap: anywhere;
+}
+a.product-chip:hover { border-color: var(--brand); }
+.product-chip.is-editing { padding-right: 4px; }
+.chip-remove { border: 0; background: transparent; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; color: var(--muted); }
+.chip-remove:hover { background: var(--line); }
+.product-tagger { display: grid; gap: 8px; }
+.product-add { display: grid; gap: 8px; }
+.product-new { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+.product-search { position: relative; }
+.product-search .input-sm { width: 100%; }
+.product-options {
+  list-style: none; margin: 4px 0 0; padding: 4px; position: absolute; left: 0; right: 0; z-index: 20;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); max-height: 280px; overflow-y: auto;
+}
+.product-options li { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.product-options li b { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.product-options li[aria-selected="true"], .product-options li:hover { background: color-mix(in srgb, var(--brand) 12%, transparent); }
+.fact-editor { display: grid; gap: 8px; }
+.fact-rows { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.fact-rows li { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+.fact-inputs { display: grid; gap: 6px; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); }
+.fact-inputs .input-sm { width: 100%; min-width: 0; }
+@media (max-width: 480px) { .fact-inputs { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+.facts { margin-top: 20px; }
+.facts h2 { font-size: 15px; margin: 0 0 8px; }
+.facts caption { text-align: left; font-weight: 700; font-size: 14px; padding: 6px 0; }
+.facts caption a { text-decoration: underline; text-underline-offset: 2px; }
+.badge-fact-label { color: var(--muted); background: var(--pending-bg); }
+.badge-fact-measured { color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, transparent); font-weight: 600; }
+
+.product-brand { color: var(--muted); font-weight: 600; font-size: 13px; margin: 0; }
+.product-page .post-head h1 { margin-top: 2px; }
+.product-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.section-h { font-size: 16px; margin: 24px 0 10px; }
+.facts-table th[scope="row"] { color: var(--text); font-weight: 600; font-size: 13px; }
+.diff { font-size: 12.5px; color: var(--muted); }
+.facts-table td:last-child { min-width: 120px; }
+.diff-notable { color: var(--accent); font-weight: 700; }
+.fact-entries { font-size: 12px; margin-top: 2px; }
+.fact-entries summary { cursor: pointer; color: var(--muted); }
+.fact-entries ul { margin: 4px 0 0; padding-left: 16px; }
+.fact-entries a { text-decoration: underline; }
+
+.board-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.product-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.product-list li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+.product-list input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--brand); }
+.product-list a { overflow-wrap: anywhere; }
+.compare-table th { min-width: 110px; }
+.compare-table thead th { white-space: normal; vertical-align: bottom; color: var(--text); font-size: 13px; }
+.compare-table td.num div { white-space: nowrap; }
+.compare-add { margin-top: 16px; max-width: 420px; }

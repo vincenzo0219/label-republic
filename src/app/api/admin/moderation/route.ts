@@ -4,6 +4,7 @@ import {
   BOARD_REJECT_REASONS,
   dismissAlert,
   mergeBoardRequest,
+  mergeProduct,
   rejectAppeal,
   rejectBoardRequest,
   releaseSuppression,
@@ -28,6 +29,7 @@ const schema = z.discriminatedUnion("action", [
     note,
   }),
   z.object({ action: z.literal("merge_board_request"), requestId: id, intoId: id, note }),
+  z.object({ action: z.literal("merge_product"), productId: id, intoId: id, note }),
 ]);
 
 /** POST /api/admin/moderation — 운영자 조치 (알림 오탐 닫기 외에는 모두 /transparency 에 공개) */
@@ -50,5 +52,7 @@ export const POST = route(async (req) => {
       return json({ ok: true });
     case "merge_board_request":
       return json({ ok: true, ...(await mergeBoardRequest(input.requestId, input.intoId, input.note)) });
+    case "merge_product":
+      return json({ ok: true, ...(await mergeProduct(input.productId, input.intoId, input.note)) });
   }
 });

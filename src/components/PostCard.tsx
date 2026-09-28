@@ -39,6 +39,11 @@ export function PostCard({ post, terms, showCategory = true }: { post: PostCardD
             <img className="card-thumb" src={thumbUrl(post.thumb_id)} alt="" width={64} height={64} loading="lazy" decoding="async" />
           )}
         </div>
+        {post.products.length > 0 && (
+          <p className="card-products">
+            🏷 {post.products.map((p) => `${p.brand} ${p.name}`).join(" · ")}
+          </p>
+        )}
         {post.summary ? <SummaryLines lines={post.summary.lines} terms={terms} /> : null}
         {terms?.length ? (
           <p className="excerpt" style={{ marginTop: post.summary ? 8 : 0 }}>

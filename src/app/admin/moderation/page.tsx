@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { StatusPill } from "@/components/admin/charts";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
-import { AlertActions, BoardRequestActions, RejectAppeal, ReleaseSuppression } from "@/components/admin/ModerationActions";
+import { AlertActions, BoardRequestActions, ProductMergeActions, RejectAppeal, ReleaseSuppression } from "@/components/admin/ModerationActions";
 import {
   listAlertsForReview,
+  listDuplicateProductCandidates,
   listOpenAppeals,
   listOpenBoardRequestsForReview,
   listRecentAutoBlinds,
@@ -20,12 +21,13 @@ function fmt(iso: string | null) {
 }
 
 export default async function ModerationPage() {
-  const [appeals, alerts, suppressed, blinds, boardReqs] = await Promise.all([
+  const [appeals, alerts, suppressed, blinds, boardReqs, dupes] = await Promise.all([
     listOpenAppeals(),
     listAlertsForReview(),
     listSuppressed(),
     listRecentAutoBlinds(),
     listOpenBoardRequestsForReview(),
+    listDuplicateProductCandidates(),
   ]);
 
   return (
@@ -34,7 +36,7 @@ export default async function ModerationPage() {
         <h1>모더레이션</h1>
         <p className="hint">
           <Link href="/admin">← 운영 대시보드</Link> · 운영자는 글을 골라 숨기거나 되살리지 않습니다. 탐지된 조작의 무효화, AI 오탐 해제, 재검토 요청 처리,
-          보드 요청 정리만 하며 <b>모든 조치는 <Link href="/transparency">투명성 기록</Link>에 공개</b>됩니다 (알림을 오탐으로 닫는 것만 내부 기록).
+          보드 요청·중복 제품 정리만 하며 <b>모든 조치는 <Link href="/transparency">투명성 기록</Link>에 공개</b>됩니다 (알림을 오탐으로 닫는 것만 내부 기록).
         </p>
       </header>
 
@@ -212,6 +214,33 @@ export default async function ModerationPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="panel" aria-labelledby="products-h">
+        <h2 id="products-h">중복 의심 제품 ({dupes.length})</h2>
+        <p className="hint">
+          같은 보드에서 이름이 비슷한 제품입니다. 같은 제품의 다른 표기(영문·한글 브랜드, 용량 표기)일 때만 병합하세요. 용량·맛이 다른 제품은 다른 제품입니다.
+        </p>
+        {dupes.length > 0 && (
+          <ul className="mod-list">
+            {dupes.map((d) => (
+              <li key={`${d.a_id}-${d.b_id}`}>
+                <div className="mod-row">
+                  <span>
+                    <Link href={`/p/${d.a_id}`}>#{d.a_id} {d.a_label}</Link> <span className="hint">글 {d.a_posts}</span> ↔{" "}
+                    <Link href={`/p/${d.b_id}`}>#{d.b_id} {d.b_label}</Link> <span className="hint">글 {d.b_posts}</span>
+                  </span>
+                  <span className="hint">
+                    {d.category_name} · 유사도 {Math.round(d.similarity * 100)}%
+                  </span>
+                </div>
+                <ProductMergeActions a={{ id: d.a_id, label: d.a_label }} b={{ id: d.b_id, label: d.b_label }} />
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="hint">번호로 직접 병합:</p>
+        <ProductMergeActions />
       </section>
     </div>
   );

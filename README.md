@@ -197,6 +197,22 @@ npm run perf:load -- --base http://localhost:3000 --duration 15 --concurrency 20
 | 요약 | 3줄 요약에서 링크 주소를 뺌 (추출 요약·Claude 프롬프트 모두) |
 | 운영 | 대시보드 배치 상태에 "출처 링크 확인 (확인/새로 깨짐)" |
 
+### Sprint 14 — 제품 단위 비교
+
+글에 제품(브랜드·제품명)을 태그하면 제품 페이지에 관련 글·사진·출처·성분 수치가 모이고, 여러 제품을 한 표로 비교합니다. **제품도 방장 없이** 글을 쓰는 사람이 만들고, 수치는 글 작성자가 적은 값 그대로 모읍니다 (운영자는 수치를 고치지 않고, 표기만 다른 중복 제품을 합치는 일만 합니다).
+
+| 영역 | 구현 |
+|---|---|
+| 제품 태그 | 글쓰기·수정의 "제품 태그·수치" 단계: 자동완성(`/api/products`)으로 기존 제품을 고르거나 브랜드·제품명으로 새로 만듦 (글당 3개). 같은 보드에서 대소문자·띄어쓰기·기호·전각 차이는 같은 제품(`src/lib/products.ts` `productKey`). 제품명에 링크·연락처 금지 |
+| 수치 입력 | 항목·값·단위·기준(1정·100g 등)·**표시값/실측값** (글당 20개). 단위 표기 통일(mcg·μg→µg, ㎎→mg, iu→IU). 수정 시 목록이 최종 상태이고, 태그에서 뺀 제품의 수치도 함께 빠짐 |
+| 제품 페이지 `/p/:id` | 항목·기준·단위 묶음별 표시값·실측값 **중앙값**, 실측이 표시와 10% 이상 다르면 ⚠, 글별 값 펼쳐 보기. 관련 글 사진·출처(여러 글이 인용한 순)·글 목록(신뢰도순). JSON-LD `Product`(+`additionalProperty`), 사이트맵 포함 |
+| 광고 방지 | 제품 페이지·검색·비교·사이트맵에는 **보이는 글(블라인드·광고 의심 아님)** 만 모임. 보이는 글이 없는 제품은 404 — 광고 글로 제품 페이지를 만들 수 없음 |
+| 비교 `/compare?ids=` | 최대 3개, 같은 항목·기준 줄로 맞추고 mg·µg·g / ml·L 등은 단위 환산 (IU↔µg 처럼 성분마다 다른 환산은 하지 않음). 비교 화면에서 자동완성으로 제품 추가·빼기 |
+| 보드 제품 목록 `/c/:slug/products` | 글 많은 순, 체크박스로 골라 비교 (JS 없이도 동작하는 폼). 보드 화면에 "🏷 제품별" 링크 |
+| 글·카드 표시 | 글 머리에 제품 칩(제품 페이지 링크), 본문 아래 제품별 수치 표, JSON-LD `about`. 카드에 🏷 제품명 |
+| 운영자 | 모더레이션 화면 "중복 의심 제품"(pg_trgm 이름 유사도, 최근 제품 100개 기준 GiST 거리순) → 방향을 골라 병합. 글 태그·수치를 옮기고 옛 제품 주소는 308로 합쳐진 제품에 연결. 투명성 기록에 "중복 제품 병합"으로 공개, 운영 원칙에 추가 |
+| 성능 (글 20만·제품 3만·태그 4만·수치 10만, 태그 8천 개짜리 제품 포함) | 피드 카드 5~6ms, 제품 페이지 조회 21ms·수치 집계 29ms·관련 글 8ms, 자동완성 3~11ms(후보를 먼저 좁히고 글 수는 후보에만), 비교 57ms, 보드 제품 목록 113ms(인스턴스별 60초 캐시), 중복 후보 550ms(운영자 화면만) |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -329,9 +345,10 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 |---|---|---|
 | GET | `/api/categories` | 카테고리 목록 |
 | GET | `/api/posts?category=&sort=trust\|latest\|votes&q=&page=&type=&sourced=1` | 피드/검색 (type: info\|chat\|meetup, sourced=1: 출처 있는 글만) |
-| POST | `/api/posts` | 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}, images?: [{id, token, alt}], sources?: [{url, label}]}` |
+| GET | `/api/products?q=&category=` | 제품 자동완성 (보이는 글이 있는 제품만, 검색어 AND) |
+| POST | `/api/posts` | 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}, images?: [{id, token, alt}], sources?: [{url, label}], products?: [{id} \| {brand, name}], facts?: [{product, attribute, value, unit, basis?, kind: label\|measured}]}` (facts.product 는 products 순서) |
 | GET | `/api/posts/:id` | 상세 + 요약 + 댓글 + 내 투표 |
-| PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?, images?, sources?}` (images·sources를 보내면 그 목록이 최종 상태) |
+| PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?, images?, sources?, products?, facts?}` (보낸 목록이 최종 상태) |
 | DELETE | `/api/posts/:id` | 삭제 `{pw}` |
 | POST | `/api/posts/:id/vote` | `{value: 1 \| -1}` |
 | POST | `/api/posts/:id/report` | `{reason}` — 5회 누적 자동 블라인드 |
@@ -348,7 +365,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | GET/POST | `/api/board-requests` | 보드 요청 목록 / 생성 `{name, description}` |
 | POST | `/api/board-requests/:id/vote` | 보드 요청 투표 (임계치 도달 시 자동 승격) |
 | POST | `/api/admin/legal-hold` | 🔒 법적 임시조치 `{action: hold\|release, postId, reason?, note}` |
-| POST | `/api/admin/moderation` | 🔒 `{action: void_alert\|dismiss_alert\|release_suppression\|reject_appeal\|reject_board_request\|merge_board_request, ...}` |
+| POST | `/api/admin/moderation` | 🔒 `{action: void_alert\|dismiss_alert\|release_suppression\|reject_appeal\|reject_board_request\|merge_board_request\|merge_product, ...}` |
 | GET | `/api/admin/moderation/preview?alertId=` | 🔒 무효화 대상 건수 |
 | WS | `/ws/comments?postId=` | 댓글 `created`/`deleted` 이벤트 푸시 |
 
@@ -363,7 +380,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 009_board_digests.sql
+db/migrations/        001_schema.sql … 014_products.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
@@ -372,7 +389,7 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch, ratelimit, report (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, security (*.test.ts)
 .github/workflows/    ci.yml
 ```
 

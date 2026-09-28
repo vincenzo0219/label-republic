@@ -55,7 +55,12 @@ export async function FeedView({
             {category.description}
             {category.auto_promoted_at && " · 커뮤니티 투표로 개설된 보드"}
           </p>
-          <InterestToggle slug={category.slug} name={category.name} />
+          <div className="board-actions">
+            <Link className="btn btn-sm" href={`${basePath}/products`}>
+              🏷 제품별
+            </Link>
+            <InterestToggle slug={category.slug} name={category.name} />
+          </div>
         </div>
       )}
       {digest && (

@@ -51,6 +51,8 @@ export const POST = route(async (req) => {
     meetup: input.postType === "meetup" ? input.meetup : undefined,
     images: input.images,
     sources: input.sources,
+    products: input.products,
+    facts: input.facts,
   });
   // 응답을 보낸 뒤 AI 스팸 분류로 규칙 기반 판정을 보정 (API 키가 있을 때만 동작)
   after(() => aiModeratePost(post.id).catch((err) => console.error("[moderation]", err)));

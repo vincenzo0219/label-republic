@@ -7,6 +7,7 @@ import { AppealBox } from "@/components/AppealBox";
 import { Gallery } from "@/components/Gallery";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
+import { PostFactsTable, ProductChips } from "@/components/PostProducts";
 import { ReportButton } from "@/components/ReportButton";
 import { RsvpPanel } from "@/components/RsvpPanel";
 import { ShareButton } from "@/components/ShareButton";
@@ -122,6 +123,9 @@ export default async function PostPage({ params }: Props) {
     text: post.body.slice(0, 5000),
     ...(post.images.length ? { image: post.images.map((i) => `${config.siteUrl}${imageUrl(i.id)}`) } : {}),
     ...(post.sources.length ? { citation: post.sources.map((s) => s.url) } : {}),
+    ...(post.products.length
+      ? { about: post.products.map((p) => ({ "@type": "Product", name: `${p.brand} ${p.name}`, brand: { "@type": "Brand", name: p.brand }, url: `${config.siteUrl}/p/${p.id}` })) }
+      : {}),
     url: `${config.siteUrl}/posts/${post.id}`,
     datePublished: post.created_at,
     dateModified: post.updated_at,
@@ -153,6 +157,7 @@ export default async function PostPage({ params }: Props) {
           <time dateTime={post.created_at}>{timeAgo(post.created_at)}</time>
           {post.updated_at !== post.created_at && <span>(수정됨)</span>}
         </div>
+        <ProductChips products={post.products} />
       </header>
 
       {post.is_ai_curated && (
@@ -183,6 +188,7 @@ export default async function PostPage({ params }: Props) {
 
       <div className="post-body">{post.body}</div>
       <Gallery images={post.images} />
+      <PostFactsTable products={post.products} facts={post.facts} />
       <SourceList sources={post.sources} />
 
       <VoteButtons postId={post.id} initial={{ upvotes: post.upvotes, downvotes: post.downvotes, myVote }} />

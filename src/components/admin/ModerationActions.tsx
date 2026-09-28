@@ -186,3 +186,41 @@ export function BoardRequestActions({ requestId, others }: { requestId: string; 
     </div>
   );
 }
+
+/** 중복 제품 병합 — 후보 쌍에서 방향을 고르거나, 번호를 직접 입력 */
+export function ProductMergeActions({ a, b }: { a?: { id: string; label: string }; b?: { id: string; label: string } }) {
+  const { msg, busy, run } = useAction();
+  const [note, setNote] = useState("");
+  const [from, setFrom] = useState("");
+  const [into, setInto] = useState("");
+  const merge = (fromId: string, intoId: string, desc: string) =>
+    run(
+      `${desc}\n글 태그와 수치를 옮기고 원래 제품 주소는 합쳐진 제품으로 이어집니다. 투명성 기록에 공개됩니다. 계속할까요?`,
+      { action: "merge_product", productId: fromId, intoId, note },
+      (r) => `병합 완료 · 글 ${r.moved}개 이동`,
+    );
+  return (
+    <div className="mod-actions">
+      <input className="input input-sm" maxLength={300} placeholder={PUBLIC_NOTE} aria-label="공개 메모" value={note} onChange={(e) => setNote(e.target.value)} />
+      {a && b ? (
+        <>
+          <button type="button" className="btn btn-sm" disabled={busy} onClick={() => merge(a.id, b.id, `제품 #${a.id}를 #${b.id}(${b.label})로 합칩니다.`)}>
+            #{a.id} → #{b.id}
+          </button>
+          <button type="button" className="btn btn-sm" disabled={busy} onClick={() => merge(b.id, a.id, `제품 #${b.id}를 #${a.id}(${a.label})로 합칩니다.`)}>
+            #{b.id} → #{a.id}
+          </button>
+        </>
+      ) : (
+        <>
+          <input className="input input-sm" inputMode="numeric" aria-label="합칠 제품 번호" placeholder="합칠 제품 #" value={from} onChange={(e) => setFrom(e.target.value.replace(/\D/g, ""))} style={{ flex: "0 1 120px" }} />
+          <input className="input input-sm" inputMode="numeric" aria-label="남길 제품 번호" placeholder="남길 제품 #" value={into} onChange={(e) => setInto(e.target.value.replace(/\D/g, ""))} style={{ flex: "0 1 120px" }} />
+          <button type="button" className="btn btn-sm" disabled={busy || !from || !into} onClick={() => merge(from, into, `제품 #${from}를 #${into}로 합칩니다.`)}>
+            병합
+          </button>
+        </>
+      )}
+      {msg && <span className="hint">{msg}</span>}
+    </div>
+  );
+}
