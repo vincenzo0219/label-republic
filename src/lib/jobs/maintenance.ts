@@ -161,6 +161,7 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       await client.query("DELETE FROM fingerprints WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM visitors WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM rate_limits WHERE expires_at < now()");
+      await client.query("DELETE FROM idempotency_keys WHERE created_at < $1::timestamptz - interval '24 hours'", [now.toISOString()]);
       // 서버 오류 기록: 해결 표시한 것은 30일, 나머지는 마지막 발생 후 90일
       await client.query(
         "DELETE FROM error_events WHERE (resolved_at < $1::timestamptz - interval '30 days') OR last_seen < $1::timestamptz - interval '90 days'",

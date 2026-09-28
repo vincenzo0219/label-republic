@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
 import { ErrorReporter } from "@/components/ErrorReporter";
 import { ReportLink } from "@/components/ReportLink";
+import { ServiceWorker } from "@/components/ServiceWorker";
 import { config } from "@/lib/config";
 import "./globals.css";
 
@@ -13,6 +14,9 @@ export const metadata: Metadata = {
   description:
     "노방장 커뮤니티 라벨공화국. 영양제·사료 성분표부터 키보드 스위치, 데스크테리어, 향수·오디오까지 — 완장질 없이 집단지성으로 검증하는 성분/취미 정보 아카이브.",
   applicationName: "라벨공화국",
+  // iPhone 홈 화면에 추가했을 때 앱처럼 (푸시 알림도 이 경우에만 받을 수 있다)
+  appleWebApp: { capable: true, title: "라벨공화국", statusBarStyle: "default" },
+  formatDetection: { telephone: false },
   openGraph: { siteName: "라벨공화국", type: "website", locale: "ko_KR" },
   alternates: { canonical: "/", types: { "application/atom+xml": [{ url: "/feed.xml", title: "라벨공화국 새 글" }] } },
 };
@@ -35,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Analytics />
           <ErrorReporter />
         </Suspense>
+        <ServiceWorker disabled={process.env.SW_DISABLED === "1"} />
         <header className="site-header">
           <div className="container">
             <Link href="/" className="logo" aria-label="라벨공화국 홈">

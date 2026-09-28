@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#1f5f4a"/>
+  <!-- 라벨(가격표) 모양 + 체크: 성분표를 확인한다 -->
+  <path d="M150 136h150c9 0 17 4 23 10l74 80c10 11 10 29 0 40l-74 80c-6 6-14 10-23 10H150c-17 0-30-13-30-30V166c0-17 13-30 30-30z" fill="#f6f5f1"/>
+  <circle cx="318" cy="246" r="20" fill="#1f5f4a"/>
+  <path d="M168 250l38 38 72-84" fill="none" stroke="#1f5f4a" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

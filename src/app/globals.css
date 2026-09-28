@@ -571,3 +571,23 @@ a.product-chip:hover { border-color: var(--brand); }
 @media (max-width: 480px) { .rank-table { font-size: 12.5px; } .rank-table .product-brand { display: block; font-size: 11.5px; } }
 .stack { font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); padding: 8px; border-radius: 8px; max-height: 240px; overflow: auto; }
 .revision-redact summary { cursor: pointer; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+
+/* Sprint 19: PWA·오프라인 */
+.net-banner { position: sticky; top: 0; z-index: 50; text-align: center; padding: 8px 12px; font-size: 13.5px; background: var(--text); color: var(--bg); }
+.net-banner a { color: inherit; text-decoration: underline; font-weight: 700; }
+/* 저장본 화면에는 위의 안내가 이미 있으므로 오프라인 배너는 겹쳐 띄우지 않는다 */
+body[data-lr-offline] .net-banner { display: none; }
+body[data-lr-offline]::before {
+  content: "📴 저장된 글이에요 — 연결되면 최신 내용으로 바뀝니다"; display: block; text-align: center; padding: 8px 12px; font-size: 13.5px;
+  background: var(--pending-bg); color: var(--text); border-bottom: 1px solid var(--line);
+}
+.update-toast {
+  /* 위쪽에 띄워 글쓰기의 고정된 "등록" 버튼을 가리지 않게 */
+  position: fixed; left: 50%; top: calc(10px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 60; display: flex; gap: 10px; align-items: center;
+  white-space: nowrap;
+  padding: 10px 12px 10px 16px; border-radius: 999px; background: var(--text); color: var(--bg); font-size: 14px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
+  max-width: calc(100vw - 32px);
+}
+.draft-banner { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; }
+.draft-banner p { margin: 0; overflow-wrap: anywhere; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; }

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/client-api";
+import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
 import { watchPost } from "@/lib/watchlist";
 import { existingImages, ImagePicker, type PickedImage } from "./ImagePicker";
 import { checkDraft, newSourceDraft, SourceEditor, type SourceDraft } from "./SourceEditor";
@@ -60,6 +60,44 @@ function initialProductState(props: Props): { products: ProductDraft[]; facts: F
   return { products, facts };
 }
 
+/** 쓰던 글 임시저장 (Sprint 19) — 이 기기 localStorage 에만. 비밀번호·사진·AI 요약은 저장하지 않는다 */
+const DRAFT_KEY = "lr:draft:write";
+type Draft = {
+  v: 1;
+  savedAt: number;
+  category: string;
+  postType: PostType | "";
+  title: string;
+  body: string;
+  meetAt: string;
+  location: string;
+  minParticipants: number;
+  capacity: number;
+  sources: { url: string; label: string }[];
+  products: { id?: string; brand: string; name: string }[];
+  facts: (Omit<FactDraft, "key" | "product"> & { product: number })[];
+  /** 등록을 눌렀지만 응답을 못 받았을 때 같은 요청으로 다시 보내기 위한 키와 그때 보낸 내용 */
+  pending?: { key: string; sent: string };
+};
+
+function readDraft(): Draft | null {
+  try {
+    const d = JSON.parse(window.localStorage.getItem(DRAFT_KEY) ?? "null") as Draft | null;
+    // 2주 넘은 임시저장은 버린다
+    if (!d || d.v !== 1 || Date.now() - d.savedAt > 14 * 86400_000) return null;
+    return d;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(d: Draft | null) {
+  try {
+    if (d) window.localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+    else window.localStorage.removeItem(DRAFT_KEY);
+  } catch {}
+}
+
 /**
  * 글쓰기/수정 폼: 카테고리 선택 → 본문 → AI 3줄 요약 미리보기(작성자 수정 가능) → 등록
  */
@@ -89,6 +127,10 @@ export function PostEditor(props: Props) {
   const initialTagRefs = useRef(JSON.stringify(toRefs(tagged.products, tagged.facts)));
   const summaryRef = useRef<HTMLDivElement>(null);
   const prevCategory = useRef(category);
+  const [restorable, setRestorable] = useState<Draft | null>(null);
+  const [draftReady, setDraftReady] = useState(editing);
+  const pending = useRef<Draft["pending"]>(undefined);
+  const posted = useRef(false);
 
   // 보드를 바꾸면 다른 보드의 기존 제품 태그는 뺀다 (새로 적은 제품 이름은 새 보드에서 다시 찾는다)
   useEffect(() => {
@@ -107,6 +149,65 @@ export function PostEditor(props: Props) {
       if (saved) setNickname(saved);
     } catch {}
   }, [editing]);
+
+  // 새 글: 이전에 쓰던 글이 있으면 불러올지 묻는다
+  useEffect(() => {
+    if (editing) return;
+    const d = readDraft();
+    if (d && (d.title.trim() || d.body.trim())) setRestorable(d);
+    else setDraftReady(true);
+  }, [editing]);
+
+  const buildDraft = (): Draft => {
+    const index = new Map(tagged.products.map((p, i) => [p.key, i]));
+    return {
+      v: 1, savedAt: Date.now(), category, postType, title, body, meetAt, location, minParticipants, capacity,
+      sources: sources.filter((x) => x.url.trim()).map((x) => ({ url: x.url, label: x.label })),
+      products: tagged.products.map((p) => ({ id: p.id, brand: p.brand, name: p.name })),
+      facts: tagged.facts.flatMap(({ key: _k, product, ...f }) => (index.has(product) ? [{ ...f, product: index.get(product)! }] : [])),
+      pending: pending.current,
+    };
+  };
+
+  // 새 글: 입력이 멈추면 1초 뒤 임시저장
+  useEffect(() => {
+    if (editing || !draftReady) return;
+    if (!title.trim() && !body.trim()) return;
+    const t = setTimeout(() => {
+      if (posted.current) return; // 등록 직후 남은 타이머가 임시저장을 되살리지 않게
+      writeDraft(buildDraft());
+    }, 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- buildDraft 는 아래 값들로만 만들어진다
+  }, [editing, draftReady, category, postType, title, body, meetAt, location, minParticipants, capacity, sources, tagged]);
+
+  function restoreDraft(d: Draft) {
+    prevCategory.current = d.category; // 불러온 제품 태그가 보드 변경 처리로 지워지지 않게
+    setCategory(d.category);
+    setPostType(d.postType);
+    setTitle(d.title);
+    setBody(d.body);
+    setMeetAt(d.meetAt);
+    setLocation(d.location);
+    setMinParticipants(d.minParticipants);
+    setCapacity(d.capacity);
+    setSources(d.sources.map((x) => newSourceDraft(x.url, x.label)));
+    const products = d.products.map((p) => newProductDraft(p));
+    setTagged({
+      products,
+      facts: d.facts.flatMap(({ product, ...f }) => (products[product] ? [newFactDraft(products[product].key, f)] : [])),
+    });
+    pending.current = d.pending;
+    setRestorable(null);
+    setDraftReady(true);
+  }
+
+  function discardDraft() {
+    writeDraft(null);
+    pending.current = undefined;
+    setRestorable(null);
+    setDraftReady(true);
+  }
 
   const stale = summary !== null && summaryFor !== body;
   const summaryChanged = editing && JSON.stringify(summary) !== JSON.stringify(props.initial.summary);
@@ -176,7 +277,7 @@ export function PostEditor(props: Props) {
     setSaving(true);
     try {
       if (props.mode === "create") {
-        const { post } = await api<{ post: { id: string } }>("/api/posts", "POST", {
+        const payload = {
           category, postType, nickname, pw, title, body, summary, summaryToken: token,
           ...(imageRefs.length ? { images: imageRefs } : {}),
           ...(sourceRefs.length ? { sources: sourceRefs } : {}),
@@ -184,7 +285,15 @@ export function PostEditor(props: Props) {
           ...(postType === "meetup"
             ? { meetup: { meetAt: kstToIso(meetAt), location, minParticipants, capacity } }
             : {}),
-        });
+        };
+        // 응답을 못 받은 채 같은 내용을 다시 보내면 같은 키 → 서버가 처음 결과를 돌려줘 두 번 올라가지 않는다
+        const idempotencyKey = requestKeyFor(pending, payload);
+        // 보내기 전에 바로 임시저장 (1초 타이머를 기다리지 않음) — 응답을 못 받고 창을 닫아도 같은 키로 다시 보낼 수 있게
+        writeDraft(buildDraft());
+        const { post } = await api<{ post: { id: string } }>("/api/posts", "POST", payload, { idempotencyKey });
+        pending.current = undefined;
+        posted.current = true;
+        writeDraft(null);
         try {
           window.localStorage.setItem("lr:nickname", nickname);
         } catch {}
@@ -202,13 +311,32 @@ export function PostEditor(props: Props) {
       }
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      setError(
+        isNetworkError(err)
+          ? editing
+            ? "연결이 끊겨 저장하지 못했어요. 연결되면 다시 눌러주세요."
+            : "연결이 끊겨 등록 결과를 받지 못했어요. 쓴 글은 이 기기에 저장돼 있으니, 연결되면 다시 눌러주세요. (두 번 올라가지 않아요)"
+          : (err as Error).message,
+      );
       setSaving(false);
     }
   }
 
   return (
     <form className="form" onSubmit={submit}>
+      {restorable && (
+        <div className="draft-banner" role="region" aria-label="임시저장된 글">
+          <p>
+            작성 중이던 글이 있어요: <b>{restorable.title.trim() || restorable.body.trim().slice(0, 20) || "(제목 없음)"}</b>
+            <span className="hint"> · {new Date(restorable.savedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+          </p>
+          <div className="row-actions">
+            <button type="button" className="btn btn-primary" onClick={() => restoreDraft(restorable)}>불러오기</button>
+            <button type="button" className="btn" onClick={discardDraft}>지우기</button>
+          </div>
+          <p className="hint">사진·비밀번호·AI 요약은 저장되지 않아 다시 넣어야 해요.</p>
+        </div>
+      )}
       {props.mode === "create" ? (
         <div className="field">
           <div className="steps"><b>1</b> 카테고리 선택</div>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { api } from "@/lib/client-api";
+import { useEffect, useRef, useState } from "react";
+import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
 import { STATUS_LABEL, SUPPORT_MIN_SCORE, TARGET_LABEL, type CorrectionTarget } from "@/lib/corrections";
 import { timeAgo } from "@/lib/format";
 import { watchPost } from "@/lib/watchlist";
@@ -107,7 +107,7 @@ function CorrectionItem({ c, hasAuthor, onChange }: { c: Correction; hasAuthor: 
         <span className={`badge badge-cstatus-${c.status}`}>{STATUS_LABEL[c.status]}</span>
         {c.is_supported && !closed && <span className="badge badge-disputed">✔ 커뮤니티 동의</span>}
         <span>
-          {TARGET_LABEL[c.target]} · {c.nickname} · <time dateTime={c.created_at}>{timeAgo(c.created_at)}</time>
+          {TARGET_LABEL[c.target]} · {c.nickname} · <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
         </span>
       </div>
       <blockquote className="correction-quote">
@@ -197,6 +197,7 @@ function CorrectionForm({ postId, facts, onCancel, onCreated }: { postId: string
   const [pw, setPw] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const sending = useRef<{ key: string; sent: string } | undefined>(undefined);
 
   useEffect(() => {
     try {
@@ -212,16 +213,17 @@ function CorrectionForm({ postId, facts, onCancel, onCreated }: { postId: string
     setSaving(true);
     setError(null);
     try {
-      const { correction } = await api<{ correction: Correction }>(`/api/posts/${postId}/corrections`, "POST", {
-        nickname, pw, target, proposal, reason, sourceUrl,
-        ...(target === "fact" ? { factIndex } : { quote }),
+      const payload = { nickname, pw, target, proposal, reason, sourceUrl, ...(target === "fact" ? { factIndex } : { quote }) };
+      const { correction } = await api<{ correction: Correction }>(`/api/posts/${postId}/corrections`, "POST", payload, {
+        idempotencyKey: requestKeyFor(sending, payload),
       });
+      sending.current = undefined;
       try {
         window.localStorage.setItem("lr:nickname", nickname);
       } catch {}
       onCreated(correction);
     } catch (err) {
-      setError((err as Error).message);
+      setError(isNetworkError(err) ? "연결이 끊겨 등록 결과를 받지 못했어요. 연결되면 다시 눌러주세요. (두 번 올라가지 않아요)" : (err as Error).message);
     } finally {
       setSaving(false);
     }

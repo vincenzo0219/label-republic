@@ -272,6 +272,22 @@ Sprint 14에서 모은 제품 수치로 "마그네슘 200mg 이상", "비타민D
 | 부하 재측정 | 제품·비교·성분 순위·수치 검색·수정 이력·관심 리포트 시나리오 추가. 발견해 고친 것: 수치 검색 패널이 일반 검색어마다 모든 보드 항목을 훑어 **검색 처리량 119 → 61 req/s** → 캐시된 보드별 항목 목록으로 먼저 걸러 105 req/s 로 복구. 결과는 RUNBOOK 7장 |
 | 운영 | `docs/RUNBOOK.md` — 첫 배포 체크리스트 13항목, 일상 점검, 백업·복구·리허설, 업데이트·롤백, 장애 대응 표, 감시 설정, 성능 기준. docker compose 에 `restart: unless-stopped` |
 
+### Sprint 19 — PWA·오프라인
+
+매장에서 라벨을 확인하다 연결이 약해도 쓸 수 있게: 홈 화면 앱, 글 오프라인 저장, 느린 망 대응, 끊겨도 두 번 올라가지 않는 글쓰기.
+
+| 영역 | 구현 |
+|---|---|
+| 홈 화면 앱 | `manifest.webmanifest`(standalone, 테마색, 바로가기: 글쓰기·내 리포트·저장한 글), 아이콘 192·512·maskable·apple-touch (`assets/icon.svg` → `scripts/make-icons.ts`). `/me`에 설치 안내 — Android/데스크톱은 "홈 화면에 추가" 버튼, iPhone은 공유 → 홈 화면에 추가 안내 |
+| 오프라인 읽기 | 서비스 워커(`/sw.js`, 빌드마다 버전이 바뀜): 최근 본 글 20개는 7일, 글 화면의 **📥 오프라인 저장**은 30일. 오프라인이면 저장본에 "저장된 글이에요" 안내, 저장 안 된 화면은 `/offline?from=주소`(저장한 글 목록 · 해제 · 모두 지우기)로. 사진은 본 것만 80장까지 |
+| 느린 망 | 글 화면은 5초 안에 응답이 없고 저장본이 있으면 저장본을 먼저 보여주고, 도착한 새 내용으로 저장본을 갱신. 사이트 스크립트·스타일은 캐시 우선 |
+| 지워진 글 | 블라인드 글은 `<meta name="lr-offline" content="no-store">` → 다음 접속 때 이 기기에서도 지움. 404·410·451 이면 저장본·사진 삭제. 저장한 글은 12시간마다 연결될 때 다시 확인. `/api`·`/admin`은 저장하지 않음 |
+| 새 버전 | 새 서비스 워커는 바로 바꾸지 않고 "새 버전이 있어요 [새로고침]"을 띄움 — 쓰던 글이 날아가지 않게. 새로고침하면 옛 캐시 삭제 |
+| 글쓰기 임시저장 | 쓰는 중 1초마다 이 기기(localStorage)에 저장, 다시 열면 "작성 중이던 글이 있어요 [불러오기] [지우기]" (14일). 비밀번호·사진·AI 요약은 저장하지 않음 |
+| 두 번 올라가지 않게 | 글·댓글·정정 제안에 `Idempotency-Key`. 응답을 못 받고 다시 누르면 서버가 처음 결과를 돌려줌(`Idempotent-Replay: true`). 같은 키는 **같은 내용**일 때만 — IP 가 아니라 본문 해시로 비교하므로 와이파이↔LTE 전환에도 동작. 실패(검증 오류 등)는 기억하지 않아 고쳐서 다시 보낼 수 있음. 결과는 24시간 뒤 정리 배치가 삭제 |
+| 비상 해제 | `SW_DISABLED=1` 로 재시작하면 브라우저가 다음 접속 때 서비스 워커·저장본을 스스로 지움 (RUNBOOK 5장) |
+| 검증 | 브라우저 E2E 13개: 서버를 실제로 내려 오프라인 읽기, 블라인드 글 저장본 삭제, 응답만 끊은 상태에서 다시 눌러 글·댓글이 1건만 생기는지, 새 빌드 배포 후 안내·교체(쓰던 글 유지), 비상 해제 후 정적 화면에서도 새로고침 반복이 없는지. axe 0건(라이트·다크) |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -421,7 +437,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/corrections/:id/report` | 신고 (고유 5건이면 자동으로 가림) |
 | GET | `/api/facts?category=&attr=&basis=&kind=label\|measured&unit=&min=&max=&order=desc\|asc` | 보드 성분 순위 (attr 없으면 항목 목록) · `?q=마그네슘 200mg 이상` 은 모든 보드 조건 검색 |
 | GET | `/api/products?q=&category=` | 제품 자동완성 (보이는 글이 있는 제품만, 검색어 AND) |
-| POST | `/api/posts` | 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}, images?: [{id, token, alt}], sources?: [{url, label}], products?: [{id} \| {brand, name}], facts?: [{product, attribute, value, unit, basis?, kind: label\|measured}]}` (facts.product 는 products 순서) |
+| POST | `/api/posts` | (글·댓글·정정 제안 작성은 `Idempotency-Key: <UUID>` 헤더를 받습니다 — 같은 키·같은 내용이면 처음 결과를 다시 돌려줌, 다른 내용이면 409) 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}, images?: [{id, token, alt}], sources?: [{url, label}], products?: [{id} \| {brand, name}], facts?: [{product, attribute, value, unit, basis?, kind: label\|measured}]}` (facts.product 는 products 순서) |
 | GET | `/api/posts/:id` | 상세 + 요약 + 댓글 + 내 투표 |
 | PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?, images?, sources?, products?, facts?}` (보낸 목록이 최종 상태) |
 | DELETE | `/api/posts/:id` | 삭제 `{pw}` |
@@ -443,6 +459,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/admin/legal-hold` | 🔒 법적 임시조치 `{action: hold\|release, postId, reason?, note}` |
 | POST | `/api/admin/moderation` | 🔒 `{action: void_alert\|dismiss_alert\|release_suppression\|reject_appeal\|reject_board_request\|merge_board_request\|merge_product, ...}` |
 | GET | `/api/admin/moderation/preview?alertId=` | 🔒 무효화 대상 건수 |
+| GET | `/sw.js`, `/manifest.webmanifest`, `/offline` | 서비스 워커(빌드 번호 포함, `no-cache`) / 앱 정보 / 저장한 글 목록 (Sprint 19) |
 | WS | `/ws/comments?postId=` | 댓글 `created`/`deleted` 이벤트 푸시 |
 
 에러 응답 형식: `{"error": {"code": "wrong_password", "message": "비밀번호가 일치하지 않습니다."}}`
@@ -456,17 +473,18 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 018_error_events.sql
+db/migrations/        001_schema.sql … 019_idempotency.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
-scripts/              migrate.ts, backup.ts·backup.sh, push-keys.ts, refresh-trust.ts, backfill-*.ts, seed-curator.ts, curator-generate.ts
+assets/icon.svg       앱 아이콘 원본 (scripts/make-icons.ts 로 PNG 생성)
+scripts/              migrate.ts, backup.ts·backup.sh, push-keys.ts, make-icons.ts, refresh-trust.ts, backfill-*.ts, seed-curator.ts, curator-generate.ts
 docs/RUNBOOK.md       운영 런북
 scripts/perf/         seed.sql(대량 데이터), load.ts(부하), queries.ts(쿼리 지연), jobs.ts(배치 시간)
 server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, ops, security (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, ops, security, pwa (*.test.ts)
 .github/workflows/    ci.yml
 ```
 

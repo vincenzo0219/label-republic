@@ -11,6 +11,7 @@ import { PostOwnerActions } from "@/components/PostOwnerActions";
 import { PostFactsTable, ProductChips } from "@/components/PostProducts";
 import { ReportButton } from "@/components/ReportButton";
 import { RsvpPanel } from "@/components/RsvpPanel";
+import { SaveOffline } from "@/components/SaveOffline";
 import { ShareButton } from "@/components/ShareButton";
 import { SourceList } from "@/components/SourceList";
 import { SummaryLines } from "@/components/SummaryLines";
@@ -46,7 +47,8 @@ function summarySource(s: { model_version: string; is_author_edited: boolean }):
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await getPost((await params).id);
   if (!post) return {};
-  if (post.is_blinded) return { title: "블라인드된 게시글", robots: { index: false, follow: false } };
+  // 블라인드·임시조치 글은 서비스 워커가 기기에 저장하지 않고, 저장돼 있던 것도 지운다 (Sprint 19)
+  if (post.is_blinded) return { title: "블라인드된 게시글", robots: { index: false, follow: false }, other: { "lr-offline": "no-store" } };
   const description = post.summary ? post.summary.lines.join(" ") : post.excerpt.slice(0, 160);
   // 3줄 요약 카드 이미지를 링크 미리보기(OG)로 사용 — 광고 의심 글은 카드 이미지를 만들지 않는다
   const ogImage = post.is_suppressed ? null : { url: `/posts/${post.id}/card?format=og`, width: 1200, height: 630, alt: post.title };
@@ -216,6 +218,7 @@ export default async function PostPage({ params }: Props) {
       <div className="post-actions">
         <ShareButton postId={post.id} title={post.title} />
         <WatchToggle kind="post" id={post.id} name={post.title} />
+        <SaveOffline postId={post.id} />
         {!post.is_ai_curated && <PostOwnerActions postId={post.id} />}
         <ReportButton postId={post.id} />
       </div>

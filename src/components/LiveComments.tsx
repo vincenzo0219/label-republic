@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/client-api";
+import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
 import { watchPost } from "@/lib/watchlist";
 import { timeAgo } from "@/lib/format";
 import type { Comment } from "@/lib/types";
@@ -20,6 +20,7 @@ export function LiveComments({ postId, initial }: { postId: string; initial: Com
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const retry = useRef(0);
+  const sending = useRef<{ key: string; sent: string } | undefined>(undefined);
 
   useEffect(() => {
     try {
@@ -78,7 +79,10 @@ export function LiveComments({ postId, initial }: { postId: string; initial: Com
     setBusy(true);
     setError(null);
     try {
-      const { comment } = await api<{ comment: Comment }>(`/api/posts/${postId}/comments`, "POST", form);
+      const { comment } = await api<{ comment: Comment }>(`/api/posts/${postId}/comments`, "POST", form, {
+        idempotencyKey: requestKeyFor(sending, form),
+      });
+      sending.current = undefined;
       setComments((list) => (list.some((x) => String(x.id) === String(comment.id)) ? list : [...list, comment]));
       setForm((f) => ({ ...f, body: "" }));
       try {
@@ -87,7 +91,7 @@ export function LiveComments({ postId, initial }: { postId: string; initial: Com
       // 댓글을 단 글은 자동으로 소식 받기
       watchPost(postId);
     } catch (err) {
-      setError((err as Error).message);
+      setError(isNetworkError(err) ? "연결이 끊겨 등록 결과를 받지 못했어요. 연결되면 다시 눌러주세요. (두 번 달리지 않아요)" : (err as Error).message);
     } finally {
       setBusy(false);
     }

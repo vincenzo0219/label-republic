@@ -7,6 +7,7 @@ import { PostCard } from "@/components/PostCard";
 import { getInterests, getSeenAt, onInterestsChange, setInterests, setSeenAt } from "@/lib/interests";
 import type { Report } from "@/lib/repo/report";
 import { getWatchedPosts, getWatchedProducts, reconcile, toggleWatchPost, toggleWatchProduct } from "@/lib/watchlist";
+import { InstallPrompt } from "./InstallPrompt";
 import { PushSettings } from "./PushSettings";
 import { WatchedPosts, WatchedProducts } from "./WatchUpdates";
 
@@ -112,6 +113,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
           </p>
         </section>
         <PushSettings />
+        <InstallPrompt />
       </>
     );
   }
@@ -200,6 +202,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       )}
 
       <PushSettings />
+      <InstallPrompt />
 
       {interests.length > 0 && (
       <p className="hint">
