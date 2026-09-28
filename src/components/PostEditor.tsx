@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
+import { existingImages, ImagePicker, type PickedImage } from "./ImagePicker";
 
 type Lines = [string, string, string];
 type PostType = "info" | "chat" | "meetup";
@@ -27,7 +28,12 @@ type CategoryOption = { slug: string; name: string };
 
 type Props =
   | { mode: "create"; categories: CategoryOption[]; initialCategory?: string }
-  | { mode: "edit"; postId: string; categoryName: string; initial: { title: string; body: string; summary: Lines | null } };
+  | {
+      mode: "edit";
+      postId: string;
+      categoryName: string;
+      initial: { title: string; body: string; summary: Lines | null; images: { id: string; alt: string }[] };
+    };
 
 /**
  * 글쓰기/수정 폼: 카테고리 선택 → 본문 → AI 3줄 요약 미리보기(작성자 수정 가능) → 등록
@@ -52,6 +58,7 @@ export function PostEditor(props: Props) {
   const [summarizing, setSummarizing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [images, setImages] = useState<PickedImage[]>(() => (editing ? existingImages(props.initial.images) : []));
   const summaryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,11 +109,23 @@ export function PostEditor(props: Props) {
       await generate();
       return;
     }
+    if (images.some((i) => i.status === "uploading")) {
+      setError("사진을 올리는 중이에요. 잠시 후 다시 눌러주세요.");
+      return;
+    }
+    if (images.some((i) => i.status === "error")) {
+      setError("올리지 못한 사진이 있어요. 삭제하거나 다시 첨부해주세요.");
+      return;
+    }
+    const imageRefs = images.map((i) => ({ id: i.id!, token: i.token, alt: i.alt }));
+    const imagesChanged =
+      editing && JSON.stringify(imageRefs.map((i) => [i.id, i.alt])) !== JSON.stringify(props.initial.images.map((i) => [i.id, i.alt]));
     setSaving(true);
     try {
       if (props.mode === "create") {
         const { post } = await api<{ post: { id: string } }>("/api/posts", "POST", {
           category, postType, nickname, pw, title, body, summary, summaryToken: token,
+          ...(imageRefs.length ? { images: imageRefs } : {}),
           ...(postType === "meetup"
             ? { meetup: { meetAt: kstToIso(meetAt), location, minParticipants, capacity } }
             : {}),
@@ -118,6 +137,7 @@ export function PostEditor(props: Props) {
       } else {
         await api(`/api/posts/${props.postId}`, "PATCH", {
           pw, title, body, ...(summaryChanged && summary ? { summary, summaryToken: token } : {}),
+          ...(imagesChanged ? { images: imageRefs } : {}),
         });
         router.push(`/posts/${props.postId}`);
       }
@@ -193,6 +213,11 @@ export function PostEditor(props: Props) {
         <span className="hint">{body.length.toLocaleString()} / 20,000</span>
       </div>
 
+      <div className="field">
+        <div className="steps"><b>2-2</b> 사진 (선택)</div>
+        <ImagePicker value={images} onChange={setImages} />
+      </div>
+
       <div className="field" ref={summaryRef}>
         <div className="steps"><b>3</b> AI 3줄 요약 미리보기 · 직접 수정 가능</div>
         {summary ? (
@@ -235,7 +260,7 @@ export function PostEditor(props: Props) {
 
       {error && <p className="error">{error}</p>}
       <div className="sticky-submit">
-        <button className="btn btn-primary" disabled={saving || summarizing}>
+        <button className="btn btn-primary" disabled={saving || summarizing || images.some((i) => i.status === "uploading")}>
           {saving ? "저장 중…" : editing ? "수정 완료" : summary ? "등록하기" : "요약 확인 후 등록"}
         </button>
       </div>

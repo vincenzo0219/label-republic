@@ -12,6 +12,7 @@ describe("startup env check", () => {
     ADMIN_PASSWORD: "a-long-admin-password",
     TRUST_PROXY: "true",
     ANTHROPIC_API_KEY: "sk-ant-x",
+    UPLOAD_DIR: "/data/uploads",
   };
   it("passes a complete production config", () => {
     expect(checkEnv(good, true)).toEqual({ errors: [], warnings: [] });
@@ -34,6 +35,13 @@ describe("startup env check", () => {
     const prod = checkEnv({ ...good, ANTHROPIC_API_KEY: "", ADMIN_PASSWORD: "", TRUST_PROXY: "" }, true);
     expect(prod.errors).toEqual([]);
     expect(prod.warnings).toHaveLength(3);
+  });
+  it("checks image storage settings", () => {
+    // 로컬 저장 경로를 지정하지 않으면 경고 (컨테이너에서 이미지가 사라질 수 있음)
+    expect(checkEnv({ ...good, UPLOAD_DIR: "" }, true).warnings.join("\n")).toMatch(/UPLOAD_DIR/);
+    const s3 = { ...good, UPLOAD_DIR: "", IMAGE_STORAGE: "s3", S3_ENDPOINT: "https://r2.example.com", S3_BUCKET: "img", S3_ACCESS_KEY_ID: "k", S3_SECRET_ACCESS_KEY: "s" };
+    expect(checkEnv(s3, true)).toEqual({ errors: [], warnings: [] });
+    expect(checkEnv({ ...s3, S3_BUCKET: "", S3_SECRET_ACCESS_KEY: "" }, true).errors.join("\n")).toMatch(/S3_BUCKET, S3_SECRET_ACCESS_KEY/);
   });
 });
 

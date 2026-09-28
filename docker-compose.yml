@@ -25,9 +25,13 @@ services:
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-auto}
     ports:
       - "3000:3000"
+    volumes:
+      # 첨부 이미지 (IMAGE_STORAGE=local)
+      - uploads:/app/data/uploads
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   pgdata:
+  uploads:

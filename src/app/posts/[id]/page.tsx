@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AppealBox } from "@/components/AppealBox";
+import { Gallery } from "@/components/Gallery";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
 import { ReportButton } from "@/components/ReportButton";
@@ -13,6 +14,7 @@ import { SummaryLines } from "@/components/SummaryLines";
 import { AiBadge, TrustBadge } from "@/components/TrustBadge";
 import { VoteButtons } from "@/components/VoteButtons";
 import { config } from "@/lib/config";
+import { imageUrl } from "@/lib/media-url";
 import { fingerprint } from "@/lib/fingerprint";
 import { timeAgo } from "@/lib/format";
 import { listComments } from "@/lib/repo/comments";
@@ -117,6 +119,7 @@ export default async function PostPage({ params }: Props) {
     "@type": "DiscussionForumPosting",
     headline: post.title,
     text: post.body.slice(0, 5000),
+    ...(post.images.length ? { image: post.images.map((i) => `${config.siteUrl}${imageUrl(i.id)}`) } : {}),
     url: `${config.siteUrl}/posts/${post.id}`,
     datePublished: post.created_at,
     dateModified: post.updated_at,
@@ -177,6 +180,7 @@ export default async function PostPage({ params }: Props) {
       )}
 
       <div className="post-body">{post.body}</div>
+      <Gallery images={post.images} />
 
       <VoteButtons postId={post.id} initial={{ upvotes: post.upvotes, downvotes: post.downvotes, myVote }} />
 

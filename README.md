@@ -166,6 +166,20 @@ npm run perf:load -- --base http://localhost:3000 --duration 15 --concurrency 20
 - 화면: `/admin/moderation` (대시보드에 대기 건수 표시), API: `POST /api/admin/moderation`, `GET /api/admin/moderation/preview`, `POST /api/posts/:id/appeal`
 - `/transparency`에 모든 운영자 조치(대상·사유·건수·메모)와 월별 "운영자 정정" 건수 공개. 운영 원칙·이용약관·개인정보처리방침 문구 갱신
 
+### Sprint 12 — 이미지 첨부
+
+성분표·제품 라벨 사진을 글에 첨부할 수 있습니다 (글당 6장).
+
+| 영역 | 구현 |
+|---|---|
+| 업로드 | `POST /api/uploads` (본문 = 이미지, `Content-Type: image/jpeg\|png\|webp\|gif\|avif`, 10MB) → `{id, token}`. 글 작성·수정의 `images: [{id, token, alt}]`로 첨부. 토큰은 id의 HMAC이라 업로드한 사람만 첨부할 수 있고, 다른 글에 붙은 이미지는 가져올 수 없음. fingerprint당 시간당 40장 |
+| 변환 (sharp) | 헤더로 형식 확인(SVG·가짜 확장자 거부), 4,000만 화소 초과(압축 폭탄) 거부 → EXIF 방향 적용 → **위치·기기 정보 등 메타데이터 전부 제거** → 긴 변 1600px WebP + 480px 썸네일. 휴대폰 사진은 브라우저에서 먼저 줄여 올림 |
+| 저장소 | `IMAGE_STORAGE=local`(기본, `UPLOAD_DIR`, 임시 파일→rename으로 원자적 저장) 또는 `s3`(S3 호환, SigV4 서명). Docker는 `uploads` 볼륨 |
+| 제공 | 항상 `/media/<id>.webp`, `/media/<id>_t.webp`를 거침 — **첨부된 글이 보이는 상태일 때만** 제공(블라인드·임시조치·삭제 즉시 404), 캐시 5분 + ETag, 이미지 응답에 `sandbox` CSP |
+| 정리 | 글 삭제·수정으로 빠진 사진은 커밋 후 파일 삭제, 첨부하지 않은 업로드는 유지보수 배치가 24시간 뒤 삭제 |
+| 화면 | 글쓰기·수정: 사진 선택 즉시 업로드, 미리보기·설명(대체 텍스트)·순서 이동·삭제. 글 상세: 갤러리(성분표 글자가 잘리지 않게 전체 표시, 누르면 원본). 목록 카드: 썸네일 + 📷 개수. JSON-LD `image` |
+| 문서 | 개인정보처리방침(첨부 사진·메타데이터 삭제·보관 기간), 이용약관(사진 권리·개인정보 가리기) |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -239,6 +253,9 @@ docker compose up --build
 | `DIGEST_INTERVAL_SEC` | 보드 주간 다이제스트 배치 주기 (기본 3600초, 0이면 끔) |
 | `RATE_LIMIT_BACKEND` | `postgres`(운영 기본, 인스턴스 간 공유) / `memory`(개발 기본) |
 | `WEB_CONCURRENCY` | 웹 워커 프로세스 수 (기본 1, `auto` = CPU 수). 2 이상이면 `RATE_LIMIT_BACKEND=postgres` 필수 |
+| `IMAGE_STORAGE` | 이미지 저장소 `local`(기본) / `s3` |
+| `UPLOAD_DIR` | local 저장 경로 (기본 `./data/uploads`, Docker `/app/data/uploads`) |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | s3 저장소 설정 (버킷은 비공개) |
 | `DB_POOL_MAX` | 프로세스당 DB 커넥션 수 (기본 10). 전체 ≈ (값+1) × 워커 × 인스턴스 |
 | `ENV_CHECK=warn` | 로컬에서 운영 빌드 시험용 — 환경변수 오류를 경고로 낮춤 (운영 금지) |
 
@@ -293,12 +310,14 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 |---|---|---|
 | GET | `/api/categories` | 카테고리 목록 |
 | GET | `/api/posts?category=&sort=trust\|latest\|votes&q=&page=&type=` | 피드/검색 (type: info\|chat\|meetup) |
-| POST | `/api/posts` | 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}}` |
+| POST | `/api/posts` | 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}, images?: [{id, token, alt}]}` |
 | GET | `/api/posts/:id` | 상세 + 요약 + 댓글 + 내 투표 |
-| PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?}` |
+| PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?, images?}` (images를 보내면 그 목록이 최종 상태) |
 | DELETE | `/api/posts/:id` | 삭제 `{pw}` |
 | POST | `/api/posts/:id/vote` | `{value: 1 \| -1}` |
 | POST | `/api/posts/:id/report` | `{reason}` — 5회 누적 자동 블라인드 |
+| POST | `/api/uploads` | 이미지 업로드 (본문 = 이미지 바이트) → `{id, token, width, height}` |
+| GET | `/media/:id.webp`, `/media/:id_t.webp` | 첨부 이미지·썸네일 (보이는 글에 첨부된 것만) |
 | GET/POST | `/api/posts/:id/appeal` | 재검토 요청 상태 / 작성자 요청 `{pw, message}` (블라인드·광고 의심 글, 글당 1회) |
 | GET/POST | `/api/posts/:id/comments` | 댓글 목록 / 작성 `{nickname, pw, body}` |
 | DELETE | `/api/comments/:id` | 댓글 삭제 `{pw}` |

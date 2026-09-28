@@ -101,6 +101,22 @@ export const config = {
     const n = Math.floor(Number(process.env.DB_POOL_MAX ?? 10));
     return Number.isFinite(n) && n >= 1 ? Math.min(n, 100) : 10;
   },
+  /** 이미지 저장소: local(기본, UPLOAD_DIR) / s3(S3 호환: AWS S3, Cloudflare R2, MinIO 등) */
+  get imageStorage(): "local" | "s3" {
+    return process.env.IMAGE_STORAGE === "s3" ? "s3" : "local";
+  },
+  get uploadDir() {
+    return process.env.UPLOAD_DIR || "./data/uploads";
+  },
+  get s3() {
+    return {
+      endpoint: (process.env.S3_ENDPOINT ?? "").replace(/\/+$/, ""),
+      bucket: process.env.S3_BUCKET ?? "",
+      region: process.env.S3_REGION || "auto",
+      accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
+    };
+  },
   get rateLimitBackend(): "memory" | "postgres" {
     const v = process.env.RATE_LIMIT_BACKEND;
     if (v === "memory" || v === "postgres") return v;

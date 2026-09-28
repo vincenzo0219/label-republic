@@ -44,9 +44,15 @@ export type PostCard = {
   post_type: PostType;
   meetup: Meetup | null;
   created_at: string;
+  /** 첫 번째 첨부 이미지 (카드 썸네일) */
+  thumb_id: string | null;
+  image_count: number;
 };
 
+export type PostImage = { id: string; alt: string; width: number; height: number; thumb_width: number; thumb_height: number };
+
 export type PostDetail = PostCard & {
+  images: PostImage[];
   body: string;
   report_count: number;
   is_blinded: boolean;

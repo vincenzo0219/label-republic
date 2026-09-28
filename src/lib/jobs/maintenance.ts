@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { pool } from "../db";
 import { promotePendingBoardRequests } from "../repo/board-requests";
+import { sweepOrphanImages } from "../repo/images";
 import { expireMeetups } from "../repo/meetups";
 
 const MAINTENANCE_LOCK_KEY = 4_823_003;
@@ -131,7 +132,7 @@ export type MaintenanceResult = {
   ran: boolean;
   alerts: number;
   promoted: string[];
-  pruned: { pageViews: number; alerts: number };
+  pruned: { pageViews: number; alerts: number; orphanImages: number };
   expiredMeetups: number;
 };
 
@@ -143,7 +144,7 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
   const client = await pool().connect();
   try {
     const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [MAINTENANCE_LOCK_KEY]);
-    if (!lock.rows[0]!.ok) return { ran: false, alerts: 0, promoted: [], pruned: { pageViews: 0, alerts: 0 }, expiredMeetups: 0 };
+    if (!lock.rows[0]!.ok) return { ran: false, alerts: 0, promoted: [], pruned: { pageViews: 0, alerts: 0, orphanImages: 0 }, expiredMeetups: 0 };
     const run = await client.query<{ id: string }>("INSERT INTO maintenance_runs DEFAULT VALUES RETURNING id");
     const runId = run.rows[0]!.id;
     try {
@@ -159,11 +160,13 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       await client.query("DELETE FROM fingerprints WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM visitors WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM rate_limits WHERE expires_at < now()");
+      // 올리기만 하고 글에 붙이지 않은 이미지 (24시간 경과)
+      const orphanImages = await sweepOrphanImages(now);
       const result: MaintenanceResult = {
         ran: true,
         alerts: alerts.length,
         promoted,
-        pruned: { pageViews: pv.rowCount ?? 0, alerts: al.rowCount ?? 0 },
+        pruned: { pageViews: pv.rowCount ?? 0, alerts: al.rowCount ?? 0, orphanImages },
         expiredMeetups,
       };
       await client.query("UPDATE maintenance_runs SET finished_at = now(), detail = $2 WHERE id = $1", [runId, JSON.stringify(result)]);

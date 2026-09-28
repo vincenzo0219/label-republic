@@ -7,6 +7,8 @@
  * 1) 브라우저가 보낸 출처 정보(Origin → Sec-Fetch-Site → Referer)가 있으면 우리 사이트여야 한다.
  *    출처 정보가 전혀 없으면 브라우저가 아닌 클라이언트(curl 등)로 보고 허용한다 — CSRF는 브라우저로만 가능.
  * 2) 본문이 있으면 Content-Type 이 application/json 이어야 한다 (HTML 폼으로는 보낼 수 없는 형식).
+ *    예외: 이미지 업로드(/api/uploads)는 image/* 본문. 이것도 HTML 폼이 보낼 수 없는 형식이라 사전 요청(CORS preflight)
+ *    없이는 다른 사이트가 보낼 수 없고, 1)의 출처 검사도 그대로 적용된다.
  */
 export type CsrfVerdict = { ok: true } | { ok: false; status: 403 | 415; code: string; message: string };
 
@@ -45,7 +47,8 @@ export function checkCsrf(req: {
     if (!allowed.has(originOf(req.referer))) return crossOrigin;
   }
 
-  if (req.hasBody && !/^application\/json\b/i.test(req.contentType ?? "")) {
+  const uploadOk = req.pathname === "/api/uploads" && /^image\/(jpeg|png|webp|gif|avif)\b/i.test(req.contentType ?? "");
+  if (req.hasBody && !uploadOk && !/^application\/json\b/i.test(req.contentType ?? "")) {
     return { ok: false, status: 415, code: "unsupported_media_type", message: "요청 본문은 application/json 이어야 합니다." };
   }
   return { ok: true };

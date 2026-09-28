@@ -10,6 +10,7 @@ import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
 import type { PostCard, PostDetail, PostType } from "../types";
 import { assertCanPropose, insertMeetup, type MeetupInput } from "./meetups";
+import { deleteFiles, listPostImages, setPostImages, type ImageRef } from "./images";
 import { assertPin } from "./pin-guard";
 
 const CARD_SELECT = `
@@ -23,7 +24,9 @@ const CARD_SELECT = `
   left(regexp_replace(p.body, '\\s+', ' ', 'g'), 400) AS excerpt,
   CASE WHEN s.id IS NULL THEN NULL ELSE json_build_object(
     'lines', s.summary_lines, 'model_version', s.model_version, 'is_author_edited', s.is_author_edited
-  ) END AS summary`;
+  ) END AS summary,
+  (SELECT i.id FROM post_images i WHERE i.post_id = p.id ORDER BY i.position LIMIT 1) AS thumb_id,
+  (SELECT count(*)::int FROM post_images i WHERE i.post_id = p.id) AS image_count`;
 
 const FROM = `
   FROM posts p
@@ -210,7 +213,7 @@ export async function listUpcomingMeetups(categoryIds: number[], now = new Date(
   );
 }
 
-type PostRow = PostDetail & { pw_hash: string; category_id: number };
+type PostRow = Omit<PostDetail, "images"> & { pw_hash: string; category_id: number };
 
 async function loadPost(id: string, client?: PoolClient, forUpdate = false): Promise<PostRow | null> {
   if (!/^\d{1,18}$/.test(id)) return null;
@@ -220,17 +223,17 @@ async function loadPost(id: string, client?: PoolClient, forUpdate = false): Pro
   return rows[0] ?? null;
 }
 
-function publicPost({ pw_hash: _pw, category_id: _c, ...rest }: PostRow): PostDetail {
+function publicPost({ pw_hash: _pw, category_id: _c, ...rest }: PostRow, images: PostDetail["images"]): PostDetail {
   if (rest.is_blinded) {
-    // 블라인드 글은 본문/요약을 노출하지 않는다.
-    return { ...rest, body: "", excerpt: "", summary: null };
+    // 블라인드 글은 본문/요약/이미지를 노출하지 않는다.
+    return { ...rest, body: "", excerpt: "", summary: null, images: [], thumb_id: null, image_count: 0 };
   }
-  return rest;
+  return { ...rest, images };
 }
 
 export async function getPost(id: string): Promise<PostDetail | null> {
-  const row = await loadPost(id);
-  return row ? publicPost(row) : null;
+  const [row, images] = await Promise.all([loadPost(id), listPostImages(id)]);
+  return row ? publicPost(row, images) : null;
 }
 
 async function insertSummary(client: PoolClient, postId: string, s: ResolvedSummary) {
@@ -255,6 +258,8 @@ export type CreatePostInput = {
   postType?: PostType;
   /** postType = meetup 일 때 필수 */
   meetup?: MeetupInput;
+  /** 업로드한 이미지 (POST /api/uploads 가 준 id·token) */
+  images?: ImageRef[];
 };
 
 export async function createPost(input: CreatePostInput): Promise<PostDetail> {
@@ -287,6 +292,7 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
       ],
     );
     await insertSummary(client, rows[0]!.id, summary);
+    if (input.images?.length) await setPostImages(client, rows[0]!.id, input.images);
     if (postType === "meetup") {
       await insertMeetup(client, rows[0]!.id, input.meetup!, { nickname: input.nickname, fingerprint: input.fingerprint });
     }
@@ -295,10 +301,11 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
   return (await getPost(id))!;
 }
 
-export type UpdatePostInput = { title?: string; body?: string; summary?: ResolvedSummary | null };
+/** images 가 있으면 그 목록이 최종 상태(순서·대체 텍스트 포함), 없으면 이미지는 그대로 */
+export type UpdatePostInput = { title?: string; body?: string; summary?: ResolvedSummary | null; images?: ImageRef[] };
 
 export async function updatePost(id: string, fp: string, pin: string, input: UpdatePostInput): Promise<PostDetail> {
-  await tx(async (client) => {
+  const removed = await tx(async (client) => {
     const post = await loadPost(id, client, true);
     if (!post) throw notFound();
     if (post.is_blinded) throw blinded();
@@ -312,17 +319,23 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
       [id, title, body, ...moderationParams(heuristicSpam(title, body))],
     );
     if (input.summary) await insertSummary(client, id, input.summary);
+    return input.images ? setPostImages(client, id, input.images) : [];
   });
+  // 파일은 커밋이 끝난 뒤 지운다 (롤백되면 파일이 남아 있어야 하므로)
+  if (removed.length) await deleteFiles(removed);
   return (await getPost(id))!;
 }
 
 export async function deletePost(id: string, fp: string, pin: string): Promise<void> {
-  await tx(async (client) => {
+  const imageIds = await tx(async (client) => {
     const post = await loadPost(id, client, true);
     if (!post) throw notFound();
     await assertPin(`post:${id}`, fp, pin, post.pw_hash);
-    await client.query("DELETE FROM posts WHERE id = $1", [id]);
+    const { rows } = await client.query<{ id: string }>("SELECT id FROM post_images WHERE post_id = $1", [id]);
+    await client.query("DELETE FROM posts WHERE id = $1", [id]); // post_images 는 CASCADE
+    return rows.map((r) => r.id);
   });
+  if (imageIds.length) await deleteFiles(imageIds);
 }
 
 /** 기존 글의 요약 교체 (작성자 수정본 또는 AI 재생성) */

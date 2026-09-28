@@ -29,6 +29,10 @@ COPY --from=build --chown=node:node /app/scripts ./scripts
 COPY --from=build --chown=node:node /app/db ./db
 COPY --from=build --chown=node:node /app/assets ./assets
 COPY --chown=node:node docker-entrypoint.sh ./
+# 로컬 이미지 저장소 (IMAGE_STORAGE=local). 컨테이너를 다시 만들어도 남도록 볼륨을 연결할 것
+ENV UPLOAD_DIR=/app/data/uploads
+RUN mkdir -p /app/data/uploads && chown -R node:node /app/data
+VOLUME ["/app/data/uploads"]
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

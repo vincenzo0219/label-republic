@@ -35,6 +35,12 @@ export function checkEnv(env: Record<string, string | undefined>, production: bo
   if (production && env.TRUST_PROXY !== "true") {
     warnings.push("TRUST_PROXY 가 꺼져 있습니다. 로드밸런서/리버스 프록시 뒤라면 모든 사용자가 같은 IP로 보여 투표·신고 중복 방지가 오작동합니다.");
   }
+  if (env.IMAGE_STORAGE === "s3") {
+    const missing = ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"].filter((k) => !env[k]);
+    if (missing.length) errors.push(`IMAGE_STORAGE=s3 인데 ${missing.join(", ")} 이(가) 없습니다.`);
+  } else if (production && !env.UPLOAD_DIR) {
+    warnings.push("UPLOAD_DIR 이 없어 이미지를 ./data/uploads 에 저장합니다. 컨테이너라면 볼륨을 연결하거나 IMAGE_STORAGE=s3 를 쓰세요.");
+  }
   const workers = env.WEB_CONCURRENCY === "auto" ? 2 : Number(env.WEB_CONCURRENCY ?? 1);
   if (workers > 1 && env.RATE_LIMIT_BACKEND === "memory") {
     need.push("WEB_CONCURRENCY 가 2 이상인데 RATE_LIMIT_BACKEND=memory 입니다 — 워커마다 따로 세어 레이트 리밋이 워커 수만큼 느슨해집니다. postgres 를 쓰세요.");

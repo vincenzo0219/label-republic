@@ -18,6 +18,13 @@ describe("CSRF guard", () => {
     expect(checkCsrf({ ...base, origin: "https://evil.example" })).toMatchObject({ ok: false, status: 403 });
     expect(checkCsrf({ ...base, pathname: "/api/admin/legal-hold", origin: "https://evil.example" })).toMatchObject({ ok: false, status: 403 });
     expect(checkCsrf({ ...base, origin: "null" })).toMatchObject({ ok: false, status: 403 }); // 샌드박스 iframe
+    // 이미지 업로드는 image/* 본문을 받지만 출처 검사는 그대로, 다른 경로에서는 image/* 불가
+    const upload = { ...base, pathname: "/api/uploads", contentType: "image/jpeg" };
+    expect(checkCsrf({ ...upload, origin: SITE })).toEqual({ ok: true });
+    expect(checkCsrf({ ...upload, origin: "https://evil.example" })).toMatchObject({ ok: false, status: 403 });
+    expect(checkCsrf({ ...upload, origin: SITE, contentType: "image/svg+xml" })).toMatchObject({ ok: false, status: 415 });
+    expect(checkCsrf({ ...upload, origin: SITE, contentType: "multipart/form-data; boundary=x" })).toMatchObject({ ok: false, status: 415 });
+    expect(checkCsrf({ ...base, origin: SITE, contentType: "image/jpeg" })).toMatchObject({ ok: false, status: 415 });
     expect(checkCsrf({ ...base, origin: "https://labelrepublic.kr.evil.example" })).toMatchObject({ ok: false, status: 403 });
     expect(checkCsrf({ ...base, origin: "http://labelrepublic.kr" })).toMatchObject({ ok: false, status: 403 }); // 스킴 다름
   });

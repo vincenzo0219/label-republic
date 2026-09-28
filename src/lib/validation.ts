@@ -39,6 +39,17 @@ export const meetupSchema = z.object({
 
 export const rsvpSchema = z.object({ nickname });
 
+/** 첨부 이미지 참조 — 새 업로드는 token 필수, 수정 시 이미 붙어 있던 이미지는 token 없이 유지 */
+export const imageRefsSchema = z
+  .array(
+    z.object({
+      id: z.string().uuid("이미지 정보가 올바르지 않습니다."),
+      token: z.string().max(64).optional(),
+      alt: z.string().trim().max(200, "이미지 설명은 200자까지 쓸 수 있습니다.").default(""),
+    }),
+  )
+  .max(6, "이미지는 글당 6장까지 첨부할 수 있습니다.");
+
 export const createPostSchema = z.object({
   category: z.string().min(1, "카테고리를 선택해주세요."),
   /** 기획안: 글 작성 시 [정보]/[잡담] 태그 필수 선택 (+ 정모 제안) */
@@ -52,6 +63,7 @@ export const createPostSchema = z.object({
   summary: summaryLines.optional(),
   /** /api/summary/preview 가 발급한 서명 토큰 — AI 원본과 비교해 is_author_edited 판정 */
   summaryToken: z.string().max(4000).optional(),
+  images: imageRefsSchema.optional(),
 });
 
 export const updatePostSchema = z.object({
@@ -60,6 +72,7 @@ export const updatePostSchema = z.object({
   body: trimmed(10, 20000, "본문").optional(),
   summary: summaryLines.optional(),
   summaryToken: z.string().max(4000).optional(),
+  images: imageRefsSchema.optional(),
 });
 
 export const pinOnlySchema = z.object({ pw: pin });
