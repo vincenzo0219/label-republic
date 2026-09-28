@@ -24,7 +24,7 @@ describe("image processing", () => {
     const out = await processImage(input);
     expect({ w: out.width, h: out.height }).toEqual({ w: 1067, h: 1600 }); // 회전 반영 후 긴 변 1600
     expect(Math.max(out.thumbWidth, out.thumbHeight)).toBe(480);
-    for (const buf of [out.full, out.thumb]) {
+    for (const buf of [out.full, out.thumb, out.small]) {
       const m = await sharp(buf).metadata();
       expect(m.format).toBe("webp");
       expect(m.exif).toBeUndefined();
@@ -127,7 +127,7 @@ d("post images (database)", async () => {
   it("uploads, attaches in order with alt text, and shows a card thumbnail", async () => {
     const a = await upload();
     const b = await upload();
-    expect(files()).toEqual([`${a.id}.webp`, `${a.id}_t.webp`, `${b.id}.webp`, `${b.id}_t.webp`].sort());
+    expect(files()).toEqual([`${a.id}.webp`, `${a.id}_s.webp`, `${a.id}_t.webp`, `${b.id}.webp`, `${b.id}_s.webp`, `${b.id}_t.webp`].sort());
     // 첨부 전에는 내려주지 않는다
     expect(await images.readServableImage(a.id, "full")).toBeNull();
 
@@ -143,6 +143,19 @@ d("post images (database)", async () => {
     expect((await images.readServableImage(b.id, "thumb"))?.length).toBeGreaterThan(0);
     const card = (await posts.listPosts({ sort: "latest" })).items[0]!;
     expect(card).toMatchObject({ thumb_id: b.id, image_count: 2 });
+  });
+
+  it("serves a small square card thumbnail, creating it on first request for older uploads", async () => {
+    const a = await upload();
+    await newPost([{ id: a.id, token: a.token }]);
+    const small = await images.readServableImage(a.id, "small");
+    const meta = await sharp(small!).metadata();
+    expect({ w: meta.width, h: meta.height, f: meta.format }).toEqual({ w: 192, h: 192, f: "webp" });
+    expect(small!.length).toBeLessThan((await images.readServableImage(a.id, "thumb"))!.length);
+    // Sprint 22 이전 업로드처럼 작은 썸네일이 없으면 만들어 저장한다
+    rmSync(path.join(dir, "img", `${a.id}_s.webp`));
+    expect((await images.readServableImage(a.id, "small"))?.length).toBeGreaterThan(0);
+    expect(files()).toContain(`${a.id}_s.webp`);
   });
 
   it("requires the upload token and never lets another post take an image", async () => {
@@ -198,7 +211,7 @@ d("post images (database)", async () => {
     await newPost([{ id: kept.id, token: kept.token }]);
     expect(await images.sweepOrphanImages()).toBe(0);
     expect(await images.sweepOrphanImages(new Date(Date.now() + 25 * 3600_000))).toBe(1);
-    expect(files()).toEqual([`${kept.id}.webp`, `${kept.id}_t.webp`].sort());
+    expect(files()).toEqual([`${kept.id}.webp`, `${kept.id}_s.webp`, `${kept.id}_t.webp`].sort());
     expect(orphan.id).not.toBe(kept.id);
   });
 });

@@ -16,7 +16,7 @@ export interface ImageStorage {
 }
 
 /** 키는 코드가 만든 것만 허용한다 (경로 탈출 방지) */
-const KEY = /^img\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(_t)?\.webp$/;
+const KEY = /^img\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(_t|_s)?\.webp$/;
 export function assertKey(key: string) {
   if (!KEY.test(key)) throw new Error(`invalid storage key: ${key}`);
 }
@@ -92,3 +92,4 @@ export function setImageStorage(s: ImageStorage | undefined) {
 
 export const fullKey = (id: string) => `img/${id}.webp`;
 export const thumbKey = (id: string) => `img/${id}_t.webp`;
+export const smallKey = (id: string) => `img/${id}_s.webp`;

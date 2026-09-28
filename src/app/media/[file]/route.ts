@@ -2,10 +2,10 @@ import { readServableImage } from "@/lib/repo/images";
 
 export const runtime = "nodejs";
 
-const FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(_t)?\.webp$/;
+const FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(_t|_s)?\.webp$/;
 
 /**
- * GET /media/<id>.webp, /media/<id>_t.webp(썸네일)
+ * GET /media/<id>.webp, /media/<id>_t.webp(썸네일), /media/<id>_s.webp(목록 카드용 192px 정사각형)
  * 글에 첨부돼 있고 그 글이 블라인드·임시조치되지 않았을 때만 내려준다.
  * 블라인드가 곧바로 반영되도록 캐시는 5분으로 짧게 둔다 (파일 자체는 바뀌지 않으므로 ETag 로 재검증).
  */
@@ -13,7 +13,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ file: st
   const m = FILE.exec((await params).file);
   if (!m) return new Response("Not found", { status: 404 });
   const id = m[1]!;
-  const variant = m[2] ? "thumb" : "full";
+  const variant = m[2] === "_t" ? "thumb" : m[2] === "_s" ? "small" : "full";
   const etag = `"${id}${m[2] ?? ""}"`;
   let data: Buffer | null;
   try {

@@ -78,7 +78,8 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
     if (interests) void load(interests, watched, since);
   }, [interests, watched, since, load]);
 
-  if (interests === null) return <p className="hint">불러오는 중…</p>;
+  // 관심 보드는 브라우저에만 있어 서버가 미리 그릴 수 없다 — 자리를 넉넉히 잡아 두어 내용이 들어올 때 아래(푸터)가 밀려 올라오지 않게
+  if (interests === null) return <div className="report-root" aria-busy="true"><p className="hint">불러오는 중…</p></div>;
 
   const picker = (
     <div className="field">
@@ -102,7 +103,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
   const watching = watched.products.length + watched.posts.length > 0;
   if (!interests.length && !watching) {
     return (
-      <>
+      <div className="report-root">
         <section className="card">
           <h2 className="card-title">관심 보드를 골라주세요</h2>
           <p className="hint" style={{ marginTop: 0 }}>고른 보드의 새 글과 주간 요약을 여기에 모아 드려요.</p>
@@ -112,14 +113,15 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
             모입니다.
           </p>
         </section>
-        <PushSettings />
+        {/* 늦게 나타나는 것(푸시 설정은 서버 응답 뒤)을 맨 아래에 — 위의 내용을 밀지 않게 */}
         <InstallPrompt />
-      </>
+        <PushSettings />
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="report-root" aria-busy={!report && !error}>
       <div className="report-head">
         <p className="hint" style={{ margin: 0 }}>
           {since ? `${fmtDate(since)} 이후` : "최근 7일"} · 관심 보드 {interests.length}개
@@ -201,8 +203,13 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       </section>
       )}
 
-      <PushSettings />
-      <InstallPrompt />
+      {/* 리포트가 온 뒤에 — 새 글이 들어오며 설정 칸을 밀어내지 않게 */}
+      {(report || error) && (
+        <>
+          <InstallPrompt />
+          <PushSettings />
+        </>
+      )}
 
       {interests.length > 0 && (
       <p className="hint">
@@ -215,6 +222,6 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
         ))}
       </p>
       )}
-    </>
+    </div>
   );
 }

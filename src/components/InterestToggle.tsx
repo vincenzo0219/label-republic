@@ -11,9 +11,9 @@ export function InterestToggle({ slug, name }: { slug: string; name: string }) {
     sync();
     return onInterestsChange(sync);
   }, [slug]);
-  if (on === null) return null;
+  // 저장된 값을 읽기 전에도 같은 크기의 버튼을 그려 둔다 (나중에 끼어들며 화면이 밀리지 않게)
   return (
-    <button type="button" className="btn btn-sm" aria-pressed={on} onClick={() => setOn(toggleInterest(slug))} title="관심 보드는 이 브라우저에만 저장됩니다">
+    <button type="button" className="btn btn-sm" aria-pressed={!!on} disabled={on === null} onClick={() => setOn(toggleInterest(slug))} title="관심 보드는 이 브라우저에만 저장됩니다">
       {on ? "★ 관심 보드" : "☆ 관심 보드 추가"}
       <span className="sr-only"> — {name}</span>
     </button>

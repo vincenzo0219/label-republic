@@ -14,8 +14,8 @@ import type { PoolClient } from "pg";
 import { config } from "../config";
 import { query } from "../db";
 import { HttpError } from "../errors";
-import { processImage } from "../images/process";
-import { fullKey, imageStorage, thumbKey } from "../images/storage";
+import { makeSmall, processImage } from "../images/process";
+import { fullKey, imageStorage, smallKey, thumbKey } from "../images/storage";
 import type { PostImage } from "../types";
 
 export type { PostImage };
@@ -47,7 +47,11 @@ export async function saveUpload(input: Buffer, fingerprint: string | null): Pro
   const img = await processImage(input);
   const id = randomUUID();
   const storage = imageStorage();
-  await Promise.all([storage.put(fullKey(id), img.full, "image/webp"), storage.put(thumbKey(id), img.thumb, "image/webp")]);
+  await Promise.all([
+    storage.put(fullKey(id), img.full, "image/webp"),
+    storage.put(thumbKey(id), img.thumb, "image/webp"),
+    storage.put(smallKey(id), img.small, "image/webp"),
+  ]);
   try {
     await query(
       `INSERT INTO post_images (id, width, height, bytes, thumb_width, thumb_height, sha256, uploader_fingerprint)
@@ -106,21 +110,30 @@ export async function listPostImages(postId: string): Promise<PostImage[]> {
 }
 
 /** /media 라우트용: 글에 붙어 있고 그 글이 보이는 상태일 때만 파일을 내준다 */
-export async function readServableImage(id: string, variant: "full" | "thumb"): Promise<Buffer | null> {
+export async function readServableImage(id: string, variant: "full" | "thumb" | "small"): Promise<Buffer | null> {
   if (!UUID.test(id)) return null;
   const rows = await query<{ ok: boolean }>(
     `SELECT true AS ok FROM post_images i JOIN posts p ON p.id = i.post_id WHERE i.id = $1 AND NOT p.is_blinded`,
     [id],
   );
   if (!rows[0]) return null;
-  return imageStorage().get(variant === "full" ? fullKey(id) : thumbKey(id));
+  const storage = imageStorage();
+  if (variant !== "small") return storage.get(variant === "full" ? fullKey(id) : thumbKey(id));
+  const small = await storage.get(smallKey(id));
+  if (small) return small;
+  // Sprint 22 이전 업로드: 썸네일에서 처음 요청될 때 만들어 저장해 둔다
+  const thumb = await storage.get(thumbKey(id));
+  if (!thumb) return null;
+  const made = await makeSmall(thumb);
+  await storage.put(smallKey(id), made, "image/webp").catch((err) => console.error("[images] 작은 썸네일 저장 실패:", (err as Error).message));
+  return made;
 }
 
 /** 파일 삭제 (실패해도 계속 — 행이 없으면 /media 가 내주지 않으므로 남은 파일은 저장 공간만 차지한다) */
 export async function deleteFiles(ids: string[]): Promise<void> {
   const storage = imageStorage();
   await Promise.all(
-    ids.flatMap((id) => [fullKey(id), thumbKey(id)]).map((key) =>
+    ids.flatMap((id) => [fullKey(id), thumbKey(id), smallKey(id)]).map((key) =>
       storage.delete(key).catch((err) => console.error("[images] 파일 삭제 실패:", key, (err as Error).message)),
     ),
   );

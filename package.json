@@ -21,7 +21,8 @@
     "push:keys": "tsx scripts/push-keys.ts",
     "db:backup": "tsx scripts/backup.ts backup",
     "db:backup:verify": "tsx scripts/backup.ts verify",
-    "db:restore": "tsx scripts/backup.ts restore"
+    "db:restore": "tsx scripts/backup.ts restore",
+    "perf:mobile": "node scripts/perf/mobile.mjs"
   },
   "engines": {
     "node": ">=20"

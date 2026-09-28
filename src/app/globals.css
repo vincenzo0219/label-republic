@@ -629,3 +629,4 @@ body[data-lr-offline]::before {
 .rules-banner { display: block; margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--brand); color: var(--text); text-decoration: none; font-size: 14px; }
 .admin-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .admin-list li { overflow-wrap: anywhere; }
+.report-root { min-height: calc(100svh - 110px); }

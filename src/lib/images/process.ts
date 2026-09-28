@@ -16,11 +16,19 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export const MAX_INPUT_PIXELS = 40_000_000;
 export const FULL_MAX = 1600;
 export const THUMB_MAX = 480;
+/** 목록 카드용 정사각형 작은 썸네일 (카드에는 64px로 보임 → 3배 화면까지 선명하게, Sprint 22) */
+export const SMALL_SIZE = 192;
+
+export async function makeSmall(input: Buffer): Promise<Buffer> {
+  return sharp(input).resize({ width: SMALL_SIZE, height: SMALL_SIZE, fit: "cover" }).webp({ quality: 68 }).toBuffer();
+}
 const ACCEPTED = new Set(["jpeg", "png", "webp", "gif", "heif"]); // heif 는 AVIF 만 (prebuilt libvips 에 HEVC 없음)
 
 export type ProcessedImage = {
   full: Buffer;
   thumb: Buffer;
+  /** 목록 카드용 192px 정사각형 */
+  small: Buffer;
   width: number;
   height: number;
   thumbWidth: number;
@@ -61,6 +69,7 @@ export async function processImage(input: Buffer): Promise<ProcessedImage> {
     return {
       full: full.data,
       thumb: thumb.data,
+      small: await makeSmall(thumb.data),
       width: full.info.width,
       height: full.info.height,
       thumbWidth: thumb.info.width,

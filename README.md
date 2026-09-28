@@ -316,6 +316,21 @@ Sprint 14에서 모은 제품 수치로 "마그네슘 200mg 이상", "비타민D
 | 공개 | `/rules`(현재 값·안전 범위·다음 투표 범위·진행 중 투표 진행 막대·지난 투표), 홈 배너, `/transparency` "커뮤니티 결정", `/policy` 의 숫자가 실제 값 |
 | 검증 | 순수 로직(범위·단위·가중치·가결) + DB(자격, 가중치, 표 변경, 정족수 미달 부결, 가결 적용 1회, 대기 기간, 트리거가 새 값으로 블라인드, 임시조치 해제 판단, 철회, 사유 가림) 테스트. 브라우저 E2E 8단계(정리 배치로 실제 마감·적용까지), axe 0건 |
 
+### Sprint 22 — 모바일 속도 최적화
+
+실제 모바일 조건(느린 4G + CPU 4배 느리게, 글 20만 건 DB)에서 주요 화면 12개를 재고, 숫자가 가리키는 곳만 고쳤습니다.
+
+| 문제 (측정) | 원인 | 수정 | 결과 |
+|---|---|---|---|
+| 내 리포트 CLS **0.681** | 관심 보드를 읽은 뒤 온보딩 카드가 그려지고, 푸시 설정이 서버 응답 뒤 끼어들며 아래를 밀어냄 | 리포트 영역 높이를 미리 잡고, 늦게 오는 설정 칸을 맨 아래·리포트 도착 뒤로 | 0.046 |
+| 보드 CLS 0.110 | "관심 보드" 버튼이 저장값을 읽기 전 `null` → 나타나며 버튼 줄이 줄바꿈 | 같은 크기의 비활성 버튼을 먼저 그림 (글 소식 받기·오프라인 저장도 같은 방식) | 0 |
+| 제품 페이지 DOM **4,478**, HTML 744KB(gzip 79KB), TBT 509ms, TTFB 273ms | 성분 항목마다 모든 글의 값(2,000줄)을 렌더링 | 중앙값은 전체로 계산하고 목록은 최근 10개만 | DOM 515, HTML 29KB, TBT 233ms, TTFB 107ms |
+| 커뮤니티 규칙 TTFB **388ms** (투표할 때마다 같은 비용) | 투표 자격(글·댓글 수)을 셀 때 작성자 식별값 인덱스가 없어 글 20만·댓글 58만 건 전체 탐색 | `022_perf_indexes.sql` 부분 인덱스 3개 | 쿼리 366ms → 0.5ms, TTFB 22~47ms |
+| 목록 카드 사진: 64px 자리에 480px 썸네일 | 카드용 크기가 없었음 | 192px 정사각형 `_s` 변형 (업로드 때 생성, 예전 사진은 처음 요청 때 만들어 저장) | 카드당 71KB → 9KB (7.8배↓) |
+
+- 그대로 둔 것: JS 약 144KB(gzip) 중 117KB는 React·Next 런타임, TBT 200ms 안팎은 그 실행 비용 (사이트 코드는 약 20KB). 폰트는 웹폰트를 받지 않고 시스템 글꼴을 씀.
+- `npm run perf:mobile` — 같은 조건으로 재고 예산(LCP 2.5초·CLS 0.1·TBT 300ms·JS 170KB·HTML 60KB·DOM 1,500)을 넘으면 실패. 측정표는 RUNBOOK 7장.
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -472,7 +487,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/posts/:id/vote` | `{value: 1 \| -1}` |
 | POST | `/api/posts/:id/report` | `{reason}` — 고유 신고 N명 + 가중치 합 N 이면 자동 블라인드 (N = 커뮤니티 규칙, 기본 5) |
 | POST | `/api/uploads` | 이미지 업로드 (본문 = 이미지 바이트) → `{id, token, width, height}` |
-| GET | `/media/:id.webp`, `/media/:id_t.webp` | 첨부 이미지·썸네일 (보이는 글에 첨부된 것만) |
+| GET | `/media/:id.webp`, `/media/:id_t.webp`, `/media/:id_s.webp` | 첨부 이미지·썸네일(480px)·목록 카드용 192px 정사각형 (보이는 글에 첨부된 것만) |
 | GET/POST | `/api/posts/:id/appeal` | 재검토 요청 상태 / 작성자 요청 `{pw, message}` (블라인드·광고 의심 글, 글당 1회) |
 | GET/POST | `/api/posts/:id/comments` | 댓글 목록 / 작성 `{nickname, pw, body}` |
 | DELETE | `/api/comments/:id` | 댓글 삭제 `{pw}` |
@@ -506,13 +521,13 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 021_community_rules.sql
+db/migrations/        001_schema.sql … 022_perf_indexes.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 assets/icon.svg       앱 아이콘 원본 (scripts/make-icons.ts 로 PNG 생성)
 scripts/              migrate.ts, backup.ts·backup.sh, push-keys.ts, make-icons.ts, refresh-trust.ts, backfill-*.ts, seed-curator.ts, curator-generate.ts
 docs/RUNBOOK.md       운영 런북
-scripts/perf/         seed.sql(대량 데이터), load.ts(부하), queries.ts(쿼리 지연), jobs.ts(배치 시간)
+scripts/perf/         seed.sql(대량 데이터), load.ts(부하), queries.ts(쿼리 지연), jobs.ts(배치 시간), mobile.mjs(모바일 체감 속도·예산)
 server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)

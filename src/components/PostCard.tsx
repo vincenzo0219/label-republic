@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { snippet } from "@/lib/highlight";
-import { thumbUrl } from "@/lib/media-url";
+import { smallThumbUrl } from "@/lib/media-url";
 import { timeAgo } from "@/lib/format";
 import type { PostCard as PostCardData } from "@/lib/types";
 import { Highlight } from "./Highlight";
@@ -37,7 +37,7 @@ export function PostCard({ post, terms, showCategory = true }: { post: PostCardD
           </h2>
           {post.thumb_id && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img className="card-thumb" src={thumbUrl(post.thumb_id)} alt="" width={64} height={64} loading="lazy" decoding="async" />
+            <img className="card-thumb" src={smallThumbUrl(post.thumb_id)} alt="" width={64} height={64} loading="lazy" decoding="async" />
           )}
         </div>
         {post.products.length > 0 && (

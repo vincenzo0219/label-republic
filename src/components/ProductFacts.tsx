@@ -12,6 +12,8 @@ function diffText(pct: number) {
 }
 
 /** 제품 페이지: 글마다 적은 수치를 항목별로 모은 표 (중앙값) */
+const ENTRY_LIMIT = 10;
+
 export function ProductFacts({ groups, boardPath }: { groups: FactGroup[]; boardPath?: string }) {
   if (!groups.length) {
     return <p className="hint">아직 이 제품의 수치를 적은 글이 없습니다. 글을 쓸 때 제품을 태그하고 성분 함량·스펙을 적어주세요.</p>;
@@ -80,7 +82,8 @@ export function ProductFacts({ groups, boardPath }: { groups: FactGroup[]; board
                       {g.disputed_n > 0 && ` · 정정 제안 ${g.disputed_n}건 제외`}
                     </summary>
                     <ul>
-                      {g.entries.map((e, i) => (
+                      {/* 중앙값은 모든 값으로 내고, 목록은 최근 글 몇 개만 (글이 많은 제품에서 화면이 수천 줄이 되지 않게) */}
+                      {g.entries.slice(0, ENTRY_LIMIT).map((e, i) => (
                         <li key={i}>
                           <Link href={`/posts/${e.post_id}`}>글 #{e.post_id}</Link> · {formatValue(e.value)} {e.unit} ({e.kind === "label" ? "표시" : "실측"})
                           {e.photo && " · 📷 사진 근거"}
@@ -93,6 +96,9 @@ export function ProductFacts({ groups, boardPath }: { groups: FactGroup[]; board
                         </li>
                       ))}
                     </ul>
+                    {g.entries.length > ENTRY_LIMIT && (
+                      <p className="hint">최근 글 {ENTRY_LIMIT}개만 보여요. 나머지 {g.entries.length - ENTRY_LIMIT}개는 아래 관련 글에서 볼 수 있어요.</p>
+                    )}
                   </details>
                 </td>
               </tr>
