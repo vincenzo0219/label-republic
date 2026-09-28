@@ -38,7 +38,7 @@ export default async function BoardProductsPage({ params, searchParams }: Props)
   return (
     <>
       <p className="hint">
-        <Link href={base}>← {category.name}</Link>
+        <Link href={base}>← {category.name}</Link> · <Link href={`${base}/facts`}>🧪 성분·수치 순위</Link>
       </p>
       <h1 style={{ fontSize: 20, margin: "4px 0 12px" }}>🏷 {category.name} 제품</h1>
       {items.length === 0 ? (

@@ -12,7 +12,7 @@ function diffText(pct: number) {
 }
 
 /** 제품 페이지: 글마다 적은 수치를 항목별로 모은 표 (중앙값) */
-export function ProductFacts({ groups }: { groups: FactGroup[] }) {
+export function ProductFacts({ groups, boardPath }: { groups: FactGroup[]; boardPath?: string }) {
   if (!groups.length) {
     return <p className="hint">아직 이 제품의 수치를 적은 글이 없습니다. 글을 쓸 때 제품을 태그하고 성분 함량·스펙을 적어주세요.</p>;
   }
@@ -32,7 +32,15 @@ export function ProductFacts({ groups }: { groups: FactGroup[] }) {
           <tbody>
             {groups.map((g) => (
               <tr key={g.key}>
-                <th scope="row">{g.attribute}</th>
+                <th scope="row">
+                  {boardPath ? (
+                    <Link href={`${boardPath}/facts?attr=${encodeURIComponent(g.key.split("|")[0]!)}&basis=${encodeURIComponent(g.key.split("|")[1]!)}`} title="이 항목의 보드 순위 보기">
+                      {g.attribute}
+                    </Link>
+                  ) : (
+                    g.attribute
+                  )}
+                </th>
                 <td>{g.basis || "-"}</td>
                 <td className="num">
                   {g.label ? (

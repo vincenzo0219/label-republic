@@ -126,9 +126,9 @@ export async function setPostFacts(client: PoolClient, postId: string, productId
   await client.query("DELETE FROM product_facts WHERE post_id = $1", [postId]);
   for (const [position, r] of rows.entries()) {
     await client.query(
-      `INSERT INTO product_facts (post_id, product_id, position, attribute, attr_key, value, unit, basis, kind)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [postId, r.productId, position, r.attribute, r.key, r.value, r.unit, r.basis, r.kind],
+      `INSERT INTO product_facts (post_id, product_id, position, attribute, attr_key, value, unit, basis, kind, basis_key, unit_group, base_value)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [postId, r.productId, position, r.attribute, r.key, r.value, r.unit, r.basis, r.kind, normText(r.basis).slice(0, 30), toBase(r.value, r.unit).group, toBase(r.value, r.unit).base],
     );
   }
 }

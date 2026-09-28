@@ -243,6 +243,22 @@ npm run perf:load -- --base http://localhost:3000 --duration 15 --concurrency 20
 | 운영 | 대시보드 배치 상태에 "푸시 알림 (발송/확인)" |
 | 성능 (글 20만) | 관심 제품 30개(태그 8천 개짜리 포함)+글 50개 최대치에서 배지 54ms, `/me` 97ms |
 
+### Sprint 17 — 성분·수치 검색
+
+Sprint 14에서 모은 제품 수치로 "마그네슘 200mg 이상", "비타민D 1000~2000IU" 같은 조건 검색과 보드별 성분 순위를 만듭니다. 제품 페이지와 같은 규칙(보이는 글만, 커뮤니티가 동의한 정정 제안이 걸린 값 제외, 중앙값)을 씁니다.
+
+| 영역 | 구현 |
+|---|---|
+| 성분 순위 `/c/:slug/facts` | 보드의 수치 항목 목록(제품 수 순) → 항목을 고르면 제품별 중앙값 순위. 기준(1정·2정·100g …)·표시값/실측값·최소/최대·단위·정렬을 고르는 **JS 없이 동작하는 GET 폼**. 실측이 표시와 10% 이상 다르면 ⚠, 체크박스로 골라 `/compare` |
+| 비교 규칙 | 항목·기준·단위 묶음이 같은 값끼리만: mg·µg·g / ml·L 등은 환산, IU↔µg처럼 성분마다 다른 환산은 하지 않고 "비교할 수 없는 단위"로 안내. 표시값이 없으면 실측값으로 바꿔 보여줌 |
+| 검색어 해석 | `src/lib/fact-query.ts`: "200mg 이상/이하/미만/초과", "≥ 60g", "500~1000mg", 숫자만 쓰면 ±10%. "오메가3·비타민 B12·D3"처럼 이름에 숫자가 있어도 단위·비교어가 붙은 숫자를 조건으로 봄. 항목 이름은 보드 항목에 정확히 → 포함 → 앞부분 순으로 맞춤 ("마그네슘 1정" → 마그네슘) |
+| 통합 검색 | `/search`에서 수치 조건이면 결과 위에 보드별 상위 5개 패널과 "전체 순위·조건 바꾸기" 링크, 항목 이름만 검색하면 "🧪 마그네슘 순위" 링크 |
+| 연결 | 보드 화면 "🧪 성분별", 제품 목록 → 성분 순위, 제품 페이지의 수치 항목 이름 → 그 항목·기준의 보드 순위 |
+| SEO | 항목별 기본 순위는 색인(canonical `?attr=`, JSON-LD `ItemList`, 제품 3개 이상인 항목은 사이트맵), 조건을 건 결과는 noindex |
+| 저장 | `product_facts`에 비교용 `basis_key`·`unit_group`·`base_value`를 저장(앱 규칙으로 계산, 기존 행은 마이그레이션이 같은 규칙으로 채움 — 테스트가 둘이 같은지 확인) + `(attr_key, basis_key, product_id)` 인덱스 |
+| API | `GET /api/facts?category=&attr=&basis=&kind=&unit=&min=&max=&order=` (attr 없으면 항목 목록), `GET /api/facts?q=마그네슘 200mg 이상` (모든 보드) |
+| 성능 (글 20만·수치 10만, 한 보드에 4만 개가 몰린 최악 조건) | 순위 집계는 처음 계획이 글 20만 건 전체를 해시 조인해 380ms → 정정 제안 제외 조건을 반조인으로 바꿔 40ms. 보드 항목 목록 145ms·순위 첫 조회 230ms(인스턴스별 60초 캐시, 이후 2ms 이하). 여러 보드 검색은 항목이 있는 보드만 골라 동시에 조회(없는 항목 30ms, 5개 보드에 몰린 항목은 첫 조회 650ms) |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -380,6 +396,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/corrections/:id/respond` | 글 작성자 응답 `{pw, action: applied\|answered, note}` |
 | POST | `/api/corrections/:id/withdraw` | 제안자 철회 `{pw}` |
 | POST | `/api/corrections/:id/report` | 신고 (고유 5건이면 자동으로 가림) |
+| GET | `/api/facts?category=&attr=&basis=&kind=label\|measured&unit=&min=&max=&order=desc\|asc` | 보드 성분 순위 (attr 없으면 항목 목록) · `?q=마그네슘 200mg 이상` 은 모든 보드 조건 검색 |
 | GET | `/api/products?q=&category=` | 제품 자동완성 (보이는 글이 있는 제품만, 검색어 AND) |
 | POST | `/api/posts` | 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}, images?: [{id, token, alt}], sources?: [{url, label}], products?: [{id} \| {brand, name}], facts?: [{product, attribute, value, unit, basis?, kind: label\|measured}]}` (facts.product 는 products 순서) |
 | GET | `/api/posts/:id` | 상세 + 요약 + 댓글 + 내 투표 |
@@ -416,7 +433,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 016_watch_and_push.sql
+db/migrations/        001_schema.sql … 017_fact_search.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
@@ -425,7 +442,7 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, security (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, security (*.test.ts)
 .github/workflows/    ci.yml
 ```
 

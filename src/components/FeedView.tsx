@@ -59,6 +59,9 @@ export async function FeedView({
             <Link className="btn btn-sm" href={`${basePath}/products`}>
               🏷 제품별
             </Link>
+            <Link className="btn btn-sm" href={`${basePath}/facts`}>
+              🧪 성분별
+            </Link>
             <InterestToggle slug={category.slug} name={category.name} />
           </div>
         </div>

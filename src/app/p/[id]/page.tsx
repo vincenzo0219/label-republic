@@ -95,7 +95,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
       <section aria-labelledby="pf-h">
         <h2 id="pf-h" className="section-h">🧪 성분·스펙 수치</h2>
-        <ProductFacts groups={facts} />
+        <ProductFacts groups={facts} boardPath={boardPath} />
       </section>
 
       {photos.length > 0 && (

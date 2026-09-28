@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CategoryTabs } from "@/components/CategoryTabs";
+import { FactSearchPanel } from "@/components/FactSearchPanel";
 import { Pagination } from "@/components/Pagination";
 import { PostCard } from "@/components/PostCard";
 import { SortBar } from "@/components/SortBar";
@@ -55,6 +56,7 @@ export default async function SearchPage({ searchParams }: Props) {
           <button className="btn btn-primary" style={{ height: "auto" }}>검색</button>
         </div>
       </form>
+      {q && <FactSearchPanel q={q} categories={category ? [category] : categories} />}
       {timedOut ? (
         <div className="empty" role="status">검색이 너무 오래 걸렸습니다. 검색어를 더 구체적으로 입력하거나 보드를 골라 다시 검색해주세요.</div>
       ) : results?.tooShort ? (
