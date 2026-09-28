@@ -1,5 +1,6 @@
 import { pool } from "../db";
 import { generateDigest, type DigestSource } from "../digest";
+import { reportError } from "../error-tracking";
 
 const DIGEST_LOCK_KEY = 4_823_004;
 /** 같은 보드 다이제스트를 다시 만들기까지 최소 간격 */
@@ -70,6 +71,7 @@ export function startDigestScheduler(intervalMs: number): () => void {
       if (r.generated.length) console.log(`[digest] generated: ${r.generated.join(", ")}`);
     } catch (err) {
       console.error("[digest] batch failed:", (err as Error).message);
+      reportError(err, { kind: "job", where: "digest" });
     } finally {
       running = false;
     }

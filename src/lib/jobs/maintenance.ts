@@ -3,6 +3,7 @@ import { pool } from "../db";
 import { promotePendingBoardRequests } from "../repo/board-requests";
 import { sweepOrphanImages } from "../repo/images";
 import { expireMeetups } from "../repo/meetups";
+import { reportError } from "../error-tracking";
 
 const MAINTENANCE_LOCK_KEY = 4_823_003;
 
@@ -160,6 +161,11 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       await client.query("DELETE FROM fingerprints WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM visitors WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM rate_limits WHERE expires_at < now()");
+      // 서버 오류 기록: 해결 표시한 것은 30일, 나머지는 마지막 발생 후 90일
+      await client.query(
+        "DELETE FROM error_events WHERE (resolved_at < $1::timestamptz - interval '30 days') OR last_seen < $1::timestamptz - interval '90 days'",
+        [now.toISOString()],
+      );
       // 올리기만 하고 글에 붙이지 않은 이미지 (24시간 경과)
       const orphanImages = await sweepOrphanImages(now);
       const result: MaintenanceResult = {
@@ -194,6 +200,7 @@ export function startMaintenanceScheduler(intervalMs: number): () => void {
       if (r.promoted.length) console.log(`[maintenance] promoted board requests: ${r.promoted.join(", ")}`);
     } catch (err) {
       console.error("[maintenance] failed:", (err as Error).message);
+      reportError(err, { kind: "job", where: "maintenance" });
     } finally {
       running = false;
     }

@@ -259,6 +259,19 @@ Sprint 14에서 모은 제품 수치로 "마그네슘 200mg 이상", "비타민D
 | API | `GET /api/facts?category=&attr=&basis=&kind=&unit=&min=&max=&order=` (attr 없으면 항목 목록), `GET /api/facts?q=마그네슘 200mg 이상` (모든 보드) |
 | 성능 (글 20만·수치 10만, 한 보드에 4만 개가 몰린 최악 조건) | 순위 집계는 처음 계획이 글 20만 건 전체를 해시 조인해 380ms → 정정 제안 제외 조건을 반조인으로 바꿔 40ms. 보드 항목 목록 145ms·순위 첫 조회 230ms(인스턴스별 60초 캐시, 이후 2ms 이하). 여러 보드 검색은 항목이 있는 보드만 골라 동시에 조회(없는 항목 30ms, 5개 보드에 몰린 항목은 첫 조회 650ms) |
 
+### Sprint 18 — 오픈 전 최종 점검
+
+새 기능 없이 출시 준비: 보안 재점검, 오류 추적·알림, 백업·복구, 부하 재측정, 운영 런북.
+
+| 영역 | 구현 |
+|---|---|
+| 보안 재점검 (Sprint 12~17 표면) | SQL 주입·SSRF·XSS·CSRF·권한은 문제 없음 확인. 발견해 고친 것: ① `/api/report`(관심 제품·글) 요청 하나가 수십 개 조회 → 사람당 분당 60회 제한, 미리보기 5개 제품·개수 세기 생략 ② **수정 이력에 지운 연락처·명예훼손 표현이 그대로 남던 문제** → 작성자(글 비밀번호)가 이전 판을 지우거나, 법적 요청이면 운영자가 지움(투명성 기록 공개) ③ 푸시 주소만 알면 남의 구독 키를 덮어쓰고 토큰을 받던 문제 → 같은 키이거나 토큰이 있을 때만 ④ 블라인드 글 제목이 API·관심 글 소식으로 보이던 문제 ⑤ 글 작성자가 자기 글의 정정 제안을 신고로 가릴 수 있던 문제 → 작성자 신고 거부 + 갓 생긴 이용자 신고 0.5 가중치 ⑥ 정정 제안 철회·응답 경합 ⑦ 수정 이력 화면 비교 계산량 무제한 → 10개씩 나눠 보기 + 화면당 계산량 상한 ⑧ 서비스 워커 주소 검사, IPv6 차단 대역 추가 |
+| 오류 추적 | 외부 서비스 없이 DB(`error_events`)에 종류(API·페이지·배치·프로세스·브라우저)별로 묶어 셈 (숫자·따옴표 값은 묶음 키에서 제외). 경로만 저장(쿼리 문자열·본문 제외). `/admin`에 서버 오류 패널·해결 표시(재발하면 자동으로 다시 열림). 페이지 렌더링 오류는 Next `onRequestError`, 브라우저 오류는 `/api/errors`(사이트 스크립트 오류만, 사람당 시간당 20건) |
+| 알림 | `ALERT_WEBHOOK_URL`(Slack·Discord)로 새 오류·재발·1시간 50회 이상 급증, 시간당 10건까지. `/api/health?deep=1`은 배치 실패·최근 오류가 있으면 `degraded` |
+| 백업·복구 | `npm run db:backup`(pg_dump + 첨부 사진 + manifest: 체크섬·마이그레이션·행 수), 백업할 때마다 임시 DB에 복원해 행 수를 세므로 복원 가능한 백업만 남음. `db:backup:verify`(체크섬·복원·행 수 대조), `db:restore`(빈 DB 기본, `--force`로 덮어쓰기, 사진 복원). docker compose `backup` 서비스(매일, 14개 보관) — 셸 스크립트라 PG16 클라이언트만 있으면 됨. 리허설: 글 20만·3.4GB에서 3분 17초(덤프 384MB) |
+| 부하 재측정 | 제품·비교·성분 순위·수치 검색·수정 이력·관심 리포트 시나리오 추가. 발견해 고친 것: 수치 검색 패널이 일반 검색어마다 모든 보드 항목을 훑어 **검색 처리량 119 → 61 req/s** → 캐시된 보드별 항목 목록으로 먼저 걸러 105 req/s 로 복구. 결과는 RUNBOOK 7장 |
+| 운영 | `docs/RUNBOOK.md` — 첫 배포 체크리스트 13항목, 일상 점검, 백업·복구·리허설, 업데이트·롤백, 장애 대응 표, 감시 설정, 성능 기준. docker compose 에 `restart: unless-stopped` |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -337,6 +350,10 @@ docker compose up --build
 | `UPLOAD_DIR` | local 저장 경로 (기본 `./data/uploads`, Docker `/app/data/uploads`) |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | s3 저장소 설정 (버킷은 비공개) |
 | `DB_POOL_MAX` | 프로세스당 DB 커넥션 수 (기본 10). 전체 ≈ (값+1) × 워커 × 인스턴스 |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | 웹 푸시 키 (`npm run push:keys`). 비우면 푸시 없이 앱 안 알림만 |
+| `PUSH_INTERVAL_SEC` / `PUSH_MIN_GAP_SEC` | 푸시 알림 배치 주기 (기본 600초) / 한 구독에 보내는 최소 간격 (기본 3600초) |
+| `ALERT_WEBHOOK_URL` | 운영 알림 웹훅 (Slack·Discord 호환) — 새 서버 오류·재발·급증 |
+| `BACKUP_DIR` / `BACKUP_KEEP` / `BACKUP_INTERVAL_SEC` | 백업 위치 (기본 `./backups`) / 보관 개수 (기본 14) / Docker backup 서비스 주기 (기본 86400초) |
 | `ENV_CHECK=warn` | 로컬에서 운영 빌드 시험용 — 환경변수 오류를 경고로 낮춤 (운영 금지) |
 
 ### 테스트
@@ -355,7 +372,13 @@ npm run sources:backfill -- --dry-run          # 기존 글 본문 링크를 출
 npm run summary:backfill -- --limit 50         # 추출 요약으로 저장된 글을 Claude 요약으로 재생성 (--dry-run 지원)
 npm run seed:curator                           # AI 큐레이터 시드 게시(launch)·대기열 등록(drip). 재실행 안전, --dry-run 지원
 npm run curator:generate -- --category pet-food "주제1" "주제2"   # Claude로 시드 초안 생성 (검수 후 db/seed/curator 로 이동)
+npm run push:keys                              # 웹 푸시 VAPID 키 생성
+npm run db:backup [-- --verify]                # DB 덤프 + 첨부 사진 묶음 + manifest (검증: 임시 DB 복원·체크섬·행 수)
+npm run db:backup:verify -- backups/labelrep-….dump
+npm run db:restore -- backups/labelrep-….dump [--target URL] [--force] [--uploads DIR]
 ```
+
+운영 절차(첫 배포 체크리스트, 백업·복구, 롤백, 장애 대응, 감시)는 [docs/RUNBOOK.md](docs/RUNBOOK.md)에 있습니다.
 
 ### 오픈 전 체크리스트 (Sprint 3)
 
@@ -433,16 +456,17 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 017_fact_search.sql
+db/migrations/        001_schema.sql … 018_error_events.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
-scripts/              migrate.ts, refresh-trust.ts, backfill-summaries.ts, seed-curator.ts, curator-generate.ts
+scripts/              migrate.ts, backup.ts·backup.sh, push-keys.ts, refresh-trust.ts, backfill-*.ts, seed-curator.ts, curator-generate.ts
+docs/RUNBOOK.md       운영 런북
 scripts/perf/         seed.sql(대량 데이터), load.ts(부하), queries.ts(쿼리 지연), jobs.ts(배치 시간)
 server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, security (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, ops, security (*.test.ts)
 .github/workflows/    ci.yml
 ```
 

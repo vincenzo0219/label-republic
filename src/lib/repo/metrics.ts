@@ -258,3 +258,31 @@ export async function openBoardRequests(): Promise<OpenBoardRequest[]> {
     [config.boardPromotionMinAgeHours],
   );
 }
+
+export type ErrorEventRow = {
+  id: string;
+  kind: "api" | "page" | "job" | "process" | "client";
+  message: string;
+  path: string;
+  stack: string;
+  count: number;
+  hour_count: number;
+  first_seen: string;
+  last_seen: string;
+};
+
+/** 운영 대시보드: 해결 표시하지 않은 서버 오류 (최근 발생 순) */
+export async function openErrors(limit = 20): Promise<ErrorEventRow[]> {
+  return query<ErrorEventRow>(
+    `SELECT id, kind, message, path, left(stack, 1500) AS stack, count,
+            CASE WHEN hour_start > now() - interval '1 hour' THEN hour_count ELSE 0 END AS hour_count, first_seen, last_seen
+       FROM error_events WHERE resolved_at IS NULL ORDER BY last_seen DESC LIMIT $1`,
+    [limit],
+  );
+}
+
+/** 해결 표시 — 같은 오류가 다시 나면 자동으로 다시 열리고 알림이 간다 */
+export async function resolveError(id: string): Promise<void> {
+  if (!/^\d{1,18}$/.test(id)) return;
+  await query("UPDATE error_events SET resolved_at = now() WHERE id = $1", [id]);
+}

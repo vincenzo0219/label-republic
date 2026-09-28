@@ -80,7 +80,7 @@ export async function watchUpdates(
       : Promise.resolve([]),
     postIds.length
       ? query<PostUpdate>(
-          `SELECT p.id::text, p.title, p.is_blinded,
+          `SELECT p.id::text, CASE WHEN p.is_blinded THEN '' ELSE p.title END AS title, p.is_blinded,
                   CASE WHEN p.is_blinded THEN 0 ELSE (SELECT count(*)::int FROM comments c
                     WHERE c.post_id = p.id AND c.created_at > $2::timestamptz AND c.author_fingerprint IS DISTINCT FROM $3) END AS new_comments,
                   CASE WHEN p.is_blinded THEN 0 ELSE (SELECT count(*)::int FROM corrections c
@@ -97,12 +97,14 @@ export async function watchUpdates(
         )
       : Promise.resolve([]),
   ]);
+  // 미리보기는 새 글이 있는 제품 5개까지만 (요청 하나의 조회 수를 묶어 둔다)
+  const previewIds = new Set(products.filter((p) => p.new_posts > 0).slice(0, 5).map((p) => p.id));
   const withPosts: ProductUpdate[] = await Promise.all(
     products.map(async (p) => ({
       ...p,
       posts:
-        opts.previews && p.new_posts > 0
-          ? (await listPosts({ productId: p.merged_into ?? p.id, since, sort: "latest", pageSize: 3, excludeAuthor: fp })).items.filter((x) => !x.is_suppressed)
+        opts.previews && previewIds.has(p.id)
+          ? (await listPosts({ productId: p.merged_into ?? p.id, since, sort: "latest", pageSize: 3, excludeAuthor: fp, noCount: true })).items.filter((x) => !x.is_suppressed)
           : [],
     })),
   );

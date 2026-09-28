@@ -10,6 +10,7 @@
  */
 import { pool } from "../db";
 import { checkLink, type LinkCheckOptions, type LinkCheckResult } from "../link-check";
+import { reportError } from "../error-tracking";
 
 const LOCK_KEY = 4_823_005;
 const CONCURRENCY = 4;
@@ -115,6 +116,7 @@ export function startSourceCheckScheduler(intervalMs: number): () => void {
       if (r.broken) console.log(`[sources] 새로 깨진 출처 링크 ${r.broken}개 (확인 ${r.checked}개)`);
     } catch (err) {
       console.error("[sources] batch failed:", (err as Error).message);
+      reportError(err, { kind: "job", where: "sources" });
     } finally {
       running = false;
     }

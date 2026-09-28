@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { route } from "@/lib/http";
+import { tooMany } from "@/lib/errors";
 import { fingerprint } from "@/lib/fingerprint";
+import { hit } from "@/lib/rate-limit";
 import { buildReport, clampSince, countNew, parseBoards, type Watched } from "@/lib/repo/report";
 import { MAX_WATCH_POSTS, MAX_WATCH_PRODUCTS, parseIds } from "@/lib/repo/watch";
 
@@ -16,7 +18,10 @@ export const GET = route(async (req) => {
   const products = parseIds(sp.get("products"), MAX_WATCH_PRODUCTS);
   const posts = parseIds(sp.get("posts"), MAX_WATCH_POSTS);
   const personal = products.length > 0 || posts.length > 0;
-  const watched: Watched = { products, posts, fingerprint: personal ? fingerprint(req.headers) : null };
+  const fp = personal ? fingerprint(req.headers) : null;
+  // 관심 제품·글이 있으면 요청 하나가 수십 개의 조회를 하므로 사람당 분당 60회로 제한 (헤더 배지는 페이지당 한 번)
+  if (fp && !(await hit(`report:${fp}`, 60, 60_000))) throw tooMany();
+  const watched: Watched = { products, posts, fingerprint: fp };
   const headers = { "Cache-Control": personal ? "private, no-store" : "public, max-age=60" };
   if (sp.get("count") === "1") return NextResponse.json({ total: await countNew(boards, since, watched) }, { headers });
   return NextResponse.json(await buildReport(boards, since, new Date(), watched), { headers });

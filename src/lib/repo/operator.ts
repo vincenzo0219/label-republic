@@ -30,6 +30,7 @@ export const MOD_ACTIONS = {
   board_request_rejected: "보드 개설 요청 거절",
   board_request_merged: "중복 보드 요청 병합",
   product_merged: "중복 제품 병합",
+  revision_redacted: "수정 이력 삭제 (법적 요청)",
 } as const;
 export type ModAction = keyof typeof MOD_ACTIONS;
 

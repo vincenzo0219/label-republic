@@ -35,6 +35,9 @@ const TERMS = ["마그네슘", "비교", "성분표 함량", "스위치 윤활",
 const BOARDS = ["supplements", "keyboards", "deskterior", "pet-food", "perfume-audio"];
 
 let maxPostId = 200000;
+/** 보이는 글이 있는 제품 번호 (시작할 때 API 로 모은다) */
+let productIds: string[] = ["1"];
+const get = (): RequestInit => ({ headers: person(), redirect: "manual" });
 
 type Scenario = { name: string; path: () => string; init?: () => RequestInit };
 const post = (body: unknown): RequestInit => ({
@@ -53,6 +56,19 @@ const scenarios: Scenario[] = [
   { name: "API 댓글", path: () => `/api/posts/${1 + rand(maxPostId)}/comments` },
   { name: "리포트 API", path: () => `/api/report?boards=${BOARDS.slice(0, 3).join(",")}&since=${new Date(Date.now() - 7 * 86400_000).toISOString()}` },
   { name: "피드", path: () => "/feed.xml" },
+  // Sprint 14~17
+  { name: "제품 페이지", path: () => `/p/${pick(productIds)}` },
+  { name: "제품 비교", path: () => `/compare?ids=${pick(productIds)},${pick(productIds)},${pick(productIds)}` },
+  { name: "성분 순위", path: () => `/c/${pick(BOARDS)}/facts?attr=${encodeURIComponent(pick(["마그네슘", "아연", "비타민d"]))}` },
+  { name: "수치 조건 검색", path: () => `/search?q=${encodeURIComponent(`${pick(["마그네슘", "아연", "비타민D"])} ${pick([100, 120, 140])}mg 이상`)}` },
+  { name: "수정 이력", path: () => `/posts/${1 + rand(maxPostId)}/history` },
+  {
+    // 사람마다 관심 제품 10개·글 20개 — 요청마다 다른 사람(1인 레이트 리밋을 피해 서버 부담만 잰다)
+    name: "리포트 API (관심 제품·글)",
+    path: () =>
+      `/api/report?count=1&products=${Array.from({ length: 10 }, () => pick(productIds)).join(",")}&posts=${Array.from({ length: 20 }, () => 1 + rand(maxPostId)).join(",")}&since=${new Date(Date.now() - 7 * 86400_000).toISOString()}`,
+    init: get,
+  },
 ];
 const writeScenarios: Scenario[] = [
   // 인기 글 하나에 투표가 몰리는 경우 — 같은 행 잠금 경합
@@ -113,6 +129,12 @@ async function main() {
   const id = Number(latest?.items?.[0]?.id);
   if (id > 0) maxPostId = id;
   hotPostId = Math.max(1, maxPostId - 10);
+  const found = new Set<string>();
+  for (const q of ["brand1", "brand2", "brand3", "product 1", "mag", "now"]) {
+    const r = await fetch(`${base}/api/products?q=${encodeURIComponent(q)}`, { headers: person() }).then((x) => x.json()).catch(() => null);
+    for (const it of r?.items ?? []) found.add(it.id);
+  }
+  if (found.size) productIds = [...found];
   console.log(`대상 ${base} · 시나리오당 ${duration / 1000}초 · 동시 ${concurrency}`);
   const results = [];
   for (const s of [...scenarios, ...(writes ? writeScenarios : [])].filter((x) => !only || x.name.includes(only))) {

@@ -187,6 +187,8 @@ d("corrections (database)", async () => {
     await expect(c.withdrawCorrection(a.id, PROPOSER, "1111")).rejects.toMatchObject({ status: 403 });
     expect(await c.withdrawCorrection(a.id, PROPOSER, "5678")).toMatchObject({ status: "withdrawn" });
     const b = await propose(post.id, { target: "other", quote: "제목" });
+    // 신고 가중치: 오래된 이용자 1, 갓 생긴 이용자 0.5 (Sprint 18) — 여기서는 오래된 이용자 5명
+    await seasoned(...voters.slice(0, 5));
     for (const v of voters.slice(0, 4)) await c.reportCorrection(b.id, v);
     expect(await c.reportCorrection(b.id, voters[0]!)).toMatchObject({ alreadyReported: true, is_hidden: false });
     expect(await c.reportCorrection(b.id, voters[4]!)).toMatchObject({ report_count: 5, is_hidden: true });

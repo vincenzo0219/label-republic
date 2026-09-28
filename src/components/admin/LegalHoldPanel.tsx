@@ -18,14 +18,19 @@ export function LegalHoldPanel() {
   const [postId, setPostId] = useState("");
   const [reason, setReason] = useState("defamation");
   const [note, setNote] = useState("");
+  const [revisionId, setRevisionId] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function submit(action: "hold" | "release") {
+  async function submit(action: "hold" | "release" | "redact_revision") {
     setMsg(null);
-    const verb = action === "hold" ? "임시조치" : "해제";
+    const verb = action === "hold" ? "임시조치" : action === "release" ? "해제" : `수정 이력 #${revisionId} 삭제`;
     if (!window.confirm(`글 #${postId}을(를) ${verb}합니다. 이 조치는 투명성 기록에 공개됩니다. 계속할까요?`)) return;
     try {
-      await api("/api/admin/legal-hold", "POST", action === "hold" ? { action, postId, reason, note } : { action, postId, note });
+      await api(
+        "/api/admin/legal-hold",
+        "POST",
+        action === "hold" ? { action, postId, reason, note } : action === "release" ? { action, postId, note } : { action, postId, revisionId, reason, note },
+      );
       setMsg(`글 #${postId} ${verb} 완료`);
       setPostId("");
       setNote("");
@@ -54,6 +59,13 @@ export function LegalHoldPanel() {
         </button>
         <button type="button" className="btn" disabled={!postId} onClick={() => submit("release")}>
           해제
+        </button>
+      </div>
+      <div className="row" style={{ gridTemplateColumns: "1fr auto" }}>
+        <input className="input" inputMode="numeric" placeholder="수정 이력 번호 (이전 판에서 개인정보·명예훼손 표현만 지울 때)" aria-label="수정 이력 번호" value={revisionId}
+          onChange={(e) => setRevisionId(e.target.value.replace(/\D/g, ""))} />
+        <button type="button" className="btn btn-danger" disabled={!postId || !revisionId} onClick={() => submit("redact_revision")}>
+          이전 판 지우기
         </button>
       </div>
       {msg && <p className="hint">{msg}</p>}

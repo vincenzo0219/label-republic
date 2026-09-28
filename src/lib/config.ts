@@ -152,6 +152,10 @@ export const config = {
   get pushExtraHosts(): string[] {
     return (process.env.PUSH_EXTRA_HOSTS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   },
+  /** 운영 알림 웹훅 (Slack·Discord 호환). 새 서버 오류·오류 급증·배치 실패를 보낸다. 비우면 대시보드에서만 확인 */
+  get alertWebhookUrl() {
+    return process.env.ALERT_WEBHOOK_URL ?? "";
+  },
   get digestIntervalSec() {
     const n = Number(process.env.DIGEST_INTERVAL_SEC ?? 3600);
     return Number.isFinite(n) && n >= 0 ? n : 3600;

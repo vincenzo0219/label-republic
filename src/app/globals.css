@@ -569,3 +569,5 @@ a.product-chip:hover { border-color: var(--brand); }
 .rank-table td:last-child { width: 24px; padding-right: 0; }
 .rank-table td:first-child, .rank-table th:first-child { padding-left: 0; }
 @media (max-width: 480px) { .rank-table { font-size: 12.5px; } .rank-table .product-brand { display: block; font-size: 11.5px; } }
+.stack { font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); padding: 8px; border-radius: 8px; max-height: 240px; overflow: auto; }
+.revision-redact summary { cursor: pointer; font-size: 12.5px; color: var(--muted); margin-top: 6px; }

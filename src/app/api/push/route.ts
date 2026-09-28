@@ -14,6 +14,8 @@ const subscribeSchema = z.object({
   subscription: z.object({ endpoint, keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }) }),
   products: ids,
   posts: ids,
+  /** 이미 켠 브라우저가 키를 바꿔 다시 등록할 때 */
+  token: token.optional(),
 });
 const updateSchema = z.object({ endpoint, token, products: ids, posts: ids });
 const deleteSchema = z.object({ endpoint, token });
@@ -30,6 +32,7 @@ export const POST = route(async (req) => {
     { endpoint: input.subscription.endpoint, p256dh: input.subscription.keys.p256dh, auth: input.subscription.keys.auth },
     { products: input.products, posts: input.posts },
     fp,
+    input.token,
   );
   return json(r, 201);
 });

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { parseFactQuery } from "@/lib/fact-query";
 import { attrKey, FACT_KIND_LABEL, formatValue } from "@/lib/products";
-import { listBoardAttributes, searchFacts } from "@/lib/repo/facts";
+import { boardsWithAttribute, listBoardAttributes, searchFacts } from "@/lib/repo/facts";
 
 type Cat = { id: number; slug: string; name: string };
 
@@ -13,10 +13,14 @@ type Cat = { id: number; slug: string; name: string };
 export async function FactSearchPanel({ q, categories }: { q: string; categories: Cat[] }) {
   const parsed = parseFactQuery(q);
   if (!parsed) {
+    const key = attrKey(q);
+    if (!key) return null;
+    // 항목 키가 있는 보드만 (대부분의 검색어는 여기서 끝난다 — 캐시된 조회 한 번)
+    const has = await boardsWithAttribute(key);
+    if (!has.size) return null;
     const links = (
       await Promise.all(
-        categories.map(async (c) => {
-          const key = attrKey(q);
+        categories.filter((c) => has.has(c.id)).map(async (c) => {
           const exact = (await listBoardAttributes(c.id)).find((a) => a.attr_key === key);
           return exact ? [{ c, a: exact }] : [];
         }),

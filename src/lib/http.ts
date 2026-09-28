@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { HttpError } from "./errors";
+import { reportError } from "./error-tracking";
 import { firstIssue } from "./validation";
 
 export function json(data: unknown, status = 200) {
@@ -33,6 +34,7 @@ export function route<P = Record<string, never>>(fn: (req: Request, params: P) =
     } catch (err) {
       if (err instanceof HttpError) return json({ error: { code: err.code, message: err.message } }, err.status);
       console.error(err);
+      reportError(err, { kind: "api", path: `${req.method} ${new URL(req.url).pathname}` });
       return json({ error: { code: "internal", message: "서버 오류가 발생했습니다." } }, 500);
     }
   };

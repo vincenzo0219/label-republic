@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
+import { ErrorReporter } from "@/components/ErrorReporter";
 import { ReportLink } from "@/components/ReportLink";
 import { config } from "@/lib/config";
 import "./globals.css";
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a className="skip-link" href="#main">본문으로 건너뛰기</a>
         <Suspense fallback={null}>
           <Analytics />
+          <ErrorReporter />
         </Suspense>
         <header className="site-header">
           <div className="container">

@@ -66,7 +66,12 @@ export function PushSettings() {
       const res = await fetch("/api/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscription: { endpoint: json.endpoint, keys: json.keys }, products: getWatchedProducts(), posts: getWatchedPosts() }),
+        body: JSON.stringify({
+          subscription: { endpoint: json.endpoint, keys: json.keys },
+          products: getWatchedProducts(),
+          posts: getWatchedPosts(),
+          ...(getPushState()?.endpoint === json.endpoint ? { token: getPushState()!.token } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? "알림을 켜지 못했어요.");

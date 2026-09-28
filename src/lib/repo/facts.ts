@@ -204,6 +204,12 @@ export async function rankProducts(p: RankParams): Promise<RankResult | null> {
   };
 }
 
+/** 이 항목 키가 있는 보드 번호 (검색어가 항목 이름일 때 모든 보드를 훑지 않으려고) */
+export async function boardsWithAttribute(key: string): Promise<Set<number>> {
+  const byBoard = await attrKeysByBoard();
+  return new Set([...byBoard.entries()].filter(([, keys]) => keys.has(key)).map(([id]) => id));
+}
+
 /** 보드별 수치 항목 키 (보이는 글 여부는 보지 않는 가벼운 1차 필터) */
 async function attrKeysByBoard(): Promise<Map<number, Set<string>>> {
   return cached("attrkeys", async () => {

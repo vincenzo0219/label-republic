@@ -7,6 +7,7 @@ import { pool } from "../db";
 import { config } from "../config";
 import { sendPush, type PushMessage, type SendResult } from "../push";
 import { postUpdateCount, watchUpdates, type WatchUpdates } from "../repo/watch";
+import { reportError } from "../error-tracking";
 
 const LOCK_KEY = 4_823_006;
 const BATCH = 500;
@@ -117,6 +118,7 @@ export function startPushScheduler(intervalMs: number): () => void {
       if (r.sent || r.removed) console.log(`[push] 알림 ${r.sent}건 발송, 구독 ${r.removed}개 정리 (확인 ${r.checked}개)`);
     } catch (err) {
       console.error("[push] batch failed:", (err as Error).message);
+      reportError(err, { kind: "job", where: "push" });
     } finally {
       running = false;
     }

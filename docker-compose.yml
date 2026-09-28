@@ -4,6 +4,7 @@
 services:
   db:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_USER: labelrep
       POSTGRES_PASSWORD: labelrep
@@ -17,6 +18,7 @@ services:
 
   app:
     build: .
+    restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgres://labelrep:labelrep@db:5432/labelrep
@@ -28,6 +30,28 @@ services:
     volumes:
       # 첨부 이미지 (IMAGE_STORAGE=local)
       - uploads:/app/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 매일 DB·첨부 사진 백업 (Sprint 18) — ./backups 에 최근 14개. 복구·검증은 docs/RUNBOOK.md
+  # 같은 서버 디스크에만 두면 서버를 잃을 때 함께 잃으므로, ./backups 를 다른 곳(오브젝트 스토리지 등)으로 옮기는 작업을 따로 걸어 둘 것
+  backup:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: labelrep
+      PGPASSWORD: labelrep
+      PGDATABASE: labelrep
+      BACKUP_DIR: /backups
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      UPLOAD_DIR: /uploads
+    volumes:
+      - ./scripts/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+      - uploads:/uploads:ro
+    entrypoint: ["/bin/sh", "-c", "while true; do /backup.sh || echo '[backup] 실패'; sleep ${BACKUP_INTERVAL_SEC:-86400}; done"]
     depends_on:
       db:
         condition: service_healthy

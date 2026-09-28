@@ -114,7 +114,16 @@ export type Correction = {
   my_vote: 1 | -1 | 0;
 };
 
-export type PostRevision = { id: string; title: string; body: string; facts: (PostFact & { product: string })[]; created_at: string; replaced_at: string };
+export type PostRevision = {
+  id: string;
+  title: string;
+  body: string;
+  facts: (PostFact & { product: string })[];
+  created_at: string;
+  replaced_at: string;
+  /** 지운 판: 작성자(글 비밀번호) 또는 법적 요청 */
+  redacted_by: "author" | "legal" | null;
+};
 
 export type Comment = {
   id: string;

@@ -22,6 +22,7 @@ import { config } from "./src/lib/config";
 import { pool } from "./src/lib/db";
 import { checkEnv } from "./src/lib/env-check";
 import { checkCsrf } from "./src/lib/csrf";
+import { flushErrors, reportError } from "./src/lib/error-tracking";
 import { CLIENT_IP_HEADER, clientIpFrom } from "./src/lib/fingerprint";
 import { flushViewCounts } from "./src/lib/metrics";
 import { hit, isLimited } from "./src/lib/rate-limit";
@@ -292,6 +293,7 @@ function startWorker() {
       clearInterval(viewFlush);
       server.close(async () => {
         await flushViewCounts().catch(() => {});
+        await flushErrors().catch(() => {});
         await listenClient?.end().catch(() => {});
         await pool().end().catch(() => {});
         console.log("[shutdown] 완료");
@@ -301,6 +303,17 @@ function startWorker() {
     };
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
+    // 처리되지 않은 오류: 기록은 남기고, 예외는 상태가 깨졌을 수 있어 기록 후 재시작(프로세스 관리자·cluster 가 다시 띄움)
+    process.on("unhandledRejection", (reason) => {
+      console.error("[process] unhandledRejection", reason);
+      reportError(reason, { kind: "process", where: "unhandledRejection" });
+    });
+    process.on("uncaughtException", (err) => {
+      console.error("[process] uncaughtException", err);
+      reportError(err, { kind: "process", where: "uncaughtException" });
+      void flushErrors().finally(() => process.exit(1));
+      setTimeout(() => process.exit(1), 3000).unref();
+    });
   });
 }
 

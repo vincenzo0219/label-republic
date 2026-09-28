@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ResolveError } from "@/components/admin/ResolveError";
 import Link from "next/link";
 import { compact, DailyBars, HBarList, StatTile, StatusPill } from "@/components/admin/charts";
 import { config } from "@/lib/config";
@@ -46,7 +47,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const prev = [addDays(today, -(2 * range - 1)), addDays(today, -range)] as const;
   const periodLabel = `직전 ${range}일 대비`;
 
-  const [daily, visCur, visPrev, sources, searchRefs, searchPosts, viewedPosts, internalSearches, boards, alerts, blinds, modCounts, jobs, boardReqs] =
+  const [daily, visCur, visPrev, sources, searchRefs, searchPosts, viewedPosts, internalSearches, boards, alerts, blinds, modCounts, jobs, boardReqs, errors] =
     await Promise.all([
       m.dailySeries(Math.max(30, 2 * range)),
       m.periodVisitors(...cur),
@@ -62,6 +63,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.moderationCounts(),
       m.jobHealth(),
       m.openBoardRequests(),
+      m.openErrors(),
     ]);
   const [holds, pending] = await Promise.all([activeLegalHolds(), pendingCounts()]);
 
@@ -345,9 +347,45 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           </table>
         </div>
       </section>
+
+      <section className="panel" aria-labelledby="errors-h">
+        <h2 id="errors-h">
+          서버 오류 {errors.length > 0 && <span className="count-badge">{errors.length}</span>}
+        </h2>
+        <p className="hint">
+          같은 오류는 한 줄로 묶어 셉니다. 해결 표시한 오류가 다시 나면 자동으로 다시 열립니다.{" "}
+          {config.alertWebhookUrl ? "새 오류·급증은 알림 웹훅으로 보냅니다." : "ALERT_WEBHOOK_URL 을 설정하면 새 오류·급증을 메신저로 받을 수 있습니다."}
+        </p>
+        {errors.length === 0 ? (
+          <p className="hint">열린 오류가 없습니다.</p>
+        ) : (
+          <ul className="mod-list">
+            {errors.map((e) => (
+              <li key={e.id}>
+                <div className="mod-row">
+                  <b style={{ overflowWrap: "anywhere" }}>{e.message}</b>
+                  <span className="hint">
+                    {ERROR_KIND[e.kind]} · {e.count}회{e.hour_count > 0 ? ` (최근 1시간 ${e.hour_count})` : ""} · 마지막 {fmtTime(e.last_seen)}
+                  </span>
+                </div>
+                {e.path && <p className="hint" style={{ margin: 0 }}>{e.path}</p>}
+                {e.stack && (
+                  <details>
+                    <summary className="hint">스택</summary>
+                    <pre className="stack">{e.stack}</pre>
+                  </details>
+                )}
+                <ResolveError id={e.id} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
+
+const ERROR_KIND = { api: "API", page: "페이지", job: "배치", process: "프로세스", client: "브라우저" } as const;
 
 function PostTable({ rows, unit, empty }: { rows: m.TopPost[]; unit: string; empty: string }) {
   if (rows.length === 0) return <p className="hint">{empty}</p>;

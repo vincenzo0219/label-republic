@@ -71,6 +71,8 @@ export type ListParams = {
   since?: Date;
   /** 이 fingerprint 가 쓴 글은 빼고 (관심 제품 새 글 미리보기에서 내 글 제외) */
   excludeAuthor?: string | null;
+  /** 전체 개수를 세지 않는다 (미리보기용 — total 은 가져온 개수) */
+  noCount?: boolean;
 };
 
 /** 이보다 깊은 페이지는 조회하지 않는다 (OFFSET 비용·크롤러 방어). 오래된 글은 검색·사이트맵으로 찾는다. */
@@ -211,9 +213,9 @@ export async function listPosts(
 
   const [items, total] = await Promise.all([
     page > MAX_PAGE ? Promise.resolve([] as PostCard[]) : query<PostCard>(pageSql, pageArgs),
-    cachedCount(`SELECT count(*)::int AS total FROM posts p WHERE ${whereSql}`, args),
+    params.noCount ? Promise.resolve(-1) : cachedCount(`SELECT count(*)::int AS total FROM posts p WHERE ${whereSql}`, args),
   ]);
-  return { items, total, totalCapped: false, page, pageSize };
+  return { items, total: total < 0 ? items.length : total, totalCapped: false, page, pageSize };
 }
 
 /**
@@ -267,8 +269,9 @@ function publicPost(
 ): PostDetail {
   if (rest.is_blinded) {
     // 블라인드 글은 본문/요약/이미지/출처/제품을 노출하지 않는다.
+    // 제목도 가린다 (블라인드 화면은 "블라인드된 게시글"로만 보여주는데 API 로는 제목이 나가던 것을 막음)
     return {
-      ...rest, body: "", excerpt: "", summary: null, images: [], thumb_id: null, image_count: 0,
+      ...rest, title: "", body: "", excerpt: "", summary: null, images: [], thumb_id: null, image_count: 0,
       sources: [], source_count: 0, source_kinds: [], products: [], facts: [], correction_count: 0, disputed_count: 0,
     };
   }
@@ -560,12 +563,45 @@ export async function reportPost(id: string, fp: string, reason: string): Promis
   return { ...rows[0]!, alreadyReported };
 }
 
-export async function listRevisions(postId: string): Promise<PostRevision[]> {
+/** 최신 판부터. offset·limit 로 나눠 본다 (한 화면의 비교 계산량을 묶어 두려고) */
+export async function listRevisions(postId: string, offset = 0, limit = 50): Promise<PostRevision[]> {
   if (!/^\d{1,18}$/.test(postId)) return [];
   return query<PostRevision>(
-    "SELECT id, title, body, facts, created_at, replaced_at FROM post_revisions WHERE post_id = $1 ORDER BY id DESC LIMIT 50",
-    [postId],
+    `SELECT id, title, body, facts, created_at, replaced_at, redacted_by
+       FROM post_revisions WHERE post_id = $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
+    [postId, offset, limit],
   );
+}
+
+/**
+ * 수정 이력의 이전 판 지우기 (보안 점검 반영). 수정으로 뺀 연락처·명예훼손 표현이 이력에 남지 않게.
+ *  - 작성자: 글 비밀번호
+ *  - 운영자: 법적 요청(명예훼손·개인정보 등)일 때만, 투명성 기록에 공개
+ * 판이 있었다는 사실(시각)은 남기고 제목·본문·수치만 지운다.
+ */
+export async function redactRevision(
+  postId: string,
+  revisionId: string,
+  by: { kind: "author"; fp: string; pin: string } | { kind: "legal"; reason: string; note: string },
+): Promise<void> {
+  if (!/^\d{1,18}$/.test(postId) || !/^\d{1,18}$/.test(revisionId)) throw notFound("수정 이력");
+  await tx(async (client) => {
+    const post = await loadPost(postId, client, true);
+    if (!post) throw notFound();
+    if (by.kind === "author") await assertPin(`post:${postId}`, by.fp, by.pin, post.pw_hash);
+    const r = await client.query(
+      `UPDATE post_revisions SET title = '', body = '', facts = '[]', redacted_at = now(), redacted_by = $3
+        WHERE id = $1 AND post_id = $2 AND redacted_at IS NULL`,
+      [revisionId, postId, by.kind],
+    );
+    if (!r.rowCount) throw notFound("수정 이력");
+    if (by.kind === "legal") {
+      await client.query(
+        `INSERT INTO moderation_log (action, post_id, subject_type, subject_id, reason, note) VALUES ('revision_redacted', $1::bigint, 'post', $1::text, $2, $3)`,
+        [postId, by.reason, by.note || `수정 이력 #${revisionId}`],
+      );
+    }
+  });
 }
 
 /** sitemap 용 */

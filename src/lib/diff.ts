@@ -6,7 +6,12 @@ export type DiffLine = { op: "same" | "del" | "add"; text: string };
 
 const MAX_CELLS = 400_000;
 
-export function diffLines(before: string, after: string): DiffLine[] | null {
+/** 표 크기(줄 수 곱)가 이 값을 넘으면 계산하지 않는다 — 한 화면 전체 예산을 나눠 쓰려면 maxCells 를 준다 */
+export function diffCost(before: string, after: string): number {
+  return (before.split("\n").length + 1) * (after.split("\n").length + 1);
+}
+
+export function diffLines(before: string, after: string, maxCells = MAX_CELLS): DiffLine[] | null {
   const a = before.split("\n");
   const b = after.split("\n");
   // 앞뒤의 같은 줄은 표 밖에서 처리해 계산량을 줄인다
@@ -20,7 +25,7 @@ export function diffLines(before: string, after: string): DiffLine[] | null {
   }
   const midA = a.slice(start, endA);
   const midB = b.slice(start, endB);
-  if ((midA.length + 1) * (midB.length + 1) > MAX_CELLS) return null;
+  if ((midA.length + 1) * (midB.length + 1) > Math.min(maxCells, MAX_CELLS)) return null;
 
   // lcs[i][j] = midA[i..], midB[j..] 의 LCS 길이
   const n = midA.length;

@@ -1,6 +1,7 @@
 import { pool } from "../db";
 import { config } from "../config";
 import { curatorIntervalHours, publishSeed } from "../curator";
+import { reportError } from "../error-tracking";
 
 const CURATOR_LOCK_KEY = 4_823_002;
 
@@ -114,6 +115,7 @@ export function startCuratorScheduler(intervalMs: number): () => void {
       }
     } catch (err) {
       console.error("[curator] batch failed:", (err as Error).message);
+      reportError(err, { kind: "job", where: "curator" });
     } finally {
       running = false;
     }

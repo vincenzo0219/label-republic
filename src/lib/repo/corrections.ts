@@ -248,9 +248,14 @@ export async function respondCorrection(id: string, fp: string, pin: string, act
   }
   await tx(async (client) => {
     await client.query(
-      "UPDATE corrections SET status = $2::correction_status, author_note = $3, resolved_at = CASE WHEN $2::correction_status = 'applied' THEN now() ELSE resolved_at END WHERE id = $1",
+      `UPDATE corrections SET status = $2::correction_status, author_note = $3,
+              resolved_at = CASE WHEN $2::correction_status = 'applied' THEN now() ELSE resolved_at END
+        WHERE id = $1 AND status IN ('open', 'answered') AND NOT is_hidden`,
       [id, action, note.trim().slice(0, 300)],
-    );
+    ).then((r) => {
+      // 확인한 뒤 그 사이에 철회·반영·가려짐이 먼저 됐으면
+      if (!r.rowCount) throw new HttpError(409, "correction_closed", "이미 닫힌 정정 제안입니다.");
+    });
     await refreshPostCounts(client, c.post_id);
   });
   return getOne(id, fp);
@@ -265,7 +270,8 @@ export async function withdrawCorrection(id: string, fp: string, pin: string): P
   await assertPin(`correction:${id}`, fp, pin, c.pw_hash);
   if (c.status === "withdrawn" || c.status === "applied") throw new HttpError(409, "correction_closed", "이미 닫힌 정정 제안입니다.");
   await tx(async (client) => {
-    await client.query("UPDATE corrections SET status = 'withdrawn', resolved_at = now() WHERE id = $1", [id]);
+    const r = await client.query("UPDATE corrections SET status = 'withdrawn', resolved_at = now() WHERE id = $1 AND status IN ('open', 'answered')", [id]);
+    if (!r.rowCount) throw new HttpError(409, "correction_closed", "이미 닫힌 정정 제안입니다.");
     await refreshPostCounts(client, c.post_id);
   });
   return getOne(id, fp);
@@ -275,16 +281,24 @@ export async function withdrawCorrection(id: string, fp: string, pin: string): P
 export async function reportCorrection(id: string, fp: string): Promise<{ report_count: number; is_hidden: boolean; alreadyReported: boolean }> {
   if (!ID.test(id)) throw notFound("정정 제안");
   return tx(async (client) => {
-    const { rows } = await client.query<{ post_id: string }>("SELECT post_id FROM corrections WHERE id = $1 FOR UPDATE", [id]);
+    const { rows } = await client.query<{ post_id: string; post_author: string | null }>(
+      "SELECT c.post_id, p.author_fingerprint AS post_author FROM corrections c JOIN posts p ON p.id = c.post_id WHERE c.id = $1 FOR UPDATE OF c",
+      [id],
+    );
     if (!rows[0]) throw notFound("정정 제안");
+    // 글 작성자가 자기 글에 달린 제안을 신고로 가리지 못하게 (반영하지 않으려면 답변을 남긴다)
+    if (rows[0].post_author === fp) throw new HttpError(403, "own_post", "내 글에 대한 제안은 신고 대신 답변해 주세요.");
     const ins = await client.query(
-      "INSERT INTO correction_reports (correction_id, reporter_fingerprint) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      `INSERT INTO correction_reports (correction_id, reporter_fingerprint, weight)
+       VALUES ($1, $2, CASE WHEN coalesce((SELECT first_seen > now() - interval '1 hour' FROM fingerprints WHERE fingerprint = $2), true) THEN 0.5 ELSE 1 END)
+       ON CONFLICT DO NOTHING`,
       [id, fp],
     );
+    // 가림: 고유 신고 5건 AND 가중치 합 5 (글 자동 블라인드와 같은 규칙 — 갓 생긴 이용자 동원으로 가리기 어렵게)
     const { rows: r } = await client.query<{ report_count: number; is_hidden: boolean }>(
-      `UPDATE corrections SET report_count = (SELECT count(*) FROM correction_reports WHERE correction_id = $1),
-              is_hidden = is_hidden OR (SELECT count(*) FROM correction_reports WHERE correction_id = $1) >= $2
-        WHERE id = $1 RETURNING report_count, is_hidden`,
+      `WITH agg AS (SELECT count(*)::int AS n, coalesce(sum(weight), 0) AS w FROM correction_reports WHERE correction_id = $1)
+       UPDATE corrections SET report_count = agg.n, is_hidden = is_hidden OR (agg.n >= $2 AND agg.w >= $2)
+         FROM agg WHERE id = $1 RETURNING report_count, is_hidden`,
       [id, CORRECTION_HIDE_REPORTS],
     );
     await refreshPostCounts(client, rows[0].post_id);

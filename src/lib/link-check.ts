@@ -20,6 +20,8 @@ for (const [addr, prefix] of [
 ] as const) blocked.addSubnet(addr, prefix, "ipv4");
 for (const [addr, prefix] of [
   ["::", 128], ["::1", 128], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8], ["2001:db8::", 32], ["64:ff9b::", 96], ["100::", 64],
+  // IPv4 호환(::a.b.c.d)·6to4·옛 사이트 로컬 — 실제로 내부로 가는 일은 드물지만 막아 둔다 (보안 점검 반영)
+  ["::", 96], ["2002::", 16], ["fec0::", 10],
 ] as const) blocked.addSubnet(addr, prefix, "ipv6");
 
 /** 공인 주소인가 (사설·루프백·링크 로컬·CGNAT·멀티캐스트·문서용 대역이 아닌가) */

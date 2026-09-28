@@ -10,8 +10,12 @@ self.addEventListener("push", (event) => {
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch (e) {}
-  // 같은 사이트의 경로만 연다
-  const url = typeof data.url === "string" && data.url.startsWith("/") && !data.url.startsWith("//") ? data.url : "/me";
+  // 같은 사이트의 주소만 연다 ("/\evil.com" 같은 우회도 origin 비교로 막는다)
+  let url = "/me";
+  try {
+    const u = new URL(String(data.url), self.location.origin);
+    if (u.origin === self.location.origin) url = u.pathname + u.search + u.hash;
+  } catch (e) {}
   event.waitUntil(
     self.registration.showNotification(data.title, { body: data.body, tag: data.tag, renotify: true, data: { url }, lang: "ko" }),
   );
@@ -19,7 +23,11 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = new URL(event.notification.data?.url || "/me", self.location.origin).href;
+  let url = new URL("/me", self.location.origin).href;
+  try {
+    const u = new URL(event.notification.data?.url || "/me", self.location.origin);
+    if (u.origin === self.location.origin) url = u.href;
+  } catch (e) {}
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       for (const c of list) {

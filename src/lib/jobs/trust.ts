@@ -1,5 +1,6 @@
 import { pool } from "../db";
 import { TRUST_MIN_VOTES } from "../config";
+import { reportError } from "../error-tracking";
 
 // 여러 서버 인스턴스가 떠 있어도 배치는 한 곳에서만 돌도록 하는 advisory lock 키
 const TRUST_LOCK_KEY = 4_823_001;
@@ -58,6 +59,7 @@ export function startTrustScheduler(intervalMs: number): () => void {
       if (r.ran && r.changed > 0) console.log(`[trust] ${r.changed} posts re-tiered across ${r.categories} categories`);
     } catch (err) {
       console.error("[trust] batch failed:", (err as Error).message);
+      reportError(err, { kind: "job", where: "trust" });
     } finally {
       running = false;
     }
