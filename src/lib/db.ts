@@ -5,11 +5,75 @@ import { config } from "./config";
 types.setTypeParser(1184, (v) => new Date(v).toISOString());
 
 // dev 모드 HMR에서도 커넥션 풀이 하나만 유지되도록 globalThis에 보관한다.
-const g = globalThis as unknown as { __labelRepPool?: Pool };
+// DB 상태(아래)도 globalThis — server.ts 와 Next 가 번들한 라우트 코드는 이 모듈을 따로 불러오므로 같은 값을 보려면 여기 둬야 한다.
+type DbState = { down: boolean; since: number | null; probe: ReturnType<typeof setInterval> | null; lastError: string | null };
+const g = globalThis as unknown as { __labelRepPool?: Pool; __labelRepDb?: DbState };
+const state = (): DbState => (g.__labelRepDb ??= { down: false, since: null, probe: null, lastError: null });
+
+/**
+ * DB에 닿지 못한 오류인가 (연결 거부·끊김·시간 초과·DB 종료 중). 쿼리 자체의 오류(문법·제약 위반·취소)는 아니다.
+ * 이런 오류가 나면 "DB 장애"로 보고 읽기 전용 모드로 바꾼다 (Sprint 27).
+ */
+export function isConnectionError(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const e = err as { code?: string; message?: string };
+  if (e.code && /^(ECONNREFUSED|ECONNRESET|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|ENOTFOUND|EAI_AGAIN|EPIPE)$/.test(e.code)) return true;
+  // 08xxx connection_exception, 57P01~03 admin_shutdown / crash_shutdown / cannot_connect_now
+  if (e.code && /^(08\d{3}|08P01|57P0[123])$/.test(e.code)) return true;
+  return /Connection terminated|timeout exceeded when trying to connect|Client has encountered a connection error|connect ECONNREFUSED/i.test(e.message ?? "");
+}
+
+/** 지금 DB 에 닿지 못하는 상태인가 (연결 오류를 본 뒤, 확인 쿼리가 성공할 때까지) */
+export function dbDown(): boolean {
+  return state().down;
+}
+export function dbDownSince(): number | null {
+  return state().since;
+}
+
+export function markDbDown(err: unknown) {
+  const s = state();
+  s.lastError = err instanceof Error ? err.message : String(err);
+  if (s.down) return;
+  s.down = true;
+  s.since = Date.now();
+  console.error(`[db] DB 에 연결할 수 없습니다 — 읽기 전용 모드 (${s.lastError})`);
+  // 2초마다 확인해 돌아오면 바로 정상 모드로
+  s.probe = setInterval(() => {
+    pool()
+      .query("SELECT 1")
+      .then(() => markDbUp())
+      .catch(() => {});
+  }, 2000);
+  s.probe.unref?.();
+}
+
+export function markDbUp() {
+  const s = state();
+  if (!s.down) return;
+  console.log(`[db] DB 연결이 돌아왔습니다 (${Math.round((Date.now() - (s.since ?? Date.now())) / 1000)}초 만에)`);
+  s.down = false;
+  s.since = null;
+  if (s.probe) clearInterval(s.probe);
+  s.probe = null;
+}
+
+function watch<T>(p: Promise<T>): Promise<T> {
+  return p.then(
+    (v) => {
+      if (state().down) markDbUp();
+      return v;
+    },
+    (err) => {
+      if (isConnectionError(err)) markDbDown(err);
+      throw err;
+    },
+  );
+}
 
 export function pool(): Pool {
   if (!g.__labelRepPool) {
-    const p = new Pool({ connectionString: config.databaseUrl, max: config.dbPoolMax });
+    const p = new Pool({ connectionString: config.databaseUrl, max: config.dbPoolMax, connectionTimeoutMillis: config.dbConnectTimeoutMs });
     // DB 재시작·장애 조치 때 쉬고 있던 연결이 끊기며 오류 이벤트가 온다. 처리하지 않으면 uncaughtException 으로
     // 워커가 모두 죽는다 (Sprint 24 리허설에서 발견). 풀은 끊긴 연결을 버리고 다음 요청 때 새로 연결한다.
     p.on("error", (err) => console.warn("[db] 쉬던 연결이 끊겼습니다 (다음 요청 때 다시 연결):", err.message));
@@ -19,7 +83,7 @@ export function pool(): Pool {
 }
 
 export async function query<T extends QueryResultRow>(text: string, params: unknown[] = []): Promise<T[]> {
-  const res = await pool().query<T>(text, params);
+  const res = await watch(pool().query<T>(text, params));
   return res.rows;
 }
 
@@ -47,17 +111,31 @@ export async function queryWithTimeout<T extends QueryResultRow>(
 }
 
 export async function tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool().connect();
+  const client = await watch(pool().connect());
+  // 끊긴 연결은 풀에 돌려주지 않고 버린다 (release(err))
+  let broken: Error | undefined;
   try {
     await client.query("BEGIN");
     const result = await fn(client);
     await client.query("COMMIT");
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    if (isConnectionError(err)) {
+      markDbDown(err);
+      broken = err as Error;
+      throw err;
+    }
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackErr) {
+      if (isConnectionError(rollbackErr)) {
+        markDbDown(rollbackErr);
+        broken = rollbackErr as Error;
+      }
+    }
     throw err;
   } finally {
-    client.release();
+    client.release(broken);
   }
 }
 

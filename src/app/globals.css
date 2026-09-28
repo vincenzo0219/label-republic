@@ -654,3 +654,24 @@ body[data-lr-offline]::before {
 .admin-list li { overflow-wrap: anywhere; }
 .report-root { min-height: calc(100svh - 110px); }
 .rule-ages { margin: 0; }
+
+/* 읽기 전용 모드 (Sprint 27) — 서버가 저장본을 보낼 때 <body data-lr-readonly="안내 문구"> 를 붙인다 (요소를 끼우지 않아 하이드레이션과 충돌하지 않음) */
+body[data-lr-readonly]::before {
+  content: attr(data-lr-readonly);
+  display: block;
+  /* 사이트 머리글(고정)을 가리지 않게 맨 위에 한 번만 */
+  padding: 10px 16px;
+  background: #fff4d6;
+  color: #4a3500;
+  border-bottom: 1px solid #e8c766;
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-align: center;
+}
+@media (prefers-color-scheme: dark) {
+  body[data-lr-readonly]::before { background: #3a2f10; color: #ffe7a3; border-bottom-color: #6b5720; }
+}
+body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bottom-color: #9fd3b5; }
+@media (prefers-color-scheme: dark) {
+  body[data-lr-recovered]::before { background: #173a28; color: #bdebd0; border-bottom-color: #2f6b4b; }
+}

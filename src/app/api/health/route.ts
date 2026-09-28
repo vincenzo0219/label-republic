@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { dbDownSince, query } from "@/lib/db";
+import { snapshotStats } from "@/lib/snapshots";
 import { jobHealth } from "@/lib/repo/metrics";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,16 @@ export async function GET(req: Request) {
     return NextResponse.json({ status: degraded ? "degraded" : "ok", ...base, jobs: jobList, errors: errs[0] }, { headers });
   } catch (err) {
     console.error("[health]", (err as Error).message);
-    return NextResponse.json({ status: "error", db: { ok: false } }, { status: 503, headers });
+    // 읽기 전용 모드 (Sprint 27): 저장본 몇 개로 버티고 있는지
+    const snaps = await snapshotStats().catch(() => ({ count: 0, newest: null }));
+    const since = dbDownSince();
+    return NextResponse.json(
+      {
+        status: "error",
+        db: { ok: false, downSince: since ? new Date(since).toISOString() : null },
+        readOnly: { snapshots: snaps.count, newest: snaps.newest ? new Date(snaps.newest).toISOString() : null },
+      },
+      { status: 503, headers },
+    );
   }
 }

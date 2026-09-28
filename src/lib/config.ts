@@ -106,6 +106,27 @@ export const config = {
     return Number.isFinite(n) && n >= 1 ? Math.min(n, 16) : 1;
   },
   /** 프로세스당 DB 커넥션 풀 크기 (DB_POOL_MAX, 기본 10). 전체 커넥션 ≈ (풀 + LISTEN 1) × 워커 수 */
+  /** DB 연결을 기다리는 최대 시간(ms). DB 서버가 응답하지 않을 때 요청이 끝없이 매달리지 않게 (Sprint 27) */
+  get dbConnectTimeoutMs(): number {
+    const n = Math.floor(Number(process.env.DB_CONNECT_TIMEOUT_MS ?? 5000));
+    return Number.isFinite(n) && n >= 500 ? n : 5000;
+  },
+  /** 읽기 전용 모드용 페이지 저장본 (Sprint 27) — 저장 위치·새로 고치는 주기(초, 0이면 끔)·글/제품 개수 */
+  get snapshotDir(): string {
+    return process.env.SNAPSHOT_DIR || `${process.cwd()}/data/snapshots`;
+  },
+  get snapshotIntervalSec(): number {
+    const n = Number(process.env.SNAPSHOT_INTERVAL_SEC ?? 600);
+    return Number.isFinite(n) && n >= 0 ? n : 600;
+  },
+  get snapshotPosts(): number {
+    const n = Math.floor(Number(process.env.SNAPSHOT_POSTS ?? 100));
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, 1000) : 100;
+  },
+  get snapshotProducts(): number {
+    const n = Math.floor(Number(process.env.SNAPSHOT_PRODUCTS ?? 50));
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, 1000) : 50;
+  },
   get dbPoolMax(): number {
     const n = Math.floor(Number(process.env.DB_POOL_MAX ?? 10));
     return Number.isFinite(n) && n >= 1 ? Math.min(n, 100) : 10;

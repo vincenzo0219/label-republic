@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
 import { ErrorReporter } from "@/components/ErrorReporter";
+import { ReadOnlyWatcher } from "@/components/ReadOnlyWatcher";
 import { ReportLink } from "@/components/ReportLink";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { config } from "@/lib/config";
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ErrorReporter />
         </Suspense>
         <ServiceWorker disabled={process.env.SW_DISABLED === "1"} />
+        <ReadOnlyWatcher />
         <header className="site-header">
           <div className="container">
             <Link href="/" className="logo" aria-label="라벨공화국 홈">

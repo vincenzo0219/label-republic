@@ -19,7 +19,7 @@ import { Client } from "pg";
 import { WebSocket, WebSocketServer } from "ws";
 import { checkAdminAuth, isAdminPath } from "./src/lib/admin-auth";
 import { config } from "./src/lib/config";
-import { pool } from "./src/lib/db";
+import { dbDown, isConnectionError, markDbDown, pool } from "./src/lib/db";
 import { checkEnv } from "./src/lib/env-check";
 import { checkCsrf } from "./src/lib/csrf";
 import { flushErrors, reportError } from "./src/lib/error-tracking";
@@ -32,6 +32,9 @@ import { startSourceCheckScheduler } from "./src/lib/jobs/sources";
 import { startPushScheduler } from "./src/lib/jobs/push";
 import { startMaintenanceScheduler } from "./src/lib/jobs/maintenance";
 import { startTrustScheduler } from "./src/lib/jobs/trust";
+import { requestSnapshot, startSnapshotScheduler } from "./src/lib/jobs/snapshots";
+import { captureSnapshot, isHtmlNavigation, isRscRequest, onServerError, sendSnapshot } from "./src/lib/snapshot-http";
+import { isSnapshotRequest, SNAPSHOT_HEADER, snapshotKey, snapshotSavedAt } from "./src/lib/snapshots";
 
 const dev = process.env.NODE_ENV !== "production";
 const port = Number(process.env.PORT) || 3000;
@@ -100,6 +103,8 @@ async function listen(): Promise<void> {
   };
   client.on("error", (err) => {
     console.error("[realtime] LISTEN connection error:", err.message);
+    // 요청이 없을 때도 DB 장애를 알아채 읽기 전용 모드로 (돌아오면 확인 쿼리가 풀어 준다)
+    if (isConnectionError(err)) markDbDown(err);
     retry();
   });
   client.on("notification", (msg) => {
@@ -206,6 +211,41 @@ function startWorker() {
         res.setHeader("X-Robots-Tag", "noindex, nofollow");
         res.setHeader("Cache-Control", "no-store");
       }
+
+      // 읽기 전용 모드 (Sprint 27): DB 가 멈추면 공개 페이지는 저장본으로, 나머지 페이지 이동은 점검 안내로
+      if (!dev && !pathname.startsWith("/api/") && !pathname.startsWith("/_next/")) {
+        const key = isHtmlNavigation(req) ? snapshotKey(req.url ?? "/") : null;
+        if (key && isSnapshotRequest(req.headers[SNAPSHOT_HEADER])) {
+          // 내부 수집기: 보통처럼 그려 보내면서 저장본으로 남긴다 (압축하지 않은 HTML 로 받아야 저장할 수 있다)
+          delete req.headers["accept-encoding"];
+          captureSnapshot(res, key);
+        } else if (dbDown()) {
+          if (key) return void (await sendSnapshot(req, res, key).catch(() => res.end()));
+          // 저장본이 없는 페이지(검색·글쓰기 등)는 Next 의 오류 화면 대신 점검 안내 (/offline 은 DB 없이 동작)
+          // 브라우저의 페이지 이동만 (Accept: text/html) — 서비스 워커·이미지·피드처럼 */* 로 받는 요청에 HTML 을 주지 않게
+          const browserNav = isHtmlNavigation(req) && String(req.headers.accept ?? "").includes("text/html") && !/\.[a-z0-9]{2,5}$/i.test(pathname);
+          if (browserNav && pathname !== "/offline") return void (await sendSnapshot(req, res, null).catch(() => res.end()));
+          // 클라이언트 이동(RSC)은 실패로 돌려주면 브라우저가 전체 페이지를 새로 요청한다 → 저장본을 받는다
+          if (isRscRequest(req)) {
+            res.statusCode = 503;
+            res.setHeader("Cache-Control", "no-store");
+            res.setHeader("Retry-After", "30");
+            return void res.end();
+          }
+        } else if (key) {
+          // DB 가 막 끊긴 순간의 요청: 렌더링이 5xx 로 끝나면 저장본으로 바꿔 보낸다
+          onServerError(res, dbDown, () => sendSnapshot(req, res, key));
+          // 이용자가 연 글·제품 페이지는 저장본이 없거나 오래됐으면 곧 받아 둔다
+          if (/^\/(posts|p)\//.test(key) && config.snapshotIntervalSec > 0) {
+            res.once("finish", () => {
+              if (res.statusCode !== 200) return;
+              void snapshotSavedAt(key).then((at) => {
+                if (at === null || Date.now() - at > (config.snapshotIntervalSec * 1000) / 2) requestSnapshot(key);
+              });
+            });
+          }
+        }
+      }
       handle(req, res);
     });
 
@@ -273,6 +313,8 @@ function startWorker() {
       // 출처 링크 생존 확인 (외부 사이트에 요청 — 사설 주소는 차단)
       if (config.sourceCheckIntervalSec > 0) startSourceCheckScheduler(config.sourceCheckIntervalSec * 1000);
       if (config.pushEnabled && config.pushIntervalSec > 0) startPushScheduler(config.pushIntervalSec * 1000);
+      // 읽기 전용 모드 저장본 (Sprint 27)
+      if (!dev && config.snapshotIntervalSec > 0) startSnapshotScheduler(config.snapshotIntervalSec * 1000);
     }
     // 게시글 조회수 버퍼 반영
     const viewFlush = setInterval(() => flushViewCounts().catch((e) => console.error("[views] flush 실패:", (e as Error).message)), 10_000);

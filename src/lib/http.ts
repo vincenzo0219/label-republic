@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { isConnectionError } from "./db";
 import { HttpError } from "./errors";
 import { reportError } from "./error-tracking";
 import { firstIssue } from "./validation";
@@ -24,6 +25,8 @@ export async function parseBody<S extends z.ZodType>(req: Request, schema: S): P
   return parsed.data;
 }
 
+export const DB_UNAVAILABLE_MESSAGE = "지금은 서버 점검 중이라 읽기만 할 수 있어요. 잠시 뒤 다시 시도해 주세요.";
+
 type Ctx<P> = { params: Promise<P> };
 
 /** 라우트 핸들러 공통 에러 처리 */
@@ -33,6 +36,13 @@ export function route<P = Record<string, never>>(fn: (req: Request, params: P) =
       return await fn(req, await ctx.params);
     } catch (err) {
       if (err instanceof HttpError) return json({ error: { code: err.code, message: err.message } }, err.status);
+      // DB 장애 (Sprint 27): 서버 오류로 기록하지 않고 "잠시 읽기만 가능"으로 안내한다 — 글쓰기 화면은 임시저장(Sprint 19)이 남아 있어 다시 보내면 된다
+      if (isConnectionError(err)) {
+        return NextResponse.json(
+          { error: { code: "db_unavailable", message: DB_UNAVAILABLE_MESSAGE } },
+          { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "30" } },
+        );
+      }
       console.error(err);
       reportError(err, { kind: "api", path: `${req.method} ${new URL(req.url).pathname}` });
       return json({ error: { code: "internal", message: "서버 오류가 발생했습니다." } }, 500);
