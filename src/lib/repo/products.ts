@@ -344,6 +344,12 @@ export function aggregateFacts(rows: FactRow[], minReports = DEFAULT_MIN_REPORTS
   return out.sort((a, b) => b.entries.length - a.entries.length || a.attribute.localeCompare(b.attribute, "ko"));
 }
 
+/**
+ * 리뉴얼 판단의 "작성자" (Sprint 29): 같은 망에서 쓴 글은 한 사람으로 센다 — 브라우저(User-Agent)만 바꿔
+ * 식별값을 늘리는 부풀리기 방지. 망 값이 없는 글(예전 글·시드)은 식별값으로.
+ */
+export const RENEWAL_AUTHOR = "coalesce('net:' || p.author_net, p.author_fingerprint)";
+
 /** post_products(pp) 의 라벨 날짜 → ms (월까지만이면 15일 — src/lib/label-dates.ts labelDateMs 와 같음) */
 export const LABEL_DATE_MS = `(extract(epoch FROM pp.made_on + CASE WHEN pp.made_precision = 'month' THEN 14 ELSE 0 END) * 1000)::float8 AS made,
             (extract(epoch FROM pp.expires_on + CASE WHEN pp.expires_precision = 'month' THEN 14 ELSE 0 END) * 1000)::float8 AS expires`;
@@ -352,7 +358,7 @@ async function factRows(productIds: string[]): Promise<FactRow[]> {
   return query<FactRow>(
     `SELECT f.product_id::text, f.post_id::text, f.attribute, f.attr_key, f.value::float8 AS value, f.unit, f.basis, f.kind,
             f.source_image_id IS NOT NULL AS has_photo,
-            (extract(epoch FROM p.created_at) * 1000)::float8 AS at, p.author_fingerprint AS author,
+            (extract(epoch FROM p.created_at) * 1000)::float8 AS at, ${RENEWAL_AUTHOR} AS author,
             ${LABEL_DATE_MS}, c.slug AS board,
             p.disputed_count > 0 AND EXISTS (
               SELECT 1 FROM corrections c

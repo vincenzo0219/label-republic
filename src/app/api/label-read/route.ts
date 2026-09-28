@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { HttpError, tooMany } from "@/lib/errors";
-import { fingerprint } from "@/lib/fingerprint";
+import { fingerprint, networkHash } from "@/lib/fingerprint";
 import { json, parseBody, route } from "@/lib/http";
 import { labelReadEnabled } from "@/lib/label-read";
 import { hit } from "@/lib/rate-limit";
@@ -26,6 +26,8 @@ export const POST = route(async (req) => {
   const fp = fingerprint(req.headers);
   // 사진 한 장당 한 번 호출(결과 저장)이므로 글 몇 개 분량이면 충분하다
   if (!(await hit(`label-read:${fp}`, 12, 60 * 60 * 1000))) throw tooMany();
+  // 같은 망에서 브라우저(User-Agent)만 바꿔 한도를 늘리지 못하게 망 단위로도 — 한 곳이 하루 한도를 다 쓰지 않게 (Sprint 29)
+  if (!(await hit(`label-read-net:${networkHash(req.headers)}`, 40, 24 * 60 * 60 * 1000))) throw tooMany();
   const input = await parseBody(req, bodySchema);
   const read = await readLabel(input.imageId, input.token, input.category, fp);
   return json({ read });

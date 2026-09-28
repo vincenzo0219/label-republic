@@ -33,9 +33,10 @@ export async function readLabel(imageId: string, token: string, categorySlug: st
   );
   if (cached[0] && cached[0].category_id === cat[0].id) return { ...cached[0].result, model: cached[0].model, cached: true };
 
-  // 하루 전체 한도 (비용 상한) — 넘으면 수동 입력으로 안내
-  const today = await query<{ n: number }>("SELECT count(*)::int AS n FROM label_reads WHERE created_at > now() - interval '24 hours'");
-  if ((today[0]?.n ?? 0) >= config.labelReadDailyMax) {
+  // 하루 전체 한도 (비용 상한) — Claude 를 부르기 전에 한 번씩 원자적으로 예약한다 (Sprint 29 보안 재점검).
+  // 예전에는 label_reads 행 수를 셌는데, 같은 사진을 보드만 바꿔 다시 읽으면 행이 덮어써져 한도에 잡히지 않았고,
+  // 확인과 저장 사이(최대 90초)에 동시 요청이 모두 통과했다.
+  if (!(await reserveLabelRead())) {
     throw new HttpError(503, "label_read_quota", "오늘은 라벨 읽기가 많아 잠시 쉬고 있어요. 수치를 직접 입력해주세요.");
   }
   const webp = await imageStorage().get(fullKey(imageId));
@@ -64,6 +65,18 @@ export async function readLabel(imageId: string, token: string, categorySlug: st
     [imageId, cat[0].id, read.model, JSON.stringify(read.result), fp],
   );
   return { ...read.result, model: read.model, cached: false };
+}
+
+/** 하루(KST) 라벨 읽기 호출 수를 한도 안에서만 1 늘린다 — 동시 요청에도 한도를 넘지 않는다 */
+export async function reserveLabelRead(max = config.labelReadDailyMax, now = new Date()): Promise<boolean> {
+  const day = Math.floor((now.getTime() + 9 * 3600_000) / 86_400_000); // KST 날짜
+  const rows = await query<{ count: number }>(
+    `INSERT INTO rate_limits (key, bucket, count, expires_at) VALUES ('label-read:day', $1, 1, $2)
+     ON CONFLICT (key, bucket) DO UPDATE SET count = rate_limits.count + 1 WHERE rate_limits.count < $3
+     RETURNING count`,
+    [day, new Date((day + 2) * 86_400_000).toISOString(), max],
+  );
+  return rows.length > 0 && max > 0;
 }
 
 export type FactEvidence = { image?: string; fromLabel?: boolean };

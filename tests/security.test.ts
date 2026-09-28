@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { checkCsrf } from "@/lib/csrf";
+import { checkCsrf, decodePath } from "@/lib/csrf";
 import { clientIpFrom } from "@/lib/fingerprint";
 import { parseBody } from "@/lib/http";
 import { isReservedNickname, nickname } from "@/lib/validation";
@@ -86,5 +86,14 @@ describe("reserved nicknames", () => {
     for (const n of ["성분덕후", "타건모임장", "오메가덕후", "badminton", "AI덕후아님", "강아지집사"]) {
       expect(isReservedNickname(n), n).toBe(false);
     }
+  });
+});
+
+describe("path decoding before the CSRF check (Sprint 29)", () => {
+  it("treats percent-encoded /api paths as /api", () => {
+    const path = decodePath("/%61pi/posts")!;
+    expect(path).toBe("/api/posts");
+    expect(checkCsrf({ method: "POST", pathname: path, origin: "https://evil.example", hasBody: true, contentType: "application/json", allowedOrigins: ["https://labelrep.example"] })).toMatchObject({ ok: false });
+    expect(decodePath("/%E0%A4%A")).toBeNull();
   });
 });

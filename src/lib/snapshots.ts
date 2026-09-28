@@ -29,8 +29,20 @@ const PATHS: RegExp[] = [
   /^\/p\/\d{1,18}$/,
   /^\/(rules|policy|terms|privacy|transparency)$/,
 ];
-/** 주소의 이 조건만 저장본을 나눈다 (나머지 조건은 떼고 같은 저장본) */
-const KEPT_PARAMS = new Set(["page", "sort", "attr", "basis", "status"]);
+/**
+ * 주소의 이 조건만 저장본을 나눈다 (나머지 조건은 떼고 같은 저장본). 값도 정해진 것만 — 임의 값으로 저장본 파일을
+ * 무한히 늘리지 못하게 (Sprint 29 보안 재점검)
+ */
+const KEPT_PARAMS: Record<string, (v: string) => boolean> = {
+  page: (v) => /^[1-9]\d{0,2}$/.test(v) && Number(v) <= 500,
+  sort: (v) => v === "latest" || v === "votes",
+  status: (v) => v === "pending",
+  attr: (v) => v.length > 0 && v.length <= 40,
+  basis: (v) => v.length <= 30,
+};
+
+/** 한 빌드에 둘 수 있는 저장본 수 (디스크 보호) */
+export const MAX_SNAPSHOT_FILES = Math.max(100, Number(process.env.SNAPSHOT_MAX_FILES) || 3000);
 
 /** 요청 주소 → 저장본 키 ("/c/supplements?page=2"). 대상이 아니면 null */
 export function snapshotKey(url: string): string | null {
@@ -48,7 +60,7 @@ export function snapshotKey(url: string): string | null {
   }
   if (!PATHS.some((re) => re.test(pathname))) return null;
   const kept = [...u.searchParams.entries()]
-    .filter(([k, v]) => KEPT_PARAMS.has(k) && v.length <= 60)
+    .filter(([k, v]) => KEPT_PARAMS[k]?.(v))
     .sort(([a], [b]) => a.localeCompare(b));
   if (kept.length > 4) return null;
   const qs = new URLSearchParams(kept).toString();
@@ -92,8 +104,34 @@ export async function saveSnapshot(key: string, html: string): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
   // 다른 워커가 읽는 중에 반쪽 파일을 보지 않게 임시 파일에 쓰고 바꿔 끼운다
   const tmp = `${file}.${process.pid}.tmp`;
-  await writeFile(tmp, html, "utf8");
+  // 어느 주소의 저장본인지 끝에 적어 둔다 — 수집기가 다시 받아 지워진 글·블라인드를 반영할 수 있게 (Sprint 29)
+  await writeFile(tmp, `${html}\n${KEY_MARK}${encodeURIComponent(key)}-->`, "utf8");
   await rename(tmp, file);
+}
+
+const KEY_MARK = "<!--lr-snapshot-key:";
+
+/** 저장본 지우기 (글 삭제·임시조치, 다시 받았더니 없는 페이지) */
+export async function deleteSnapshot(key: string): Promise<void> {
+  await unlink(fileFor(key)).catch(() => {});
+}
+
+/** 지금 빌드의 저장본 키 목록 (파일 끝의 표시에서) */
+export async function listSnapshotKeys(): Promise<string[]> {
+  const dir = path.join(config.snapshotDir, buildId());
+  const out: string[] = [];
+  for (const f of await readdir(dir).catch(() => [] as string[])) {
+    if (!f.endsWith(".html")) continue;
+    const text = await readFile(path.join(dir, f), "utf8").catch(() => "");
+    const i = text.lastIndexOf(KEY_MARK);
+    if (i < 0) continue;
+    try {
+      out.push(decodeURIComponent(text.slice(i + KEY_MARK.length).replace(/-->\s*$/, "")));
+    } catch {
+      /* 무시 */
+    }
+  }
+  return out;
 }
 
 export async function snapshotSavedAt(key: string): Promise<number | null> {
@@ -109,8 +147,9 @@ export async function loadSnapshot(key: string): Promise<{ html: string; savedAt
   for (const k of key === baseKey(key) ? [key] : [key, baseKey(key)]) {
     try {
       const file = fileFor(k);
-      const [html, st] = await Promise.all([readFile(file, "utf8"), stat(file)]);
-      return { html, savedAt: st.mtimeMs, key: k };
+      const [raw, st] = await Promise.all([readFile(file, "utf8"), stat(file)]);
+      const mark = raw.lastIndexOf(`\n${KEY_MARK}`);
+      return { html: mark >= 0 ? raw.slice(0, mark) : raw, savedAt: st.mtimeMs, key: k };
     } catch {
       /* 다음 후보 */
     }

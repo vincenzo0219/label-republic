@@ -6,6 +6,11 @@ import { renewalTitle, renewalWhen } from "@/lib/renewal-text";
 import { brandKey } from "@/lib/repo/renewal-feed";
 
 describe("renewal feed helpers", () => {
+  it("keeps the Atom feed valid XML even with lone surrogates or U+FFFE in names (Sprint 29)", async () => {
+    const { xmlEscape } = await import("@/lib/feed");
+    expect(xmlEscape("A\uD800B\uFFFEC\uDC00D😀")).toBe("ABCD😀");
+  });
+
   it("makes brand keys the same way as product keys", () => {
     expect(brandKey("NOW Foods")).toBe("nowfoods");
     expect(brandKey(" 나우 푸드 ")).toBe("나우푸드");

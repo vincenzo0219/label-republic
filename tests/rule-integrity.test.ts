@@ -29,7 +29,7 @@ d("rule vote manipulation (database)", async () => {
   let host = "";
   async function member(i: number, ageDays: number, contributions = 3) {
     for (let k = 0; k < contributions; k++) {
-      await query("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint) VALUES ($1, '회원', 'x', '댓글', $2)", [host, fp(i)]);
+      await query("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, created_at) VALUES ($1, '회원', 'x', '댓글', $2, now() - make_interval(days => $3) + interval '1 hour')", [host, fp(i), ageDays]);
     }
     await query(
       `INSERT INTO fingerprints (fingerprint, first_seen, last_seen) VALUES ($1, now() - make_interval(days => $2), now())
@@ -136,6 +136,44 @@ d("rule vote manipulation (database)", async () => {
     const q = await rules.createProposal({ key: "trust_min_votes", value: 4, reason: "배지가 너무 빨리 붙어서 소수 표에 흔들립니다. 조금 올려요.", nickname: "둘째", pin: "1111", fingerprint: await member(2, 200, 20) });
     for (let i = 0; i < 2; i++) await rules.voteOnProposal(q.id, await member(400 + i, 20, 12), 1, NET_A);
     expect(await tx((c) => rules.findRingVotes(c))).toEqual([]);
+  });
+
+  it("caps votes from one network for younger accounts, freezes vote records and reopens dismissed alerts (Sprint 29)", async () => {
+    const p = await propose(await member(1, 200, 20));
+    // 30~90일 계정은 탐지(30일 미만) 대상이 아니지만 같은 망에서 3표까지만
+    for (let i = 0; i < 3; i++) await rules.voteOnProposal(p.id, await member(100 + i, 45, 10), 1, NET_A);
+    await expect(rules.voteOnProposal(p.id, await member(103, 45, 10), 1, NET_A)).rejects.toMatchObject({ code: "network_limit" });
+    // 90일 넘은 회원은 같은 망이어도 된다
+    await rules.voteOnProposal(p.id, await member(104, 120, 10), 1, NET_A);
+
+    // 제안이 올라온 뒤에 쓴 기여는 자격에 세지 않는다
+    await query(`INSERT INTO fingerprints (fingerprint, first_seen, last_seen) VALUES ($1, now() - interval '40 days', now())`, [fp(300)]);
+    for (let k = 0; k < 5; k++) await query("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint) VALUES ($1, '회원', 'x', '댓글', $2)", [host, fp(300)]);
+    await expect(rules.voteOnProposal(p.id, fp(300), 1)).rejects.toMatchObject({ code: "not_eligible" });
+
+    // 표를 바꾸거나 취소했다가 다시 내도 처음 낸 때의 기록 그대로
+    const young = await member(400, 8, 3);
+    await rules.voteOnProposal(p.id, young, -1);
+    const before = await query("SELECT voter_age_days::float8 AS age, voter_contributions AS c, created_at FROM rule_votes WHERE fingerprint = $1", [young]);
+    for (let k = 0; k < 5; k++) await query("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint) VALUES ($1, '회원', 'x', '댓글', $2)", [host, young]);
+    await rules.voteOnProposal(p.id, young, 0);
+    expect((await rules.getProposal(p.id))!.voter_count).toBe(5);
+    await rules.voteOnProposal(p.id, young, 1);
+    expect(await query("SELECT voter_age_days::float8 AS age, voter_contributions AS c, created_at FROM rule_votes WHERE fingerprint = $1", [young])).toEqual(before);
+
+    // 작은 의심을 오탐으로 닫게 한 뒤 몰표 → 다시 열린다
+    for (let i = 0; i < 3; i++) await rules.voteOnProposal(p.id, await member(500 + i, 8, 3), 1);
+    await scan();
+    const a1 = (await alertFor(p.id))!;
+    await operator.dismissAlert(a1.id, "실제 신규 회원 모임");
+    await new Promise((r) => setTimeout(r, 20));
+    for (let i = 0; i < 6; i++) await rules.voteOnProposal(p.id, await member(600 + i, 8, 3), 1);
+    await scan();
+    expect((await alertFor(p.id))!.status).toBe("open");
+
+    // 마감된 투표의 표는 무효화하지 않는다 (공개 기록이 서로 어긋나지 않게)
+    await query("UPDATE rule_proposals SET status = 'rejected', closed_at = now() WHERE id = $1", [p.id]);
+    await expect(operator.voidAlert((await alertFor(p.id))!.id, "늦은 처리")).rejects.toMatchObject({ code: "proposal_closed" });
   });
 
   it("dismissing as a false positive releases the hold; the hold also expires after 72 hours", async () => {

@@ -21,9 +21,9 @@ import { checkAdminAuth, isAdminPath } from "./src/lib/admin-auth";
 import { config } from "./src/lib/config";
 import { dbDown, isConnectionError, markDbDown, pool } from "./src/lib/db";
 import { checkEnv } from "./src/lib/env-check";
-import { checkCsrf } from "./src/lib/csrf";
+import { checkCsrf, decodePath } from "./src/lib/csrf";
 import { flushErrors, reportError } from "./src/lib/error-tracking";
-import { CLIENT_IP_HEADER, clientIpFrom } from "./src/lib/fingerprint";
+import { CLIENT_IP_HEADER, clientIpFrom, CRAWLER_HEADER } from "./src/lib/fingerprint";
 import { flushViewCounts } from "./src/lib/metrics";
 import { hit, isLimited } from "./src/lib/rate-limit";
 import { startCuratorScheduler } from "./src/lib/jobs/curator";
@@ -123,6 +123,8 @@ async function listen(): Promise<void> {
 function withClientIp(req: IncomingMessage) {
   // 클라이언트가 보낸 값은 덮어써서 fingerprint 위조를 막는다.
   req.headers[CLIENT_IP_HEADER] = req.socket.remoteAddress ?? "unknown";
+  // 수집기 표시는 서명을 확인한 뒤에만 서버가 붙인다 (Sprint 29)
+  delete req.headers[CRAWLER_HEADER];
 }
 
 function runPrimary(workers: number) {
@@ -177,11 +179,14 @@ function startWorker() {
       withClientIp(req);
       if (hsts) res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
       const pathname = (req.url ?? "/").split("?")[0]!;
+      // CSRF·관리자 판단은 퍼센트 인코딩을 푼 경로로 (예: /%61pi/… 가 /api/… 로 처리되는 경우 대비, Sprint 29)
+      const decodedPath = decodePath(pathname);
+      if (decodedPath === null) return sendJson(res, 400, "bad_request", "잘못된 주소입니다.");
 
       // CSRF: 상태를 바꾸는 /api/* 요청은 우리 사이트에서 보낸 JSON 요청만 받는다
       const csrf = checkCsrf({
         method: req.method ?? "GET",
-        pathname,
+        pathname: decodedPath,
         origin: req.headers.origin,
         secFetchSite: req.headers["sec-fetch-site"] as string | undefined,
         referer: req.headers.referer,
@@ -218,6 +223,7 @@ function startWorker() {
         if (key && isSnapshotRequest(req.headers[SNAPSHOT_HEADER])) {
           // 내부 수집기: 보통처럼 그려 보내면서 저장본으로 남긴다 (압축하지 않은 HTML 로 받아야 저장할 수 있다)
           delete req.headers["accept-encoding"];
+          req.headers[CRAWLER_HEADER] = "1";
           captureSnapshot(res, key);
         } else if (dbDown()) {
           if (key) return void (await sendSnapshot(req, res, key).catch(() => res.end()));

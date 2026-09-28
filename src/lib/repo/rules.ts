@@ -72,18 +72,31 @@ export function invalidateRules() {
 // 투표 자격
 // ---------------------------------------------------------------------------
 
-/** 글·댓글·정정 제안 수 (블라인드된 글은 빼고) */
+/** 글·댓글·정정 제안 수 (블라인드된 글은 빼고). $2 보다 먼저 쓴 것만 센다 (Sprint 29) */
 const CONTRIBUTIONS = `
-  (SELECT count(*) FROM posts WHERE author_fingerprint = $1 AND NOT is_blinded)
-  + (SELECT count(*) FROM comments WHERE author_fingerprint = $1)
-  + (SELECT count(*) FROM corrections WHERE author_fingerprint = $1)`;
+  (SELECT count(*) FROM posts WHERE author_fingerprint = $1 AND NOT is_blinded AND created_at < $2)
+  + (SELECT count(*) FROM comments WHERE author_fingerprint = $1 AND created_at < $2)
+  + (SELECT count(*) FROM corrections WHERE author_fingerprint = $1 AND created_at < $2)`;
+
+/**
+ * 한 제안에 같은 접속 망에서 낼 수 있는 표 (Sprint 29 — 브라우저만 바꿔 계정을 여럿 만드는 방식 차단).
+ * 통신사·회사 망을 함께 쓰는 오래된 회원까지 막지 않도록, 계정 나이 NET_CAP_EXEMPT_AGE_DAYS 일 이상이면 적용하지 않는다
+ * (조작하려면 계정을 석 달 넘게 묵혀야 한다).
+ */
+export const NET_VOTES_PER_PROPOSAL = 3;
+export const NET_CAP_EXEMPT_AGE_DAYS = 90;
 
 export type VoterStatus = Eligibility & { ageDays: number; contributions: number };
 
-export async function voterStatus(fp: string, client?: PoolClient): Promise<VoterStatus> {
+/**
+ * before: 이 시각보다 먼저 한 기여만 센다 — 투표할 때는 제안이 올라온 시각. 제안을 보고 나서 댓글을 몰아 써
+ * 자격을 채우는 것을 막는다 (Sprint 29 보안 재점검)
+ */
+export async function voterStatus(fp: string, client?: PoolClient, before?: string): Promise<VoterStatus> {
   const sql = `SELECT extract(epoch FROM now() - f.first_seen)::float8 / 86400 AS age, (${CONTRIBUTIONS})::int AS n
                  FROM (SELECT $1::char(64) AS fp) x LEFT JOIN fingerprints f ON f.fingerprint = x.fp`;
-  const rows = client ? (await client.query<{ age: number | null; n: number }>(sql, [fp])).rows : await query<{ age: number | null; n: number }>(sql, [fp]);
+  const args = [fp, before ?? "infinity"];
+  const rows = client ? (await client.query<{ age: number | null; n: number }>(sql, args)).rows : await query<{ age: number | null; n: number }>(sql, args);
   const ageDays = rows[0]?.age ?? 0;
   const contributions = rows[0]?.n ?? 0;
   return { ...voteWeight(ageDays, contributions), ageDays, contributions };
@@ -149,12 +162,15 @@ export async function createProposal(input: ProposalInput): Promise<Proposal> {
   const id = await tx(async (client) => {
     const status = await voterStatus(input.fingerprint, client);
     if (!status.weight) throw new HttpError(403, "not_eligible", `규칙 변경을 제안할 수 없어요. ${status.reason}`);
-    // 같은 규칙에 대한 동시 제안을 한 줄로 세운다
+    // 같은 규칙에 대한 동시 제안을 한 줄로 세운다. 한 사람이 여러 규칙에 동시에 내는 것도 (일주일 한 번 확인이 규칙별로만 잠기던 문제)
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`rule-proposer:${input.fingerprint}`]);
     await client.query("SELECT key FROM community_rules WHERE key = $1 FOR UPDATE", [input.key]);
     const open = await client.query("SELECT id FROM rule_proposals WHERE rule_key = $1 AND status = 'open'", [input.key]);
     if (open.rows[0]) throw new HttpError(409, "proposal_open", "이 규칙은 이미 투표가 진행 중이에요. 그 투표에 참여해주세요.");
     const recent = await client.query<{ closed_at: string }>(
-      `SELECT closed_at FROM rule_proposals WHERE rule_key = $1 AND status IN ('passed', 'rejected')
+      // 표를 받은 뒤 철회한 제안도 결정된 것으로 본다 — 질 것 같으면 철회하고 곧바로 다시 내는 것을 막는다 (Sprint 29)
+      `SELECT closed_at FROM rule_proposals WHERE rule_key = $1
+          AND (status IN ('passed', 'rejected') OR (status = 'withdrawn' AND voter_count > 1))
           AND closed_at > now() - make_interval(days => $2) ORDER BY closed_at DESC LIMIT 1`,
       [input.key, COOLDOWN_DAYS],
     );
@@ -197,7 +213,7 @@ async function refreshTally(client: PoolClient, proposalId: string) {
     `UPDATE rule_proposals p SET
        yes_weight  = coalesce((SELECT sum(weight) FROM rule_votes WHERE proposal_id = p.id AND value = 1 AND voided_at IS NULL), 0),
        no_weight   = coalesce((SELECT sum(weight) FROM rule_votes WHERE proposal_id = p.id AND value = -1 AND voided_at IS NULL), 0),
-       voter_count = (SELECT count(*) FROM rule_votes WHERE proposal_id = p.id AND voided_at IS NULL)
+       voter_count = (SELECT count(*) FROM rule_votes WHERE proposal_id = p.id AND voided_at IS NULL AND value <> 0)
      WHERE id = $1`,
     [proposalId],
   );
@@ -221,7 +237,7 @@ export async function listProposals(opts: { status?: "open" | "closed"; limit?: 
 export async function myVotes(fp: string): Promise<Record<string, 1 | -1>> {
   const rows = await query<{ proposal_id: string; value: 1 | -1 }>(
     `SELECT v.proposal_id::text, v.value FROM rule_votes v JOIN rule_proposals p ON p.id = v.proposal_id
-      WHERE v.fingerprint = $1 AND p.status = 'open' AND v.voided_at IS NULL`,
+      WHERE v.fingerprint = $1 AND p.status = 'open' AND v.voided_at IS NULL AND v.value <> 0`,
     [fp],
   );
   return Object.fromEntries(rows.map((r) => [r.proposal_id, r.value]));
@@ -231,28 +247,39 @@ export async function myVotes(fp: string): Promise<Record<string, 1 | -1>> {
 export async function voteOnProposal(id: string, fp: string, value: 1 | -1 | 0, netHash?: string): Promise<Proposal> {
   if (!ID.test(id)) throw new HttpError(404, "not_found", "제안을 찾을 수 없습니다.");
   await tx(async (client) => {
-    const { rows } = await client.query<{ status: string; open: boolean; proposer_fingerprint: string }>(
-      "SELECT status, closes_at > now() AS open, proposer_fingerprint FROM rule_proposals WHERE id = $1 FOR UPDATE",
+    const { rows } = await client.query<{ status: string; open: boolean; proposer_fingerprint: string; created_at: string }>(
+      "SELECT status, closes_at > now() AS open, proposer_fingerprint, created_at FROM rule_proposals WHERE id = $1 FOR UPDATE",
       [id],
     );
     const p = rows[0];
     if (!p) throw new HttpError(404, "not_found", "제안을 찾을 수 없습니다.");
     if (p.status !== "open" || !p.open) throw new HttpError(409, "closed", "투표가 끝난 제안이에요.");
     if (p.proposer_fingerprint === fp) throw new HttpError(409, "own_proposal", "제안한 사람의 표는 찬성으로 이미 세어져 있어요.");
-    if (value === 0) {
-      await client.query("DELETE FROM rule_votes WHERE proposal_id = $1 AND fingerprint = $2 AND voided_at IS NULL", [id, fp]);
-    } else {
-      const status = await voterStatus(fp, client);
+    const existing = await client.query<{ voided: boolean }>(
+      "SELECT voided_at IS NOT NULL AS voided FROM rule_votes WHERE proposal_id = $1 AND fingerprint = $2",
+      [id, fp],
+    );
+    if (existing.rows[0]?.voided) throw new HttpError(403, "vote_voided", "이 표는 무효 처리되어 다시 낼 수 없어요.");
+    if (existing.rows[0]) {
+      // 이미 낸 표: 찬반만 바꾼다 (취소는 0). 표를 낸 때의 계정 나이·기여 수·망·시각은 처음 것으로 고정 —
+      // 탐지된 뒤 기여를 늘려 다시 내 기록을 바꾸는 것을 막는다 (Sprint 29)
+      await client.query("UPDATE rule_votes SET value = $3 WHERE proposal_id = $1 AND fingerprint = $2", [id, fp, value]);
+    } else if (value !== 0) {
+      const status = await voterStatus(fp, client, p.created_at);
       if (!status.weight) throw new HttpError(403, "not_eligible", status.reason ?? "투표할 수 없어요.");
-      // 무효화된 표는 다시 살릴 수 없다
-      const res = await client.query(
-        `INSERT INTO rule_votes (proposal_id, fingerprint, value, weight, voter_age_days, voter_contributions, net_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (proposal_id, fingerprint) DO UPDATE SET value = EXCLUDED.value, weight = EXCLUDED.weight, created_at = now(),
-           voter_age_days = EXCLUDED.voter_age_days, voter_contributions = EXCLUDED.voter_contributions, net_hash = EXCLUDED.net_hash
-           WHERE rule_votes.voided_at IS NULL`,
+      if (netHash && status.ageDays < NET_CAP_EXEMPT_AGE_DAYS) {
+        const same = await client.query<{ n: number }>(
+          "SELECT count(*)::int AS n FROM rule_votes WHERE proposal_id = $1 AND net_hash = $2 AND voided_at IS NULL",
+          [id, netHash],
+        );
+        if ((same.rows[0]?.n ?? 0) >= NET_VOTES_PER_PROPOSAL) {
+          throw new HttpError(409, "network_limit", `같은 곳(접속 망)에서 이미 ${NET_VOTES_PER_PROPOSAL}표가 들어온 투표예요. 한 곳에서 여러 계정으로 투표하지 못하게, 첫 활동 후 ${NET_CAP_EXEMPT_AGE_DAYS}일이 안 된 계정은 막고 있어요.`);
+        }
+      }
+      await client.query(
+        `INSERT INTO rule_votes (proposal_id, fingerprint, value, weight, voter_age_days, voter_contributions, net_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [id, fp, value, status.weight, round1(status.ageDays), status.contributions, netHash ?? null],
       );
-      if (!res.rowCount) throw new HttpError(403, "vote_voided", "이 표는 무효 처리되어 다시 낼 수 없어요.");
     }
     await refreshTally(client, id);
   });
@@ -369,7 +396,7 @@ export async function ruleStates(): Promise<Record<RuleKey, RuleState>> {
 export const RING_SQL = `
   WITH v AS (
     SELECT fingerprint, value, weight, voter_age_days AS age, voter_contributions AS contrib, net_hash, created_at
-      FROM rule_votes WHERE proposal_id = $1 AND voided_at IS NULL AND voter_age_days IS NOT NULL
+      FROM rule_votes WHERE proposal_id = $1 AND voided_at IS NULL AND value <> 0 AND voter_age_days IS NOT NULL
   ), side AS (SELECT value, count(*) AS n FROM v GROUP BY value),
   fresh_side AS (
     SELECT v.value FROM v JOIN side USING (value)
@@ -399,6 +426,8 @@ export type RingFinding = {
   /** 이 표들을 빼면 결과(가결 여부)가 바뀌는가 */
   flips: boolean;
   windowStart: string;
+  /** 가장 최근에 들어온 의심 표 — 오탐으로 닫은 뒤 새 의심 표가 오면 알림을 다시 연다 (Sprint 29) */
+  latestAt: string;
 };
 
 /** 진행 중인 제안마다 탐지 (정리 배치에서 호출) */
@@ -425,6 +454,7 @@ export async function findRingVotes(client: PoolClient): Promise<RingFinding[]> 
       sameNet: rows.filter((r) => r.same_net).length,
       flips: tally(p.yes, p.no, p.quorum).passed !== tally(p.yes - yesW, p.no - noW, p.quorum).passed,
       windowStart: rows.map((r) => new Date(r.created_at).toISOString()).sort()[0]!,
+      latestAt: rows.map((r) => new Date(r.created_at).toISOString()).sort().at(-1)!,
     });
   }
   return out;
@@ -432,6 +462,9 @@ export async function findRingVotes(client: PoolClient): Promise<RingFinding[]> 
 
 /** 탐지된 표 무효화 (운영자 조치 — operator.voidAlert 에서 트랜잭션 안에 호출) */
 export async function voidRingVotes(client: PoolClient, proposalId: string): Promise<number> {
+  // 마감된 투표의 표를 무효화하면 공개된 집계만 바뀌고 결과·규칙 값은 그대로라 기록이 서로 어긋난다 (Sprint 29)
+  const st = await client.query<{ status: string }>("SELECT status FROM rule_proposals WHERE id = $1 FOR UPDATE", [proposalId]);
+  if (st.rows[0]?.status !== "open") throw new HttpError(409, "proposal_closed", "이미 마감된 투표예요. 마감 뒤에는 표를 무효화할 수 없어요.");
   const { rowCount } = await client.query(
     `UPDATE rule_votes SET voided_at = now() WHERE proposal_id = $1 AND fingerprint IN (SELECT fingerprint FROM (${RING_SQL}) ring)`,
     [proposalId],
@@ -455,7 +488,7 @@ export async function proposalIntegrity(ids: string[]): Promise<Record<string, P
             count(*) FILTER (WHERE voided_at IS NULL AND voter_age_days >= 30 AND voter_age_days < 90)::int AS mid,
             count(*) FILTER (WHERE voided_at IS NULL AND (voter_age_days >= 90 OR voter_age_days IS NULL))::int AS old,
             count(*) FILTER (WHERE voided_at IS NOT NULL)::int AS voided
-       FROM rule_votes WHERE proposal_id = ANY($1::bigint[]) GROUP BY proposal_id, value`,
+       FROM rule_votes WHERE proposal_id = ANY($1::bigint[]) AND value <> 0 GROUP BY proposal_id, value`,
     [ids],
   );
   const reviewing = await query<{ id: string }>(

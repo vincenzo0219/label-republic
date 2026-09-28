@@ -13,7 +13,7 @@ import { fromBase } from "../products";
 import { detectEras, renewalsOf, sameValue, type LabelReport } from "../renewals";
 import { query } from "../db";
 import { NOT_DISPUTED } from "./facts";
-import { LABEL_DATE_MS } from "./products";
+import { LABEL_DATE_MS, RENEWAL_AUTHOR } from "./products";
 import { getRule } from "./rules";
 
 const VISIBLE = "NOT p.is_blinded AND NOT p.is_suppressed";
@@ -98,7 +98,7 @@ async function reportRows(client: PoolClient, productIds: string[]): Promise<Rep
   const { rows } = await client.query<ReportRow>(
     `SELECT f.product_id::text, f.attr_key, f.basis_key, f.unit_group, f.attribute, f.basis, f.unit,
             f.post_id::text, (extract(epoch FROM p.created_at) * 1000)::float8 AS at, f.base_value AS base,
-            p.author_fingerprint AS author, f.source_image_id IS NOT NULL AS photo, f.kind::text AS kind,
+            ${RENEWAL_AUTHOR} AS author, f.source_image_id IS NOT NULL AS photo, f.kind::text AS kind,
             ${LABEL_DATE_MS}, c.slug AS board
        FROM product_facts f JOIN posts p ON p.id = f.post_id
        JOIN post_products pp ON pp.post_id = f.post_id AND pp.product_id = f.product_id

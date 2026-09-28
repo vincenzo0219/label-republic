@@ -53,3 +53,14 @@ export function checkCsrf(req: {
   }
   return { ok: true };
 }
+
+/**
+ * CSRF·관리자 판단에 쓸 경로: 퍼센트 인코딩을 푼다 (예: "/%61pi/posts" → "/api/posts"). 풀 수 없으면 null (Sprint 29)
+ */
+export function decodePath(pathname: string): string | null {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+}

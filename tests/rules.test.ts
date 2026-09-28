@@ -61,7 +61,7 @@ d("community rule votes (database)", async () => {
   async function member(i: number, ageDays: number, contributions = 3) {
     const post = await newPost();
     for (let k = 0; k < contributions; k++) {
-      await query("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint) VALUES ($1, '회원', 'x', '댓글입니다', $2)", [post.id, fp(i)]);
+      await query("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, created_at) VALUES ($1, '회원', 'x', '댓글입니다', $2, now() - make_interval(days => $3) + interval '1 hour')", [post.id, fp(i), ageDays]);
     }
     await query(
       `INSERT INTO fingerprints (fingerprint, first_seen, last_seen) VALUES ($1, now() - make_interval(days => $2), now())
@@ -182,5 +182,18 @@ d("community rule votes (database)", async () => {
     ).rejects.toMatchObject({ status: 400 });
     await propose(who, 4, "trust_min_votes");
     await expect(propose(who, 0.7, "spam_suppress_score")).rejects.toMatchObject({ status: 429 });
+  });
+
+  it("counts a withdrawn proposal that got votes toward the cooldown, and serialises one person's proposals (Sprint 29)", async () => {
+    const who = await member(900, 200, 20);
+    const p = await propose(who);
+    await rules.voteOnProposal(p.id, await member(901, 200, 20), -1);
+    await rules.withdrawProposal(p.id, who, "4321");
+    // 질 것 같아 철회하고 다른 사람이 곧바로 다시 내는 것 → 결정된 것과 같이 쉬는 기간
+    await expect(propose(await member(902, 200, 20))).rejects.toMatchObject({ code: "cooldown" });
+    // 한 사람이 여러 규칙에 동시에 → 하나만
+    const one = await member(903, 200, 20);
+    const results = await Promise.allSettled([propose(one, 4, "trust_min_votes"), propose(one, 7, "correction_hide_reports")]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
   });
 });

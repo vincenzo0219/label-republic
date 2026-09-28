@@ -27,6 +27,13 @@ describe("snapshot keys", () => {
     expect(snaps.snapshotKey(url)).toBe(key);
   });
 
+  it("keeps only known condition values, so random query strings cannot multiply files (Sprint 29)", () => {
+    expect(snaps.snapshotKey("/c/supplements?sort=" + "x".repeat(50) + "&page=abc")).toBe("/c/supplements");
+    expect(snaps.snapshotKey("/c/supplements?page=501&sort=votes")).toBe("/c/supplements?sort=votes");
+    expect(snaps.snapshotKey("/renewals?status=confirmed")).toBe("/renewals");
+    expect(snaps.snapshotKey("/c/supplements/facts?attr=" + "가".repeat(41))).toBe("/c/supplements/facts");
+  });
+
   it.each(["/admin", "/admin/moderation", "/write", "/search?q=a", "/me", "/posts/1/edit", "/api/health", "/c/a/b/c", "/%E0%A4%A"])("does not store %s", (url) => {
     expect(snaps.snapshotKey(url)).toBeNull();
   });
@@ -69,6 +76,14 @@ describe("snapshot store", () => {
     expect(await snaps.snapshotStats()).toMatchObject({ count: 1 });
   });
 
+  it("remembers which page each file is, deletes on request, and removes pages that are gone (Sprint 29)", async () => {
+    await snaps.saveSnapshot("/posts/7", "<html><body>글</body></html>");
+    await snaps.saveSnapshot("/c/영양", "<html><body>보드</body></html>");
+    expect((await snaps.listSnapshotKeys()).sort()).toEqual(["/c/영양", "/posts/7"]);
+    await snaps.deleteSnapshot("/posts/7");
+    expect(await snaps.listSnapshotKeys()).toEqual(["/c/영양"]);
+  });
+
   it("only trusts the signed crawler header", () => {
     expect(snaps.isSnapshotRequest(snaps.snapshotToken())).toBe(true);
     expect(snaps.isSnapshotRequest("0".repeat(40))).toBe(false);
@@ -89,6 +104,8 @@ describe("connection errors", () => {
     [{ code: "57014" }, false],
     [{ code: "42601", message: "syntax error" }, false],
     [null, false],
+    // 이용자 입력이 섞인 Postgres 오류 메시지로 읽기 전용 모드를 켜지 못하게 (Sprint 29)
+    [{ code: "22P02", message: 'invalid input syntax for type bigint: "Connection terminated"' }, false],
   ])("%j → %s", (err, want) => {
     expect(db.isConnectionError(err)).toBe(want);
   });
@@ -177,6 +194,17 @@ describe("capture and fallback over HTTP", () => {
     }
   });
 
+  it("deletes the stored page when the crawler finds it gone (404)", async () => {
+    mode = "ok";
+    await (await crawl("/posts/44")).text();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(await snaps.snapshotSavedAt("/posts/44")).not.toBeNull();
+    mode = "404";
+    await (await crawl("/posts/44")).text();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(await snaps.snapshotSavedAt("/posts/44")).toBeNull();
+  });
+
   it("replaces a 5xx render with the snapshot only while the DB is down", async () => {
     mode = "fail";
     down = false;
@@ -236,7 +264,12 @@ d("read-only mode with a database", async () => {
     const h = route(async () => {
       throw Object.assign(new Error("Connection terminated unexpectedly"), {});
     });
+    // DB 가 멀쩡한데 다른 곳(이미지 저장소 등)의 연결 오류 → 그대로 서버 오류 (Sprint 29)
+    expect((await h(new Request("http://x/api/posts", { method: "POST" }), { params: Promise.resolve({}) })).status).toBe(500);
+    await query("DELETE FROM error_events");
+    db.markDbDown(Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }));
     const res = await h(new Request("http://x/api/posts", { method: "POST" }), { params: Promise.resolve({}) });
+    db.markDbUp();
     expect(res.status).toBe(503);
     expect(res.headers.get("retry-after")).toBe("30");
     expect(await res.json()).toMatchObject({ error: { code: "db_unavailable" } });
@@ -282,5 +315,21 @@ d("read-only mode with a database", async () => {
       server.close();
       db.markDbUp();
     }
+  });
+
+  it("gives the verified crawler a fingerprint no visitor can have, and deletes snapshots of deleted posts (Sprint 29)", async () => {
+    const { fingerprint, CRAWLER_HEADER, CRAWLER_FINGERPRINT, CLIENT_IP_HEADER } = await import("@/lib/fingerprint");
+    const h = new Headers({ [CLIENT_IP_HEADER]: "127.0.0.1", "user-agent": snaps.SNAPSHOT_UA });
+    expect(fingerprint(h)).not.toBe(CRAWLER_FINGERPRINT);
+    h.set(CRAWLER_HEADER, "1");
+    expect(fingerprint(h)).toBe(CRAWLER_FINGERPRINT);
+
+    const p = await posts.createPost({
+      categorySlug: "supplements", nickname: "작성자", pin: "1234", title: "지울 글", body: "1정에 마그네슘 200mg 입니다.",
+      summary: { lines: ["하나", "둘", "셋"], model: "author", isAuthorEdited: true }, fingerprint: "a".repeat(64),
+    });
+    await snaps.saveSnapshot(`/posts/${p.id}`, "<html><body>지울 글</body></html>");
+    await posts.deletePost(p.id, "a".repeat(64), "1234");
+    expect(await snaps.snapshotSavedAt(`/posts/${p.id}`)).toBeNull();
   });
 });

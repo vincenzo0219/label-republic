@@ -11,6 +11,7 @@ type P = { id: string };
 export const POST = route<P>(async (req, { id }) => {
   const fp = fingerprint(req.headers);
   if (!(await hit(`rule:vote:${fp}`, 30, 60 * 60 * 1000))) throw tooMany();
+  if (!(await hit(`rule:vote-net:${networkHash(req.headers)}`, 60, 60 * 60 * 1000))) throw tooMany();
   const { value } = await parseBody(req, ruleVoteSchema);
   return json({ proposal: await voteOnProposal(id, fp, value, networkHash(req.headers)) });
 });

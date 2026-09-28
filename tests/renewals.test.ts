@@ -100,13 +100,14 @@ d("product renewals (database)", async () => {
   const fp = (n: number) => String(n).padStart(64, "0");
   let seq = 0;
   /** daysAgo 에 올라온 글: 제품 하나, 마그네슘 표시값 (1정) */
-  async function report(value: number, daysAgo: number, opts: { author?: number; brand?: string; name?: string; unit?: string; measured?: number } = {}) {
+  async function report(value: number, daysAgo: number, opts: { author?: number; brand?: string; name?: string; unit?: string; measured?: number; network?: string } = {}) {
     const n = ++seq;
     const p = await posts.createPost({
       categorySlug: "supplements", nickname: "작성자", pin: "1234",
       title: `${opts.brand ?? "NOW"} 마그네슘 라벨 ${n}`, body: "라벨에 적힌 성분 함량을 정리했습니다.",
       summary: { lines: ["하나", "둘", "셋"], model: "author", isAuthorEdited: true },
       fingerprint: fp(opts.author ?? n),
+      network: opts.network,
       products: [{ brand: opts.brand ?? "NOW", name: opts.name ?? "Magnesium Citrate" }],
       facts: [
         { product: 0, attribute: "마그네슘", value, unit: opts.unit ?? "mg", basis: "1정", kind: "label" as const },
@@ -154,6 +155,21 @@ d("product renewals (database)", async () => {
     expect(g!.eras!.map((e) => e.value)).toEqual([200, 150]);
     expect(g!.entries.filter((e) => e.old)).toHaveLength(3); // 옛 시기 표시값 2 + 실측 1
     expect(g!.diff_pct).toBeCloseTo(((140 - 150) / 150) * 100);
+  });
+
+  it("counts posts from the same network as one person — switching browsers does not make a renewal (Sprint 29)", async () => {
+    await report(200, 90, { network: "aaaaaaaaaaaaaaaa" });
+    await report(200, 80, { network: "bbbbbbbbbbbbbbbb" });
+    // 같은 망에서 식별값(브라우저)만 바꿔 두 번 → 한 사람
+    await report(150, 20, { network: "cccccccccccccccc" });
+    await report(150, 10, { network: "cccccccccccccccc" });
+    const [g] = await products.productFacts(await productId());
+    expect(g).toMatchObject({ eras: null, pending: { from: 200, to: 150, n: 2, authors: 1, needed: 1 } });
+    await refresh();
+    expect(await stored()).toMatchObject([{ status: "pending", new_authors: 1 }]);
+    // 다른 망의 사람이 확인하면 리뉴얼
+    await report(150, 5, { network: "dddddddddddddddd" });
+    expect((await products.productFacts(await productId()))[0]!.eras!.map((e) => e.value)).toEqual([200, 150]);
   });
 
   it("keeps the old behaviour (median of all) when there is no renewal", async () => {

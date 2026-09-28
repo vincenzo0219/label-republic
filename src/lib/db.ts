@@ -20,6 +20,9 @@ export function isConnectionError(err: unknown): boolean {
   if (e.code && /^(ECONNREFUSED|ECONNRESET|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|ENOTFOUND|EAI_AGAIN|EPIPE)$/.test(e.code)) return true;
   // 08xxx connection_exception, 57P01~03 admin_shutdown / crash_shutdown / cannot_connect_now
   if (e.code && /^(08\d{3}|08P01|57P0[123])$/.test(e.code)) return true;
+  // 메시지로 판단하는 것은 코드가 없는 오류(pg 드라이버가 낸 것)만 — Postgres 오류 메시지에 이용자 입력이 섞여
+  // "Connection terminated" 같은 말로 읽기 전용 모드를 켜지 못하게 (Sprint 29)
+  if (e.code) return false;
   return /Connection terminated|timeout exceeded when trying to connect|Client has encountered a connection error|connect ECONNREFUSED/i.test(e.message ?? "");
 }
 

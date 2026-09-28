@@ -3,6 +3,7 @@
  * 모든 조치는 moderation_log 에 남아 /transparency 에 공개된다.
  * 임시조치된 글은 자동 블라인드와 같은 경로(is_blinded)로 숨겨져 피드·검색·투표·댓글에서 빠진다.
  */
+import { deleteSnapshot } from "../snapshots";
 import { query, tx } from "../db";
 import { HttpError, notFound } from "../errors";
 import { getRule } from "./rules";
@@ -32,6 +33,8 @@ export async function applyLegalHold(postId: string, reason: LegalReason, note: 
     );
     await client.query("INSERT INTO moderation_log (action, post_id, subject_id, reason, note) VALUES ('legal_hold', $1, $4, $2, $3)", [postId, reason, note, postId]);
   });
+  // 임시조치한 글은 읽기 전용 모드 저장본에서도 바로 지운다 (Sprint 29)
+  await deleteSnapshot(`/posts/${postId}`);
 }
 
 /** 임시조치 해제. 신고 누적 블라인드 조건을 여전히 만족하면 블라인드는 유지한다. */

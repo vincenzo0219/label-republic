@@ -1,5 +1,5 @@
 import { HttpError, tooMany } from "@/lib/errors";
-import { fingerprint } from "@/lib/fingerprint";
+import { fingerprint, networkHash } from "@/lib/fingerprint";
 import { json, route } from "@/lib/http";
 import { MAX_UPLOAD_BYTES } from "@/lib/images/process";
 import { hit } from "@/lib/rate-limit";
@@ -41,6 +41,8 @@ export const POST = route(async (req) => {
   const fp = fingerprint(req.headers);
   // 글 작성(10분 10건)·이미지(글당 6장)에 맞춘 여유 있는 한도
   if (!(await hit(`upload:${fp}`, 40, 60 * 60 * 1000))) throw tooMany();
+  // 망 단위 한도 (User-Agent 만 바꿔 식별값을 늘리는 우회 방지, Sprint 29)
+  if (!(await hit(`upload-net:${networkHash(req.headers)}`, 120, 60 * 60 * 1000))) throw tooMany();
   const body = await readCapped(req, MAX_UPLOAD_BYTES);
   return json(await saveUpload(body, fp), 201);
 });

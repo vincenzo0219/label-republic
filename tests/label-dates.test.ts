@@ -40,6 +40,7 @@ describe("label date parsing", () => {
     expect(labelDatesProblem(d("2027-03"), null, now)).toMatch(/제조일자가 미래/);
     expect(labelDatesProblem(d("2026-03"), d("2026-01"), now)).toMatch(/유통기한이 제조일자보다 빨라요/);
     expect(labelDatesProblem(null, d("2045-01"), now)).toMatch(/15년/);
+    expect(labelDatesProblem(d("2014-01"), null, now)).toMatch(/10년보다 오래됐어요/); // Sprint 29
     expect(readLabelDates("", "", now)).toEqual({ made: null, expires: null });
     expect(readLabelDates("2026-03", "abc", now)).toEqual({ problem: expect.stringMatching(/유통기한을 읽을 수 없어요/) });
   });
@@ -58,6 +59,18 @@ describe("production time estimate", () => {
     expect(Math.abs(t[2]!.at - at("2026-05-01"))).toBeLessThan(2 * DAY);
     // 간격: 5개월(1월→6월), 5개월(2월→7월), 약 3개월(5월→8월) → 중앙값 5개월
     expect(Math.abs(t[3]!.at - (at("2026-09-01") - (at("2026-07-01") - at("2026-02-01"))))).toBeLessThan(2 * DAY);
+  });
+
+  it("never places a product after its post and keeps the shelf-life estimate near the board default (Sprint 29)", () => {
+    // 먼 유통기한 하나로 "가장 새 라벨"이 되지 않게: 추정 제조 시각은 글 올린 시각을 넘지 않는다
+    const far = productionTimes([{ post_at: at("2026-06-01"), expires: at("2041-06-01") }], 24);
+    expect(far[0]!.at).toBe(at("2026-06-01"));
+    // 몇 글의 이상한 두 날짜(14년 차이)가 다른 글의 유통기한 추정을 끌고 가지 않게: 보드 기본값의 두 배까지만
+    const skew = productionTimes([
+      { post_at: at("2026-06-01"), made: at("2016-07-01"), expires: at("2030-07-01") },
+      { post_at: at("2026-06-01"), expires: at("2028-06-01") },
+    ], 24);
+    expect(Math.abs(skew[1]!.at - (at("2028-06-01") - 48 * 30.44 * DAY))).toBeLessThan(2 * DAY);
   });
 
   it("falls back to the board's usual shelf life and to posting time when nothing is dated", () => {

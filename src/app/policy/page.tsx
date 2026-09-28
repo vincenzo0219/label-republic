@@ -88,7 +88,7 @@ export default async function PolicyPage() {
       <h2>제품 리뉴얼(라벨 변경)</h2>
       <ul>
         <li>
-          같은 제품·항목의 표시값을 제품이 만들어진 순서(글에 적힌 제조일자, 없으면 유통기한으로 추정, 날짜가 없는 글은 올린 시기로 추정)로 보고, 값이 바뀐 뒤 서로 다른 <b>{formatRule("renewal_min_reports", rules.renewal_min_reports)}명</b> 이상이 같은 새 값을 올리면
+          같은 제품·항목의 표시값을 제품이 만들어진 순서(글에 적힌 제조일자, 없으면 유통기한으로 추정, 날짜가 없는 글은 올린 시기로 추정)로 보고, 값이 바뀐 뒤 서로 다른 <b>{formatRule("renewal_min_reports", rules.renewal_min_reports)}명</b>(같은 접속 망에서 쓴 글은 한 명으로 셉니다) 이상이 같은 새 값을 올리면
           &ldquo;리뉴얼&rdquo;로 봅니다. 그 뒤로 제품 페이지·비교·성분 검색은 바뀐 뒤 글의 값을 쓰고, 바뀌기 전 글의 값은 &ldquo;리뉴얼 전&rdquo;으로 남깁니다.
         </li>
         <li>

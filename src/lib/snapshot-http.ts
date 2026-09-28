@@ -3,7 +3,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { securityHeaders } from "./security-headers";
-import { loadSnapshot, outagePage, saveSnapshot, snapshotSavedAt, withReadOnlyNotice } from "./snapshots";
+import { deleteSnapshot, loadSnapshot, outagePage, saveSnapshot, snapshotSavedAt, withReadOnlyNotice } from "./snapshots";
 
 /** 페이지 이동 요청인가 (HTML). Next 의 클라이언트 이동(RSC)·프리페치는 아니다 */
 export function isHtmlNavigation(req: IncomingMessage): boolean {
@@ -76,7 +76,11 @@ export function captureSnapshot(res: ServerResponse, key: string, onSaved?: (ok:
           onSaved?.(false);
         },
       );
-    } else onSaved?.(false);
+    } else {
+      // 다시 받아 보니 없는 페이지(삭제된 글 등) → 옛 저장본을 지운다 (Sprint 29)
+      if (res.statusCode === 404 || res.statusCode === 410) void deleteSnapshot(key);
+      onSaved?.(false);
+    }
     return r;
   }) as ServerResponse["end"];
 }

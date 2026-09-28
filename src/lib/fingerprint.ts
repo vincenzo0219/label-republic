@@ -3,6 +3,13 @@ import { config } from "./config";
 
 /** server.ts가 소켓 주소로 덮어쓰는 헤더 — 클라이언트가 위조할 수 없다. */
 export const CLIENT_IP_HEADER = "x-labelrep-client-ip";
+/**
+ * 서명을 확인한 내부 수집기(읽기 전용 저장본, Sprint 27) 요청에만 server.ts 가 붙이는 헤더 — 들어온 값은 늘 지운다.
+ * 이 요청의 식별값은 어떤 이용자 요청도 가질 수 없는 고정값이라, 누가 수집기와 같은 IP·User-Agent 로 추천·참석해도
+ * 저장본(모두에게 보이는 화면)에 "내 추천"으로 나오지 않는다 (Sprint 29 보안 재점검).
+ */
+export const CRAWLER_HEADER = "x-labelrep-crawler";
+export const CRAWLER_FINGERPRINT = "0".repeat(64);
 
 /**
  * 클라이언트 IP. TRUST_PROXY=true 이면 X-Forwarded-For 를 쓰되, **맨 앞이 아니라 오른쪽에서 TRUST_PROXY_HOPS 번째** 값을 쓴다.
@@ -27,6 +34,7 @@ export function clientIp(headers: Headers): string {
  * 원본 IP는 저장하지 않는다. 쿠키 기반이 아니므로 쿠키 삭제로 재투표할 수 없다.
  */
 export function fingerprint(headers: Headers): string {
+  if (headers.get(CRAWLER_HEADER) === "1") return CRAWLER_FINGERPRINT;
   const ua = headers.get("user-agent") ?? "";
   return createHmac("sha256", config.appSecret).update(`${clientIp(headers)}|${ua}`).digest("hex");
 }

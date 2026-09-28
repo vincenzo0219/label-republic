@@ -6,7 +6,9 @@ import type { PostCard } from "./types";
 export function xmlEscape(s: string): string {
   return s.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c]!)
     // XML 1.0에서 허용되지 않는 제어 문자 제거
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "")
+    // 짝이 없는 서로게이트도 XML 에서 허용되지 않는다 — 제품명 하나로 피드 전체가 깨지지 않게 (Sprint 29)
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
 }
 
 export function buildAtom(opts: {

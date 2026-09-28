@@ -118,7 +118,7 @@ export async function scanAbuse(client: PoolClient, now = new Date()): Promise<A
       severity: r.flips ? "serious" : "warning",
       detail: {
         rule: r.key, from: r.from, to: r.to, flagged: r.flagged, flaggedYes: r.flaggedYes, flaggedNo: r.flaggedNo,
-        freshEligible: r.fresh, sameNetwork: r.sameNet, flipsOutcome: r.flips, windowStart: r.windowStart,
+        freshEligible: r.fresh, sameNetwork: r.sameNet, flipsOutcome: r.flips, windowStart: r.windowStart, latestAt: r.latestAt,
       },
     });
   }
@@ -142,9 +142,10 @@ export async function scanAbuse(client: PoolClient, now = new Date()): Promise<A
   return alerts;
 }
 
-// 새 집중의 시작 시각(대량 신고자는 최근 1시간 창의 시작)이 처리 시각보다 뒤인가
+// 새 집중의 시작 시각(대량 신고자는 최근 1시간 창의 시작)이 처리 시각보다 뒤인가.
+// 규칙 투표 조작(rule_vote_ring)은 가장 최근 의심 표로 본다 — 작은 의심을 오탐으로 닫게 한 뒤 몰표를 넣어도 다시 열리게 (Sprint 29)
 const REOPEN = `(abuse_alerts.status <> 'open' AND abuse_alerts.resolved_at IS NOT NULL
-  AND coalesce((EXCLUDED.detail->>'windowStart')::timestamptz, EXCLUDED.last_seen - interval '1 hour') > abuse_alerts.resolved_at)`;
+  AND coalesce((EXCLUDED.detail->>'latestAt')::timestamptz, (EXCLUDED.detail->>'windowStart')::timestamptz, EXCLUDED.last_seen - interval '1 hour') > abuse_alerts.resolved_at)`;
 
 export type MaintenanceResult = {
   ran: boolean;
@@ -180,6 +181,13 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       await client.query(
         `UPDATE rule_votes SET net_hash = NULL WHERE net_hash IS NOT NULL
             AND proposal_id IN (SELECT id FROM rule_proposals WHERE status <> 'open' AND closed_at < $1::timestamptz - interval '30 days')`,
+        [now.toISOString()],
+      );
+      // 글의 망 대역 변환값(Sprint 29)은 리뉴얼 판단에만 쓰므로, 표시값(라벨) 수치가 없는 글은 30일 뒤 지운다
+      await client.query(
+        `UPDATE posts p SET author_net = NULL
+          WHERE p.author_net IS NOT NULL AND p.created_at < $1::timestamptz - interval '30 days'
+            AND NOT EXISTS (SELECT 1 FROM product_facts f WHERE f.post_id = p.id AND f.kind = 'label')`,
         [now.toISOString()],
       );
       // 개인 식별 가능성을 줄이기 위해 원본 조회 기록은 400일, 알림은 90일만 보관

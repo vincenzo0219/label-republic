@@ -194,6 +194,9 @@ d("label reading with Claude (mock API) and fact evidence (database)", async () 
     reply = { ...message(READ), content: [{ type: "text", text: "not json" }] };
     expect((await read({ imageId: img.id, token: img.token, category: "supplements" })).status).toBe(422);
 
+    // 실패한 호출도 비용이므로 한도에 센다 (Sprint 29) — 여기서부터 새로 세기
+    expect(await query("SELECT count FROM rate_limits WHERE key = 'label-read:day'")).toEqual([{ count: 2 }]);
+    await query("DELETE FROM rate_limits WHERE key = 'label-read:day'");
     // 하루 한도 (테스트는 3)
     reply = message(READ);
     for (let i = 0; i < 3; i++) {
@@ -208,6 +211,32 @@ d("label reading with Claude (mock API) and fact evidence (database)", async () 
     await query("DELETE FROM label_reads");
     await newPost([{ id: img.id, token: img.token }], []);
     expect((await read({ imageId: img.id, token: img.token, category: "supplements" })).status).toBe(409);
+  });
+
+  it("counts every Claude call against the daily cap, even re-reading one photo under other boards (Sprint 29)", async () => {
+    const img = await upload();
+    // 예전에는 같은 사진을 보드만 바꿔 읽으면 label_reads 행이 덮어써져 한도에 잡히지 않았다
+    for (const category of ["supplements", "keyboards", "supplements"]) {
+      expect((await read({ imageId: img.id, token: img.token, category })).status).toBe(200);
+    }
+    const over = await read({ imageId: img.id, token: img.token, category: "keyboards" });
+    expect(over.status).toBe(503);
+    expect(calls).toHaveLength(3);
+    // 동시 요청도 한도를 넘지 않는다
+    await query("DELETE FROM rate_limits WHERE key = 'label-read:day'");
+    const ups = await Promise.all(Array.from({ length: 6 }, () => upload()));
+    const statuses = await Promise.all(ups.map((u, i) => read({ imageId: u.id, token: u.token, category: "supplements" }, `par${i}`).then((r) => r.status)));
+    expect(statuses.filter((s) => s === 200)).toHaveLength(3);
+    expect(statuses.filter((s) => s === 503)).toHaveLength(3);
+  });
+
+  it("limits reads per network, not only per browser identity (Sprint 29)", async () => {
+    const img = await upload();
+    // 브라우저(User-Agent)를 바꿔 가며 보내도 같은 망이면 하루 40번까지
+    const statuses: number[] = [];
+    for (let i = 0; i < 41; i++) statuses.push((await read({ imageId: img.id, token: "x".repeat(32), category: "supplements" }, `ua-${i}`)).status);
+    expect(statuses.slice(0, 40).every((s) => s === 403)).toBe(true);
+    expect(statuses[40]).toBe(429);
   });
 
   it("records each fact's photo and whether it is exactly what was read", async () => {

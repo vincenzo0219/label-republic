@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isConnectionError } from "./db";
+import { dbDown, isConnectionError } from "./db";
 import { HttpError } from "./errors";
 import { reportError } from "./error-tracking";
 import { firstIssue } from "./validation";
@@ -37,7 +37,8 @@ export function route<P = Record<string, never>>(fn: (req: Request, params: P) =
     } catch (err) {
       if (err instanceof HttpError) return json({ error: { code: err.code, message: err.message } }, err.status);
       // DB 장애 (Sprint 27): 서버 오류로 기록하지 않고 "잠시 읽기만 가능"으로 안내한다 — 글쓰기 화면은 임시저장(Sprint 19)이 남아 있어 다시 보내면 된다
-      if (isConnectionError(err)) {
+      // (DB 가 아닌 곳 — 예: 이미지 저장소 — 의 연결 거부는 그대로 서버 오류로)
+      if (isConnectionError(err) && dbDown()) {
         return NextResponse.json(
           { error: { code: "db_unavailable", message: DB_UNAVAILABLE_MESSAGE } },
           { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "30" } },

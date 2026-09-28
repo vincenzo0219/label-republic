@@ -87,5 +87,6 @@ export async function pruneRateLimits(): Promise<number> {
 
 export async function resetRateLimits(): Promise<void> {
   buckets.clear();
-  if (backend() === "postgres") await query("TRUNCATE rate_limits");
+  // 라벨 읽기 하루 한도(src/lib/repo/label-reads.ts reserveLabelRead)는 백엔드와 상관없이 DB 에 센다
+  await query("TRUNCATE rate_limits");
 }

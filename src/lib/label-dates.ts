@@ -16,6 +16,8 @@ const DAY = 86_400_000;
 /** 제조일자는 미래일 수 없다 (시차·표기 여유 한 달) */
 const MADE_FUTURE_DAYS = 31;
 const MAX_YEARS = 15;
+/** 이보다 오래된 제조일자는 받지 않는다 (Sprint 29 — 아주 옛 날짜로 유통기한 길이 추정을 흔드는 것 방지) */
+const MADE_MAX_AGE_YEARS = 10;
 const MIN_YEAR = 2000;
 
 /** 보드별 흔한 유통기한 길이(개월) — 제품에 두 날짜를 다 적은 글이 없을 때만 쓴다 */
@@ -68,6 +70,7 @@ export function formatLabelDate(d: LabelDate): string {
 /** 제조일자·유통기한 검사 — 문제가 있으면 이유 */
 export function labelDatesProblem(made: LabelDate | null, expires: LabelDate | null, now = Date.now()): string | null {
   if (made && labelDateMs(made) > now + MADE_FUTURE_DAYS * DAY) return "제조일자가 미래예요. 유통기한을 제조일자 칸에 적지 않았는지 확인해주세요.";
+  if (made && labelDateMs(made) < now - MADE_MAX_AGE_YEARS * 365 * DAY) return `제조일자가 ${MADE_MAX_AGE_YEARS}년보다 오래됐어요. 날짜를 확인해주세요.`;
   if (expires && labelDateMs(expires) > now + MAX_YEARS * 365 * DAY) return `유통기한이 ${MAX_YEARS}년보다 멀어요. 날짜를 확인해주세요.`;
   if (made && expires) {
     const a = labelDateMs(made);
@@ -103,7 +106,9 @@ export type DatedReport = { post_at: number; made?: number | null; expires?: num
  */
 export function productionTimes(reports: DatedReport[], shelfMonths = FALLBACK_SHELF_MONTHS): { at: number; basis: TimeBasis }[] {
   const both = reports.filter((r) => r.made != null && r.expires != null).map((r) => r.expires! - r.made!);
-  const shelf = both.length ? median(both) : shelfMonths * 30.44 * DAY;
+  // 제품별 유통기한 길이는 보드 기본값의 절반~두 배 안으로 (몇 글의 이상한 날짜가 다른 글의 추정을 크게 흔들지 않게, Sprint 29)
+  const base = shelfMonths * 30.44 * DAY;
+  const shelf = both.length ? Math.min(base * 2, Math.max(base / 2, median(both))) : base;
   const made = (r: DatedReport): number | null => (r.made != null ? r.made : r.expires != null ? r.expires - shelf : null);
   // 제조 → 글 간격: 날짜를 적은 글들로. 음수(미래 제조일 추정)는 0으로
   const lags = reports.flatMap((r) => {
@@ -111,11 +116,12 @@ export function productionTimes(reports: DatedReport[], shelfMonths = FALLBACK_S
     return m === null ? [] : [Math.max(0, r.post_at - m)];
   });
   const lag = lags.length ? median(lags) : 0;
+  // 제품은 글보다 먼저 만들어졌다 — 추정이 글 올린 시각보다 늦으면 글 시각으로 (먼 유통기한 하나로 "가장 새 라벨"이 되지 않게)
   return reports.map((r) =>
     r.made != null
-      ? { at: r.made, basis: "made" as const }
+      ? { at: Math.min(r.made, r.post_at), basis: "made" as const }
       : r.expires != null
-        ? { at: r.expires - shelf, basis: "expires" as const }
+        ? { at: Math.min(r.expires - shelf, r.post_at), basis: "expires" as const }
         : { at: r.post_at - lag, basis: "posted" as const },
   );
 }

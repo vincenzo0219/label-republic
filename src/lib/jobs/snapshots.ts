@@ -9,7 +9,9 @@
 import { config } from "../config";
 import { dbDown, query } from "../db";
 import { reportError } from "../error-tracking";
-import { pruneSnapshots, SNAPSHOT_HEADER, SNAPSHOT_UA, snapshotKey, snapshotSavedAt, snapshotToken } from "../snapshots";
+import {
+  baseKey, listSnapshotKeys, MAX_SNAPSHOT_FILES, pruneSnapshots, SNAPSHOT_HEADER, SNAPSHOT_UA, snapshotKey, snapshotSavedAt, snapshotStats, snapshotToken,
+} from "../snapshots";
 
 const STATIC_PAGES = ["/", "/rules", "/policy", "/terms", "/privacy", "/transparency", "/renewals"];
 /** 이보다 오래 안 바뀐 저장본은 지운다 */
@@ -65,7 +67,8 @@ export type SnapshotRunResult = { ran: boolean; fetched: number; skipped: number
 export async function refreshSnapshots(opts: { freshMs?: number; port?: number } = {}): Promise<SnapshotRunResult> {
   if (dbDown()) return { ran: false, fetched: 0, skipped: 0, failed: 0, removed: 0 };
   const freshMs = opts.freshMs ?? (config.snapshotIntervalSec * 1000) / 2;
-  const targets = await snapshotTargets();
+  // 이미 가진 저장본도 다시 받는다 — 그 사이 지워진 글(404 → 저장본 삭제)·블라인드된 글(가린 화면으로 바뀜)을 반영 (Sprint 29)
+  const targets = [...new Set([...(await snapshotTargets()), ...(await listSnapshotKeys())])];
   let fetched = 0; // 200 을 받은 수 (저장은 server.ts 가 응답을 보내며 한다)
   let skipped = 0;
   let failed = 0;
@@ -93,8 +96,17 @@ const queue: string[] = [];
 const queued = new Set<string>();
 let draining = false;
 
-export function requestSnapshot(key: string): void {
+let fileCount = { at: 0, n: 0 };
+
+export function requestSnapshot(rawKey: string): void {
+  // 이용자 요청으로는 조건 없는 주소만 (임의 조건으로 저장본을 무한히 늘리지 못하게) + 파일 수 상한 (Sprint 29)
+  const key = baseKey(rawKey);
   if (config.snapshotIntervalSec <= 0 || queued.has(key) || queue.length >= 200) return;
+  if (Date.now() - fileCount.at > 60_000) {
+    fileCount = { at: Date.now(), n: fileCount.n };
+    void snapshotStats().then((s) => (fileCount = { at: Date.now(), n: s.count })).catch(() => {});
+  }
+  if (fileCount.n >= MAX_SNAPSHOT_FILES) return;
   queued.add(key);
   queue.push(key);
   if (!draining) void drain();
