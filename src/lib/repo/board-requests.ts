@@ -4,6 +4,7 @@ import { config } from "../config";
 import { HttpError, notFound } from "../errors";
 import { slugify } from "../slug";
 import type { BoardRequest } from "../types";
+import { getRule } from "./rules";
 
 const SELECT = `
   SELECT r.id, r.requested_name, r.description, r.vote_count, r.status, r.created_at, r.merged_into,
@@ -90,10 +91,12 @@ export async function promoteIfEligible(
 export async function voteBoardRequest(
   id: string,
   fp: string,
-  threshold = config.boardPromotionThreshold,
+  thresholdOverride?: number,
   minAgeHours = config.boardPromotionMinAgeHours,
 ): Promise<BoardVoteResult> {
   if (!/^\d{1,18}$/.test(id)) throw notFound("보드 요청");
+  // 필요한 표 수는 커뮤니티 규칙 (투표로 바뀔 수 있음, Sprint 21)
+  const threshold = thresholdOverride ?? (await getRule("board_promotion_votes"));
   const outcome = await tx(async (client) => {
     const req = await client.query<{ status: string }>("SELECT status FROM board_requests WHERE id = $1 FOR UPDATE", [id]);
     if (!req.rows[0]) throw notFound("보드 요청");
@@ -117,10 +120,11 @@ export async function voteBoardRequest(
 
 /** 표는 찼지만 최소 대기 시간 때문에 보류된 요청들을 승격한다 (유지보수 배치에서 호출) */
 export async function promotePendingBoardRequests(
-  threshold = config.boardPromotionThreshold,
+  thresholdOverride?: number,
   minAgeHours = config.boardPromotionMinAgeHours,
   now = new Date(),
 ): Promise<{ id: string; outcome: PromotionOutcome }[]> {
+  const threshold = thresholdOverride ?? (await getRule("board_promotion_votes"));
   const pending = await query<{ id: string }>(
     "SELECT id FROM board_requests WHERE status = 'open' AND vote_count >= $1 ORDER BY id",
     [threshold],

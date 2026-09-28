@@ -11,6 +11,7 @@ import {
   voidAlert,
   type BoardRejectReason,
 } from "@/lib/repo/operator";
+import { hideProposalReason } from "@/lib/repo/rules";
 
 // /api/admin/* 는 server.ts 에서 ADMIN_PASSWORD Basic 인증을 통과해야만 도달한다.
 const id = z.string().regex(/^\d{1,18}$/, "번호를 확인하세요.");
@@ -30,6 +31,8 @@ const schema = z.discriminatedUnion("action", [
   }),
   z.object({ action: z.literal("merge_board_request"), requestId: id, intoId: id, note }),
   z.object({ action: z.literal("merge_product"), productId: id, intoId: id, note }),
+  // 규칙 변경 제안 사유에 권리침해가 있을 때 사유만 가린다 (제안·투표는 그대로) — Sprint 21
+  z.object({ action: z.literal("hide_rule_reason"), proposalId: id, note: z.string().trim().min(1, "가리는 이유를 적어주세요.").max(300) }),
 ]);
 
 /** POST /api/admin/moderation — 운영자 조치 (알림 오탐 닫기 외에는 모두 /transparency 에 공개) */
@@ -54,5 +57,8 @@ export const POST = route(async (req) => {
       return json({ ok: true, ...(await mergeBoardRequest(input.requestId, input.intoId, input.note)) });
     case "merge_product":
       return json({ ok: true, ...(await mergeProduct(input.productId, input.intoId, input.note)) });
+    case "hide_rule_reason":
+      await hideProposalReason(input.proposalId, input.note);
+      return json({ ok: true });
   }
 });

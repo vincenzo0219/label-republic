@@ -4,12 +4,9 @@
  * 방장이 판정하지 않는다. 동의·반대 가중치로 "동의된 제안"을 자동으로 정하고, 그 효과도 자동 규칙이다.
  */
 
-/** 동의 가중치 합이 이 이상이고 */
-export const SUPPORT_MIN_SCORE = 3;
-/** 반대 가중치의 이 배수 이상이면 "동의된 정정 제안" */
-export const SUPPORT_RATIO = 2;
-/** 고유 신고 이만큼이면 제안을 가린다 (글 자동 블라인드와 같은 기준) */
-export const CORRECTION_HIDE_REPORTS = 5;
+import { RULES } from "./rules";
+
+// "동의된 제안"·가림 기준값은 커뮤니티 규칙(Sprint 21, src/lib/rules.ts)으로 옮겼다 — 투표로 바뀔 수 있다
 /** 한 사람이 한 글에 동시에 열어 둘 수 있는 제안 수 */
 export const MAX_OPEN_PER_AUTHOR = 3;
 /** 한 글에 열려 있을 수 있는 제안 수 */
@@ -26,8 +23,14 @@ export const STATUS_LABEL: Record<CorrectionStatus, string> = {
   withdrawn: "철회됨",
 };
 
-export function isSupported(agreeScore: number, disagreeScore: number): boolean {
-  return agreeScore >= SUPPORT_MIN_SCORE && agreeScore >= disagreeScore * SUPPORT_RATIO;
+/** 동의 가중치 합이 minScore 이상이고 반대의 ratio 배 이상이면 "동의된 정정 제안" */
+export function isSupported(
+  agreeScore: number,
+  disagreeScore: number,
+  minScore = RULES.correction_support_score.defaultValue,
+  ratio = RULES.correction_support_ratio.defaultValue,
+): boolean {
+  return agreeScore >= minScore && agreeScore >= disagreeScore * ratio;
 }
 
 /** 인용이 본문에 있는지 비교할 때: 공백을 하나로, 앞뒤 공백 제거 */

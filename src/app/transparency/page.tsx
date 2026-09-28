@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LEGAL_REASONS, moderationLog, transparencyStats, type ModerationLogRow } from "@/lib/repo/legal";
+import { ruleChanges } from "@/lib/repo/rules";
+import { formatRule, RULES } from "@/lib/rules";
 import { BOARD_REJECT_REASONS, MOD_ACTIONS } from "@/lib/repo/operator";
 
 export const dynamic = "force-dynamic";
@@ -23,11 +25,12 @@ function subjectLabel(r: ModerationLogRow) {
   if (r.subject_type === "post") return `글 #${r.subject_id}`;
   if (r.subject_type === "board_request") return `보드 요청 #${r.subject_id}`;
   if (r.subject_type === "product") return <Link href={`/p/${r.subject_id}`}>제품 #{r.subject_id}</Link>;
+  if (r.subject_type === "rule_proposal") return <Link href={`/rules#proposal-${r.subject_id}`}>규칙 제안 #{r.subject_id}</Link>;
   return "신고자 1명";
 }
 
 export default async function TransparencyPage() {
-  const [stats, log] = await Promise.all([transparencyStats(), moderationLog(100)]);
+  const [stats, log, changes] = await Promise.all([transparencyStats(), moderationLog(100), ruleChanges(50)]);
   return (
     <article className="legal">
       <h1>투명성 기록</h1>
@@ -63,6 +66,23 @@ export default async function TransparencyPage() {
         </tbody>
       </table>
       </div>
+
+      <h2>커뮤니티 결정 (규칙 투표)</h2>
+      {changes.length === 0 ? (
+        <p className="hint">
+          아직 투표로 바뀐 규칙이 없습니다. 자동 규칙의 기준값은 <Link href="/rules">커뮤니티 규칙</Link> 투표로만 바뀝니다.
+        </p>
+      ) : (
+        <ul>
+          {changes.map((c) => (
+            <li key={c.id}>
+              {new Date(c.created_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })} · {RULES[c.rule_key].label} {formatRule(c.rule_key, c.from_value)} →{" "}
+              {formatRule(c.rule_key, c.to_value)}
+              {RULES[c.rule_key].unit} (<Link href={`/rules#proposal-${c.proposal_id}`}>제안 #{c.proposal_id}</Link>)
+            </li>
+          ))}
+        </ul>
+      )}
 
       <h2>운영자 조치 기록</h2>
       {log.length === 0 ? (

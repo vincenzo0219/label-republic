@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RULE_KEYS } from "./rules";
 import { PIN_PATTERN } from "./password";
 
 const trimmed = (min: number, max: number, label: string) =>
@@ -171,3 +172,14 @@ export const correctionRespondSchema = z.object({
   action: z.enum(["applied", "answered"]),
   note: z.string().trim().max(300, "답변은 300자까지 쓸 수 있습니다.").default(""),
 });
+
+/** 커뮤니티 규칙 변경 제안 (Sprint 21) */
+export const ruleProposalSchema = z.object({
+  key: z.enum(RULE_KEYS, { error: "바꿀 규칙을 골라주세요." }),
+  value: z.number({ error: "새 값을 숫자로 입력해주세요." }).finite(),
+  reason: trimmed(20, 1000, "제안 이유"),
+  nickname,
+  pw: pin,
+});
+
+export const ruleVoteSchema = z.object({ value: z.union([z.literal(1), z.literal(-1), z.literal(0)], { error: "찬성·반대를 골라주세요." }) });

@@ -3,6 +3,7 @@ import { pool } from "../db";
 import { promotePendingBoardRequests } from "../repo/board-requests";
 import { sweepOrphanImages } from "../repo/images";
 import { expireMeetups } from "../repo/meetups";
+import { closeDueProposals } from "../repo/rules";
 import { reportError } from "../error-tracking";
 
 const MAINTENANCE_LOCK_KEY = 4_823_003;
@@ -135,6 +136,7 @@ export type MaintenanceResult = {
   promoted: string[];
   pruned: { pageViews: number; alerts: number; orphanImages: number };
   expiredMeetups: number;
+  rulesClosed?: number;
 };
 
 /**
@@ -153,6 +155,8 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       const promotions = await promotePendingBoardRequests(undefined, undefined, now);
       const promoted = promotions.filter((p) => p.outcome === "promoted").map((p) => p.id);
       const expiredMeetups = await expireMeetups(client, now);
+      // 커뮤니티 규칙 투표 마감 → 가결이면 규칙 값 변경 (Sprint 21)
+      const closedRules = await closeDueProposals(now);
       // 개인 식별 가능성을 줄이기 위해 원본 조회 기록은 400일, 알림은 90일만 보관
       const pv = await client.query("DELETE FROM page_views WHERE occurred_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       const al = await client.query("DELETE FROM abuse_alerts WHERE last_seen < $1::timestamptz - interval '90 days'", [now.toISOString()]);
@@ -175,6 +179,7 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
         promoted,
         pruned: { pageViews: pv.rowCount ?? 0, alerts: al.rowCount ?? 0, orphanImages },
         expiredMeetups,
+        rulesClosed: closedRules.length,
       };
       await client.query("UPDATE maintenance_runs SET finished_at = now(), detail = $2 WHERE id = $1", [runId, JSON.stringify(result)]);
       return result;

@@ -1,4 +1,5 @@
 import { config } from "@/lib/config";
+import { getRule } from "@/lib/repo/rules";
 import { json, parseBody, route } from "@/lib/http";
 import { tooMany } from "@/lib/errors";
 import { fingerprint } from "@/lib/fingerprint";
@@ -7,7 +8,7 @@ import { createBoardRequest, listBoardRequests } from "@/lib/repo/board-requests
 import { boardRequestSchema } from "@/lib/validation";
 
 export const GET = route(async () =>
-  json({ requests: await listBoardRequests(), threshold: config.boardPromotionThreshold }),
+  json({ requests: await listBoardRequests(), threshold: await getRule("board_promotion_votes") }),
 );
 
 /** POST /api/board-requests {name, description} — 신규 보드 개설 요청 */

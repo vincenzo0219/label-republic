@@ -176,7 +176,4 @@ export const config = {
 };
 
 /** 도메인 상수 */
-export const BLIND_REPORT_THRESHOLD = 5; // db/migrations/003 트리거와 동일해야 함 (고유 신고자 수 & 가중치 합)
-export const SUPPRESS_SPAM_SCORE = 0.8;
-export const TRUST_MIN_VOTES = 3;
 export const PAGE_SIZE = 20;

@@ -6,10 +6,10 @@ import { isUniqueViolation, query, tx } from "../db";
 import { HttpError, blinded, notFound } from "../errors";
 import { hashPin } from "../password";
 import { heuristicSpam, shouldSuppress } from "../moderation";
+import { getRule, getRules } from "./rules";
 import { formatValue } from "../products";
 import { normalizeSourceUrl, type SourceKind } from "../sources";
 import {
-  CORRECTION_HIDE_REPORTS,
   isSupported,
   MAX_OPEN_PER_AUTHOR,
   MAX_OPEN_PER_POST,
@@ -93,7 +93,7 @@ function bad(message: string) {
 export async function createCorrection(postId: string, input: CreateCorrectionInput): Promise<Correction> {
   if (!ID.test(postId)) throw notFound();
   // 정정 제안을 광고 통로로 쓰지 못하게 글과 같은 규칙 기반 검사
-  if (shouldSuppress(heuristicSpam(input.proposal, `${input.reason}\n${input.quote ?? ""}`))) {
+  if (shouldSuppress(heuristicSpam(input.proposal, `${input.reason}\n${input.quote ?? ""}`), await getRule("spam_suppress_score"))) {
     throw bad("광고·스팸으로 보이는 내용은 정정 제안으로 올릴 수 없습니다.");
   }
   let source: { url: string; host: string; kind: SourceKind } | null = null;
@@ -209,7 +209,8 @@ async function voteOnce(id: string, fp: string, value: 1 | -1): Promise<Correcti
       [id],
     );
     const a = agg[0]!;
-    const supported = isSupported(a.agree_score, a.disagree_score);
+    const rules = await getRules();
+    const supported = isSupported(a.agree_score, a.disagree_score, rules.correction_support_score, rules.correction_support_ratio);
     await client.query(
       `UPDATE corrections SET agree_count = $2, disagree_count = $3, agree_score = $4, disagree_score = $5, is_supported = $6,
               supported_at = CASE WHEN NOT $6 THEN NULL WHEN is_supported THEN supported_at ELSE now() END
@@ -294,12 +295,12 @@ export async function reportCorrection(id: string, fp: string): Promise<{ report
        ON CONFLICT DO NOTHING`,
       [id, fp],
     );
-    // 가림: 고유 신고 5건 AND 가중치 합 5 (글 자동 블라인드와 같은 규칙 — 갓 생긴 이용자 동원으로 가리기 어렵게)
+    // 가림: 고유 신고 N건 AND 가중치 합 N (커뮤니티 규칙 correction_hide_reports — 갓 생긴 이용자 동원으로 가리기 어렵게)
     const { rows: r } = await client.query<{ report_count: number; is_hidden: boolean }>(
       `WITH agg AS (SELECT count(*)::int AS n, coalesce(sum(weight), 0) AS w FROM correction_reports WHERE correction_id = $1)
        UPDATE corrections SET report_count = agg.n, is_hidden = is_hidden OR (agg.n >= $2 AND agg.w >= $2)
          FROM agg WHERE id = $1 RETURNING report_count, is_hidden`,
-      [id, CORRECTION_HIDE_REPORTS],
+      [id, await getRule("correction_hide_reports")],
     );
     await refreshPostCounts(client, rows[0].post_id);
     return { ...r[0]!, alreadyReported: ins.rowCount === 0 };

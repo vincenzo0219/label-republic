@@ -2,7 +2,7 @@
 
 > 방장 없이, 정보는 죽지 않고, 신뢰만 남는 성분 정보 아카이브 — 마케팅명 **노방장**
 
-회원가입 없이 닉네임 + 4자리 비밀번호로 글/댓글을 쓰고, 추천·비추천과 **신고 5회 자동 블라인드**로 커뮤니티가 스스로 정화하는 Mobile-first SSR 게시판입니다.
+회원가입 없이 닉네임 + 4자리 비밀번호로 글/댓글을 쓰고, 추천·비추천과 **신고 자동 블라인드**(기본 5명, 기준값은 이용자 투표로 조정)로 커뮤니티가 스스로 정화하는 Mobile-first SSR 게시판입니다.
 
 ## 구현 범위
 
@@ -302,6 +302,20 @@ Sprint 14에서 모은 제품 수치로 "마그네슘 200mg 이상", "비타민D
 | 개인정보 | 누른 사진 한 장만(메타데이터 제거·1600px) Anthropic 으로 전송 — 개인정보처리방침 3항에 추가(키가 있을 때만 표시) |
 | 검증 | 실제 SDK 를 가짜 Messages API(`ANTHROPIC_BASE_URL`)에 붙여 요청 형태(모델·대체 모델 베타 헤더·webp 이미지·JSON 스키마) 확인. 거절·형식 오류·한도·권한·캐시·출처 판정 테스트. 브라우저 E2E 8단계, axe 0건 |
 
+### Sprint 21 — 커뮤니티 규칙 투표
+
+방장 없는 원칙을 한 단계 더: 자동 규칙의 **기준값을 운영자가 아니라 이용자 투표로** 정합니다 (`/rules`).
+
+| 영역 | 구현 |
+|---|---|
+| 투표로 바꿀 수 있는 규칙 (7개) | 글 자동 블라인드 신고 수(기본 5, 안전 범위 3~20, 한 번에 ±2) · 정정 제안 가림 신고 수(5, 3~20, ±2) · 정정 제안 '커뮤니티 동의' 최소 점수(3, 2~15, ±2) · 동의/반대 배수(2, 1.5~4, ±0.5) · 광고 의심 하향 점수(0.8, 0.6~0.95, ±0.1) · 보드 개설 필요 표(50 또는 `BOARD_PROMOTION_THRESHOLD`, 10~500, ±50%) · 신뢰도 배지 최소 표(3, 2~20, ±2) |
+| 규칙 값 한곳에서 | `community_rules` 테이블. 코드는 `getRules()`(인스턴스별 30초 캐시), DB 트리거는 `rule_value()` 로 읽음. 전에 SQL 트리거·함수와 `legal.ts` 에 숫자 5가 따로 박혀 있던 것(설정 상수는 쓰이지 않고 있었음)을 모두 이 값으로 바꿈. 운영 원칙·신고 버튼·정정 제안 안내·보드 요청 화면의 숫자도 실제 값을 표시 |
+| 제안·투표 | 누구나 제안(이유 20자 이상, 링크·연락처 금지, 철회용 비밀번호) → 7일 투표 → 가중치 합 기준 **찬성 3분의 2 + 정족수**(최근 30일 활동한 자격자의 5%, 최소 10 — 제안 때 정해 공개)면 정리 배치가 자동으로 값을 바꾸고 이력 기록. 제안자는 찬성으로 셈, 마감 전까지 표 변경·취소 |
+| 조작 방지 | 자격: 첫 활동 7일 이상 + 글·댓글·정정 제안 3건 이상, 30일 미만은 0.5표. 규칙마다 안전 범위·한 번에 바꿀 폭, 같은 규칙은 동시에 하나·결정 후 14일 대기, 한 사람 주 1회 제안. 투표 방식 자체는 투표로 바꿀 수 없음 |
+| 운영자 | 규칙 값을 바꿀 수 없음. 제안 이유에 권리침해가 있으면 이유만 가림(`hide_rule_reason`, 투명성 기록 공개). `/admin` 에 진행 중 투표 패널 |
+| 공개 | `/rules`(현재 값·안전 범위·다음 투표 범위·진행 중 투표 진행 막대·지난 투표), 홈 배너, `/transparency` "커뮤니티 결정", `/policy` 의 숫자가 실제 값 |
+| 검증 | 순수 로직(범위·단위·가중치·가결) + DB(자격, 가중치, 표 변경, 정족수 미달 부결, 가결 적용 1회, 대기 기간, 트리거가 새 값으로 블라인드, 임시조치 해제 판단, 철회, 사유 가림) 테스트. 브라우저 E2E 8단계(정리 배치로 실제 마감·적용까지), axe 0건 |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -360,7 +374,7 @@ docker compose up --build
 | `SITE_URL` | canonical/OG/sitemap 절대 URL |
 | `ANTHROPIC_API_KEY` | 설정 시 Claude로 3줄 요약, 비우면 추출 요약 |
 | `SUMMARY_MODEL` | 기본 `claude-opus-5` |
-| `BOARD_PROMOTION_THRESHOLD` | 보드 자동 승격 임계치 (기본 50) |
+| `BOARD_PROMOTION_THRESHOLD` | 보드 자동 승격 임계치 (기본 50). 커뮤니티 규칙 투표로 한 번이라도 바뀌면 그 값이 우선 |
 | `TRUST_REFRESH_INTERVAL_SEC` | 신뢰도 배지 배치 주기 (기본 120초, 0이면 끔) |
 | `CURATOR_INTERVAL_SEC` | AI 큐레이터 스케줄러 주기 (기본 1800초, 0이면 끔) |
 | `CURATOR_ACTIVE_UNTIL` | 이 시각(ISO 8601) 이후 AI 큐레이터 게시 중단 — 오픈 후 초기 N주 |
@@ -456,7 +470,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?, images?, sources?, products?, facts?}` (보낸 목록이 최종 상태) |
 | DELETE | `/api/posts/:id` | 삭제 `{pw}` |
 | POST | `/api/posts/:id/vote` | `{value: 1 \| -1}` |
-| POST | `/api/posts/:id/report` | `{reason}` — 5회 누적 자동 블라인드 |
+| POST | `/api/posts/:id/report` | `{reason}` — 고유 신고 N명 + 가중치 합 N 이면 자동 블라인드 (N = 커뮤니티 규칙, 기본 5) |
 | POST | `/api/uploads` | 이미지 업로드 (본문 = 이미지 바이트) → `{id, token, width, height}` |
 | GET | `/media/:id.webp`, `/media/:id_t.webp` | 첨부 이미지·썸네일 (보이는 글에 첨부된 것만) |
 | GET/POST | `/api/posts/:id/appeal` | 재검토 요청 상태 / 작성자 요청 `{pw, message}` (블라인드·광고 의심 글, 글당 1회) |
@@ -473,6 +487,10 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/admin/legal-hold` | 🔒 법적 임시조치 `{action: hold\|release, postId, reason?, note}` |
 | POST | `/api/admin/moderation` | 🔒 `{action: void_alert\|dismiss_alert\|release_suppression\|reject_appeal\|reject_board_request\|merge_board_request\|merge_product, ...}` |
 | GET | `/api/admin/moderation/preview?alertId=` | 🔒 무효화 대상 건수 |
+| GET | `/api/rules` | 규칙 값·진행 중/지난 제안·변경 이력·내 투표 자격과 표 (Sprint 21) |
+| POST | `/api/rules/proposals` | 규칙 변경 제안 `{key, value, reason, nickname, pw}` (Idempotency-Key 지원) |
+| POST | `/api/rules/proposals/:id/vote` | `{value: 1 찬성 \| -1 반대 \| 0 취소}` |
+| POST | `/api/rules/proposals/:id/withdraw` | 제안자 철회 `{pw}` |
 | GET/POST | `/api/label-read` | 라벨 읽기 사용 가능 여부 / 읽기 `{imageId, token, category}` → `{read: {readable, reason, products, facts, notes, model, cached}}` (Sprint 20). 글 작성·수정의 `facts[]` 에 `image`(근거 사진 id), `fromLabel` 추가 |
 | GET | `/sw.js`, `/manifest.webmanifest`, `/offline` | 서비스 워커(빌드 번호 포함, `no-cache`) / 앱 정보 / 저장한 글 목록 (Sprint 19) |
 | WS | `/ws/comments?postId=` | 댓글 `created`/`deleted` 이벤트 푸시 |
@@ -488,7 +506,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 020_label_read.sql
+db/migrations/        001_schema.sql … 021_community_rules.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 assets/icon.svg       앱 아이콘 원본 (scripts/make-icons.ts 로 PNG 생성)
@@ -499,7 +517,7 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, ops, security, pwa, label (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, ops, security, pwa, label, rules (*.test.ts)
 .github/workflows/    ci.yml
 ```
 

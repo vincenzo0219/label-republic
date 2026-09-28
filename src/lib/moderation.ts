@@ -8,7 +8,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { config, SUPPRESS_SPAM_SCORE } from "./config";
+import { config } from "./config";
+import { RULES as COMMUNITY_RULES } from "./rules";
 
 export const HEURISTIC_MODEL = "heuristic-v1";
 
@@ -98,8 +99,9 @@ export function combine(heuristic: SpamVerdict, ai: SpamVerdict | null): SpamVer
   return { score, reasons: [...ai.reasons, ...heuristic.reasons], model: ai.model };
 }
 
-export function shouldSuppress(v: SpamVerdict): boolean {
-  return v.score >= SUPPRESS_SPAM_SCORE;
+/** threshold: 커뮤니티 규칙 spam_suppress_score (투표로 바뀔 수 있음, Sprint 21) */
+export function shouldSuppress(v: SpamVerdict, threshold = COMMUNITY_RULES.spam_suppress_score.defaultValue): boolean {
+  return v.score >= threshold;
 }
 
 export function moderationNote(v: SpamVerdict): string {

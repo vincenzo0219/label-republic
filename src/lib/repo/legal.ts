@@ -5,6 +5,7 @@
  */
 import { query, tx } from "../db";
 import { HttpError, notFound } from "../errors";
+import { getRule } from "./rules";
 
 export const LEGAL_REASONS = {
   defamation: "명예훼손",
@@ -44,7 +45,8 @@ export async function releaseLegalHold(postId: string, note: string): Promise<{ 
     const row = p.rows[0];
     if (!row) throw notFound();
     if (!row.legal_hold) throw new HttpError(409, "not_held", "임시조치 중인 게시물이 아닙니다.");
-    const stillBlinded = row.report_count >= 5 && row.report_score >= 5;
+    const blindAt = await getRule("post_blind_reports");
+    const stillBlinded = row.report_count >= blindAt && row.report_score >= blindAt;
     await client.query(
       `UPDATE posts SET legal_hold = false, legal_hold_until = NULL, is_blinded = $2,
          blinded_at = CASE WHEN $2 THEN blinded_at ELSE NULL END
@@ -65,7 +67,7 @@ export type ModerationLogRow = {
   id: string;
   action: import("./operator").ModAction;
   post_id: string | null;
-  subject_type: "post" | "board_request" | "fingerprint" | "product";
+  subject_type: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal";
   subject_id: string;
   /** 법적 임시조치 사유(LegalReason) 또는 보드 요청 거절 사유(BoardRejectReason) */
   reason: string | null;

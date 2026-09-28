@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/LegalPage";
 import { config } from "@/lib/config";
+import { getRules } from "@/lib/repo/rules";
+import { COOLDOWN_DAYS, ELIGIBLE_AGE_DAYS, formatRule, MIN_CONTRIBUTIONS, VOTING_DAYS } from "@/lib/rules";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -10,15 +12,19 @@ export const metadata: Metadata = {
   alternates: { canonical: "/policy" },
 };
 
-export default function PolicyPage() {
+export default async function PolicyPage() {
+  const rules = await getRules();
   return (
     <LegalPage title="커뮤니티 운영 원칙">
-      <p>라벨공화국에는 방장이 없습니다. 아래 규칙은 모두 코드로 자동 실행되며, 누구에게나 똑같이 적용됩니다.</p>
+      <p>
+        라벨공화국에는 방장이 없습니다. 아래 규칙은 모두 코드로 자동 실행되며, 누구에게나 똑같이 적용됩니다. <b>굵게 표시한 숫자</b>는 운영자가 아니라{" "}
+        <Link href="/rules">커뮤니티 규칙 투표</Link>로 정해지며, 지금 값을 보여줍니다.
+      </p>
 
       <h2>노출 순서와 신뢰도 배지</h2>
       <ul>
         <li>추천·비추천은 한 사람당 한 표입니다. 같은 버튼을 다시 누르면 취소됩니다.</li>
-        <li>신뢰도 배지는 보드별로, 최근 30일 [정보] 글 중 순추천 상위 5% / 12% / 19%에 붙습니다. 게시 24시간 미만이거나 3표 미만이면 &ldquo;검증 대기&rdquo;입니다.</li>
+        <li>신뢰도 배지는 보드별로, 최근 30일 [정보] 글 중 순추천 상위 5% / 12% / 19%에 붙습니다. 게시 24시간 미만이거나 <b>{formatRule("trust_min_votes", rules.trust_min_votes)}표</b> 미만이면 &ldquo;검증 대기&rdquo;입니다.</li>
         <li>[잡담] 글은 배지를 받지 않고 신뢰도순에서 정보 글 아래에 보입니다.</li>
         <li>
           글에 단 출처는 종류(논문·공공기관·커뮤니티·웹)를 주소로 자동 표시하고, 링크가 열리지 않으면 표시합니다. 출처는 배지 계산에 쓰지 않습니다 — 출처가
@@ -28,14 +34,18 @@ export default function PolicyPage() {
 
       <h2>신고와 자동 블라인드</h2>
       <ul>
-        <li>서로 다른 5명 이상이 신고하고 신고 가중치 합이 5 이상이면 사람의 판단 없이 자동으로 블라인드됩니다.</li>
+        <li>
+          서로 다른 <b>{formatRule("post_blind_reports", rules.post_blind_reports)}명</b> 이상이 신고하고 신고 가중치 합이 {formatRule("post_blind_reports", rules.post_blind_reports)} 이상이면 사람의 판단 없이 자동으로 블라인드됩니다.
+        </li>
         <li>짧은 시간에 신고를 몰아서 하거나, 갓 생긴 이용자들이 한 글에 신고를 몰면 그 신고의 가중치가 자동으로 낮아집니다. 조직적인 신고로 정상 글을 가리는 것을 막기 위해서입니다.</li>
       </ul>
 
       <h2>AI의 역할</h2>
       <ul>
         <li>AI는 글쓰기 단계에서 3줄 요약 초안을 만들고, 작성자가 확인·수정합니다.</li>
-        <li>AI는 광고·스팸으로 보이는 글의 노출 순위를 낮추고 &ldquo;광고 의심&rdquo;으로 표시합니다. 글을 지우지는 않으며, 최종 판단은 추천과 신고가 합니다.</li>
+        <li>
+          AI는 광고·스팸 점수가 <b>{formatRule("spam_suppress_score", rules.spam_suppress_score)}</b> 이상인 글의 노출 순위를 낮추고 &ldquo;광고 의심&rdquo;으로 표시합니다. 글을 지우지는 않으며, 최종 판단은 추천과 신고가 합니다.
+        </li>
         <li>초기 커뮤니티를 위해 🤖 AI 큐레이터가 정보 글을 올립니다. 사람 글이 늘어나면 스스로 게시를 줄이고 멈춥니다.</li>
       </ul>
 
@@ -58,7 +68,7 @@ export default function PolicyPage() {
       </p>
       <ul>
         <li>
-          동의 가중치 합이 3 이상이고 반대의 2배 이상이면 &ldquo;커뮤니티가 동의한 정정 제안&rdquo;이 됩니다. 처음 활동한 지 1시간이 안 된 이용자의 표는 절반만
+          동의 가중치 합이 <b>{formatRule("correction_support_score", rules.correction_support_score)}</b> 이상이고 반대의 <b>{formatRule("correction_support_ratio", rules.correction_support_ratio)}배</b> 이상이면 &ldquo;커뮤니티가 동의한 정정 제안&rdquo;이 됩니다. 처음 활동한 지 1시간이 안 된 이용자의 표는 절반만
           셉니다. 제안자와 글 작성자는 투표할 수 없습니다.
         </li>
         <li>
@@ -72,7 +82,25 @@ export default function PolicyPage() {
           글을 고칠 때마다 이전 판이 &ldquo;수정 이력&rdquo;에 남아 누구나 바뀐 내용을 볼 수 있습니다. 이전 판에 연락처처럼 남기면 안 되는 내용이 있으면 작성자는
           글 비밀번호로 그 판을 지울 수 있고, 권리침해 신고가 있으면 운영자가 지웁니다(투명성 기록에 공개).
         </li>
-        <li>제안자는 제안을 철회할 수 있고, 고유 신고 5건이 쌓인 제안은 자동으로 가려집니다.</li>
+        <li>제안자는 제안을 철회할 수 있고, 고유 신고 <b>{formatRule("correction_hide_reports", rules.correction_hide_reports)}건</b>이 쌓인 제안은 자동으로 가려집니다.</li>
+      </ul>
+
+      <h2>규칙은 투표로 바꿉니다</h2>
+      <ul>
+        <li>
+          위 굵은 숫자와 새 보드 개설에 필요한 표(지금 <b>{formatRule("board_promotion_votes", rules.board_promotion_votes)}표</b>)는{" "}
+          <Link href="/rules">커뮤니티 규칙</Link>에서 누구나 바꾸자고 제안할 수 있고, {VOTING_DAYS}일 동안 투표해 찬성이 3분의 2 이상이고 정족수를 넘으면
+          자동으로 바뀝니다. 운영자는 규칙 값을 바꿀 수 없습니다.
+        </li>
+        <li>
+          조직적인 투표를 막기 위해 처음 활동한 지 {ELIGIBLE_AGE_DAYS}일이 지나고 글·댓글·정정 제안을 {MIN_CONTRIBUTIONS}건 이상 남긴 이용자만 투표하고 제안할 수
+          있으며, 30일이 안 된 이용자의 표는 절반만 셉니다.
+        </li>
+        <li>
+          규칙마다 안전 범위와 한 번에 바꿀 수 있는 폭이 정해져 있고(예: 블라인드 신고 수는 3~20명, 한 번에 ±2명), 결정된 규칙은 {COOLDOWN_DAYS}일 동안 다시
+          제안할 수 없습니다. 투표 방식 자체는 투표로 바꿀 수 없습니다.
+        </li>
+        <li>바뀐 값은 그 뒤의 신고·투표부터 적용됩니다. 이미 블라인드된 글이 기준이 바뀌었다고 되살아나지는 않습니다.</li>
       </ul>
 
       <h2>운영자가 하는 일과 하지 않는 일</h2>
@@ -93,6 +121,9 @@ export default function PolicyPage() {
         <li>
           <b>보드 개설 요청 정리</b>: 불법·광고·특정인 대상 요청은 거절하고, 같은 주제의 요청은 표를 합칩니다. 개설 자체는 투표로만 결정되며, 이미 열린 보드는 닫지
           않습니다.
+        </li>
+        <li>
+          <b>규칙 제안 사유 가림</b>: 규칙 변경 제안의 이유에 명예훼손·개인정보 같은 권리침해가 있으면 그 글만 가립니다. 제안과 투표는 그대로 진행됩니다.
         </li>
         <li>
           <b>중복 제품 병합</b>: 표기만 달라 따로 생긴 같은 제품(예: 영문·한글 브랜드명)을 하나로 합칩니다. 글과 수치는 그대로 옮겨지고, 운영자가 제품을

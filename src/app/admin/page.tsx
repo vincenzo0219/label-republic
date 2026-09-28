@@ -3,6 +3,9 @@ import { ResolveError } from "@/components/admin/ResolveError";
 import Link from "next/link";
 import { compact, DailyBars, HBarList, StatTile, StatusPill } from "@/components/admin/charts";
 import { config } from "@/lib/config";
+import { getRules, listProposals } from "@/lib/repo/rules";
+import { formatRule, RULES } from "@/lib/rules";
+import { HideRuleReason } from "@/components/admin/HideRuleReason";
 import { kstDay } from "@/lib/metrics";
 import * as m from "@/lib/repo/metrics";
 import { LegalHoldPanel } from "@/components/admin/LegalHoldPanel";
@@ -65,7 +68,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openBoardRequests(),
       m.openErrors(),
     ]);
-  const [holds, pending] = await Promise.all([activeLegalHolds(), pendingCounts()]);
+  const [holds, pending, rules, ruleVotes] = await Promise.all([activeLegalHolds(), pendingCounts(), getRules(), listProposals({ status: "open" })]);
 
   const last7 = daily.slice(-range);
   const prev7 = daily.slice(-2 * range, -range);
@@ -295,7 +298,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <div className="panel">
           <h2>보드 개설 요청</h2>
           <p className="hint">
-            찬성 {config.boardPromotionThreshold}표 + 요청 후 {config.boardPromotionMinAgeHours}시간이 지나면 자동 개설
+            찬성 {rules.board_promotion_votes}표 + 요청 후 {config.boardPromotionMinAgeHours}시간이 지나면 자동 개설
           </p>
           {boardReqs.length === 0 ? (
             <p className="hint">진행 중인 요청이 없습니다.</p>
@@ -306,7 +309,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                   <tr key={r.id}>
                     <td>{r.requested_name}</td>
                     <td className="num">
-                      {r.vote_count}/{config.boardPromotionThreshold}
+                      {r.vote_count}/{rules.board_promotion_votes}
                     </td>
                     <td className="hint">{fmtTime(r.promotable_at)} 이후</td>
                   </tr>
@@ -346,6 +349,28 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="panel" aria-labelledby="rulevotes-h">
+        <h2 id="rulevotes-h">커뮤니티 규칙 투표</h2>
+        <p className="hint">운영자는 규칙 값을 바꿀 수 없습니다. 제안 이유에 권리침해가 있을 때만 이유를 가릴 수 있고, 공개 기록에 남습니다.</p>
+        {ruleVotes.length === 0 ? (
+          <p className="hint">진행 중인 투표가 없습니다.</p>
+        ) : (
+          <ul className="admin-list">
+            {ruleVotes.map((p) => (
+              <li key={p.id}>
+                <a href={`/rules#proposal-${p.id}`}>
+                  #{p.id} {RULES[p.rule_key].label} {formatRule(p.rule_key, p.from_value)} → {formatRule(p.rule_key, p.to_value)}
+                </a>{" "}
+                <span className="hint">
+                  찬성 {p.yes_weight} / 반대 {p.no_weight} · 정족수 {p.quorum} · {p.voter_count}명
+                </span>{" "}
+                {!p.reason_hidden && <HideRuleReason id={p.id} />}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="panel" aria-labelledby="errors-h">

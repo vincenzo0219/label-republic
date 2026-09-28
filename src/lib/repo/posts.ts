@@ -13,6 +13,7 @@ import { assertCanPropose, insertMeetup, type MeetupInput } from "./meetups";
 import { deleteFiles, listPostImages, setPostImages, type ImageRef } from "./images";
 import { assertPin } from "./pin-guard";
 import { listPostSources, setPostSources, type SourceRef } from "./sources";
+import { getRule } from "./rules";
 import { currentProductIds, listPostFacts, setPostFacts, setPostProducts, type FactInput, type ProductRef } from "./products";
 
 const CARD_SELECT = `
@@ -322,6 +323,7 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
     input.summary ?? { ...(await generateSummary(input.title, input.body)), isAuthorEdited: false };
   const pwHash = await hashPin(input.pin);
   const spam = heuristicSpam(input.title, input.body);
+  const spamCut = await getRule("spam_suppress_score");
 
   const id = await tx(async (client) => {
     const cat = await client.query<{ id: number }>("SELECT id FROM categories WHERE slug = $1", [input.categorySlug]);
@@ -337,7 +339,7 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
         pwHash,
         input.title,
         input.body,
-        ...moderationParams(spam),
+        ...moderationParams(spam, spamCut),
         input.fingerprint ?? null,
         postType,
         // 잡담·정모 글은 신뢰도 배지 대상이 아니므로 "검증 대기" 대신 배지 없음으로 시작
@@ -403,7 +405,7 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
       `UPDATE posts SET title = $2, body = $3, updated_at = now(),
          spam_score = $4, is_suppressed = $5, moderation_note = $6, moderated_by = $7
        WHERE id = $1`,
-      [id, title, body, ...moderationParams(heuristicSpam(title, body))],
+      [id, title, body, ...moderationParams(heuristicSpam(title, body), await getRule("spam_suppress_score"))],
     );
     if (input.summary) await insertSummary(client, id, input.summary);
     if (input.sources) await setPostSources(client, id, input.sources);
@@ -460,8 +462,8 @@ export async function replaceSummary(
 // AI 1차 정화
 // ---------------------------------------------------------------------------
 
-function moderationParams(v: SpamVerdict): [number, boolean, string, string] {
-  return [v.score, shouldSuppress(v), moderationNote(v), v.model];
+function moderationParams(v: SpamVerdict, spamCut: number): [number, boolean, string, string] {
+  return [v.score, shouldSuppress(v, spamCut), moderationNote(v), v.model];
 }
 
 /**
@@ -479,7 +481,7 @@ export async function aiModeratePost(id: string): Promise<SpamVerdict | null> {
     `UPDATE posts SET spam_score = $2, is_suppressed = $3, moderation_note = $4, moderated_by = $5
      WHERE id = $1 AND date_trunc('milliseconds', updated_at) = $6::timestamptz
        AND moderated_by <> 'operator'`, // 운영자가 오탐으로 해제한 뒤 늦게 끝난 AI 판정이 덮어쓰지 않게
-    [id, ...moderationParams(verdict), post.updated_at],
+    [id, ...moderationParams(verdict, await getRule("spam_suppress_score")), post.updated_at],
   );
   return verdict;
 }

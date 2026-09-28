@@ -9,6 +9,7 @@ import { Gallery } from "@/components/Gallery";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
 import { PostFactsTable, ProductChips } from "@/components/PostProducts";
+import { getRules } from "@/lib/repo/rules";
 import { ReportButton } from "@/components/ReportButton";
 import { RsvpPanel } from "@/components/RsvpPanel";
 import { SaveOffline } from "@/components/SaveOffline";
@@ -99,13 +100,14 @@ export default async function PostPage({ params }: Props) {
   }
 
   const fp = fingerprint(await headers());
-  const [comments, myVote, participants, attending, appeal, corrections] = await Promise.all([
+  const [comments, myVote, participants, attending, appeal, corrections, rules] = await Promise.all([
     listComments(id),
     getMyVote(id, fp),
     post.meetup ? listParticipants(id) : Promise.resolve([]),
     post.meetup ? isAttending(id, fp) : Promise.resolve(false),
     post.is_suppressed && !post.is_ai_curated ? getAppeal(id) : Promise.resolve(null),
     listCorrections(id, fp),
+    getRules(),
   ]);
   const productName = new Map(post.products.map((p) => [p.id, `${p.brand} ${p.name}`]));
   const factLabels = post.facts.map(
@@ -220,10 +222,16 @@ export default async function PostPage({ params }: Props) {
         <WatchToggle kind="post" id={post.id} name={post.title} />
         <SaveOffline postId={post.id} />
         {!post.is_ai_curated && <PostOwnerActions postId={post.id} />}
-        <ReportButton postId={post.id} />
+        <ReportButton postId={post.id} blindAt={rules.post_blind_reports} />
       </div>
 
-      <CorrectionsPanel postId={post.id} facts={factLabels} initial={corrections} hasAuthor={!post.is_ai_curated} />
+      <CorrectionsPanel
+        postId={post.id}
+        facts={factLabels}
+        initial={corrections}
+        hasAuthor={!post.is_ai_curated}
+        rules={{ supportScore: rules.correction_support_score, supportRatio: rules.correction_support_ratio, hideReports: rules.correction_hide_reports }}
+      />
 
       <LiveComments postId={post.id} initial={comments} />
     </article>

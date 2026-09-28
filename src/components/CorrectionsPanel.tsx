@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
-import { STATUS_LABEL, SUPPORT_MIN_SCORE, TARGET_LABEL, type CorrectionTarget } from "@/lib/corrections";
+import { STATUS_LABEL, TARGET_LABEL, type CorrectionTarget } from "@/lib/corrections";
+import { formatRule } from "@/lib/rules";
 import { timeAgo } from "@/lib/format";
 import { watchPost } from "@/lib/watchlist";
 import { displayHost, SOURCE_KIND_LABEL } from "@/lib/sources";
@@ -16,13 +17,15 @@ type Props = {
   initial: { items: Correction[]; hidden: number };
   /** AI 큐레이터 글은 작성자 응답이 없다 */
   hasAuthor: boolean;
+  /** 커뮤니티 규칙 값 (투표로 바뀔 수 있음) */
+  rules: { supportScore: number; supportRatio: number; hideReports: number };
 };
 
 /**
  * 정정 제안: 무엇이 틀렸고(인용·수치) 어떻게 고쳐야 하며 근거는 무엇인지 구조화해서 단다.
  * 판정은 방장이 아니라 동의·반대와 자동 규칙이 한다.
  */
-export function CorrectionsPanel({ postId, facts, initial, hasAuthor }: Props) {
+export function CorrectionsPanel({ postId, facts, initial, hasAuthor, rules }: Props) {
   const [items, setItems] = useState(initial.items);
   const [open, setOpen] = useState(false);
   const replace = (c: Correction) => setItems((xs) => xs.map((x) => (x.id === c.id ? c : x)));
@@ -40,7 +43,7 @@ export function CorrectionsPanel({ postId, facts, initial, hasAuthor }: Props) {
         )}
       </div>
       <p className="hint">
-        틀린 수치·문장을 근거와 함께 제안해 주세요. 동의가 모이면({SUPPORT_MIN_SCORE}표 이상, 반대의 2배 이상) 글 위에 표시되고, 그 수치는 제품 페이지 집계에서
+        틀린 수치·문장을 근거와 함께 제안해 주세요. 동의가 모이면(동의 {formatRule("correction_support_score", rules.supportScore)}점 이상, 반대의 {formatRule("correction_support_ratio", rules.supportRatio)}배 이상 — <a href="/rules">커뮤니티 규칙</a>) 글 위에 표시되고, 그 수치는 제품 페이지 집계에서
         빠지며, 신뢰도 상위 배지를 받지 못합니다. 작성자가 글을 고치고 &ldquo;반영함&rdquo;을 누르면 닫힙니다.
       </p>
       {open && (
@@ -59,7 +62,7 @@ export function CorrectionsPanel({ postId, facts, initial, hasAuthor }: Props) {
       {visible.length > 0 && (
         <ol className="correction-list">
           {visible.map((c) => (
-            <CorrectionItem key={c.id} c={c} hasAuthor={hasAuthor} onChange={replace} />
+            <CorrectionItem key={c.id} c={c} hasAuthor={hasAuthor} hideReports={rules.hideReports} onChange={replace} />
           ))}
         </ol>
       )}
@@ -74,7 +77,7 @@ export function CorrectionsPanel({ postId, facts, initial, hasAuthor }: Props) {
   );
 }
 
-function CorrectionItem({ c, hasAuthor, onChange }: { c: Correction; hasAuthor: boolean; onChange: (c: Correction) => void }) {
+function CorrectionItem({ c, hasAuthor, hideReports, onChange }: { c: Correction; hasAuthor: boolean; hideReports: number; onChange: (c: Correction) => void }) {
   const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -146,7 +149,7 @@ function CorrectionItem({ c, hasAuthor, onChange }: { c: Correction; hasAuthor: 
           type="button"
           className="btn btn-sm btn-ghost"
           disabled={busy}
-          onClick={() => window.confirm("이 정정 제안을 신고할까요? 고유 신고 5건이면 자동으로 가려집니다.") && run(() => api(`/api/corrections/${c.id}/report`, "POST", {}), () => setMsg("신고했습니다."))}
+          onClick={() => window.confirm(`이 정정 제안을 신고할까요? 고유 신고 ${hideReports}건이면 자동으로 가려집니다.`) && run(() => api(`/api/corrections/${c.id}/report`, "POST", {}), () => setMsg("신고했습니다."))}
         >
           신고
         </button>

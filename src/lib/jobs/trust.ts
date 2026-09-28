@@ -1,5 +1,5 @@
 import { pool } from "../db";
-import { TRUST_MIN_VOTES } from "../config";
+import { getRule } from "../repo/rules";
 import { reportError } from "../error-tracking";
 
 // 여러 서버 인스턴스가 떠 있어도 배치는 한 곳에서만 돌도록 하는 advisory lock 키
@@ -24,7 +24,7 @@ export async function runTrustBatch(): Promise<TrustBatchResult> {
     try {
       const cats = await client.query<{ id: number }>("SELECT id FROM categories ORDER BY id");
       for (const c of cats.rows) {
-        const res = await client.query<{ n: number }>("SELECT refresh_trust_tiers($1, $2) AS n", [c.id, TRUST_MIN_VOTES]);
+        const res = await client.query<{ n: number }>("SELECT refresh_trust_tiers($1, $2) AS n", [c.id, await getRule("trust_min_votes")]);
         changed += res.rows[0]!.n;
         categories++;
       }
