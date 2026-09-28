@@ -26,10 +26,14 @@ import {
 } from "../products";
 import type { PostFact, ProductTag } from "../types";
 import { detectEras, DEFAULT_MIN_REPORTS, type LabelReport } from "../renewals";
-import { resolveEvidence } from "./label-reads";
+import { productionTimeIndex, readLabelDates, type TimeBasis } from "../label-dates";
+import type { PostProductDates } from "../types";
+import { resolveDateEvidence, resolveEvidence } from "./label-reads";
 import { getRule } from "./rules";
 
-export type ProductRef = { id: string } | { brand: string; name: string };
+/** 제품 태그 + 라벨 날짜 (Sprint 26, 선택) */
+export type ProductDateInput = { made?: string; expires?: string; dateImage?: string; dateFromLabel?: boolean };
+export type ProductRef = ({ id: string } | { brand: string; name: string }) & ProductDateInput;
 /** product: 같은 요청의 제품 목록에서의 순서 (0부터) */
 export type FactInput = { product: number; attribute: string; value: number; unit: string; basis?: string; kind: FactKind; image?: string; fromLabel?: boolean };
 
@@ -98,10 +102,23 @@ export async function setPostProducts(client: PoolClient, postId: string, catego
   await client.query("DELETE FROM post_products WHERE post_id = $1 AND NOT (product_id = ANY($2::bigint[]))", [postId, unique]);
   await client.query("DELETE FROM product_facts WHERE post_id = $1 AND NOT (product_id = ANY($2::bigint[]))", [postId, unique]);
   for (const [position, id] of unique.entries()) {
+    // 라벨 날짜: 같은 제품을 두 번 적었으면 먼저 적은 쪽 (Sprint 26)
+    const i = ids.indexOf(id);
+    const ref = refs[i]!;
+    const parsed = readLabelDates(ref.made ?? "", ref.expires ?? "");
+    if ("problem" in parsed) throw badProduct(`${i + 1}번째 제품: ${parsed.problem}`);
+    const { made, expires } = parsed;
+    const ev = made || expires
+      ? await resolveDateEvidence(client, postId, { image: ref.dateImage, fromLabel: ref.dateFromLabel, made, expires }, i)
+      : { image: null, origin: "manual" as const };
+    const day = (d: typeof made) => (d ? (d.precision === "month" ? `${d.iso}-01` : d.iso) : null);
     await client.query(
-      `INSERT INTO post_products (post_id, product_id, position) VALUES ($1, $2, $3)
-       ON CONFLICT (post_id, product_id) DO UPDATE SET position = EXCLUDED.position`,
-      [postId, id, position],
+      `INSERT INTO post_products (post_id, product_id, position, made_on, made_precision, expires_on, expires_precision, date_origin, date_image)
+       VALUES ($1, $2, $3, $4::date, $5, $6::date, $7, $8, $9)
+       ON CONFLICT (post_id, product_id) DO UPDATE SET position = EXCLUDED.position,
+         made_on = EXCLUDED.made_on, made_precision = EXCLUDED.made_precision, expires_on = EXCLUDED.expires_on,
+         expires_precision = EXCLUDED.expires_precision, date_origin = EXCLUDED.date_origin, date_image = EXCLUDED.date_image`,
+      [postId, id, position, day(made), made?.precision ?? null, day(expires), expires?.precision ?? null, ev.origin, ev.image],
     );
   }
   return ids;
@@ -137,6 +154,19 @@ export async function setPostFacts(client: PoolClient, postId: string, productId
       [postId, r.productId, position, r.attribute, r.key, r.value, r.unit, r.basis, r.kind, normText(r.basis).slice(0, 30), toBase(r.value, r.unit).group, toBase(r.value, r.unit).base, ev.image, ev.origin],
     );
   }
+}
+
+/** 글에 태그한 제품의 라벨 날짜 (적은 제품만, 태그 순서) */
+export async function listPostProductDates(postId: string): Promise<PostProductDates[]> {
+  if (!ID.test(postId)) return [];
+  const rows = await query<{ product_id: string; made: string | null; mp: "day" | "month" | null; expires: string | null; ep: "day" | "month" | null; origin: PostProductDates["origin"]; image: string | null }>(
+    `SELECT product_id::text, to_char(made_on, 'YYYY-MM-DD') AS made, made_precision AS mp, to_char(expires_on, 'YYYY-MM-DD') AS expires,
+            expires_precision AS ep, date_origin AS origin, date_image::text AS image
+       FROM post_products WHERE post_id = $1 AND (made_on IS NOT NULL OR expires_on IS NOT NULL) ORDER BY position`,
+    [postId],
+  );
+  const d = (iso: string | null, p: "day" | "month" | null) => (iso && p ? { iso: p === "month" ? iso.slice(0, 7) : iso, precision: p } : null);
+  return rows.map((r) => ({ product_id: r.product_id, made: d(r.made, r.mp), expires: d(r.expires, r.ep), origin: r.origin, image: r.image }));
 }
 
 export async function listPostFacts(postId: string): Promise<PostFact[]> {
@@ -187,7 +217,13 @@ export type FactEntry = {
 };
 
 /** 리뉴얼로 나뉜 라벨 시기 (Sprint 25). 값은 묶음 표시 단위 */
-export type LabelEra = { value: number; n: number; authors: number; photos: number; first_at: number; last_at: number };
+export type LabelEra = {
+  value: number; n: number; authors: number; photos: number;
+  /** 이 시기 대표 값의 첫·마지막 제보의 추정 제조 시각 (Sprint 26) */
+  first_at: number; last_at: number;
+  /** 그 시각을 무엇으로 잡았는지 — made/expires(라벨 날짜) 또는 posted(글 올린 시각) */
+  first_basis: TimeBasis; last_basis: TimeBasis;
+};
 /** 최근 제보가 지금 라벨과 다르지만 아직 기준 수 미만 */
 export type LabelPending = { from: number; to: number; n: number; authors: number; photos: number; needed: number; post_ids: string[] };
 /** 같은 항목·기준·단위 묶음의 값 모음 (값은 display 단위로 환산) */
@@ -219,6 +255,10 @@ type FactRow = {
   /** 글이 올라온 시각(ms)·작성자 식별값 — 리뉴얼 감지용 (Sprint 25) */
   at?: number;
   author?: string | null;
+  /** 라벨 날짜(ms, Sprint 26)·보드 — 추정 제조 시각 계산용 */
+  made?: number | null;
+  expires?: number | null;
+  board?: string;
 };
 
 function mostCommon(xs: string[], tieBreak: (x: string) => number = () => 0): string {
@@ -240,6 +280,9 @@ function unitReadability(bases: number[], unit: string): number {
  * 표시값이 시기에 따라 바뀌었으면(리뉴얼, src/lib/renewals.ts) 지금 라벨 시기의 글만으로 표시값·실측값을 낸다.
  */
 export function aggregateFacts(rows: FactRow[], minReports = DEFAULT_MIN_REPORTS): FactGroup[] {
+  // 리뉴얼 판단의 시점: 라벨 날짜로 추정한 제조 시각 (없으면 글 올린 시각에서 보정, src/lib/label-dates.ts)
+  const ptime = productionTimeIndex(rows);
+  const timeOf = (r: FactRow) => ptime.get(`${r.product_id}|${r.post_id}`);
   const groups = new Map<string, { rows: (FactRow & { base: number })[] }>();
   for (const r of rows) {
     const { group, base } = toBase(r.value, r.unit);
@@ -255,14 +298,15 @@ export function aggregateFacts(rows: FactRow[], minReports = DEFAULT_MIN_REPORTS
       g.rows.map((r) => r.unit),
       (u) => unitReadability(bases, u),
     );
-    // 리뉴얼 감지: 정정 제안이 걸리지 않은 표시값을 글 시각 순으로
+    // 리뉴얼 감지: 정정 제안이 걸리지 않은 표시값을 추정 제조 시각 순으로
     const reports: LabelReport[] = g.rows
-      .filter((r) => r.kind === "label" && !r.disputed && r.at !== undefined)
-      .map((r) => ({ post_id: r.post_id, at: r.at!, base: r.base, author: r.author ?? null, photo: !!r.has_photo }));
+      .filter((r) => r.kind === "label" && !r.disputed && timeOf(r))
+      .map((r) => ({ post_id: r.post_id, at: timeOf(r)!.at, base: r.base, author: r.author ?? null, photo: !!r.has_photo }));
+    const basisOf = (postId: string): TimeBasis => ptime.get(`${g.rows[0]!.product_id}|${postId}`)?.basis ?? "posted";
     const { eras, pending } = reports.length >= 2 ? detectEras(reports, minReports) : { eras: [], pending: null };
     const renewed = eras.length >= 2;
     const since = renewed ? eras[eras.length - 1]!.start_at : null;
-    const isOld = (r: FactRow & { base: number }) => since !== null && (r.at ?? 0) < since;
+    const isOld = (r: FactRow & { base: number }) => since !== null && (timeOf(r)?.at ?? 0) < since;
     const stat = (kind: FactKind) => {
       const vs = g.rows.filter((r) => r.kind === kind && !r.disputed && !isOld(r)).map((r) => fromBase(r.base, unit));
       return vs.length ? { median: median(vs), n: vs.length } : null;
@@ -282,7 +326,10 @@ export function aggregateFacts(rows: FactRow[], minReports = DEFAULT_MIN_REPORTS
       entries: g.rows.map((r) => ({ post_id: r.post_id, value: fromBase(r.base, unit), unit, kind: r.kind, disputed: !!r.disputed, photo: !!r.has_photo, old: isOld(r) })),
       disputed_n: g.rows.filter((r) => r.disputed).length,
       eras: renewed
-        ? eras.map((e) => ({ value: fromBase(e.base, unit), n: e.n, authors: e.authors, photos: e.photos, first_at: e.first_at, last_at: e.last_at }))
+        ? eras.map((e) => ({
+            value: fromBase(e.base, unit), n: e.n, authors: e.authors, photos: e.photos, first_at: e.first_at, last_at: e.last_at,
+            first_basis: basisOf(e.post_ids[0]!), last_basis: basisOf(e.post_ids[e.post_ids.length - 1]!),
+          }))
         : null,
       current_since: since,
       pending: pending
@@ -297,17 +344,24 @@ export function aggregateFacts(rows: FactRow[], minReports = DEFAULT_MIN_REPORTS
   return out.sort((a, b) => b.entries.length - a.entries.length || a.attribute.localeCompare(b.attribute, "ko"));
 }
 
+/** post_products(pp) 의 라벨 날짜 → ms (월까지만이면 15일 — src/lib/label-dates.ts labelDateMs 와 같음) */
+export const LABEL_DATE_MS = `(extract(epoch FROM pp.made_on + CASE WHEN pp.made_precision = 'month' THEN 14 ELSE 0 END) * 1000)::float8 AS made,
+            (extract(epoch FROM pp.expires_on + CASE WHEN pp.expires_precision = 'month' THEN 14 ELSE 0 END) * 1000)::float8 AS expires`;
+
 async function factRows(productIds: string[]): Promise<FactRow[]> {
   return query<FactRow>(
     `SELECT f.product_id::text, f.post_id::text, f.attribute, f.attr_key, f.value::float8 AS value, f.unit, f.basis, f.kind,
             f.source_image_id IS NOT NULL AS has_photo,
             (extract(epoch FROM p.created_at) * 1000)::float8 AS at, p.author_fingerprint AS author,
+            ${LABEL_DATE_MS}, c.slug AS board,
             p.disputed_count > 0 AND EXISTS (
               SELECT 1 FROM corrections c
                WHERE c.post_id = f.post_id AND c.target = 'fact' AND c.status IN ('open', 'answered') AND c.is_supported AND NOT c.is_hidden
                  AND c.fact_product_id = f.product_id AND c.fact_attr_key = f.attr_key AND c.fact_kind = f.kind
                  AND c.fact_value = f.value AND c.fact_unit = f.unit AND c.fact_basis = f.basis) AS disputed
        FROM product_facts f JOIN posts p ON p.id = f.post_id
+       JOIN post_products pp ON pp.post_id = f.post_id AND pp.product_id = f.product_id
+       JOIN products pr ON pr.id = f.product_id JOIN categories c ON c.id = pr.category_id
       WHERE f.product_id = ANY($1::bigint[]) AND ${VISIBLE}
       ORDER BY f.post_id DESC, f.position
       LIMIT 2000`,

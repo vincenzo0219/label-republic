@@ -27,6 +27,8 @@ describe("label read sanitizing", () => {
         { product: 7, attribute: "없는 제품", value: 1, unit: "mg", basis: "" },
       ],
       notes: "  비타민 D 단위를 확인하세요 ",
+      made_on: "",
+      expires_on: "",
     });
     expect(r.readable).toBe(true);
     expect(r.products).toEqual([
@@ -41,11 +43,11 @@ describe("label read sanitizing", () => {
   });
 
   it("reports unreadable photos without data", () => {
-    expect(sanitizeRead({ readable: false, reason: "성분표가 아닙니다", products: [{ brand: "a", name: "b" }], facts: [], notes: "" })).toEqual({
-      readable: false, reason: "성분표가 아닙니다", products: [], facts: [], notes: "",
+    expect(sanitizeRead({ readable: false, reason: "성분표가 아닙니다", products: [{ brand: "a", name: "b" }], facts: [], notes: "", made_on: "2026-01", expires_on: "" })).toEqual({
+      readable: false, reason: "성분표가 아닙니다", products: [], facts: [], notes: "", made_on: "", expires_on: "",
     });
     // 읽었다고 했지만 남는 게 없으면 읽지 못한 것으로
-    expect(sanitizeRead({ readable: true, reason: "", products: [], facts: [], notes: "" }).readable).toBe(false);
+    expect(sanitizeRead({ readable: true, reason: "", products: [], facts: [], notes: "", made_on: "", expires_on: "" }).readable).toBe(false);
   });
 
   it("compares saved facts with what was read (attribute, value, unit, basis)", () => {
@@ -99,6 +101,8 @@ d("label reading with Claude (mock API) and fact evidence (database)", async () 
       { product: 0, attribute: "비타민 B6", value: 2, unit: "mg", basis: "1정" },
     ],
     notes: "",
+    made_on: "2026-03",
+    expires_on: "2028-03-14",
   };
 
   const { pool, query } = await import("@/lib/db");
@@ -116,11 +120,12 @@ d("label reading with Claude (mock API) and fact evidence (database)", async () 
       new Request("http://localhost/api/label-read", { method: "POST", headers: { "content-type": "application/json", "user-agent": ua }, body: JSON.stringify(body) }),
       { params: Promise.resolve({}) },
     );
-  const newPost = (imgs: { id: string; token?: string }[], facts: Parameters<typeof posts.createPost>[0]["facts"]) =>
+  type Dates = { made?: string; expires?: string; dateImage?: string; dateFromLabel?: boolean };
+  const newPost = (imgs: { id: string; token?: string }[], facts: Parameters<typeof posts.createPost>[0]["facts"], dates: Dates = {}) =>
     posts.createPost({
       categorySlug: "supplements", nickname: "테스터", pin: "1234", title: "마그네슘 성분표", body: "마그네슘 200mg 제품 성분표 사진입니다.",
       summary: { lines: ["하나", "둘", "셋"], model: "author", isAuthorEdited: true },
-      images: imgs, products: [{ brand: "NOW", name: "Magnesium Citrate" }], facts,
+      images: imgs, products: [{ brand: "NOW", name: "Magnesium Citrate", ...dates }], facts,
     });
 
   beforeAll(async () => {
@@ -146,7 +151,7 @@ d("label reading with Claude (mock API) and fact evidence (database)", async () 
     const res = await read({ imageId: img.id, token: img.token, category: "supplements" });
     expect(res.status).toBe(200);
     const { read: r } = await res.json();
-    expect(r).toMatchObject({ readable: true, cached: false, model: "claude-opus-5", products: READ.products, facts: READ.facts });
+    expect(r).toMatchObject({ readable: true, cached: false, model: "claude-opus-5", products: READ.products, facts: READ.facts, made_on: "2026-03", expires_on: "2028-03-14" });
 
     expect(calls).toHaveLength(1);
     const call = calls[0]!;
@@ -237,5 +242,30 @@ d("label reading with Claude (mock API) and fact evidence (database)", async () 
     const updated = await posts.updatePost(post.id, "e".repeat(64), "1234", { images: [{ id: other.id }] });
     expect(updated.facts.find((f) => f.attribute === "마그네슘")!.image).toBeNull();
     expect(await query("SELECT count(*)::int AS n FROM label_reads WHERE image_id = $1", [img.id])).toEqual([{ n: 0 }]);
+  });
+
+  it("records label dates with their photo and whether they are exactly what was read (Sprint 26)", async () => {
+    const img = await upload();
+    await read({ imageId: img.id, token: img.token, category: "supplements" });
+    const same = await newPost([{ id: img.id, token: img.token }], [], { made: "2026-03", expires: "2028.03.14", dateImage: img.id, dateFromLabel: true });
+    expect(same.product_dates).toEqual([
+      { product_id: same.products[0]!.id, made: { iso: "2026-03", precision: "month" }, expires: { iso: "2028-03-14", precision: "day" }, origin: "ai", image: img.id },
+    ]);
+    const img2 = await upload();
+    await read({ imageId: img2.id, token: img2.token, category: "supplements" });
+    const edited = await newPost([{ id: img2.id, token: img2.token }], [], { made: "2026-04", expires: "2028-03-14", dateImage: img2.id, dateFromLabel: true });
+    expect(edited.product_dates[0]).toMatchObject({ origin: "ai_edited", made: { iso: "2026-04" } });
+    const manual = await newPost([], [], { made: "20260315" });
+    expect(manual.product_dates[0]).toMatchObject({ origin: "manual", image: null, made: { iso: "2026-03-15", precision: "day" }, expires: null });
+    expect((await newPost([], [])).product_dates).toEqual([]);
+
+    // 사람이 입력한 것과 같은 규칙: 미래 제조일, 순서가 바뀐 날짜, 읽을 수 없는 표기
+    await expect(newPost([], [], { made: "2099-01" })).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/^1번째 제품: 제조일자가 미래/) });
+    await expect(newPost([], [], { made: "2027-01", expires: "2026-01" })).rejects.toMatchObject({ status: 400 });
+    await expect(newPost([], [], { made: "LOT 2403A" })).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/제조일자를 읽을 수 없어요/) });
+
+    // 수정에서 날짜를 빼면 지워진다
+    const updated = await posts.updatePost(manual.id, "e".repeat(64), "1234", { products: [{ id: manual.products[0]!.id }] });
+    expect(updated.product_dates).toEqual([]);
   });
 });

@@ -2,9 +2,30 @@
 
 import { useState } from "react";
 import { FACT_KIND_LABEL, MAX_FACTS_PER_POST, MAX_PRODUCTS_PER_POST, normalizeUnit, productKey, productNameProblem, validUnit, type FactKind } from "@/lib/products";
+import { readLabelDates } from "@/lib/label-dates";
 import { ProductSearchBox } from "./ProductSearchBox";
 
-export type ProductDraft = { key: string; id?: string; brand: string; name: string };
+export type ProductDraft = {
+  key: string;
+  id?: string;
+  brand: string;
+  name: string;
+  /** 라벨의 제조일자·유통기한 (Sprint 26, 선택) — "2026-03" 또는 "2026-03-15" */
+  made?: string;
+  expires?: string;
+  /** 날짜를 읽은 첨부 사진, 라벨 읽기로 채웠는지, 읽었을 때의 값("제조|유통") */
+  dateImage?: string;
+  dateFromLabel?: boolean;
+  dateRead?: string;
+};
+
+export const dateSnapshot = (p: Pick<ProductDraft, "made" | "expires">) => `${(p.made ?? "").trim()}|${(p.expires ?? "").trim()}`;
+
+/** 입력 중 검사 — 서버도 같은 규칙으로 다시 검사한다 */
+export function productDateProblem(p: ProductDraft): string | null {
+  const r = readLabelDates(p.made ?? "", p.expires ?? "");
+  return "problem" in r ? r.problem : null;
+}
 export type FactDraft = {
   key: string;
   product: string;
@@ -30,7 +51,7 @@ export type EvidencePhoto = { id: string; label: string };
 
 let seq = 0;
 const nextKey = (p: string) => `${p}${++seq}`;
-export const newProductDraft = (p: { id?: string; brand: string; name: string }): ProductDraft => ({ key: nextKey("p"), ...p });
+export const newProductDraft = (p: Omit<ProductDraft, "key">): ProductDraft => ({ key: nextKey("p"), ...p });
 export const newFactDraft = (product: string, f: Partial<Omit<FactDraft, "key" | "product">> = {}): FactDraft => ({
   key: nextKey("f"),
   product,
@@ -65,7 +86,18 @@ export function factProblem(f: FactDraft): string | null {
 /** 서버로 보낼 형태로 (photoIds 를 주면 그 안의 사진만 근거로 보낸다 — 지운 사진을 가리키지 않게) */
 export function toRefs(products: ProductDraft[], facts: FactDraft[], photoIds?: string[]) {
   return {
-    products: products.map((p) => (p.id ? { id: p.id } : { brand: p.brand.trim(), name: p.name.trim() })),
+    products: products.map((p) => {
+      const made = (p.made ?? "").trim();
+      const expires = (p.expires ?? "").trim();
+      const dates = made || expires
+        ? {
+            ...(made ? { made } : {}),
+            ...(expires ? { expires } : {}),
+            ...(p.dateImage && (!photoIds || photoIds.includes(p.dateImage)) ? { dateImage: p.dateImage, ...(p.dateFromLabel ? { dateFromLabel: true } : {}) } : {}),
+          }
+        : {};
+      return p.id ? { id: p.id, ...dates } : { brand: p.brand.trim(), name: p.name.trim(), ...dates };
+    }),
     facts: facts
       .filter((f) => f.attribute.trim() || f.value.trim())
       .map((f) => ({
@@ -101,6 +133,8 @@ export function ProductTagger({
   const [brand, setBrand] = useState("");
   const [name, setName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
+  // 날짜를 적은 제품이 있으면 펼쳐 둔다 (수정 화면·라벨 읽기로 채운 경우)
+  const [datesOpen, setDatesOpen] = useState<boolean | null>(null);
   const room = MAX_PRODUCTS_PER_POST - products.length;
   const label = (p: ProductDraft) => `${p.brand} ${p.name}`;
 
@@ -115,6 +149,7 @@ export function ProductTagger({
       facts.filter((f) => f.product !== key),
     );
   const updateFact = (key: string, patch: Partial<FactDraft>) => onChange(products, facts.map((f) => (f.key === key ? { ...f, ...patch } : f)));
+  const updateProduct = (key: string, patch: Partial<ProductDraft>) => onChange(products.map((p) => (p.key === key ? { ...p, ...patch } : p)), facts);
 
   const submitNew = () => {
     const problem = productNameProblem(brand, name);
@@ -147,6 +182,37 @@ export function ProductTagger({
             </li>
           ))}
         </ul>
+      )}
+      {products.length > 0 && (
+        <details className="label-dates" open={datesOpen ?? products.some((p) => p.made || p.expires)} onToggle={(e) => setDatesOpen(e.currentTarget.open)}>
+          <summary>📅 라벨 날짜 (선택) — 제조일자·유통기한</summary>
+          {products.map((p) => {
+            const problem = productDateProblem(p);
+            const dateOk = p.dateImage && photos.some((ph) => ph.id === p.dateImage);
+            return (
+              <fieldset key={p.key} className="label-dates-row">
+                <legend>{label(p)}</legend>
+                <input className="input input-sm" inputMode="numeric" aria-label={`${label(p)} 제조일자`} placeholder="제조일자 (예: 2026-03)" maxLength={20}
+                  value={p.made ?? ""} aria-invalid={problem?.includes("제조") ? true : undefined}
+                  onChange={(e) => updateProduct(p.key, { made: e.target.value })} />
+                <input className="input input-sm" inputMode="numeric" aria-label={`${label(p)} 유통기한`} placeholder="유통기한 (예: 2028-03-14)" maxLength={20}
+                  value={p.expires ?? ""} aria-invalid={problem?.includes("유통") ? true : undefined}
+                  onChange={(e) => updateProduct(p.key, { expires: e.target.value })} />
+                {p.dateFromLabel && dateOk && (p.made || p.expires) && (
+                  <span className="badge badge-ai">{p.dateRead === dateSnapshot(p) ? "🔍 라벨에서 읽은 그대로" : "✏️ 읽은 뒤 고침"}</span>
+                )}
+                {problem && (
+                  <span className="error" role="alert">
+                    {problem}
+                  </span>
+                )}
+              </fieldset>
+            );
+          })}
+          <span className="hint">
+            라벨에 찍힌 날짜를 적으면 제품이 <b>언제 만들어진 것인지</b>로 리뉴얼(배합 변경)을 판단해요. 오래 둔 제품을 늦게 올려도 옛 라벨로 정확히 분류돼요. 월까지만 적어도 돼요.
+          </span>
+        </details>
       )}
 
       {room > 0 &&

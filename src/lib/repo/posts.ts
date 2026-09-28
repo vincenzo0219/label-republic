@@ -14,7 +14,7 @@ import { deleteFiles, listPostImages, setPostImages, type ImageRef } from "./ima
 import { assertPin } from "./pin-guard";
 import { listPostSources, setPostSources, type SourceRef } from "./sources";
 import { getRule } from "./rules";
-import { currentProductIds, listPostFacts, setPostFacts, setPostProducts, type FactInput, type ProductRef } from "./products";
+import { currentProductIds, listPostFacts, listPostProductDates, setPostFacts, setPostProducts, type FactInput, type ProductRef } from "./products";
 
 const CARD_SELECT = `
   p.id, p.nickname, p.title, p.upvotes, p.downvotes, p.comment_count,
@@ -267,21 +267,24 @@ function publicPost(
   images: PostDetail["images"],
   sources: PostDetail["sources"],
   facts: PostDetail["facts"],
+  productDates: PostDetail["product_dates"] = [],
 ): PostDetail {
   if (rest.is_blinded) {
     // 블라인드 글은 본문/요약/이미지/출처/제품을 노출하지 않는다.
     // 제목도 가린다 (블라인드 화면은 "블라인드된 게시글"로만 보여주는데 API 로는 제목이 나가던 것을 막음)
     return {
       ...rest, title: "", body: "", excerpt: "", summary: null, images: [], thumb_id: null, image_count: 0,
-      sources: [], source_count: 0, source_kinds: [], products: [], facts: [], correction_count: 0, disputed_count: 0,
+      sources: [], source_count: 0, source_kinds: [], products: [], facts: [], product_dates: [], correction_count: 0, disputed_count: 0,
     };
   }
-  return { ...rest, images, sources, facts };
+  return { ...rest, images, sources, facts, product_dates: productDates };
 }
 
 export async function getPost(id: string): Promise<PostDetail | null> {
-  const [row, images, sources, facts] = await Promise.all([loadPost(id), listPostImages(id), listPostSources(id), listPostFacts(id)]);
-  return row ? publicPost(row, images, sources, facts) : null;
+  const [row, images, sources, facts, dates] = await Promise.all([
+    loadPost(id), listPostImages(id), listPostSources(id), listPostFacts(id), listPostProductDates(id),
+  ]);
+  return row ? publicPost(row, images, sources, facts, dates) : null;
 }
 
 async function insertSummary(client: PoolClient, postId: string, s: ResolvedSummary) {

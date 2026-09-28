@@ -8,7 +8,8 @@ import { query } from "../db";
 import { HttpError } from "../errors";
 import { reportError } from "../error-tracking";
 import { fullKey, imageStorage } from "../images/storage";
-import { LabelReadUnavailable, readLabelImage, sameAsRead, type LabelReadResult } from "../label-read";
+import { LabelReadUnavailable, readLabelImage, sameAsRead, sameDatesAsRead, type LabelReadResult } from "../label-read";
+import type { LabelDate } from "../label-dates";
 import { tokenOk } from "./images";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -92,4 +93,26 @@ export async function resolveEvidence(
     if (!f.fromLabel || !read) return { image: f.image, origin: "manual" as const };
     return { image: f.image, origin: sameAsRead(read, f) ? ("ai" as const) : ("ai_edited" as const) };
   });
+}
+
+/**
+ * 제품 라벨 날짜의 근거 사진·출처 (Sprint 26, 트랜잭션 안, 사진을 붙인 뒤 호출). 수치(resolveEvidence)와 같은 규칙:
+ * 근거 사진은 이 글에 붙은 사진만, 라벨 읽기로 넣은 날짜가 읽은 결과와 같으면 ai, 다르면 ai_edited.
+ */
+export async function resolveDateEvidence(
+  client: PoolClient,
+  postId: string,
+  d: { image?: string; fromLabel?: boolean; made: LabelDate | null; expires: LabelDate | null },
+  index: number,
+): Promise<{ image: string | null; origin: "manual" | "ai" | "ai_edited" }> {
+  if (!d.image) return { image: null, origin: "manual" };
+  if (!UUID.test(d.image)) throw new HttpError(400, "invalid_image", "날짜 근거 사진 정보가 올바르지 않습니다.");
+  const { rows } = await client.query<{ result: LabelReadResult | null }>(
+    "SELECT r.result FROM post_images i LEFT JOIN label_reads r ON r.image_id = i.id WHERE i.post_id = $1 AND i.id = $2",
+    [postId, d.image],
+  );
+  if (!rows[0]) throw new HttpError(400, "invalid_image", `${index + 1}번째 제품의 날짜 근거 사진은 이 글에 첨부한 사진이어야 합니다.`);
+  const read = rows[0].result;
+  if (!d.fromLabel || !read) return { image: d.image, origin: "manual" };
+  return { image: d.image, origin: sameDatesAsRead(read, d.made, d.expires) ? "ai" : "ai_edited" };
 }

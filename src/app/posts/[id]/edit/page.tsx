@@ -22,6 +22,7 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
         initial={{ title: post.title, body: post.body, summary: post.summary?.lines ?? null, images: post.images.map((i) => ({ id: i.id, alt: i.alt })), sources: post.sources.map((s) => ({ url: s.url, label: s.label })),
           products: post.products,
           facts: post.facts,
+          productDates: post.product_dates,
         }}
       />
     </>

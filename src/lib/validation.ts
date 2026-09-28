@@ -61,14 +61,25 @@ export const sourceRefsSchema = z
   )
   .max(8, "출처는 8개까지 달 수 있습니다.");
 
+/** 제품 라벨 날짜 (Sprint 26) — 형식 검사는 저장할 때 src/lib/label-dates.ts */
+const productDates = {
+  made: z.string().trim().max(20, "제조일자가 너무 깁니다.").optional(),
+  expires: z.string().trim().max(20, "유통기한이 너무 깁니다.").optional(),
+  /** 날짜를 읽은(또는 보여주는) 첨부 사진 */
+  dateImage: z.string().uuid("날짜 근거 사진 정보가 올바르지 않습니다.").optional(),
+  /** 라벨 읽기로 채운 날짜 — 서버가 읽은 결과와 비교해 그대로인지/고쳤는지 기록한다 */
+  dateFromLabel: z.boolean().optional(),
+};
+
 /** 제품 태그 — 이미 있는 제품은 id, 새 제품은 브랜드·제품명 (이름 규칙 검사는 저장할 때 src/lib/products.ts) */
 export const productRefsSchema = z
   .array(
     z.union([
-      z.object({ id: z.string().regex(/^\d{1,18}$/, "제품 정보가 올바르지 않습니다.") }),
+      z.object({ id: z.string().regex(/^\d{1,18}$/, "제품 정보가 올바르지 않습니다."), ...productDates }),
       z.object({
         brand: z.string().trim().min(1, "브랜드를 입력해주세요.").max(60, "브랜드는 60자까지 입력할 수 있습니다."),
         name: z.string().trim().min(1, "제품명을 입력해주세요.").max(120, "제품명은 120자까지 입력할 수 있습니다."),
+        ...productDates,
       }),
     ]),
   )

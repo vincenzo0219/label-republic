@@ -8,7 +8,7 @@ import { CorrectionsPanel } from "@/components/CorrectionsPanel";
 import { Gallery } from "@/components/Gallery";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
-import { PostFactsTable, ProductChips } from "@/components/PostProducts";
+import { PostFactsTable, PostProductDatesList, ProductChips } from "@/components/PostProducts";
 import { getRules } from "@/lib/repo/rules";
 import { ReportButton } from "@/components/ReportButton";
 import { RsvpPanel } from "@/components/RsvpPanel";
@@ -175,6 +175,7 @@ export default async function PostPage({ params }: Props) {
           )}
         </div>
         <ProductChips products={post.products} />
+        <PostProductDatesList products={post.products} dates={post.product_dates} photos={post.images} />
       </header>
 
       {post.disputed_count > 0 && (

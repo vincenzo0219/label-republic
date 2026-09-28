@@ -15,11 +15,12 @@ export const NOT_DISPUTED = `NOT EXISTS (
      AND c.fact_value = f.value AND c.fact_unit = f.unit AND c.fact_basis = f.basis)`;
 
 // 리뉴얼(Sprint 25)이 확인된 항목은 리뉴얼 뒤 글의 값만 — 제품 페이지의 "지금 라벨"과 같은 기준.
-// 기록은 정리 배치가 src/lib/renewals.ts 로 계산해 남긴다 (최대 5분 늦을 수 있음)
+// 기록은 정리 배치가 src/lib/renewals.ts 로 계산해 남긴다 (최대 5분 늦을 수 있음). 어느 글이 이전 시기인지는
+// 라벨 날짜로 추정한 제조 시각으로 정하므로(Sprint 26) 글 목록(old_posts)으로 뺀다 — 기록 뒤에 올라온 글은 지금 시기로 본다
 const CURRENT_LABEL_ERA = `NOT EXISTS (
   SELECT 1 FROM product_renewals r
    WHERE r.product_id = f.product_id AND r.attr_key = f.attr_key AND r.basis_key = f.basis_key AND r.unit_group = f.unit_group
-     AND r.status = 'confirmed' AND r.first_new_at > p.created_at)`;
+     AND r.status = 'confirmed' AND f.post_id = ANY(r.old_posts))`;
 
 // 보드 전체 수치를 훑는 조회라 인스턴스별로 잠깐 캐시한다 (새 수치는 1분 안에 반영)
 const TTL_MS = 60_000;

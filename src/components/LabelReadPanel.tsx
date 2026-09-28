@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { formatValue, MAX_FACTS_PER_POST, MAX_PRODUCTS_PER_POST, productKey, productNameProblem } from "@/lib/products";
-import { factSnapshot, newFactDraft, newProductDraft, type FactDraft, type ProductDraft } from "./ProductTagger";
+import { formatLabelDate, parseLabelDate } from "@/lib/label-dates";
+import { dateSnapshot, factSnapshot, newFactDraft, newProductDraft, type FactDraft, type ProductDraft } from "./ProductTagger";
 
 export type LabelRead = {
   readable: boolean;
@@ -11,6 +12,9 @@ export type LabelRead = {
   facts: { product: number; attribute: string; value: number; unit: string; basis: string }[];
   notes: string;
   model: string;
+  /** Sprint 26 — 없거나 빈 문자열이면 날짜를 못 읽음 */
+  made_on?: string;
+  expires_on?: string;
 };
 
 type ProductChoice = { use: boolean; target: string; brand: string; name: string };
@@ -47,6 +51,10 @@ export function LabelReadPanel({
 }) {
   const [choices, setChoices] = useState(() => initialChoices(read, products));
   const [pickedFacts, setPickedFacts] = useState(() => read.facts.map(() => true));
+  const hasDates = !!(read.made_on || read.expires_on);
+  const [useDates, setUseDates] = useState(hasDates);
+  // 날짜를 넣을 제품: 읽은 제품 첫째(순서 번호 "r0") 또는 이미 태그한 제품(key). 사진에 제품이 없으면(병 바닥) 태그한 첫 제품
+  const [dateTarget, setDateTarget] = useState(() => (read.products.length ? "r0" : (products[0]?.key ?? "")));
   const [error, setError] = useState<string | null>(null);
 
   if (!read.readable) {
@@ -93,6 +101,15 @@ export function LabelReadPanel({
       nextProducts = [...nextProducts, draft];
       keyOf[i] = draft.key;
     }
+    if (hasDates && useDates) {
+      const key = dateTarget.startsWith("r") ? keyOf[Number(dateTarget.slice(1))] : dateTarget;
+      if (!key) {
+        setError("날짜를 넣을 제품을 골라주세요 (그 제품을 함께 넣거나 이미 태그한 제품 선택).");
+        return;
+      }
+      const dates = { made: read.made_on ?? "", expires: read.expires_on ?? "" };
+      nextProducts = nextProducts.map((p) => (p.key === key ? { ...p, ...dates, dateImage: imageId, dateFromLabel: true, dateRead: dateSnapshot(dates) } : p));
+    }
     let nextFacts = [...facts];
     let added = 0;
     let skipped = 0;
@@ -112,7 +129,8 @@ export function LabelReadPanel({
     }
     // 비어 있던 첫 수치 줄(수치 추가만 누르고 안 적은 줄)은 정리
     nextFacts = nextFacts.filter((x) => x.attribute.trim() || x.value.trim() || x.unit.trim());
-    const message = `${added}개 수치를 넣었어요${skipped ? ` (이미 있거나 개수 제한으로 ${skipped}개는 뺐어요)` : ""}. 사진과 한 번 더 대조해 주세요.`;
+    const dated = hasDates && useDates ? " 라벨 날짜도 넣었어요." : "";
+    const message = `${added}개 수치를 넣었어요${skipped ? ` (이미 있거나 개수 제한으로 ${skipped}개는 뺐어요)` : ""}.${dated} 사진과 한 번 더 대조해 주세요.`;
     onApply(nextProducts, nextFacts, message);
   }
 
@@ -190,14 +208,42 @@ export function LabelReadPanel({
         </fieldset>
       )}
 
+      {hasDates && (
+        <fieldset className="label-read-group">
+          <legend>라벨 날짜</legend>
+          <label className="check">
+            <input type="checkbox" checked={useDates} onChange={(e) => setUseDates(e.target.checked)} />
+            <span>
+              {read.made_on && <>제조일자 <b>{formatLabelDate(parseLabelDate(read.made_on)!)}</b></>}
+              {read.made_on && read.expires_on && " · "}
+              {read.expires_on && <>유통기한 <b>{formatLabelDate(parseLabelDate(read.expires_on)!)}</b></>}
+            </span>
+          </label>
+          {useDates && (
+            <select className="select input-sm" aria-label="라벨 날짜를 넣을 제품" value={dateTarget} onChange={(e) => setDateTarget(e.target.value)}>
+              {read.products.map((p, i) => (
+                <option key={`r${i}`} value={`r${i}`}>
+                  읽은 제품: {p.brand} {p.name}
+                </option>
+              ))}
+              {products.map((p) => (
+                <option key={p.key} value={p.key}>
+                  태그한 제품: {p.brand} {p.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </fieldset>
+      )}
+
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
       <div className="row-actions">
-        <button type="button" className="btn btn-primary btn-sm" onClick={apply} disabled={!usedTargets}>
-          {pickedCount ? `선택한 수치 ${pickedCount}개 넣기` : "제품만 넣기"}
+        <button type="button" className="btn btn-primary btn-sm" onClick={apply} disabled={!usedTargets && !(hasDates && useDates)}>
+          {pickedCount ? `선택한 수치 ${pickedCount}개 넣기` : hasDates && useDates ? "날짜 넣기" : "제품만 넣기"}
         </button>
         <button type="button" className="btn btn-sm" onClick={onClose}>
           닫기

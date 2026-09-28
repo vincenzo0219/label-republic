@@ -74,6 +74,15 @@ export type PostFact = {
   origin: FactOrigin;
 };
 
+/** 글에 태그한 제품의 라벨 날짜 (Sprint 26) */
+export type PostProductDates = {
+  product_id: string;
+  made: { iso: string; precision: "day" | "month" } | null;
+  expires: { iso: string; precision: "day" | "month" } | null;
+  origin: FactOrigin;
+  image: string | null;
+};
+
 export type PostSource = {
   id: string;
   url: string;
@@ -91,6 +100,8 @@ export type PostDetail = PostCard & {
   images: PostImage[];
   sources: PostSource[];
   facts: PostFact[];
+  /** 제품별 제조일자·유통기한 (적은 제품만) */
+  product_dates: PostProductDates[];
   body: string;
   report_count: number;
   is_blinded: boolean;

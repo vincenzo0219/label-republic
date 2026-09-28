@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { imageUrl } from "@/lib/media-url";
 import { FACT_KIND_LABEL, formatValue } from "@/lib/products";
-import type { FactOrigin, PostFact, ProductTag } from "@/lib/types";
+import { formatLabelDate } from "@/lib/label-dates";
+import type { FactOrigin, PostFact, PostProductDates, ProductTag } from "@/lib/types";
 
 /** 수치 출처 (Sprint 20) — 라벨 사진을 AI 가 읽었는지, 그 뒤 작성자가 고쳤는지 */
 const ORIGIN_LABEL: Record<FactOrigin, string | null> = {
@@ -22,6 +23,37 @@ export function ProductChips({ products }: { products: ProductTag[] }) {
           </Link>
         </li>
       ))}
+    </ul>
+  );
+}
+
+/** 제품별 라벨 날짜 (Sprint 26) — 리뉴얼 판단의 기준 시점 */
+export function PostProductDatesList({ products, dates, photos = [] }: { products: ProductTag[]; dates: PostProductDates[]; photos?: { id: string }[] }) {
+  if (!dates.length) return null;
+  const photoNo = new Map(photos.map((ph, i) => [ph.id, i + 1]));
+  return (
+    <ul className="post-label-dates" aria-label="라벨 날짜">
+      {dates.map((d) => {
+        const p = products.find((x) => x.id === d.product_id);
+        if (!p) return null;
+        return (
+          <li key={d.product_id}>
+            📅 {products.length > 1 && <>{p.brand} {p.name}: </>}
+            {d.made && <>제조 {formatLabelDate(d.made)}</>}
+            {d.made && d.expires && " · "}
+            {d.expires && <>유통기한 {formatLabelDate(d.expires)}</>}
+            {d.image && photoNo.has(d.image) && (
+              <>
+                {" "}
+                <a className="fact-photo" href={imageUrl(d.image)} target="_blank" rel="noopener" aria-label={`라벨 날짜 근거: 사진 ${photoNo.get(d.image)} 원본 보기`}>
+                  📷 사진 {photoNo.get(d.image)}
+                </a>
+                {ORIGIN_LABEL[d.origin] && <span className="hint fact-origin">{ORIGIN_LABEL[d.origin]}</span>}
+              </>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

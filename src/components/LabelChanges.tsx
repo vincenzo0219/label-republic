@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatValue } from "@/lib/products";
-import type { FactGroup } from "@/lib/repo/products";
+import type { FactGroup, LabelEra } from "@/lib/repo/products";
 import { changePct, changePeriodText } from "@/lib/renewals";
 
 function pctText(from: number, to: number): string {
@@ -8,6 +8,12 @@ function pctText(from: number, to: number): string {
   if (p === null) return "";
   const r = Math.round(Math.abs(p));
   return r === 0 ? "" : ` (${p > 0 ? "+" : "−"}${r}%)`;
+}
+
+/** 바뀐 시기 문구 — 양쪽 제보에 라벨 날짜가 있으면 "제조 …", 아니면 글 올린 시기 기준임을 밝힌다 (Sprint 26) */
+function whenText(prev: LabelEra, cur: LabelEra): string {
+  const period = changePeriodText(prev.last_at, cur.first_at);
+  return prev.last_basis !== "posted" && cur.first_basis !== "posted" ? `제조 ${period}에 바뀜` : `${period}에 바뀜 (글 올린 시기로 추정)`;
 }
 
 function label(g: FactGroup) {
@@ -35,7 +41,7 @@ export function LabelChanges({ groups, writeHref, minReports }: { groups: FactGr
               return (
                 <li key={g.key}>
                   <b>{label(g)}</b>: {formatValue(prev.value)} → <b>{formatValue(cur.value)} {g.unit}</b>
-                  {pctText(prev.value, cur.value)} · {changePeriodText(prev.last_at, cur.first_at)}에 바뀜
+                  {pctText(prev.value, cur.value)} · {whenText(prev, cur)}
                   <span className="hint">
                     {" "}
                     — 새 값 글 {cur.n}개(작성자 {cur.authors}명{cur.photos ? `, 📷 사진 근거 ${cur.photos}` : ""})
@@ -47,7 +53,7 @@ export function LabelChanges({ groups, writeHref, minReports }: { groups: FactGr
                         {eras.map((e, i) => (
                           <li key={i}>
                             {formatValue(e.value)} {g.unit} — 글 {e.n}개
-                            {i > 0 ? ` · ${changePeriodText(eras[i - 1]!.last_at, e.first_at)}부터` : ""}
+                            {i > 0 ? ` · ${whenText(eras[i - 1]!, e).replace(/에 바뀜/, "부터")}` : ""}
                           </li>
                         ))}
                       </ol>
@@ -58,7 +64,7 @@ export function LabelChanges({ groups, writeHref, minReports }: { groups: FactGr
             })}
           </ul>
           <p className="hint">
-            아래 표의 표시값·실측값은 바뀐 뒤 글만으로 계산해요. 바뀌기 전 글의 값은 &ldquo;글별 값&rdquo;에 &ldquo;리뉴얼 전&rdquo;으로 남아 있어요. 기준: 바뀐 뒤 서로 다른 {minReports}명 이상이 같은 새 값을 올림 (
+            시기는 글에 적힌 라벨 날짜(제조일자·유통기한)로 추정한 제조 시기로 나누고, 날짜가 없는 글은 올린 시기로 추정해요. 아래 표의 표시값·실측값은 바뀐 뒤 제품의 글만으로 계산해요. 바뀌기 전 글의 값은 &ldquo;글별 값&rdquo;에 &ldquo;리뉴얼 전&rdquo;으로 남아 있어요. 기준: 바뀐 뒤 서로 다른 {minReports}명 이상이 같은 새 값을 올림 (
             <Link href="/rules">커뮤니티 규칙</Link>).
           </p>
         </div>
@@ -94,7 +100,9 @@ export function LabelChanges({ groups, writeHref, minReports }: { groups: FactGr
               📷 라벨 사진으로 확인 글쓰기
             </Link>
           </p>
-          <p className="hint">오타일 수도 있어요. 값이 틀렸다면 그 글에 정정 제안을 남겨 주세요.</p>
+          <p className="hint">
+            제조일자·유통기한이 찍힌 부분도 함께 찍어 주세요 — 언제 만든 제품인지로 옛 재고와 새 라벨을 구분해요. 오타일 수도 있어요. 값이 틀렸다면 그 글에 정정 제안을 남겨 주세요.
+          </p>
         </div>
       )}
     </div>

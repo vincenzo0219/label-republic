@@ -7,8 +7,8 @@ import { watchPost } from "@/lib/watchlist";
 import { existingImages, ImagePicker, type PickedImage } from "./ImagePicker";
 import { LabelReadPanel, type LabelRead } from "./LabelReadPanel";
 import { checkDraft, newSourceDraft, SourceEditor, type SourceDraft } from "./SourceEditor";
-import { factProblem, factSnapshot, newFactDraft, newProductDraft, ProductTagger, toRefs, type EvidencePhoto, type FactDraft, type ProductDraft } from "./ProductTagger";
-import type { PostFact, ProductTag } from "@/lib/types";
+import { dateSnapshot, factProblem, factSnapshot, newFactDraft, newProductDraft, productDateProblem, ProductTagger, toRefs, type EvidencePhoto, type FactDraft, type ProductDraft } from "./ProductTagger";
+import type { PostFact, PostProductDates, ProductTag } from "@/lib/types";
 
 type Lines = [string, string, string];
 type PostType = "info" | "chat" | "meetup";
@@ -47,13 +47,21 @@ type Props =
         sources: { url: string; label: string }[];
         products: ProductTag[];
         facts: PostFact[];
+        productDates?: PostProductDates[];
       };
     };
 
 /** 수정 화면: 저장된 제품·수치를 편집 상태로 */
 function initialProductState(props: Props): { products: ProductDraft[]; facts: FactDraft[] } {
   if (props.mode === "create") return { products: props.initialProduct ? [newProductDraft(props.initialProduct)] : [], facts: [] };
-  const products = props.initial.products.map((p) => newProductDraft(p));
+  const products = props.initial.products.map((p) => {
+    const d = props.initial.productDates?.find((x) => x.product_id === p.id);
+    const dates = d ? { made: d.made?.iso ?? "", expires: d.expires?.iso ?? "" } : {};
+    return newProductDraft({
+      ...p, ...dates,
+      ...(d?.image ? { dateImage: d.image, dateFromLabel: d.origin !== "manual", dateRead: d.origin === "ai" ? dateSnapshot(dates) : undefined } : {}),
+    });
+  });
   const keyOf = new Map(props.initial.products.map((p, i) => [p.id, products[i]!.key]));
   const facts = props.initial.facts.flatMap((f) => {
     const product = keyOf.get(f.product_id);
@@ -304,6 +312,11 @@ export function PostEditor(props: Props) {
     const badFact = tagged.facts.filter((f) => f.attribute.trim() || f.value.trim()).map(factProblem).find(Boolean);
     if (badFact) {
       setError(`제품 수치를 확인해주세요: ${badFact}`);
+      return;
+    }
+    const badDate = tagged.products.map(productDateProblem).find(Boolean);
+    if (badDate) {
+      setError(`라벨 날짜를 확인해주세요: ${badDate}`);
       return;
     }
     const tagRefs = toRefs(tagged.products, tagged.facts, photos.map((p) => p.id));
