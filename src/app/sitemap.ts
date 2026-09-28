@@ -4,11 +4,14 @@ import { listCategories } from "@/lib/repo/categories";
 import { listPostIdsForSitemap } from "@/lib/repo/posts";
 import { listProductIdsForSitemap } from "@/lib/repo/products";
 import { listBoardAttributes } from "@/lib/repo/facts";
+import { topRenewalBrands } from "@/lib/repo/renewal-feed";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [categories, posts, products] = await Promise.all([listCategories(), listPostIdsForSitemap(), listProductIdsForSitemap()]);
+  const [categories, posts, products, brands] = await Promise.all([
+    listCategories(), listPostIdsForSitemap(), listProductIdsForSitemap(), topRenewalBrands({ limit: 500 }),
+  ]);
   // 성분 순위 페이지: 제품 3개 이상이 수치를 가진 항목만
   const ranks = (
     await Promise.all(
@@ -33,5 +36,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 제품 페이지: 보이는 [정보]·[정모] 글이 있는 제품만
     ...products.map((p) => ({ url: `${config.siteUrl}/p/${p.id}`, lastModified: p.updated_at, priority: 0.7 })),
     ...ranks.map((url) => ({ url, changeFrequency: "daily" as const, priority: 0.6 })),
+    // 라벨 변경 이력 (Sprint 28): 전체·보드별, 변경이 확인된 브랜드
+    { url: `${config.siteUrl}/renewals`, changeFrequency: "daily" as const, priority: 0.6 },
+    ...categories.map((c) => ({ url: `${config.siteUrl}/c/${encodeURIComponent(c.slug)}/renewals`, changeFrequency: "daily" as const, priority: 0.5 })),
+    ...brands.map((b) => ({ url: `${config.siteUrl}/brand/${encodeURIComponent(b.key)}`, changeFrequency: "weekly" as const, priority: 0.5 })),
   ];
 }

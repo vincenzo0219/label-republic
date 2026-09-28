@@ -675,3 +675,18 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 @media (prefers-color-scheme: dark) {
   body[data-lr-recovered]::before { background: #173a28; color: #bdebd0; border-bottom-color: #2f6b4b; }
 }
+
+/* 라벨 변경 이력 (Sprint 28) */
+.renewal-list { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 10px; }
+.renewal-item { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.renewal-item a { text-decoration: none; }
+.renewal-item a:hover, .renewal-item a:focus-visible { text-decoration: underline; }
+.renewal-product { font-size: 14px; }
+.renewal-change { margin: 6px 0 2px; font-size: 15px; }
+.renewal-meta { margin: 0; font-size: 12.5px; }
+.renewal-pct { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.renewal-pct.is-down { color: var(--accent); }
+.renewal-pct.is-up { color: var(--brand); }
+.brand-counts { margin: 6px 0; padding-left: 18px; }
+.brand-counts li { margin: 3px 0; }
+.product-brand a { color: inherit; }

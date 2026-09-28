@@ -64,7 +64,7 @@ export function LabelChanges({ groups, writeHref, minReports }: { groups: FactGr
             })}
           </ul>
           <p className="hint">
-            시기는 글에 적힌 라벨 날짜(제조일자·유통기한)로 추정한 제조 시기로 나누고, 날짜가 없는 글은 올린 시기로 추정해요. 아래 표의 표시값·실측값은 바뀐 뒤 제품의 글만으로 계산해요. 바뀌기 전 글의 값은 &ldquo;글별 값&rdquo;에 &ldquo;리뉴얼 전&rdquo;으로 남아 있어요. 기준: 바뀐 뒤 서로 다른 {minReports}명 이상이 같은 새 값을 올림 (
+            시기는 글에 적힌 라벨 날짜(제조일자·유통기한)로 추정한 제조 시기로 나누고, 날짜가 없는 글은 올린 시기로 추정해요. 아래 표의 표시값·실측값은 바뀐 뒤 제품의 글만으로 계산해요. 다른 제품의 변경은 <Link href="/renewals">라벨 변경 이력</Link>에서 볼 수 있어요. 바뀌기 전 글의 값은 &ldquo;글별 값&rdquo;에 &ldquo;리뉴얼 전&rdquo;으로 남아 있어요. 기준: 바뀐 뒤 서로 다른 {minReports}명 이상이 같은 새 값을 올림 (
             <Link href="/rules">커뮤니티 규칙</Link>).
           </p>
         </div>

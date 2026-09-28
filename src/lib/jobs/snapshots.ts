@@ -2,7 +2,7 @@
  * 읽기 전용 모드 저장본 수집 (Sprint 27).
  *
  * 0번 워커가 SNAPSHOT_INTERVAL_SEC 마다 자기 서버에 공개 페이지를 요청해(서명된 헤더) 저장본을 새로 만든다:
- * 홈·규칙·정책 문서, 보드와 보드 제품 목록, 최근 90일 추천 많은 글과 최근 글, 글이 많은 제품.
+ * 홈·규칙·정책 문서·라벨 변경 이력, 보드와 보드 제품 목록·라벨 변경 이력, 최근 90일 추천 많은 글과 최근 글, 글이 많은 제품.
  * 이용자가 연 글·제품 페이지도 저장본이 없거나 오래됐으면 같은 방식(아무 기록 없는 방문자)으로 곧 다시 받아 둔다.
  * DB 가 멈춘 동안에는 받지 않는다 (지금 가진 저장본을 지킨다).
  */
@@ -11,7 +11,7 @@ import { dbDown, query } from "../db";
 import { reportError } from "../error-tracking";
 import { pruneSnapshots, SNAPSHOT_HEADER, SNAPSHOT_UA, snapshotKey, snapshotSavedAt, snapshotToken } from "../snapshots";
 
-const STATIC_PAGES = ["/", "/rules", "/policy", "/terms", "/privacy", "/transparency"];
+const STATIC_PAGES = ["/", "/rules", "/policy", "/terms", "/privacy", "/transparency", "/renewals"];
 /** 이보다 오래 안 바뀐 저장본은 지운다 */
 const MAX_AGE_MS = 7 * 24 * 3600_000;
 
@@ -39,7 +39,7 @@ export async function snapshotTargets(posts = config.snapshotPosts, products = c
   ]);
   return [
     ...STATIC_PAGES,
-    ...cats.flatMap((c) => [`/c/${encodeURIComponent(c.slug)}`, `/c/${encodeURIComponent(c.slug)}/products`]),
+    ...cats.flatMap((c) => [`/c/${encodeURIComponent(c.slug)}`, `/c/${encodeURIComponent(c.slug)}/products`, `/c/${encodeURIComponent(c.slug)}/renewals`]),
     ...ps.map((p) => `/posts/${p.id}`),
     ...prs.map((p) => `/p/${p.id}`),
   ];

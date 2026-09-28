@@ -12,6 +12,7 @@ import { thumbUrl } from "@/lib/media-url";
 import { formatValue } from "@/lib/products";
 import { listPosts } from "@/lib/repo/posts";
 import { getProduct as getProductUncached, productFacts, productPhotos, productSources, type Product } from "@/lib/repo/products";
+import { brandKey } from "@/lib/repo/renewal-feed";
 import { getRule } from "@/lib/repo/rules";
 import { displayHost, SOURCE_KIND_LABEL } from "@/lib/sources";
 
@@ -80,7 +81,11 @@ export default async function ProductPage({ params, searchParams }: Props) {
         <Link href={boardPath}>← {product.category.name}</Link> · <Link href={`${boardPath}/products`}>제품 목록</Link>
       </p>
       <header className="post-head">
-        <p className="product-brand">{product.brand}</p>
+        <p className="product-brand">
+          <Link href={`/brand/${encodeURIComponent(brandKey(product.brand))}`} title="이 브랜드의 라벨 변경 이력">
+            {product.brand}
+          </Link>
+        </p>
         <h1>{product.name}</h1>
         <div className="post-meta">
           <span>관련 글 {product.post_count}개</span>

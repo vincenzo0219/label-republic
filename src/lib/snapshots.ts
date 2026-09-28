@@ -22,13 +22,15 @@ export const SNAPSHOT_UA = "labelrep-snapshot/1";
 const PATHS: RegExp[] = [
   /^\/$/,
   /^\/c\/[^/]{1,80}$/,
-  /^\/c\/[^/]{1,80}\/(products|facts)$/,
+  /^\/c\/[^/]{1,80}\/(products|facts|renewals)$/,
+  /^\/renewals$/,
+  /^\/brand\/[^/]{1,60}$/,
   /^\/posts\/\d{1,18}$/,
   /^\/p\/\d{1,18}$/,
   /^\/(rules|policy|terms|privacy|transparency)$/,
 ];
 /** 주소의 이 조건만 저장본을 나눈다 (나머지 조건은 떼고 같은 저장본) */
-const KEPT_PARAMS = new Set(["page", "sort", "attr", "basis"]);
+const KEPT_PARAMS = new Set(["page", "sort", "attr", "basis", "status"]);
 
 /** 요청 주소 → 저장본 키 ("/c/supplements?page=2"). 대상이 아니면 null */
 export function snapshotKey(url: string): string | null {
