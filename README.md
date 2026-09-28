@@ -331,6 +331,19 @@ Sprint 14에서 모은 제품 수치로 "마그네슘 200mg 이상", "비타민D
 - 그대로 둔 것: JS 약 144KB(gzip) 중 117KB는 React·Next 런타임, TBT 200ms 안팎은 그 실행 비용 (사이트 코드는 약 20KB). 폰트는 웹폰트를 받지 않고 시스템 글꼴을 씀.
 - `npm run perf:mobile` — 같은 조건으로 재고 예산(LCP 2.5초·CLS 0.1·TBT 300ms·JS 170KB·HTML 60KB·DOM 1,500)을 넘으면 실패. 측정표는 RUNBOOK 7장.
 
+### Sprint 23 — 규칙 투표 조작 대응
+
+Sprint 21의 알려진 제한("규칙 투표 표를 무효화할 도구가 없음")을 해결했습니다. 자동으로 지우지 않고, 탐지 → 운영자 검토 → 탐지된 표만 통째로 무효화(공개) 흐름입니다.
+
+| 영역 | 구현 |
+|---|---|
+| 투표 때 남기는 것 | 표마다 그 순간의 계정 나이·기여 수, 망 식별값(IPv4 /24·IPv6 /48 대역의 HMAC 앞 16자 — IP 로 되돌릴 수 없음, 투표 종료 30일 뒤 삭제) |
+| 탐지 (정리 배치, 진행 중인 제안마다·찬반 각각) | ① **자격을 갓 채운 계정 몰림**: 첫 활동 10일 미만·기여 4건 이하 계정이 한쪽에 4표 이상이면서 그쪽 투표자의 30% 이상 ② **같은 망의 새 계정**: 30일 미만 계정이 같은 망에서 같은 쪽에 3표 이상 — 통신사·회사 망을 함께 쓰는 오래된 회원은 잡지 않음 |
+| 알림 | `abuse_alerts` 의 `rule_vote_ring`. 탐지된 표를 빼면 가결 여부가 바뀌면 "심각". `/admin/moderation` 에서 미리보기·무효화·오탐 닫기 (기존 조작 무효화와 같은 방식 — 탐지·미리보기·무효화가 같은 조회를 써서 운영자가 표를 고를 수 없음) |
+| 마감 보류 | 알림이 열려 있으면 마감을 미룸, 최대 72시간 (그 뒤엔 그대로 마감) |
+| 공개 | 제안마다 찬성·반대 투표자의 계정 나이 분포(30일 미만 / 30~90일 / 90일 이상), 검토 중 안내, 무효 처리된 표 수. 투명성 기록 "조직적 규칙 투표 무효화". 운영 원칙·개인정보처리방침 갱신 |
+| 검증 | 망 대역 계산, 표마다 기록, 갓 자격 몰림 탐지·마감 보류·미리보기=무효화 수·재투표 차단·마감, 결과를 가르는 경우 "심각", 같은 망 새 계정 탐지와 오래된 회원 제외·2표 미탐지, 오탐 닫기로 보류 해제·72시간 뒤 자동 해제, 망 식별값 30일 삭제. 브라우저 E2E 5단계(정리 배치 탐지 → 공개 화면 → 보류 → 운영자 무효화 → 부결 마감), axe 0건 |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -521,7 +534,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 022_perf_indexes.sql
+db/migrations/        001_schema.sql … 023_rule_vote_integrity.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 assets/icon.svg       앱 아이콘 원본 (scripts/make-icons.ts 로 PNG 생성)
@@ -532,7 +545,7 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, ops, security, pwa, label, rules (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, ops, security, pwa, label, rules, rule-integrity (*.test.ts)
 .github/workflows/    ci.yml
 ```
 

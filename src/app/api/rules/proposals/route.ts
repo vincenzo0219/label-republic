@@ -1,5 +1,5 @@
 import { tooMany } from "@/lib/errors";
-import { fingerprint } from "@/lib/fingerprint";
+import { fingerprint, networkHash } from "@/lib/fingerprint";
 import { json, parseBody, route } from "@/lib/http";
 import { withIdempotency } from "@/lib/idempotency";
 import { hit } from "@/lib/rate-limit";
@@ -12,7 +12,7 @@ export const POST = route(async (req) => {
   return withIdempotency(req, "rule_proposal", async () => {
     if (!(await hit(`rule:propose:${fp}`, 5, 60 * 60 * 1000))) throw tooMany();
     const input = await parseBody(req, ruleProposalSchema);
-    const proposal = await createProposal({ key: input.key, value: input.value, reason: input.reason, nickname: input.nickname, pin: input.pw, fingerprint: fp });
+    const proposal = await createProposal({ key: input.key, value: input.value, reason: input.reason, nickname: input.nickname, pin: input.pw, fingerprint: fp, netHash: networkHash(req.headers) });
     return json({ proposal }, 201);
   });
 });

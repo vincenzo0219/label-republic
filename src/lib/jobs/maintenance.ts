@@ -3,14 +3,14 @@ import { pool } from "../db";
 import { promotePendingBoardRequests } from "../repo/board-requests";
 import { sweepOrphanImages } from "../repo/images";
 import { expireMeetups } from "../repo/meetups";
-import { closeDueProposals } from "../repo/rules";
+import { closeDueProposals, findRingVotes } from "../repo/rules";
 import { reportError } from "../error-tracking";
 
 const MAINTENANCE_LOCK_KEY = 4_823_003;
 
 export type AlertCandidate = {
-  kind: "report_burst" | "vote_burst" | "board_vote_burst" | "mass_reporter";
-  subjectType: "post" | "board_request" | "fingerprint";
+  kind: "report_burst" | "vote_burst" | "board_vote_burst" | "mass_reporter" | "rule_vote_ring";
+  subjectType: "post" | "board_request" | "fingerprint" | "rule_proposal";
   subjectId: string;
   severity: "warning" | "serious";
   detail: Record<string, unknown>;
@@ -107,6 +107,21 @@ export async function scanAbuse(client: PoolClient, now = new Date()): Promise<A
     });
   }
 
+  // 규칙 투표: 자격을 갓 채운 계정의 몰림, 같은 망에서 몰린 새 계정 표 (Sprint 23)
+  for (const r of await findRingVotes(client)) {
+    alerts.push({
+      kind: "rule_vote_ring",
+      subjectType: "rule_proposal",
+      subjectId: r.proposalId,
+      // 이 표들을 빼면 가결 여부가 바뀌면 심각
+      severity: r.flips ? "serious" : "warning",
+      detail: {
+        rule: r.key, from: r.from, to: r.to, flagged: r.flagged, flaggedYes: r.flaggedYes, flaggedNo: r.flaggedNo,
+        freshEligible: r.fresh, sameNetwork: r.sameNet, flipsOutcome: r.flips, windowStart: r.windowStart,
+      },
+    });
+  }
+
   for (const a of alerts) {
     await client.query(
       `INSERT INTO abuse_alerts (kind, subject_type, subject_id, severity, detail, first_seen, last_seen)
@@ -157,6 +172,12 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       const expiredMeetups = await expireMeetups(client, now);
       // 커뮤니티 규칙 투표 마감 → 가결이면 규칙 값 변경 (Sprint 21)
       const closedRules = await closeDueProposals(now);
+      // 규칙 투표의 망 식별값은 조작 탐지에만 쓰므로 투표가 끝나고 30일 뒤 지운다 (Sprint 23)
+      await client.query(
+        `UPDATE rule_votes SET net_hash = NULL WHERE net_hash IS NOT NULL
+            AND proposal_id IN (SELECT id FROM rule_proposals WHERE status <> 'open' AND closed_at < $1::timestamptz - interval '30 days')`,
+        [now.toISOString()],
+      );
       // 개인 식별 가능성을 줄이기 위해 원본 조회 기록은 400일, 알림은 90일만 보관
       const pv = await client.query("DELETE FROM page_views WHERE occurred_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       const al = await client.query("DELETE FROM abuse_alerts WHERE last_seen < $1::timestamptz - interval '90 days'", [now.toISOString()]);

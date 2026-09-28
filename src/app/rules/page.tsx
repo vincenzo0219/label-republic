@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { ProposeRule, RuleVoteButtons, WithdrawProposal } from "@/components/RuleVoting";
 import { fingerprint } from "@/lib/fingerprint";
-import { getRules, listProposals, myVotes, ruleChanges, ruleStates, voterStatus, type Proposal } from "@/lib/repo/rules";
+import { getRules, listProposals, myVotes, proposalIntegrity, ruleChanges, ruleStates, voterStatus, type AgeBuckets, type Proposal, type ProposalIntegrity } from "@/lib/repo/rules";
 import {
   allowedRange,
   COOLDOWN_DAYS,
@@ -55,6 +55,33 @@ function Progress({ p }: { p: Proposal }) {
 }
 const formatW = (n: number) => n.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
 
+const ages = (b: AgeBuckets) => `30일 미만 ${b.young} · 30~90일 ${b.mid} · 90일 이상 ${b.old}`;
+
+/** 투표자 계정 나이 분포와 조작 의심 검토 상태 (Sprint 23) — 누가 투표했는지는 드러내지 않는다 */
+function VoterAges({ ig, closes }: { ig: ProposalIntegrity | undefined; closes: string }) {
+  if (!ig) return null;
+  const overdue = new Date(closes).getTime() <= Date.now();
+  return (
+    <>
+      <p className="hint rule-ages">
+        투표자 계정 나이 — 찬성: {ages(ig.yes)} / 반대: {ages(ig.no)}
+        {ig.voided > 0 && (
+          <>
+            {" "}
+            · 무효 처리 {ig.voided}표 (<Link href="/transparency">기록</Link>)
+          </>
+        )}
+      </p>
+      {ig.reviewing && (
+        <p className="notice" role="status">
+          🔍 조직적인 투표로 보이는 표가 탐지되어 검토 중이에요. {overdue ? "검토가 끝날 때까지(최대 3일) 마감을 미뤄요. " : ""}운영자는 탐지된 표를 고르지 못하고 통째로
+          무효로 하거나 오탐으로 닫을 수만 있어요. 무효로 하면 투명성 기록에 공개됩니다.
+        </p>
+      )}
+    </>
+  );
+}
+
 export default async function RulesPage() {
   const fp = fingerprint(await headers());
   const [values, states, open, closed, changes, me, votes] = await Promise.all([
@@ -67,6 +94,7 @@ export default async function RulesPage() {
     myVotes(fp),
   ]);
   const canVote = me.weight > 0;
+  const integrity = await proposalIntegrity([...open, ...closed].map((p) => p.id));
 
   return (
     <>
@@ -97,6 +125,10 @@ export default async function RulesPage() {
             </li>
             <li>규칙마다 안전 범위와 한 번에 바꿀 수 있는 폭이 있어요. 같은 규칙은 한 번에 하나만 투표하고, 결정된 뒤 {COOLDOWN_DAYS}일 동안 다시 제안할 수 없어요.</li>
             <li>제안은 한 사람이 일주일에 한 번. 제안한 사람은 찬성으로 세고, 투표는 마감 전까지 바꿀 수 있어요.</li>
+            <li>
+              조작 탐지: 자격을 갓 채운 계정(첫 활동 10일 미만·기여 4건 이하)이 한쪽에 몰리거나, 같은 망에서 새 계정 표가 몰리면 알림이 올라가고 검토가 끝날
+              때까지(최대 3일) 마감을 미룹니다. 탐지된 표는 통째로만 무효로 할 수 있어요.
+            </li>
             <li>운영자는 규칙 값을 바꿀 수 없어요. 제안 이유에 권리침해가 있으면 그 글만 가리고 <Link href="/transparency">투명성 기록</Link>에 남깁니다.</li>
           </ul>
         </details>
@@ -126,6 +158,7 @@ export default async function RulesPage() {
                   <blockquote className="rule-reason">{p.reason}</blockquote>
                 )}
                 <Progress p={p} />
+                <VoterAges ig={integrity[p.id]} closes={p.closes_at} />
                 <RuleVoteButtons id={p.id} mine={votes[p.id] ?? null} canVote={canVote} why={me.reason} />
                 <WithdrawProposal id={p.id} />
               </li>
@@ -205,6 +238,12 @@ export default async function RulesPage() {
                         {p.status === "passed" ? "가결" : p.status === "withdrawn" ? "철회" : "부결"}
                       </span>{" "}
                       {p.status !== "passed" && <span className="hint">{p.result_note}</span>}
+                      {(integrity[p.id]?.voided ?? 0) > 0 && (
+                        <span className="hint">
+                          {" "}
+                          · 무효 처리 {integrity[p.id]!.voided}표 (<Link href="/transparency">기록</Link>)
+                        </span>
+                      )}
                       {p.status !== "withdrawn" && (
                         <span className="hint">
                           {" "}

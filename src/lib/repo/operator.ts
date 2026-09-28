@@ -14,6 +14,7 @@ import type { PoolClient } from "pg";
 import { query, tx } from "../db";
 import { HttpError, notFound } from "../errors";
 import { assertPin } from "./pin-guard";
+import { RING_SQL, voidRingVotes } from "./rules";
 
 // ---------------------------------------------------------------------------
 // 공개 조치 기록
@@ -32,12 +33,13 @@ export const MOD_ACTIONS = {
   product_merged: "중복 제품 병합",
   revision_redacted: "수정 이력 삭제 (법적 요청)",
   rule_reason_hidden: "규칙 제안 사유 가림 (권리침해)",
+  rule_votes_voided: "조직적 규칙 투표 무효화",
 } as const;
 export type ModAction = keyof typeof MOD_ACTIONS;
 
 type LogInput = {
   action: ModAction;
-  subjectType: "post" | "board_request" | "fingerprint" | "product";
+  subjectType: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal";
   subjectId: string;
   note: string;
   affected?: number;
@@ -82,7 +84,7 @@ async function settleAppeal(client: PoolClient, postId: string): Promise<void> {
 // 어뷰징 알림 → 신고·투표 무효화
 // ---------------------------------------------------------------------------
 
-export type AlertKind = "report_burst" | "vote_burst" | "board_vote_burst" | "mass_reporter";
+export type AlertKind = "report_burst" | "vote_burst" | "board_vote_burst" | "mass_reporter" | "rule_vote_ring";
 type AlertRow = {
   id: string;
   kind: AlertKind;
@@ -127,6 +129,9 @@ function targetSql(kind: AlertKind): { select: string; params: (a: AlertRow) => 
                     AND ${NEW_FP("v", "voter_fingerprint")}`,
         params: (a) => [a.subject_id, a.first_seen, a.last_seen],
       };
+    case "rule_vote_ring":
+      // 규칙 투표: 탐지 조회를 그대로 (지금 기준으로 다시 계산 — 탐지 뒤 들어온 같은 패턴의 표도 포함)
+      return { select: RING_SQL, params: (a) => [a.subject_id] };
     case "mass_reporter":
       return {
         // 알림에는 fingerprint 앞 12자리만 있다 (48비트 — 우연한 충돌은 사실상 없음)
@@ -192,6 +197,9 @@ export async function voidAlert(alertId: string, note: string): Promise<VoidResu
         affected: result.affected,
         alertId,
       });
+    } else if (a.kind === "rule_vote_ring") {
+      result.affected = await voidRingVotes(client, a.subject_id);
+      await writeLog(client, { action: "rule_votes_voided", subjectType: "rule_proposal", subjectId: a.subject_id, note, affected: result.affected, alertId });
     } else if (a.kind === "vote_burst") {
       // 투표 행을 지우면 카운터 트리거가 추천·비추천 수를 되돌린다
       const { rowCount } = await client.query(`DELETE FROM votes WHERE id IN (${t.select})`, params);

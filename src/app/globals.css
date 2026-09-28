@@ -630,3 +630,4 @@ body[data-lr-offline]::before {
 .admin-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .admin-list li { overflow-wrap: anywhere; }
 .report-root { min-height: calc(100svh - 110px); }
+.rule-ages { margin: 0; }

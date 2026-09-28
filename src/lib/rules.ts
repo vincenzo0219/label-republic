@@ -225,3 +225,19 @@ export function tally(yes: number, no: number, quorum: number): Tally {
       : `찬성이 3분의 2에 못 미침 (${Math.round((yes / total) * 100)}%)`;
   return { yes, no, total, quorum, quorumMet, passed, note };
 }
+
+// ---------------------------------------------------------------------------
+// 조작 탐지 (Sprint 23) — 자동으로 지우지 않고 알림만. 운영자는 탐지된 표만 통째로 무효화하거나 오탐으로 닫는다.
+// ---------------------------------------------------------------------------
+
+/** "자격을 갓 채운" 계정: 첫 활동 10일 미만 + 기여 4건 이하 */
+export const FRESH_AGE_DAYS = 10;
+export const FRESH_MAX_CONTRIBUTIONS = 4;
+/** 한쪽(찬성/반대)에 이런 표가 4개 이상이고 그쪽 투표자의 30% 이상이면 */
+export const FRESH_MIN_VOTES = 4;
+export const FRESH_MIN_SHARE = 0.3;
+/** 같은 망(IP 대역)에서 30일 미만 계정이 같은 쪽에 3표 이상 */
+export const NET_MIN_VOTES = 3;
+export const NET_YOUNG_DAYS = 30;
+/** 검토 중인 조작 의심 알림이 있으면 마감을 이만큼까지 미룬다 */
+export const HOLD_HOURS = 72;
