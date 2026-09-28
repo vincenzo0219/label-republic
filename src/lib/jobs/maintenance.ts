@@ -3,6 +3,7 @@ import { pool } from "../db";
 import { promotePendingBoardRequests } from "../repo/board-requests";
 import { sweepOrphanImages } from "../repo/images";
 import { expireMeetups } from "../repo/meetups";
+import { refreshRenewals } from "../repo/renewals";
 import { closeDueProposals, findRingVotes } from "../repo/rules";
 import { reportError } from "../error-tracking";
 
@@ -152,6 +153,7 @@ export type MaintenanceResult = {
   pruned: { pageViews: number; alerts: number; orphanImages: number };
   expiredMeetups: number;
   rulesClosed?: number;
+  renewalsConfirmed?: number;
 };
 
 /**
@@ -172,6 +174,8 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       const expiredMeetups = await expireMeetups(client, now);
       // 커뮤니티 규칙 투표 마감 → 가결이면 규칙 값 변경 (Sprint 21)
       const closedRules = await closeDueProposals(now);
+      // 제품 리뉴얼 기록 (Sprint 25) — 바뀐 제품만, 하루 한 번 전체
+      const renewals = await refreshRenewals(client, now);
       // 규칙 투표의 망 식별값은 조작 탐지에만 쓰므로 투표가 끝나고 30일 뒤 지운다 (Sprint 23)
       await client.query(
         `UPDATE rule_votes SET net_hash = NULL WHERE net_hash IS NOT NULL
@@ -201,6 +205,7 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
         pruned: { pageViews: pv.rowCount ?? 0, alerts: al.rowCount ?? 0, orphanImages },
         expiredMeetups,
         rulesClosed: closedRules.length,
+        renewalsConfirmed: renewals.confirmed,
       };
       await client.query("UPDATE maintenance_runs SET finished_at = now(), detail = $2 WHERE id = $1", [runId, JSON.stringify(result)]);
       return result;

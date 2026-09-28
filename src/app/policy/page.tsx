@@ -85,6 +85,19 @@ export default async function PolicyPage() {
         <li>제안자는 제안을 철회할 수 있고, 고유 신고 <b>{formatRule("correction_hide_reports", rules.correction_hide_reports)}건</b>이 쌓인 제안은 자동으로 가려집니다.</li>
       </ul>
 
+      <h2>제품 리뉴얼(라벨 변경)</h2>
+      <ul>
+        <li>
+          같은 제품·항목의 표시값을 글이 올라온 순서로 보고, 값이 바뀐 뒤 서로 다른 <b>{formatRule("renewal_min_reports", rules.renewal_min_reports)}명</b> 이상이 같은 새 값을 올리면
+          &ldquo;리뉴얼&rdquo;로 봅니다. 그 뒤로 제품 페이지·비교·성분 검색은 바뀐 뒤 글의 값을 쓰고, 바뀌기 전 글의 값은 &ldquo;리뉴얼 전&rdquo;으로 남깁니다.
+        </li>
+        <li>
+          옛 값도 2명 이상이거나 사진 근거가 있어야 하고, 두 값이 시간 순으로 나뉘지 않고 섞여 있으면(판매처별 버전 등) 나누지 않습니다. 기준 수에 못 미친 최근 제보는
+          &ldquo;라벨 확인이 필요해요&rdquo;로 알려 다른 이용자에게 확인을 부탁합니다. 틀린 값은 정정 제안으로 빠지고, 빠지면 리뉴얼 판단도 다시 합니다.
+        </li>
+        <li>운영자는 리뉴얼을 만들거나 지우지 않습니다. 관심 제품으로 등록한 이용자에게는 리뉴얼이 확인될 때 알립니다.</li>
+      </ul>
+
       <h2>규칙은 투표로 바꿉니다</h2>
       <ul>
         <li>

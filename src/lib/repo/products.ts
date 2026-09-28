@@ -25,7 +25,9 @@ import {
   type FactKind,
 } from "../products";
 import type { PostFact, ProductTag } from "../types";
+import { detectEras, DEFAULT_MIN_REPORTS, type LabelReport } from "../renewals";
 import { resolveEvidence } from "./label-reads";
+import { getRule } from "./rules";
 
 export type ProductRef = { id: string } | { brand: string; name: string };
 /** product: 같은 요청의 제품 목록에서의 순서 (0부터) */
@@ -178,7 +180,16 @@ export async function getProduct(id: string): Promise<Product | { redirect: stri
   return product;
 }
 
-export type FactEntry = { post_id: string; value: number; unit: string; kind: FactKind; disputed: boolean; photo?: boolean };
+export type FactEntry = {
+  post_id: string; value: number; unit: string; kind: FactKind; disputed: boolean; photo?: boolean;
+  /** 리뉴얼 전 라벨 시기의 글 (Sprint 25) — 지금 값 집계에서 빠짐 */
+  old?: boolean;
+};
+
+/** 리뉴얼로 나뉜 라벨 시기 (Sprint 25). 값은 묶음 표시 단위 */
+export type LabelEra = { value: number; n: number; authors: number; photos: number; first_at: number; last_at: number };
+/** 최근 제보가 지금 라벨과 다르지만 아직 기준 수 미만 */
+export type LabelPending = { from: number; to: number; n: number; authors: number; photos: number; needed: number; post_ids: string[] };
 /** 같은 항목·기준·단위 묶음의 값 모음 (값은 display 단위로 환산) */
 export type FactGroup = {
   key: string;
@@ -192,6 +203,11 @@ export type FactGroup = {
   entries: FactEntry[];
   /** 정정 제안 때문에 집계에서 뺀 값 수 */
   disputed_n: number;
+  /** 라벨이 바뀐 적이 있으면 시기별 값 (오래된 것부터, 마지막이 지금). 없으면 null */
+  eras: LabelEra[] | null;
+  /** 지금 라벨 시기가 시작된 시각 — 이 전 글의 값은 집계에서 뺀다 */
+  current_since: number | null;
+  pending: LabelPending | null;
 };
 
 type FactRow = {
@@ -200,6 +216,9 @@ type FactRow = {
   disputed?: boolean;
   /** 근거 사진이 있는지 (Sprint 20) */
   has_photo?: boolean;
+  /** 글이 올라온 시각(ms)·작성자 식별값 — 리뉴얼 감지용 (Sprint 25) */
+  at?: number;
+  author?: string | null;
 };
 
 function mostCommon(xs: string[], tieBreak: (x: string) => number = () => 0): string {
@@ -216,8 +235,11 @@ function unitReadability(bases: number[], unit: string): number {
   return lg < 0 ? -lg : lg > 3 ? lg - 3 : 0;
 }
 
-/** 글별 수치를 항목·기준·단위 묶음별로 모은다. 같은 묶음 안의 mg/µg/g 는 가장 많이 쓴 단위로 환산한다. */
-export function aggregateFacts(rows: FactRow[]): FactGroup[] {
+/**
+ * 글별 수치를 항목·기준·단위 묶음별로 모은다. 같은 묶음 안의 mg/µg/g 는 가장 많이 쓴 단위로 환산한다.
+ * 표시값이 시기에 따라 바뀌었으면(리뉴얼, src/lib/renewals.ts) 지금 라벨 시기의 글만으로 표시값·실측값을 낸다.
+ */
+export function aggregateFacts(rows: FactRow[], minReports = DEFAULT_MIN_REPORTS): FactGroup[] {
   const groups = new Map<string, { rows: (FactRow & { base: number })[] }>();
   for (const r of rows) {
     const { group, base } = toBase(r.value, r.unit);
@@ -233,11 +255,21 @@ export function aggregateFacts(rows: FactRow[]): FactGroup[] {
       g.rows.map((r) => r.unit),
       (u) => unitReadability(bases, u),
     );
+    // 리뉴얼 감지: 정정 제안이 걸리지 않은 표시값을 글 시각 순으로
+    const reports: LabelReport[] = g.rows
+      .filter((r) => r.kind === "label" && !r.disputed && r.at !== undefined)
+      .map((r) => ({ post_id: r.post_id, at: r.at!, base: r.base, author: r.author ?? null, photo: !!r.has_photo }));
+    const { eras, pending } = reports.length >= 2 ? detectEras(reports, minReports) : { eras: [], pending: null };
+    const renewed = eras.length >= 2;
+    const since = renewed ? eras[eras.length - 1]!.start_at : null;
+    const isOld = (r: FactRow & { base: number }) => since !== null && (r.at ?? 0) < since;
     const stat = (kind: FactKind) => {
-      const vs = g.rows.filter((r) => r.kind === kind && !r.disputed).map((r) => fromBase(r.base, unit));
+      const vs = g.rows.filter((r) => r.kind === kind && !r.disputed && !isOld(r)).map((r) => fromBase(r.base, unit));
       return vs.length ? { median: median(vs), n: vs.length } : null;
     };
-    const label = stat("label");
+    const lastEra = eras[eras.length - 1];
+    // 지금 라벨 값은 지금 시기의 대표 값 (옛 재고 제보가 조금 섞여도 흔들리지 않게)
+    const label = renewed && lastEra ? { median: fromBase(lastEra.base, unit), n: lastEra.n } : stat("label");
     const measured = stat("measured");
     out.push({
       key,
@@ -247,8 +279,18 @@ export function aggregateFacts(rows: FactRow[]): FactGroup[] {
       label,
       measured,
       diff_pct: label && measured && label.median > 0 ? ((measured.median - label.median) / label.median) * 100 : null,
-      entries: g.rows.map((r) => ({ post_id: r.post_id, value: fromBase(r.base, unit), unit, kind: r.kind, disputed: !!r.disputed, photo: !!r.has_photo })),
+      entries: g.rows.map((r) => ({ post_id: r.post_id, value: fromBase(r.base, unit), unit, kind: r.kind, disputed: !!r.disputed, photo: !!r.has_photo, old: isOld(r) })),
       disputed_n: g.rows.filter((r) => r.disputed).length,
+      eras: renewed
+        ? eras.map((e) => ({ value: fromBase(e.base, unit), n: e.n, authors: e.authors, photos: e.photos, first_at: e.first_at, last_at: e.last_at }))
+        : null,
+      current_since: since,
+      pending: pending
+        ? {
+            from: fromBase(pending.from, unit), to: fromBase(pending.to, unit), n: pending.n, authors: pending.authors, photos: pending.photos,
+            needed: Math.max(0, Math.max(2, Math.round(minReports)) - pending.authors), post_ids: pending.post_ids,
+          }
+        : null,
     });
   }
   // 글이 많이 적은 항목부터
@@ -259,6 +301,7 @@ async function factRows(productIds: string[]): Promise<FactRow[]> {
   return query<FactRow>(
     `SELECT f.product_id::text, f.post_id::text, f.attribute, f.attr_key, f.value::float8 AS value, f.unit, f.basis, f.kind,
             f.source_image_id IS NOT NULL AS has_photo,
+            (extract(epoch FROM p.created_at) * 1000)::float8 AS at, p.author_fingerprint AS author,
             p.disputed_count > 0 AND EXISTS (
               SELECT 1 FROM corrections c
                WHERE c.post_id = f.post_id AND c.target = 'fact' AND c.status IN ('open', 'answered') AND c.is_supported AND NOT c.is_hidden
@@ -273,7 +316,8 @@ async function factRows(productIds: string[]): Promise<FactRow[]> {
 }
 
 export async function productFacts(productId: string): Promise<FactGroup[]> {
-  return aggregateFacts(await factRows([productId]));
+  const [rows, min] = await Promise.all([factRows([productId]), getRule("renewal_min_reports")]);
+  return aggregateFacts(rows, min);
 }
 
 export type ProductPhoto = { id: string; post_id: string; alt: string; width: number; height: number; thumb_width: number; thumb_height: number };
@@ -401,15 +445,16 @@ export type CompareRow = {
   basis: string;
   unit: string;
   /** products 순서대로 — 값이 없으면 null */
-  cells: ({ label: number | null; measured: number | null; n: number } | null)[];
+  cells: ({ label: number | null; measured: number | null; n: number; renewed?: boolean } | null)[];
 };
 
 /** 2~3개 제품의 수치를 같은 항목·기준·단위로 맞춰 한 표로 */
 export async function compareProducts(products: Product[]): Promise<CompareRow[]> {
-  const rows = await factRows(products.map((p) => p.id));
-  const per = products.map((p) => aggregateFacts(rows.filter((r) => r.product_id === p.id)));
-  // 제품마다 환산 단위가 다를 수 있어 행 단위를 전체에서 가장 많이 쓴 단위로 다시 맞춘다
-  const all = aggregateFacts(rows);
+  const [rows, min] = await Promise.all([factRows(products.map((p) => p.id)), getRule("renewal_min_reports")]);
+  // 제품마다 리뉴얼 뒤 지금 라벨 값으로 (Sprint 25)
+  const per = products.map((p) => aggregateFacts(rows.filter((r) => r.product_id === p.id), min));
+  // 제품마다 환산 단위가 다를 수 있어 행 단위를 전체에서 가장 많이 쓴 단위로 다시 맞춘다 (행 목록·단위만 쓰므로 리뉴얼 계산 불필요)
+  const all = aggregateFacts(rows.map(({ at: _at, ...r }) => r));
   return all
     .map((g) => ({
       key: g.key,
@@ -424,6 +469,7 @@ export async function compareProducts(products: Product[]): Promise<CompareRow[]
           label: mine.label ? conv(mine.label.median) : null,
           measured: mine.measured ? conv(mine.measured.median) : null,
           n: mine.entries.length,
+          renewed: mine.eras !== null,
         };
       }),
     }))

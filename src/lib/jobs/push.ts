@@ -3,10 +3,11 @@
  * 있으면 한 번에 묶어 보낸다. 한 구독에는 PUSH_MIN_GAP_SEC(기본 1시간)에 한 번까지만 보내고, 그동안의 소식은 모인다.
  * advisory lock 으로 여러 인스턴스 중 한 곳에서만 실행된다.
  */
+import { formatValue } from "../products";
 import { pool } from "../db";
 import { config } from "../config";
 import { sendPush, type PushMessage, type SendResult } from "../push";
-import { postUpdateCount, watchUpdates, type WatchUpdates } from "../repo/watch";
+import { postUpdateCount, productUpdateCount, watchUpdates, type WatchUpdates } from "../repo/watch";
 import { reportError } from "../error-tracking";
 
 const LOCK_KEY = 4_823_006;
@@ -21,12 +22,17 @@ type Sub = { id: string; endpoint: string; p256dh: string; auth: string; fingerp
 /** 알림 문구: 가장 많은 소식부터 두세 가지만 */
 export function pushMessage(u: WatchUpdates): PushMessage {
   const newPosts = u.products.reduce((n, p) => n + p.new_posts, 0);
+  const renewals = u.products.flatMap((p) => p.renewals.map((r) => ({ ...r, name: p.name })));
   const supported = u.products.reduce((n, p) => n + p.newly_supported, 0) + u.posts.reduce((n, p) => n + p.newly_supported, 0);
   const comments = u.posts.reduce((n, p) => n + p.new_comments, 0);
   const corrections = u.posts.reduce((n, p) => n + p.new_corrections, 0);
   const applied = u.posts.reduce((n, p) => n + p.applied, 0);
   const edited = u.posts.filter((p) => p.edited).length;
   const parts = [
+    // 라벨 변경은 가장 먼저 — 한 건이면 무엇이 얼마나 바뀌었는지까지
+    renewals.length === 1
+      ? `🔄 ${renewals[0]!.attribute} 라벨 변경 ${formatValue(renewals[0]!.from)}→${formatValue(renewals[0]!.to)}${renewals[0]!.unit}`
+      : renewals.length > 1 && `🔄 라벨 변경 ${renewals.length}건`,
     newPosts && `관심 제품 새 글 ${newPosts}개`,
     corrections && `정정 제안 ${corrections}건`,
     supported && `동의된 정정 제안 ${supported}건`,
@@ -36,8 +42,8 @@ export function pushMessage(u: WatchUpdates): PushMessage {
   ].filter(Boolean) as string[];
   // 한 제품·한 글의 소식뿐이면 그 이름을 제목에
   const single =
-    u.products.filter((p) => p.new_posts + p.newly_supported > 0).length + u.posts.filter((p) => postUpdateCount(p) > 0).length === 1
-      ? (u.products.find((p) => p.new_posts + p.newly_supported > 0)?.name ?? u.posts.find((p) => postUpdateCount(p) > 0)?.title)
+    u.products.filter((p) => productUpdateCount(p) > 0).length + u.posts.filter((p) => postUpdateCount(p) > 0).length === 1
+      ? (u.products.find((p) => productUpdateCount(p) > 0)?.name ?? u.posts.find((p) => postUpdateCount(p) > 0)?.title)
       : undefined;
   return {
     title: single ? `라벨공화국 · ${single.slice(0, 40)}` : "라벨공화국 새 소식",

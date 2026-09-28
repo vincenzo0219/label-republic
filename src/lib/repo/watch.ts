@@ -8,6 +8,7 @@
 import { query } from "../db";
 import type { PostCard } from "../types";
 import { listPosts } from "./posts";
+import { renewalsSince } from "./renewals";
 
 export const MAX_WATCH_PRODUCTS = 30;
 export const MAX_WATCH_POSTS = 50;
@@ -25,6 +26,8 @@ export type ProductUpdate = {
   newly_supported: number;
   /** 새 글 미리보기 (최신 3개) */
   posts: PostCard[];
+  /** 새로 확인된 라벨 변경 (리뉴얼, Sprint 25). 값은 표시 단위 */
+  renewals: { attribute: string; basis: string; unit: string; from: number; to: number }[];
 };
 
 export type PostUpdate = {
@@ -51,6 +54,10 @@ export function parseIds(raw: string | null | undefined, max: number): string[] 
   return Array.from(new Set((raw ?? "").split(",").map((s) => s.trim()).filter((s) => /^\d{1,18}$/.test(s)))).slice(0, max);
 }
 
+export function productUpdateCount(u: ProductUpdate): number {
+  return u.new_posts + u.newly_supported + u.renewals.length;
+}
+
 export function postUpdateCount(u: PostUpdate): number {
   return u.new_comments + u.new_corrections + u.newly_supported + u.applied + (u.edited ? 1 : 0);
 }
@@ -63,7 +70,7 @@ export async function watchUpdates(
   opts: { previews?: boolean } = {},
 ): Promise<WatchUpdates> {
   const sinceIso = since.toISOString();
-  const [products, posts] = await Promise.all([
+  const [products, posts, renewals] = await Promise.all([
     productIds.length
       ? query<Omit<ProductUpdate, "posts">>(
           `SELECT pr.id::text, t.brand, t.name, pr.merged_into::text,
@@ -96,12 +103,14 @@ export async function watchUpdates(
           [postIds, sinceIso, fp],
         )
       : Promise.resolve([]),
+    renewalsSince(productIds, since),
   ]);
   // 미리보기는 새 글이 있는 제품 5개까지만 (요청 하나의 조회 수를 묶어 둔다)
   const previewIds = new Set(products.filter((p) => p.new_posts > 0).slice(0, 5).map((p) => p.id));
   const withPosts: ProductUpdate[] = await Promise.all(
     products.map(async (p) => ({
       ...p,
+      renewals: renewals.filter((r) => r.product_id === p.id).map(({ attribute, basis, unit, from, to }) => ({ attribute, basis, unit, from, to })),
       posts:
         opts.previews && previewIds.has(p.id)
           ? (await listPosts({ productId: p.merged_into ?? p.id, since, sort: "latest", pageSize: 3, excludeAuthor: fp, noCount: true })).items.filter((x) => !x.is_suppressed)
@@ -109,6 +118,6 @@ export async function watchUpdates(
     })),
   );
   const found = new Set(posts.map((p) => p.id));
-  const total = withPosts.reduce((n, p) => n + p.new_posts + p.newly_supported, 0) + posts.reduce((n, p) => n + postUpdateCount(p), 0);
+  const total = withPosts.reduce((n, p) => n + productUpdateCount(p), 0) + posts.reduce((n, p) => n + postUpdateCount(p), 0);
   return { products: withPosts, posts, gone: postIds.filter((id) => !found.has(id)), total };
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { Pagination } from "@/components/Pagination";
+import { LabelChanges } from "@/components/LabelChanges";
 import { PostCard } from "@/components/PostCard";
 import { ProductFacts } from "@/components/ProductFacts";
 import { WatchToggle } from "@/components/WatchToggle";
@@ -11,6 +12,7 @@ import { thumbUrl } from "@/lib/media-url";
 import { formatValue } from "@/lib/products";
 import { listPosts } from "@/lib/repo/posts";
 import { getProduct as getProductUncached, productFacts, productPhotos, productSources, type Product } from "@/lib/repo/products";
+import { getRule } from "@/lib/repo/rules";
 import { displayHost, SOURCE_KIND_LABEL } from "@/lib/sources";
 
 export const dynamic = "force-dynamic";
@@ -42,12 +44,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductPage({ params, searchParams }: Props) {
   const product = await load((await params).id);
   const page = Number((await searchParams).page) || 1;
-  const [facts, photos, sources, posts] = await Promise.all([
+  const [facts, photos, sources, posts, minReports] = await Promise.all([
     productFacts(product.id),
     productPhotos(product.id),
     productSources(product.id),
     listPosts({ productId: product.id, sort: "trust", page }),
+    getRule("renewal_min_reports"),
   ]);
+  const writeHref = `/write?category=${encodeURIComponent(product.category.slug)}&product=${product.id}`;
   const name = `${product.brand} ${product.name}`;
   const boardPath = `/c/${encodeURIComponent(product.category.slug)}`;
 
@@ -87,7 +91,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
           <Link className="btn btn-sm" href={`/compare?ids=${product.id}`}>
             ⚖ 다른 제품과 비교
           </Link>
-          <Link className="btn btn-sm" href={`/write?category=${encodeURIComponent(product.category.slug)}&product=${product.id}`}>
+          <Link className="btn btn-sm" href={writeHref}>
             ✍ 이 제품 글쓰기
           </Link>
         </div>
@@ -95,6 +99,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
       <section aria-labelledby="pf-h">
         <h2 id="pf-h" className="section-h">🧪 성분·스펙 수치</h2>
+        <LabelChanges groups={facts} writeHref={writeHref} minReports={minReports} />
         <ProductFacts groups={facts} boardPath={boardPath} />
       </section>
 

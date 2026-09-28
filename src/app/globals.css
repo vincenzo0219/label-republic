@@ -487,6 +487,21 @@ a.product-chip:hover { border-color: var(--brand); }
 .badge-disputed { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 700; }
 .notice-disputed { border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); color: var(--text); }
 .notice-disputed a { text-decoration: underline; font-weight: 700; }
+/* 제품 리뉴얼 (Sprint 25) */
+.label-changes { display: grid; gap: 10px; margin-bottom: 12px; }
+.label-changes h3 { margin: 0 0 6px; font-size: 14.5px; color: var(--text); }
+.label-changes ul { margin: 0 0 6px; padding-left: 18px; }
+.label-changes li { margin: 3px 0; }
+.label-changes a { text-decoration: underline; }
+.label-changes .btn { text-decoration: none; }
+.notice-renewal, .notice-pending { color: var(--text); border: 1px solid var(--line); }
+.notice-renewal { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.notice-pending { background: var(--surface); }
+.era-history summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.era-history ol { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
+.badge-renewed { display: inline-block; margin-left: 4px; font-size: 11.5px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.fact-old { color: var(--muted); }
+.watch-renewals { margin: 4px 0 0; padding-left: 4px; list-style: none; font-size: 13.5px; }
 .corrections { margin-top: 24px; }
 .corrections-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .corrections h2 { font-size: 16px; margin: 0; }

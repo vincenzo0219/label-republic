@@ -49,6 +49,16 @@ export function ProductFacts({ groups, boardPath }: { groups: FactGroup[]; board
                     <>
                       {formatValue(g.label.median)} {g.unit}
                       {g.label.n > 1 && <span className="hint"> ({g.label.n}개 글)</span>}
+                      {g.eras && (
+                        <span className="badge-renewed" title="라벨이 바뀐 뒤 글의 값입니다">
+                          🔄 이전 {formatValue(g.eras[g.eras.length - 2]!.value)}
+                        </span>
+                      )}
+                      {g.pending && (
+                        <span className="badge-renewed" title="최근 다른 값 제보가 있어 확인 중입니다">
+                          🔍 확인 중
+                        </span>
+                      )}
                     </>
                   ) : (
                     "-"
@@ -80,13 +90,15 @@ export function ProductFacts({ groups, boardPath }: { groups: FactGroup[]; board
                       글별 값 {g.entries.length}
                       {g.entries.some((e) => e.photo) && ` · 📷 사진 근거 ${g.entries.filter((e) => e.photo).length}`}
                       {g.disputed_n > 0 && ` · 정정 제안 ${g.disputed_n}건 제외`}
+                      {g.eras && ` · 리뉴얼 전 ${g.entries.filter((e) => e.old).length}`}
                     </summary>
                     <ul>
                       {/* 중앙값은 모든 값으로 내고, 목록은 최근 글 몇 개만 (글이 많은 제품에서 화면이 수천 줄이 되지 않게) */}
                       {g.entries.slice(0, ENTRY_LIMIT).map((e, i) => (
-                        <li key={i}>
+                        <li key={i} className={e.old ? "fact-old" : undefined}>
                           <Link href={`/posts/${e.post_id}`}>글 #{e.post_id}</Link> · {formatValue(e.value)} {e.unit} ({e.kind === "label" ? "표시" : "실측"})
                           {e.photo && " · 📷 사진 근거"}
+                          {e.old && " · 리뉴얼 전 라벨 — 지금 값 집계에서 빠짐"}
                           {e.disputed && (
                             <>
                               {" "}
@@ -108,7 +120,7 @@ export function ProductFacts({ groups, boardPath }: { groups: FactGroup[]; board
       </div>
       <p className="hint">
         여러 글이 같은 항목을 적었으면 중앙값을 보여줍니다. mg·µg·g 처럼 바꿔 계산할 수 있는 단위는 맞춰서 비교하고, 기준(1정, 1일 섭취량 등)이 다르면 따로 봅니다.
-        블라인드·광고 의심 글의 값과, 커뮤니티가 동의한 정정 제안이 걸린 값은 빠집니다.
+        블라인드·광고 의심 글의 값과, 커뮤니티가 동의한 정정 제안이 걸린 값은 빠집니다. 라벨이 바뀐(리뉴얼) 항목은 바뀐 뒤 글의 값만 씁니다.
       </p>
     </>
   );

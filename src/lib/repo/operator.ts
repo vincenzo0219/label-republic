@@ -14,6 +14,7 @@ import type { PoolClient } from "pg";
 import { query, tx } from "../db";
 import { HttpError, notFound } from "../errors";
 import { assertPin } from "./pin-guard";
+import { reconcileRenewals } from "./renewals";
 import { RING_SQL, voidRingVotes } from "./rules";
 
 // ---------------------------------------------------------------------------
@@ -398,6 +399,8 @@ export async function mergeProduct(productId: string, intoId: string, note: stri
     await client.query("UPDATE corrections SET fact_product_id = $2 WHERE fact_product_id = $1", [productId, intoId]);
     // 이 제품으로 병합돼 있던 제품도 새 대상을 바로 가리키게 (체인을 펴 둔다)
     await client.query("UPDATE products SET merged_into = $2 WHERE id = $1 OR merged_into = $1", [productId, intoId]);
+    // 두 제품의 표시값이 합쳐졌으니 리뉴얼 기록도 다시 계산 (Sprint 25)
+    await reconcileRenewals(client, [productId, intoId]);
     await writeLog(client, {
       action: "product_merged",
       subjectType: "product",

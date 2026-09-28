@@ -13,6 +13,7 @@ export const RULE_KEYS = [
   "spam_suppress_score",
   "board_promotion_votes",
   "trust_min_votes",
+  "renewal_min_reports",
 ] as const;
 export type RuleKey = (typeof RULE_KEYS)[number];
 
@@ -132,6 +133,20 @@ export const RULES: Record<RuleKey, RuleDef> = {
     min: 2,
     max: 20,
     maxChange: { abs: 2 },
+    decimals: 0,
+    step: 1,
+  },
+  renewal_min_reports: {
+    key: "renewal_min_reports",
+    label: "제품 리뉴얼 인정 제보 수",
+    sentence: "같은 제품의 표시값이 바뀐 뒤 서로 다른 {v}명 이상이 새 값을 제보하면 '리뉴얼'로 보고, 제품 페이지·성분 검색이 새 라벨 값을 기준으로 바뀝니다.",
+    higher: "리뉴얼 인정이 늦어집니다 (바뀐 라벨이 한동안 옛 값과 섞여 보임).",
+    lower: "리뉴얼 인정이 빨라지지만, 몇 명이 짜고 같은 틀린 값을 올려 '리뉴얼'로 만들기 쉬워집니다.",
+    unit: "명",
+    defaultValue: 2,
+    min: 2,
+    max: 5,
+    maxChange: { abs: 1 },
     decimals: 0,
     step: 1,
   },

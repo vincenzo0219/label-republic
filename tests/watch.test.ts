@@ -64,7 +64,7 @@ describe("watch & push rules", () => {
       url: "/me",
       tag: "lr-watch",
     });
-    const product = { id: "9", brand: "NOW", name: "Mag", merged_into: null, new_posts: 4, newly_supported: 1, posts: [] };
+    const product = { id: "9", brand: "NOW", name: "Mag", merged_into: null, new_posts: 4, newly_supported: 1, posts: [], renewals: [] };
     const m = pushMessage({ ...base, posts: [post], products: [product], total: 8 });
     expect(m.title).toBe("라벨공화국 새 소식");
     expect(m.body).toBe("관심 제품 새 글 4개 · 정정 제안 1건 · 동의된 정정 제안 1건");

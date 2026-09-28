@@ -8,11 +8,18 @@ import { attrKey, fromBase, normText, toBase, type FactKind } from "../products"
 const VISIBLE = "NOT p.is_blinded AND NOT p.is_suppressed";
 // 동의된 정정 제안이 걸린 값 제외. 부분 인덱스(corrections_fact_idx) 대상과 같은 조건의 반조인으로 쓴다
 // ("disputed_count > 0 AND EXISTS" 꼴로 쓰면 플래너가 글 전체를 해시 조인해 10배 느려진다)
-const NOT_DISPUTED = `NOT EXISTS (
+export const NOT_DISPUTED = `NOT EXISTS (
   SELECT 1 FROM corrections c
    WHERE c.post_id = f.post_id AND c.target = 'fact' AND c.status IN ('open', 'answered') AND c.is_supported AND NOT c.is_hidden
      AND c.fact_product_id = f.product_id AND c.fact_attr_key = f.attr_key AND c.fact_kind = f.kind
      AND c.fact_value = f.value AND c.fact_unit = f.unit AND c.fact_basis = f.basis)`;
+
+// 리뉴얼(Sprint 25)이 확인된 항목은 리뉴얼 뒤 글의 값만 — 제품 페이지의 "지금 라벨"과 같은 기준.
+// 기록은 정리 배치가 src/lib/renewals.ts 로 계산해 남긴다 (최대 5분 늦을 수 있음)
+const CURRENT_LABEL_ERA = `NOT EXISTS (
+  SELECT 1 FROM product_renewals r
+   WHERE r.product_id = f.product_id AND r.attr_key = f.attr_key AND r.basis_key = f.basis_key AND r.unit_group = f.unit_group
+     AND r.status = 'confirmed' AND r.first_new_at > p.created_at)`;
 
 // 보드 전체 수치를 훑는 조회라 인스턴스별로 잠깐 캐시한다 (새 수치는 1분 안에 반영)
 const TTL_MS = 60_000;
@@ -134,7 +141,7 @@ async function aggregate(categoryId: number, attr: string, basisKey: string): Pr
               count(DISTINCT f.post_id)::int AS posts
          FROM product_facts f JOIN posts p ON p.id = f.post_id JOIN products pr ON pr.id = f.product_id
         WHERE f.attr_key = $2 AND f.basis_key = $3 AND pr.category_id = $1 AND pr.merged_into IS NULL
-          AND ${VISIBLE} AND ${NOT_DISPUTED}
+          AND ${VISIBLE} AND ${NOT_DISPUTED} AND ${CURRENT_LABEL_ERA}
         GROUP BY f.product_id, pr.brand, pr.name, f.unit_group`,
       [categoryId, attr, basisKey],
     ),

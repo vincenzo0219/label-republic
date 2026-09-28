@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatValue } from "@/lib/products";
 import type { PostUpdate, ProductUpdate } from "@/lib/repo/watch";
 
 function Count({ n, label, strong }: { n: number; label: string; strong?: boolean }) {
@@ -8,14 +9,15 @@ function Count({ n, label, strong }: { n: number; label: string; strong?: boolea
 
 /** 📬 내 리포트: 관심 제품의 새 소식 (새 소식 있는 제품이 위) */
 export function WatchedProducts({ items, onRemove }: { items: ProductUpdate[]; onRemove: (id: string) => void }) {
-  const sorted = [...items].sort((a, b) => b.new_posts + b.newly_supported - (a.new_posts + a.newly_supported));
+  const news = (p: ProductUpdate) => p.new_posts + p.newly_supported + (p.renewals?.length ?? 0);
+  const sorted = [...items].sort((a, b) => news(b) - news(a));
   return (
     <section aria-labelledby="watch-products-h">
       <h2 id="watch-products-h" className="section-title">🏷 관심 제품</h2>
       <ul className="watch-list">
         {sorted.map((p) => {
           const id = p.merged_into ?? p.id;
-          const quiet = p.new_posts + p.newly_supported === 0;
+          const quiet = news(p) === 0;
           return (
             <li key={p.id} className={quiet ? "is-quiet" : undefined}>
               <div className="watch-row">
@@ -31,6 +33,16 @@ export function WatchedProducts({ items, onRemove }: { items: ProductUpdate[]; o
                 <Count n={p.new_posts} label="새 글" />
                 <Count n={p.newly_supported} label="🛠 동의된 정정 제안" strong />
               </div>
+              {(p.renewals?.length ?? 0) > 0 && (
+                <ul className="watch-renewals">
+                  {p.renewals.map((r, i) => (
+                    <li key={i}>
+                      🔄 <b>라벨 변경</b>: {r.attribute}
+                      {r.basis ? ` (${r.basis})` : ""} {formatValue(r.from)} → <b>{formatValue(r.to)} {r.unit}</b>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {p.posts.length > 0 && (
                 <ul className="watch-previews">
                   {p.posts.map((x) => (

@@ -85,7 +85,12 @@ export default async function ComparePage({ searchParams }: Props) {
                             <span className="hint">-</span>
                           ) : (
                             <>
-                              {cell(c.label, r.unit) && <div>{cell(c.label, r.unit)} <span className="hint">표시</span></div>}
+                              {cell(c.label, r.unit) && (
+                                <div>
+                                  {cell(c.label, r.unit)} <span className="hint">표시</span>
+                                  {c.renewed && <span className="badge-renewed" title="라벨이 바뀐 뒤 글의 값입니다 (제품 페이지에서 변경 내역 보기)">🔄 리뉴얼 후</span>}
+                                </div>
+                              )}
                               {cell(c.measured, r.unit) && <div>{cell(c.measured, r.unit)} <span className="hint">실측</span></div>}
                             </>
                           )}
