@@ -210,7 +210,7 @@ export default async function PostPage({ params }: Props) {
 
       <div className="post-body">{post.body}</div>
       <Gallery images={post.images} />
-      <PostFactsTable products={post.products} facts={post.facts} />
+      <PostFactsTable products={post.products} facts={post.facts} photos={post.images} />
       <SourceList sources={post.sources} />
 
       <VoteButtons postId={post.id} initial={{ upvotes: post.upvotes, downvotes: post.downvotes, myVote }} />

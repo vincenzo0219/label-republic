@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PostEditor } from "@/components/PostEditor";
+import { labelReadEnabled } from "@/lib/label-read";
 import { listCategories } from "@/lib/repo/categories";
 import { getProduct } from "@/lib/repo/products";
 
@@ -17,6 +18,7 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
       <h1 style={{ fontSize: 20, margin: "4px 0 16px" }}>글쓰기</h1>
       <PostEditor
         mode="create"
+        labelRead={labelReadEnabled()}
         categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
         initialCategory={categories.some((c) => c.slug === initialCategory) ? initialCategory : undefined}
         initialProduct={product ? { id: product.id, brand: product.brand, name: product.name } : undefined}

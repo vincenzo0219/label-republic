@@ -31,7 +31,7 @@ export function imageToken(id: string): string {
   return createHmac("sha256", config.appSecret).update(`post-image:${id}`).digest("base64url").slice(0, 32);
 }
 
-function tokenOk(id: string, token: string | undefined): boolean {
+export function tokenOk(id: string, token: string | undefined): boolean {
   if (!token) return false;
   const a = Buffer.from(imageToken(id));
   const b = Buffer.from(token);

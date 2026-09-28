@@ -288,6 +288,20 @@ Sprint 14에서 모은 제품 수치로 "마그네슘 200mg 이상", "비타민D
 | 비상 해제 | `SW_DISABLED=1` 로 재시작하면 브라우저가 다음 접속 때 서비스 워커·저장본을 스스로 지움 (RUNBOOK 5장) |
 | 검증 | 브라우저 E2E 13개: 서버를 실제로 내려 오프라인 읽기, 블라인드 글 저장본 삭제, 응답만 끊은 상태에서 다시 눌러 글·댓글이 1건만 생기는지, 새 빌드 배포 후 안내·교체(쓰던 글 유지), 비상 해제 후 정적 화면에서도 새로고침 반복이 없는지. axe 0건(라이트·다크) |
 
+### Sprint 20 — 라벨 사진 → 수치 자동 입력
+
+성분표·스펙표 사진을 올리고 "🔍 라벨 읽기"를 누르면 Claude 가 제품과 수치를 읽어 글쓰기 칸을 미리 채웁니다. 작성자가 사진과 대조해 고른 것만 들어가고, 넣은 수치는 그 사진이 근거로 붙습니다.
+
+| 영역 | 구현 |
+|---|---|
+| 읽기 | `POST /api/label-read` → Claude (`LABEL_MODEL`, 기본 `claude-opus-5`) 비전 + 구조화 출력(JSON 스키마). 안전 분류기가 거절하면 서버 측 대체 모델로 다시 시도(`fallbacks: "default"`). 보드별 안내: 영양제 성분표(1회 섭취량 기준, %기준치 제외)·사료 등록성분량·키보드 스위치 스펙(작동압 g, 이동거리 mm)·오디오 스펙(Ω, dB, 주파수 범위 분리)·데스크 제품 |
+| 걸러내기 | 모델 결과도 사람이 입력한 값과 같은 규칙: 단위 통일(mcg→µg)·단위 형식·값 범위·제품명 링크/연락처 금지·중복 항목 제거. 사진 속 글자는 데이터로만 다룸(지시문 무시) |
+| 확인 패널 | 읽은 제품을 새 제품으로 태그하거나 이미 태그한 제품에 맞추기, 수치별 체크, 모델의 주의 메모("B6 값이 작게 인쇄") 표시. 이미 적은 같은 항목은 덮어쓰지 않음 |
+| 근거 사진·출처 | 수치마다 근거 사진(이 글에 첨부한 사진만) 선택. 서버가 읽은 결과와 비교해 `origin` 기록: 작성자 입력 · **AI 판독 · 작성자 확인**(읽은 그대로) · **AI 판독 후 작성자 수정**. 글 화면 수치표에 📷 사진 링크와 출처, 제품 화면에 "📷 사진 근거 n". 사진을 빼면 근거 연결만 끊김 |
+| 비용·남용 | 같은 사진·같은 보드는 한 번만 읽음(`label_reads`, 사진 삭제 시 함께 삭제), 업로드한 사람(토큰)만·아직 글에 붙지 않은 사진만, 사람당 시간당 12회, 전체 24시간 `LABEL_READ_DAILY_MAX`(기본 300). 키가 없으면 버튼이 나오지 않고 직접 입력 그대로 |
+| 개인정보 | 누른 사진 한 장만(메타데이터 제거·1600px) Anthropic 으로 전송 — 개인정보처리방침 3항에 추가(키가 있을 때만 표시) |
+| 검증 | 실제 SDK 를 가짜 Messages API(`ANTHROPIC_BASE_URL`)에 붙여 요청 형태(모델·대체 모델 베타 헤더·webp 이미지·JSON 스키마) 확인. 거절·형식 오류·한도·권한·캐시·출처 판정 테스트. 브라우저 E2E 8단계, axe 0건 |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -459,6 +473,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/admin/legal-hold` | 🔒 법적 임시조치 `{action: hold\|release, postId, reason?, note}` |
 | POST | `/api/admin/moderation` | 🔒 `{action: void_alert\|dismiss_alert\|release_suppression\|reject_appeal\|reject_board_request\|merge_board_request\|merge_product, ...}` |
 | GET | `/api/admin/moderation/preview?alertId=` | 🔒 무효화 대상 건수 |
+| GET/POST | `/api/label-read` | 라벨 읽기 사용 가능 여부 / 읽기 `{imageId, token, category}` → `{read: {readable, reason, products, facts, notes, model, cached}}` (Sprint 20). 글 작성·수정의 `facts[]` 에 `image`(근거 사진 id), `fromLabel` 추가 |
 | GET | `/sw.js`, `/manifest.webmanifest`, `/offline` | 서비스 워커(빌드 번호 포함, `no-cache`) / 앱 정보 / 저장한 글 목록 (Sprint 19) |
 | WS | `/ws/comments?postId=` | 댓글 `created`/`deleted` 이벤트 푸시 |
 
@@ -466,14 +481,14 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 
 ## 남은 과제
 
-- Claude 요약·스팸 분류·시드 초안 생성은 API 키가 없는 환경에서 개발되어 **실제 호출 검증이 필요**합니다 (키가 없으면 추출 요약 / 규칙 기반 판정으로 동작).
+- Claude 요약·스팸 분류·시드 초안 생성·**라벨 사진 읽기**는 API 키가 없는 환경에서 개발되어 **실제 호출 검증이 필요**합니다 (키가 없으면 추출 요약 / 규칙 기반 판정 / 직접 입력으로 동작). 라벨 읽기는 가짜 API 로 요청 형태까지 검증했지만, 실제 사진 판독 정확도는 실제 라벨로 확인해야 합니다.
 - 시드 콘텐츠 35건은 **사람의 사실관계 검수 후 게시**해야 합니다 (`reviewedBy`).
 - 조직적 신고·투표는 "갓 생긴 fingerprint의 집중" 패턴으로 탐지하지만, 오래 묵힌 계정을 동원하는 공격은 잡지 못합니다. 알림은 자동 처분 없이 기록만 합니다.
 
 ## 디렉터리
 
 ```
-db/migrations/        001_schema.sql … 019_idempotency.sql
+db/migrations/        001_schema.sql … 020_label_read.sql
 db/seed/curator/      AI 큐레이터 시드 콘텐츠 (보드별 JSON)
 assets/fonts/         카드 이미지용 Pretendard (SIL OFL 1.1)
 assets/icon.svg       앱 아이콘 원본 (scripts/make-icons.ts 로 PNG 생성)
@@ -484,7 +499,7 @@ server.ts             Next 커스텀 서버 + WebSocket + LISTEN
 src/app/              페이지(SSR) 및 API 라우트
 src/components/       UI 컴포넌트 (클라이언트: VoteButtons, LiveComments, PostEditor …)
 src/lib/              config, db, repo/*, jobs/{trust,curator,maintenance}, curator, moderation, metrics, admin-auth, og/, summary …
-tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, ops, security, pwa (*.test.ts)
+tests/                unit, curator, db, monitoring, community, launch, ratelimit, report, operator, images, sources, products, corrections, watch, facts, ops, security, pwa, label (*.test.ts)
 .github/workflows/    ci.yml
 ```
 

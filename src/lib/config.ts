@@ -37,6 +37,15 @@ export const config = {
   get summaryModel() {
     return process.env.SUMMARY_MODEL || "claude-opus-5";
   },
+  /** 라벨 사진 읽기(Sprint 20) 모델 — 사진 속 작은 글씨를 읽어야 하므로 요약과 따로 둔다 */
+  get labelModel() {
+    return process.env.LABEL_MODEL || "claude-opus-5";
+  },
+  /** 라벨 읽기 하루 전체 한도(비용 상한). 0이면 끈다. */
+  get labelReadDailyMax() {
+    const n = Number(process.env.LABEL_READ_DAILY_MAX ?? 300);
+    return Number.isInteger(n) && n >= 0 ? n : 300;
+  },
   /** 신뢰도 배지 배치 주기(초). 0이면 서버 내장 스케줄러를 끈다. */
   get trustRefreshIntervalSec() {
     const n = Number(process.env.TRUST_REFRESH_INTERVAL_SEC ?? 120);

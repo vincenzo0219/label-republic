@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
 import { watchPost } from "@/lib/watchlist";
 import { existingImages, ImagePicker, type PickedImage } from "./ImagePicker";
+import { LabelReadPanel, type LabelRead } from "./LabelReadPanel";
 import { checkDraft, newSourceDraft, SourceEditor, type SourceDraft } from "./SourceEditor";
-import { factProblem, newFactDraft, newProductDraft, ProductTagger, toRefs, type FactDraft, type ProductDraft } from "./ProductTagger";
+import { factProblem, factSnapshot, newFactDraft, newProductDraft, ProductTagger, toRefs, type EvidencePhoto, type FactDraft, type ProductDraft } from "./ProductTagger";
 import type { PostFact, ProductTag } from "@/lib/types";
 
 type Lines = [string, string, string];
@@ -31,9 +32,10 @@ function kstToIso(local: string) {
 type CategoryOption = { slug: string; name: string };
 
 type Props =
-  | { mode: "create"; categories: CategoryOption[]; initialCategory?: string; initialProduct?: ProductTag }
+  | { mode: "create"; categories: CategoryOption[]; initialCategory?: string; initialProduct?: ProductTag; labelRead?: boolean }
   | {
       mode: "edit";
+      labelRead?: boolean;
       postId: string;
       categoryName: string;
       categorySlug: string;
@@ -55,7 +57,16 @@ function initialProductState(props: Props): { products: ProductDraft[]; facts: F
   const keyOf = new Map(props.initial.products.map((p, i) => [p.id, products[i]!.key]));
   const facts = props.initial.facts.flatMap((f) => {
     const product = keyOf.get(f.product_id);
-    return product ? [newFactDraft(product, { attribute: f.attribute, value: String(f.value), unit: f.unit, basis: f.basis, kind: f.kind })] : [];
+    return product
+      ? [
+          newFactDraft(product, {
+            attribute: f.attribute, value: String(f.value), unit: f.unit, basis: f.basis, kind: f.kind,
+            image: f.image ?? undefined, fromLabel: f.origin !== "manual",
+            // 읽은 그대로인 수치는 지금 값을 기준으로, 이미 고친 수치는 계속 "고침"으로
+            read: f.origin === "ai" ? factSnapshot({ attribute: f.attribute, value: String(f.value), unit: f.unit, basis: f.basis }) : f.origin === "ai_edited" ? null : undefined,
+          }),
+        ]
+      : [];
   });
   return { products, facts };
 }
@@ -126,7 +137,13 @@ export function PostEditor(props: Props) {
   const [tagged, setTagged] = useState(() => initialProductState(props));
   const initialTagRefs = useRef(JSON.stringify(toRefs(tagged.products, tagged.facts)));
   const summaryRef = useRef<HTMLDivElement>(null);
+  const tagsRef = useRef<HTMLDivElement>(null);
   const prevCategory = useRef(category);
+  // 라벨 읽기 (Sprint 20)
+  const [reading, setReading] = useState<string | null>(null);
+  const [labelRead, setLabelRead] = useState<{ read: LabelRead; imageId: string; photoLabel: string } | null>(null);
+  const [labelMsg, setLabelMsg] = useState<string | null>(null);
+  const [appliedMsg, setAppliedMsg] = useState<string | null>(null);
   const [restorable, setRestorable] = useState<Draft | null>(null);
   const [draftReady, setDraftReady] = useState(editing);
   const pending = useRef<Draft["pending"]>(undefined);
@@ -209,6 +226,28 @@ export function PostEditor(props: Props) {
     setDraftReady(true);
   }
 
+  const boardSlug = props.mode === "create" ? category : props.categorySlug;
+  const photos: EvidencePhoto[] = images.flatMap((img, i) => (img.id && img.status === "done" ? [{ id: img.id, label: img.alt.trim() ? `${i + 1}번 사진 (${img.alt.trim().slice(0, 20)})` : `${i + 1}번 사진` }] : []));
+
+  async function readLabel(img: PickedImage, index: number) {
+    setLabelMsg(null);
+    setAppliedMsg(null);
+    if (!boardSlug) {
+      setLabelMsg("카테고리를 먼저 선택해주세요. 보드마다 읽는 항목이 달라요.");
+      return;
+    }
+    setReading(img.key);
+    try {
+      // 사진 판독은 수십 초 걸릴 수 있다
+      const { read } = await api<{ read: LabelRead }>("/api/label-read", "POST", { imageId: img.id, token: img.token, category: boardSlug }, { timeoutMs: 120_000 });
+      setLabelRead({ read, imageId: img.id!, photoLabel: `${index + 1}번 사진` });
+    } catch (e) {
+      setLabelMsg(isNetworkError(e) ? "연결이 끊겨 라벨을 읽지 못했어요. 다시 눌러주세요." : (e as Error).message);
+    } finally {
+      setReading(null);
+    }
+  }
+
   const stale = summary !== null && summaryFor !== body;
   const summaryChanged = editing && JSON.stringify(summary) !== JSON.stringify(props.initial.summary);
 
@@ -267,7 +306,7 @@ export function PostEditor(props: Props) {
       setError(`제품 수치를 확인해주세요: ${badFact}`);
       return;
     }
-    const tagRefs = toRefs(tagged.products, tagged.facts);
+    const tagRefs = toRefs(tagged.products, tagged.facts, photos.map((p) => p.id));
     const tagsChanged = editing && JSON.stringify(tagRefs) !== initialTagRefs.current;
     const sourceRefs = sources.filter((s) => s.url.trim()).map((s) => ({ url: s.url.trim(), label: s.label.trim() }));
     const sourcesChanged = editing && JSON.stringify(sourceRefs) !== JSON.stringify(props.initial.sources);
@@ -402,7 +441,32 @@ export function PostEditor(props: Props) {
 
       <div className="field">
         <div className="steps"><b>2-2</b> 사진 (선택)</div>
-        <ImagePicker value={images} onChange={setImages} />
+        <ImagePicker value={images} onChange={setImages} onReadLabel={props.labelRead ? readLabel : undefined} readingKey={reading} />
+        {props.labelRead && images.some((i) => i.token) && !labelRead && (
+          <span className="hint">🔍 성분표·스펙표 사진이면 &ldquo;라벨 읽기&rdquo;로 제품과 수치를 채울 수 있어요. 사진은 판독을 위해 Anthropic(Claude)으로 보내져요.</span>
+        )}
+        {labelMsg && !labelRead && (
+          <p className="notice" role="status">
+            {labelMsg}
+          </p>
+        )}
+        {labelRead && (
+          <LabelReadPanel
+            read={labelRead.read}
+            imageId={labelRead.imageId}
+            photoLabel={labelRead.photoLabel}
+            products={tagged.products}
+            facts={tagged.facts}
+            onClose={() => setLabelRead(null)}
+            onApply={(products, facts, message) => {
+              setTagged({ products, facts });
+              setLabelRead(null);
+              setLabelMsg(null);
+              setAppliedMsg(message);
+              setTimeout(() => tagsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+            }}
+          />
+        )}
       </div>
 
       <div className="field">
@@ -410,12 +474,18 @@ export function PostEditor(props: Props) {
         <SourceEditor value={sources} onChange={setSources} body={body} />
       </div>
 
-      <div className="field">
+      <div className="field" ref={tagsRef}>
         <div className="steps"><b>2-4</b> 제품 태그·수치 (선택)</div>
+        {appliedMsg && (
+          <p className="hint" role="status">
+            🔍 {appliedMsg}
+          </p>
+        )}
         <ProductTagger
-          category={props.mode === "create" ? category : props.categorySlug}
+          category={boardSlug}
           products={tagged.products}
           facts={tagged.facts}
+          photos={photos}
           onChange={(products, facts) => setTagged({ products, facts })}
         />
       </div>

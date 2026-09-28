@@ -61,7 +61,18 @@ export type PostCard = {
 export type ProductTag = { id: string; brand: string; name: string };
 
 /** 글에 적은 제품 수치 (표시값·실측값) */
-export type PostFact = { product_id: string; attribute: string; value: number; unit: string; basis: string; kind: "label" | "measured" };
+export type FactOrigin = "manual" | "ai" | "ai_edited";
+/** image: 근거 사진 id(이 글의 첨부 사진), origin: 작성자 입력 · 라벨 사진에서 읽은 그대로 · 읽은 뒤 고침 (Sprint 20) */
+export type PostFact = {
+  product_id: string;
+  attribute: string;
+  value: number;
+  unit: string;
+  basis: string;
+  kind: "label" | "measured";
+  image: string | null;
+  origin: FactOrigin;
+};
 
 export type PostSource = {
   id: string;

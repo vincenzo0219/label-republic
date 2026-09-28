@@ -76,12 +76,14 @@ export function ProductFacts({ groups, boardPath }: { groups: FactGroup[]; board
                   <details className="fact-entries">
                     <summary>
                       글별 값 {g.entries.length}
+                      {g.entries.some((e) => e.photo) && ` · 📷 사진 근거 ${g.entries.filter((e) => e.photo).length}`}
                       {g.disputed_n > 0 && ` · 정정 제안 ${g.disputed_n}건 제외`}
                     </summary>
                     <ul>
                       {g.entries.map((e, i) => (
                         <li key={i}>
                           <Link href={`/posts/${e.post_id}`}>글 #{e.post_id}</Link> · {formatValue(e.value)} {e.unit} ({e.kind === "label" ? "표시" : "실측"})
+                          {e.photo && " · 📷 사진 근거"}
                           {e.disputed && (
                             <>
                               {" "}

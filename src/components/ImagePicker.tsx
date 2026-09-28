@@ -53,7 +53,18 @@ async function upload(blob: Blob): Promise<{ id: string; token: string }> {
  * 사진 첨부: 선택 즉시 업로드, 미리보기·설명(대체 텍스트)·삭제·순서 이동.
  * 위치 정보 등 사진 속 메타데이터는 서버에서 지운다.
  */
-export function ImagePicker({ value, onChange }: { value: PickedImage[]; onChange: (next: PickedImage[] | ((prev: PickedImage[]) => PickedImage[])) => void }) {
+export function ImagePicker({
+  value,
+  onChange,
+  onReadLabel,
+  readingKey,
+}: {
+  value: PickedImage[];
+  onChange: (next: PickedImage[] | ((prev: PickedImage[]) => PickedImage[])) => void;
+  /** 라벨 읽기 (Sprint 20) — 방금 올린 사진(토큰이 있는 사진)에만 버튼을 보인다 */
+  onReadLabel?: (img: PickedImage, index: number) => void;
+  readingKey?: string | null;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const objectUrls = useRef(new Set<string>());
@@ -139,6 +150,17 @@ export function ImagePicker({ value, onChange }: { value: PickedImage[]; onChang
                   <button type="button" className="btn btn-sm btn-danger" onClick={() => remove(img.key)} aria-label={`${i + 1}번째 사진 삭제`}>
                     삭제
                   </button>
+                  {onReadLabel && img.status === "done" && img.token && (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      disabled={!!readingKey}
+                      aria-label={`${i + 1}번째 사진에서 라벨 읽기`}
+                      onClick={() => onReadLabel(img, i)}
+                    >
+                      {readingKey === img.key ? "읽는 중…" : "🔍 라벨 읽기"}
+                    </button>
+                  )}
                 </div>
               </div>
             </li>

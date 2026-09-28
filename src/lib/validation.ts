@@ -83,6 +83,10 @@ export const factsSchema = z
       unit: z.string().trim().min(1, "단위를 입력해주세요.").max(12, "단위는 12자까지 쓸 수 있습니다."),
       basis: z.string().trim().max(30, "기준은 30자까지 쓸 수 있습니다.").default(""),
       kind: z.enum(["label", "measured"], { error: "표시값/실측값을 선택해주세요." }),
+      /** 근거 사진 (이 글에 첨부한 사진 id, Sprint 20) */
+      image: z.string().uuid("근거 사진 정보가 올바르지 않습니다.").optional(),
+      /** 라벨 읽기로 채운 수치인지 — 서버가 읽은 결과와 비교해 그대로인지/고쳤는지 기록한다 */
+      fromLabel: z.boolean().optional(),
     }),
   )
   .max(20, "수치는 글당 20개까지 적을 수 있습니다.");

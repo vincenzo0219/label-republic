@@ -407,13 +407,15 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
     );
     if (input.summary) await insertSummary(client, id, input.summary);
     if (input.sources) await setPostSources(client, id, input.sources);
+    // 사진을 먼저 붙인다 — 수치의 근거 사진은 이 글에 붙은 사진이어야 한다 (Sprint 20)
+    const removedImages = input.images ? await setPostImages(client, id, input.images) : [];
     if (input.products || input.facts) {
       const productIds = input.products
         ? await setPostProducts(client, id, post.category_id, input.products, fp)
         : await currentProductIds(client, id);
       if (input.facts) await setPostFacts(client, id, productIds, input.facts);
     }
-    return input.images ? setPostImages(client, id, input.images) : [];
+    return removedImages;
   });
   // 파일은 커밋이 끝난 뒤 지운다 (롤백되면 파일이 남아 있어야 하므로)
   if (removed.length) await deleteFiles(removed);

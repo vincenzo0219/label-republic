@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PostEditor } from "@/components/PostEditor";
+import { labelReadEnabled } from "@/lib/label-read";
 import { getPost } from "@/lib/repo/posts";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
       <h1 style={{ fontSize: 20, margin: "4px 0 16px" }}>글 수정</h1>
       <PostEditor
         mode="edit"
+        labelRead={labelReadEnabled()}
         postId={post.id}
         categoryName={post.category.name}
         categorySlug={post.category.slug}

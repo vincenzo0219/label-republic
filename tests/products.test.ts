@@ -130,8 +130,8 @@ d("products (database)", async () => {
     });
     expect(a.products).toEqual([{ id: "1", brand: "NOW Foods", name: "Magnesium Glycinate 200mg" }]);
     expect(a.facts).toEqual([
-      { product_id: "1", attribute: "마그네슘", value: 200, unit: "mg", basis: "1정", kind: "label" },
-      { product_id: "1", attribute: "마그네슘", value: 176.5, unit: "mg", basis: "1정", kind: "measured" },
+      { product_id: "1", attribute: "마그네슘", value: 200, unit: "mg", basis: "1정", kind: "label", image: null, origin: "manual" },
+      { product_id: "1", attribute: "마그네슘", value: 176.5, unit: "mg", basis: "1정", kind: "measured", image: null, origin: "manual" },
     ]);
     const b = await newPost({ products: [{ brand: "now foods", name: "magnesium glycinate 200 MG" }] }, "두 번째 글");
     expect(b.products[0]!.id).toBe("1");
@@ -174,7 +174,7 @@ d("products (database)", async () => {
     expect(edited.facts.map((f) => f.value)).toEqual([20]);
     // 수치만 바꾸면 현재 태그 순서 기준
     edited = await posts.updatePost(post.id, FP, "1234", { facts: [{ product: 0, attribute: "아연", value: 5, unit: "mg", kind: "measured" }] });
-    expect(edited.facts).toEqual([{ product_id: post.products[1]!.id, attribute: "아연", value: 5, unit: "mg", basis: "", kind: "measured" }]);
+    expect(edited.facts).toEqual([{ product_id: post.products[1]!.id, attribute: "아연", value: 5, unit: "mg", basis: "", kind: "measured", image: null, origin: "manual" }]);
     // 보내지 않으면 그대로
     edited = await posts.updatePost(post.id, FP, "1234", { title: "제목만 수정" });
     expect(edited.products).toHaveLength(1);

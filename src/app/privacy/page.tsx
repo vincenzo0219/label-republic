@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
 import { config } from "@/lib/config";
+import { labelReadEnabled } from "@/lib/label-read";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "개인정보처리방침", alternates: { canonical: "/privacy" } };
 
 export default function PrivacyPage() {
   const ai = Boolean(config.anthropicApiKey);
+  const labelRead = labelReadEnabled();
   return (
     <LegalPage title="개인정보처리방침">
       <p>
@@ -97,8 +99,15 @@ export default function PrivacyPage() {
             전송됩니다. 닉네임·비밀번호·이용자 식별값은 전송하지 않습니다. 전송된 내용의 보관 기간은 Anthropic의 API 데이터 정책을 따릅니다. 국외 이전을
             원하지 않으면 AI 요약 미리보기를 사용하지 말고 요약을 직접 작성하세요(단, 게시 후 스팸 분류는 서비스 운영상 수행됩니다).
           </li>
+        ) : null}
+        {labelRead ? (
+          <li>
+            라벨 사진 읽기: Anthropic, PBC (미국). 글쓰기에서 첨부 사진의 &ldquo;라벨 읽기&rdquo;를 누른 경우에만 <b>그 사진 한 장</b>(위치 정보 등 사진 속
+            정보를 지운 뒤 긴 변 1600px로 줄인 것)을 전송합니다. 읽은 결과(제품명·수치)는 같은 사진을 다시 읽지 않도록 서버에 저장했다가 사진이 지워질 때
+            함께 지웁니다. 누르지 않으면 사진은 전송되지 않습니다.
+          </li>
         ) : (
-          <li>현재 AI 기능은 외부 서비스로 전송하지 않는 방식(서버 내 규칙 기반)으로만 동작합니다.</li>
+          !ai && <li>현재 AI 기능은 외부 서비스로 전송하지 않는 방식(서버 내 규칙 기반)으로만 동작합니다.</li>
         )}
         <li>
           푸시 알림(켠 경우에만): 알림은 이용자 브라우저 제조사의 푸시 서비스(Google, Mozilla, Apple, Microsoft 등)를 거쳐 전달됩니다. 알림 내용은 암호화되어

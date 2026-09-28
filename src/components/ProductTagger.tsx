@@ -5,7 +5,28 @@ import { FACT_KIND_LABEL, MAX_FACTS_PER_POST, MAX_PRODUCTS_PER_POST, normalizeUn
 import { ProductSearchBox } from "./ProductSearchBox";
 
 export type ProductDraft = { key: string; id?: string; brand: string; name: string };
-export type FactDraft = { key: string; product: string; attribute: string; value: string; unit: string; basis: string; kind: FactKind };
+export type FactDraft = {
+  key: string;
+  product: string;
+  attribute: string;
+  value: string;
+  unit: string;
+  basis: string;
+  kind: FactKind;
+  /** 근거 사진 (첨부 사진 id) */
+  image?: string;
+  /** 라벨 읽기로 채운 수치 (서버가 읽은 결과와 비교해 그대로인지/고쳤는지 기록) */
+  fromLabel?: boolean;
+  /** 읽었을 때의 값 (factSnapshot) — 지금 값과 다르면 "읽은 뒤 고침"으로 보여준다. null 은 이미 고친 수치 */
+  read?: string | null;
+};
+
+/** 항목·값·단위·기준 (고쳤는지 비교용) */
+export const factSnapshot = (f: Pick<FactDraft, "attribute" | "value" | "unit" | "basis">) =>
+  [f.attribute.trim(), f.value.replace(/,/g, "").trim(), normalizeUnit(f.unit), f.basis.trim()].join("|");
+
+/** 수치 옆 "근거 사진" 선택지 — 올리기가 끝난 첨부 사진 */
+export type EvidencePhoto = { id: string; label: string };
 
 let seq = 0;
 const nextKey = (p: string) => `${p}${++seq}`;
@@ -18,6 +39,9 @@ export const newFactDraft = (product: string, f: Partial<Omit<FactDraft, "key" |
   unit: f.unit ?? "",
   basis: f.basis ?? "",
   kind: f.kind ?? "label",
+  ...(f.image ? { image: f.image } : {}),
+  ...(f.fromLabel ? { fromLabel: true } : {}),
+  ...(f.read !== undefined ? { read: f.read } : {}),
 });
 
 const COMMON_UNITS = ["mg", "µg", "g", "IU", "%", "kcal", "ml", "mm", "Hz", "dB", "Ω", "mAh"];
@@ -38,8 +62,8 @@ export function factProblem(f: FactDraft): string | null {
   return null;
 }
 
-/** 서버로 보낼 형태로 */
-export function toRefs(products: ProductDraft[], facts: FactDraft[]) {
+/** 서버로 보낼 형태로 (photoIds 를 주면 그 안의 사진만 근거로 보낸다 — 지운 사진을 가리키지 않게) */
+export function toRefs(products: ProductDraft[], facts: FactDraft[], photoIds?: string[]) {
   return {
     products: products.map((p) => (p.id ? { id: p.id } : { brand: p.brand.trim(), name: p.name.trim() })),
     facts: facts
@@ -51,6 +75,7 @@ export function toRefs(products: ProductDraft[], facts: FactDraft[]) {
         unit: normalizeUnit(f.unit),
         basis: f.basis.trim(),
         kind: f.kind,
+        ...(f.image && (!photoIds || photoIds.includes(f.image)) ? { image: f.image, ...(f.fromLabel ? { fromLabel: true } : {}) } : {}),
       })),
   };
 }
@@ -63,11 +88,13 @@ export function ProductTagger({
   category,
   products,
   facts,
+  photos = [],
   onChange,
 }: {
   category: string;
   products: ProductDraft[];
   facts: FactDraft[];
+  photos?: EvidencePhoto[];
   onChange: (products: ProductDraft[], facts: FactDraft[]) => void;
 }) {
   const [adding, setAdding] = useState(false);
@@ -200,6 +227,28 @@ export function ProductTagger({
                       <input className="input input-sm" aria-label={`${i + 1}번째 수치 기준`} placeholder="기준 (예: 1정, 100g)" maxLength={30} value={f.basis}
                         onChange={(e) => updateFact(f.key, { basis: e.target.value })} />
                     </div>
+                    {(photos.length > 0 || f.fromLabel) && (
+                      <div className="fact-evidence">
+                        {photos.length > 0 && (
+                          <select
+                            className="select input-sm"
+                            aria-label={`${i + 1}번째 수치의 근거 사진`}
+                            value={f.image && photos.some((ph) => ph.id === f.image) ? f.image : ""}
+                            onChange={(e) => updateFact(f.key, { image: e.target.value || undefined })}
+                          >
+                            <option value="">근거 사진 없음</option>
+                            {photos.map((ph) => (
+                              <option key={ph.id} value={ph.id}>
+                                📷 {ph.label}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        {f.fromLabel && f.image && photos.some((ph) => ph.id === f.image) && (
+                          <span className="badge badge-ai">{f.read === factSnapshot(f) ? "🔍 라벨에서 읽은 그대로" : "✏️ 읽은 뒤 고침"}</span>
+                        )}
+                      </div>
+                    )}
                     <div className="source-row-meta">
                       <div className="chips" role="radiogroup" aria-label={`${i + 1}번째 수치 구분`}>
                         {(Object.keys(FACT_KIND_LABEL) as FactKind[]).map((k) => (

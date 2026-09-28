@@ -25,10 +25,11 @@ import {
   type FactKind,
 } from "../products";
 import type { PostFact, ProductTag } from "../types";
+import { resolveEvidence } from "./label-reads";
 
 export type ProductRef = { id: string } | { brand: string; name: string };
 /** product: 같은 요청의 제품 목록에서의 순서 (0부터) */
-export type FactInput = { product: number; attribute: string; value: number; unit: string; basis?: string; kind: FactKind };
+export type FactInput = { product: number; attribute: string; value: number; unit: string; basis?: string; kind: FactKind; image?: string; fromLabel?: boolean };
 
 const ID = /^\d{1,18}$/;
 const VISIBLE = "NOT p.is_blinded AND NOT p.is_suppressed";
@@ -123,12 +124,15 @@ export async function setPostFacts(client: PoolClient, postId: string, productId
     if (!Number.isFinite(f.value) || f.value < 0 || f.value >= 1e12) throw badProduct(`${i + 1}번째 수치의 값을 확인해주세요.`);
     return { productId, attribute, key, value: Math.round(f.value * 10_000) / 10_000, unit, basis: (f.basis ?? "").normalize("NFKC").trim().slice(0, 30), kind: f.kind };
   });
+  // 근거 사진·출처 (Sprint 20) — 사진은 먼저 글에 붙어 있어야 한다
+  const evidence = await resolveEvidence(client, postId, facts);
   await client.query("DELETE FROM product_facts WHERE post_id = $1", [postId]);
   for (const [position, r] of rows.entries()) {
+    const ev = evidence[position]!;
     await client.query(
-      `INSERT INTO product_facts (post_id, product_id, position, attribute, attr_key, value, unit, basis, kind, basis_key, unit_group, base_value)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-      [postId, r.productId, position, r.attribute, r.key, r.value, r.unit, r.basis, r.kind, normText(r.basis).slice(0, 30), toBase(r.value, r.unit).group, toBase(r.value, r.unit).base],
+      `INSERT INTO product_facts (post_id, product_id, position, attribute, attr_key, value, unit, basis, kind, basis_key, unit_group, base_value, source_image_id, origin)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [postId, r.productId, position, r.attribute, r.key, r.value, r.unit, r.basis, r.kind, normText(r.basis).slice(0, 30), toBase(r.value, r.unit).group, toBase(r.value, r.unit).base, ev.image, ev.origin],
     );
   }
 }
@@ -136,7 +140,8 @@ export async function setPostFacts(client: PoolClient, postId: string, productId
 export async function listPostFacts(postId: string): Promise<PostFact[]> {
   if (!ID.test(postId)) return [];
   return query<PostFact>(
-    `SELECT product_id::text, attribute, value::float8 AS value, unit, basis, kind FROM product_facts WHERE post_id = $1 ORDER BY position`,
+    `SELECT product_id::text, attribute, value::float8 AS value, unit, basis, kind, source_image_id::text AS image, origin
+       FROM product_facts WHERE post_id = $1 ORDER BY position`,
     [postId],
   );
 }
@@ -173,7 +178,7 @@ export async function getProduct(id: string): Promise<Product | { redirect: stri
   return product;
 }
 
-export type FactEntry = { post_id: string; value: number; unit: string; kind: FactKind; disputed: boolean };
+export type FactEntry = { post_id: string; value: number; unit: string; kind: FactKind; disputed: boolean; photo?: boolean };
 /** 같은 항목·기준·단위 묶음의 값 모음 (값은 display 단위로 환산) */
 export type FactGroup = {
   key: string;
@@ -193,6 +198,8 @@ type FactRow = {
   product_id: string; post_id: string; attribute: string; attr_key: string; value: number; unit: string; basis: string; kind: FactKind;
   /** 커뮤니티가 동의한 정정 제안이 걸린 수치 — 집계(중앙값)에서 뺀다 */
   disputed?: boolean;
+  /** 근거 사진이 있는지 (Sprint 20) */
+  has_photo?: boolean;
 };
 
 function mostCommon(xs: string[], tieBreak: (x: string) => number = () => 0): string {
@@ -240,7 +247,7 @@ export function aggregateFacts(rows: FactRow[]): FactGroup[] {
       label,
       measured,
       diff_pct: label && measured && label.median > 0 ? ((measured.median - label.median) / label.median) * 100 : null,
-      entries: g.rows.map((r) => ({ post_id: r.post_id, value: fromBase(r.base, unit), unit, kind: r.kind, disputed: !!r.disputed })),
+      entries: g.rows.map((r) => ({ post_id: r.post_id, value: fromBase(r.base, unit), unit, kind: r.kind, disputed: !!r.disputed, photo: !!r.has_photo })),
       disputed_n: g.rows.filter((r) => r.disputed).length,
     });
   }
@@ -251,6 +258,7 @@ export function aggregateFacts(rows: FactRow[]): FactGroup[] {
 async function factRows(productIds: string[]): Promise<FactRow[]> {
   return query<FactRow>(
     `SELECT f.product_id::text, f.post_id::text, f.attribute, f.attr_key, f.value::float8 AS value, f.unit, f.basis, f.kind,
+            f.source_image_id IS NOT NULL AS has_photo,
             p.disputed_count > 0 AND EXISTS (
               SELECT 1 FROM corrections c
                WHERE c.post_id = f.post_id AND c.target = 'fact' AND c.status IN ('open', 'answered') AND c.is_supported AND NOT c.is_hidden

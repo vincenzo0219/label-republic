@@ -591,3 +591,18 @@ body[data-lr-offline]::before {
 .draft-banner { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; }
 .draft-banner p { margin: 0; overflow-wrap: anywhere; }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Sprint 20: 라벨 사진 → 수치 */
+.label-read { border: 1px solid var(--brand); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; background: var(--surface); }
+.label-read p { margin: 0; overflow-wrap: anywhere; }
+.label-read-title { font-size: 14.5px; }
+.label-read-group { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; min-width: 0; }
+.label-read-group legend { font-size: 13px; font-weight: 700; color: var(--muted); padding: 0; margin-bottom: 4px; }
+.label-read-product { display: grid; gap: 6px; }
+.label-read-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.check { display: flex; align-items: flex-start; gap: 8px; min-height: 32px; padding: 4px 0; cursor: pointer; overflow-wrap: anywhere; }
+.check input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--brand); }
+.fact-evidence { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fact-evidence .select { max-width: 100%; }
+.fact-photo { font-size: 12px; white-space: nowrap; }
+.fact-origin { display: block; font-size: 11.5px; margin-top: 2px; }
