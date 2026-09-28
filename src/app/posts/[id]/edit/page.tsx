@@ -16,7 +16,7 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
         mode="edit"
         postId={post.id}
         categoryName={post.category.name}
-        initial={{ title: post.title, body: post.body, summary: post.summary?.lines ?? null, images: post.images.map((i) => ({ id: i.id, alt: i.alt })) }}
+        initial={{ title: post.title, body: post.body, summary: post.summary?.lines ?? null, images: post.images.map((i) => ({ id: i.id, alt: i.alt })), sources: post.sources.map((s) => ({ url: s.url, label: s.label })) }}
       />
     </>
   );

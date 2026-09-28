@@ -10,6 +10,7 @@ import { PostOwnerActions } from "@/components/PostOwnerActions";
 import { ReportButton } from "@/components/ReportButton";
 import { RsvpPanel } from "@/components/RsvpPanel";
 import { ShareButton } from "@/components/ShareButton";
+import { SourceList } from "@/components/SourceList";
 import { SummaryLines } from "@/components/SummaryLines";
 import { AiBadge, TrustBadge } from "@/components/TrustBadge";
 import { VoteButtons } from "@/components/VoteButtons";
@@ -120,6 +121,7 @@ export default async function PostPage({ params }: Props) {
     headline: post.title,
     text: post.body.slice(0, 5000),
     ...(post.images.length ? { image: post.images.map((i) => `${config.siteUrl}${imageUrl(i.id)}`) } : {}),
+    ...(post.sources.length ? { citation: post.sources.map((s) => s.url) } : {}),
     url: `${config.siteUrl}/posts/${post.id}`,
     datePublished: post.created_at,
     dateModified: post.updated_at,
@@ -181,6 +183,7 @@ export default async function PostPage({ params }: Props) {
 
       <div className="post-body">{post.body}</div>
       <Gallery images={post.images} />
+      <SourceList sources={post.sources} />
 
       <VoteButtons postId={post.id} initial={{ upvotes: post.upvotes, downvotes: post.downvotes, myVote }} />
 

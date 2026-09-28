@@ -81,6 +81,10 @@ describe("summary", () => {
   });
 
   it("always returns three lines for short bodies", () => {
+    // 링크는 출처 목록에 따로 보이므로 요약에 넣지 않는다
+    const linked = extractiveSummary("근거", "상한섭취량은 350mg입니다 (https://www.mfds.go.kr/a?b=1). 근거 논문은 https://doi.org/10.1/x 입니다. 세 번째 문장도 있습니다.");
+    expect(linked.join(" ")).not.toMatch(/https?:|\(\s*\)/);
+    expect(linked[0]).toBe("상한섭취량은 350mg입니다.");
     const lines = extractiveSummary("제목", "짧은 본문 하나뿐입니다");
     expect(lines).toHaveLength(3);
     lines.forEach((l) => expect(l.length).toBeGreaterThan(0));

@@ -37,5 +37,5 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) notFound();
   const sp = await searchParams;
-  return <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} />;
+  return <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />;
 }

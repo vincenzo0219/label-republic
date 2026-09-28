@@ -50,6 +50,16 @@ export const imageRefsSchema = z
   )
   .max(6, "이미지는 글당 6장까지 첨부할 수 있습니다.");
 
+/** 출처 — 주소 검증·정규화는 저장할 때(src/lib/sources.ts) 한다 */
+export const sourceRefsSchema = z
+  .array(
+    z.object({
+      url: z.string().trim().min(1, "출처 주소를 입력해주세요.").max(600, "출처 주소가 너무 깁니다."),
+      label: z.string().trim().max(200, "출처 설명은 200자까지 쓸 수 있습니다.").default(""),
+    }),
+  )
+  .max(8, "출처는 8개까지 달 수 있습니다.");
+
 export const createPostSchema = z.object({
   category: z.string().min(1, "카테고리를 선택해주세요."),
   /** 기획안: 글 작성 시 [정보]/[잡담] 태그 필수 선택 (+ 정모 제안) */
@@ -64,6 +74,7 @@ export const createPostSchema = z.object({
   /** /api/summary/preview 가 발급한 서명 토큰 — AI 원본과 비교해 is_author_edited 판정 */
   summaryToken: z.string().max(4000).optional(),
   images: imageRefsSchema.optional(),
+  sources: sourceRefsSchema.optional(),
 });
 
 export const updatePostSchema = z.object({
@@ -73,6 +84,7 @@ export const updatePostSchema = z.object({
   summary: summaryLines.optional(),
   summaryToken: z.string().max(4000).optional(),
   images: imageRefsSchema.optional(),
+  sources: sourceRefsSchema.optional(),
 });
 
 export const pinOnlySchema = z.object({ pw: pin });

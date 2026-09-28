@@ -180,6 +180,23 @@ npm run perf:load -- --base http://localhost:3000 --duration 15 --concurrency 20
 | 화면 | 글쓰기·수정: 사진 선택 즉시 업로드, 미리보기·설명(대체 텍스트)·순서 이동·삭제. 글 상세: 갤러리(성분표 글자가 잘리지 않게 전체 표시, 누르면 원본). 목록 카드: 썸네일 + 📷 개수. JSON-LD `image` |
 | 문서 | 개인정보처리방침(첨부 사진·메타데이터 삭제·보관 기간), 이용약관(사진 권리·개인정보 가리기) |
 
+### Sprint 13 — 출처·인용 검증
+
+글에 근거 링크를 구조화해서 달고(글당 8개), 링크가 살아 있는지 배치가 확인합니다. **출처는 표시·필터에만 쓰고 신뢰도 배지 계산에는 쓰지 않습니다.** 출처가 주장을 실제로 뒷받침하는지는 사람이 읽고 추천·비추천으로 판단하기 때문입니다 (운영 원칙에 명시).
+
+| 영역 | 구현 |
+|---|---|
+| 입력 | 글쓰기·수정의 "출처" 단계: 주소 + 설명(선택). 본문에 링크가 있으면 "본문 링크 N개를 출처로 추가" 제안. 입력하는 즉시 종류·도메인·오류 표시 (`src/lib/sources.ts`, 서버와 같은 함수) |
+| 검증·정규화 | http·https·기본 포트만, 아이디·비밀번호가 든 주소·내부망·사설 IP 거부, **단축·제휴·메신저 링크 거부**(bit.ly·쿠팡 파트너스 등 → 원래 주소 안내), 추적 파라미터(`utm_*`·`fbclid` 등)·`#` 제거, 같은 주소 중복 제거 |
+| 종류 자동 분류 | 도메인으로만: 🎓 논문·학술(doi.org·PubMed·PMC·KCI·RISS·주요 학술지) / 🏛 공공기관(`.go.kr`·`.gov`·europa.eu·WHO 등) / 💬 커뮤니티·블로그 / 🔗 웹페이지. 흉내 도메인(`fakedoi.org`, `doi.org.evil.example`)은 속지 않음 |
+| 링크 확인 배치 | `SOURCE_CHECK_INTERVAL_SEC`(기본 900초)마다 40개씩: 정상이면 7일 뒤 재확인·페이지 제목 저장, 404·410·도메인 없음이 **연속 2번**이면 "깨짐"(고쳐지면 복구), 403·429·5xx·시간 초과는 봇 차단일 수 있어 판단 보류. 같은 사이트엔 한 번에 한 요청 |
+| SSRF 방어 | 서버가 사용자가 넣은 주소로 요청하므로: DNS 결과를 검사한 주소로만 접속(`lookup` 훅 — DNS 재바인딩 우회 불가), IP 리터럴·리다이렉트 매 단계 재검사(최대 3번), 사설·루프백·링크 로컬·CGNAT·클라우드 메타데이터(169.254.169.254) 차단, 본문은 제목용 64KB까지만 |
+| 표시 | 글 상세 "📚 출처" 목록(종류 배지·설명·도메인·페이지 제목, 깨진 링크 ⚠), 링크는 `rel="nofollow ugc"`. 카드에 "🎓 논문 출처"/"🏛 공공기관 출처" 배지와 📚 개수. JSON-LD `citation` |
+| 필터 | 홈·보드·검색의 "📚 출처 있는 글만" (`?sourced=1`, API 동일). 출처 달린 글만 담은 부분 인덱스로 글 20만 건·출처 1%에서도 4~10ms |
+| 기존 글 | `npm run sources:backfill [-- --dry-run]` — 출처가 없는 글의 본문 링크를 출처로 옮김 (반복 실행 안전) |
+| 요약 | 3줄 요약에서 링크 주소를 뺌 (추출 요약·Claude 프롬프트 모두) |
+| 운영 | 대시보드 배치 상태에 "출처 링크 확인 (확인/새로 깨짐)" |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -250,6 +267,7 @@ docker compose up --build
 | `OPERATOR_NAME` / `HOSTING_PROVIDER` | 개인정보처리방침의 운영 주체 / 처리위탁 고지 |
 | `LEGAL_EFFECTIVE_DATE` | 법률 검토를 마친 약관·방침 시행일. 비우면 "검토 전 초안" 배너 |
 | `RUN_MIGRATIONS` | Docker 시작 시 마이그레이션 적용 |
+| `SOURCE_CHECK_INTERVAL_SEC` | 출처 링크 확인 배치 주기 (기본 900초, 0이면 끔). 서버에서 외부 사이트로 나가는 요청이 필요 |
 | `DIGEST_INTERVAL_SEC` | 보드 주간 다이제스트 배치 주기 (기본 3600초, 0이면 끔) |
 | `RATE_LIMIT_BACKEND` | `postgres`(운영 기본, 인스턴스 간 공유) / `memory`(개발 기본) |
 | `WEB_CONCURRENCY` | 웹 워커 프로세스 수 (기본 1, `auto` = CPU 수). 2 이상이면 `RATE_LIMIT_BACKEND=postgres` 필수 |
@@ -271,6 +289,7 @@ TEST_DATABASE_URL=postgres://.../labelrep_test npm test   # + DB 통합 테스�
 
 ```bash
 npm run trust:refresh                          # 신뢰도 배지 즉시 재계산 (평소엔 서버 내장 스케줄러가 실행)
+npm run sources:backfill -- --dry-run          # 기존 글 본문 링크를 출처로 옮기기 (dry-run 으로 먼저 확인)
 npm run summary:backfill -- --limit 50         # 추출 요약으로 저장된 글을 Claude 요약으로 재생성 (--dry-run 지원)
 npm run seed:curator                           # AI 큐레이터 시드 게시(launch)·대기열 등록(drip). 재실행 안전, --dry-run 지원
 npm run curator:generate -- --category pet-food "주제1" "주제2"   # Claude로 시드 초안 생성 (검수 후 db/seed/curator 로 이동)
@@ -309,10 +328,10 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | Method | Endpoint | 설명 |
 |---|---|---|
 | GET | `/api/categories` | 카테고리 목록 |
-| GET | `/api/posts?category=&sort=trust\|latest\|votes&q=&page=&type=` | 피드/검색 (type: info\|chat\|meetup) |
-| POST | `/api/posts` | 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}, images?: [{id, token, alt}]}` |
+| GET | `/api/posts?category=&sort=trust\|latest\|votes&q=&page=&type=&sourced=1` | 피드/검색 (type: info\|chat\|meetup, sourced=1: 출처 있는 글만) |
+| POST | `/api/posts` | 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}, images?: [{id, token, alt}], sources?: [{url, label}]}` |
 | GET | `/api/posts/:id` | 상세 + 요약 + 댓글 + 내 투표 |
-| PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?, images?}` (images를 보내면 그 목록이 최종 상태) |
+| PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?, images?, sources?}` (images·sources를 보내면 그 목록이 최종 상태) |
 | DELETE | `/api/posts/:id` | 삭제 `{pw}` |
 | POST | `/api/posts/:id/vote` | `{value: 1 \| -1}` |
 | POST | `/api/posts/:id/report` | `{reason}` — 5회 누적 자동 블라인드 |

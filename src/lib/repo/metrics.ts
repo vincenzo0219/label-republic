@@ -240,7 +240,9 @@ export async function jobHealth(): Promise<JobHealth[]> {
      UNION ALL
      SELECT 'curator', started_at, finished_at, error, published::text FROM (SELECT * FROM curator_runs ORDER BY id DESC LIMIT 1) c
      UNION ALL
-     SELECT 'maintenance', started_at, finished_at, error, (detail->>'alerts') FROM (SELECT * FROM maintenance_runs ORDER BY id DESC LIMIT 1) m`,
+     SELECT 'maintenance', started_at, finished_at, error, (detail->>'alerts') FROM (SELECT * FROM maintenance_runs ORDER BY id DESC LIMIT 1) m
+     UNION ALL
+     SELECT 'sources', started_at, finished_at, error, checked::text || '/' || broken::text FROM (SELECT * FROM source_check_runs ORDER BY id DESC LIMIT 1) s`,
   );
 }
 

@@ -47,12 +47,27 @@ export type PostCard = {
   /** 첫 번째 첨부 이미지 (카드 썸네일) */
   thumb_id: string | null;
   image_count: number;
+  source_count: number;
+  /** 달린 출처의 종류 (paper·gov·community·web) */
+  source_kinds: string[];
+};
+
+export type PostSource = {
+  id: string;
+  url: string;
+  host: string;
+  kind: "paper" | "gov" | "community" | "web";
+  label: string;
+  page_title: string | null;
+  status: "unchecked" | "ok" | "broken";
+  checked_at: string | null;
 };
 
 export type PostImage = { id: string; alt: string; width: number; height: number; thumb_width: number; thumb_height: number };
 
 export type PostDetail = PostCard & {
   images: PostImage[];
+  sources: PostSource[];
   body: string;
   report_count: number;
   is_blinded: boolean;

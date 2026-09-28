@@ -19,6 +19,11 @@ export function PostCard({ post, terms, showCategory = true }: { post: PostCardD
           {post.post_type === "chat" && <span className="badge badge-type">💬 잡담</span>}
           {post.meetup && <MeetupBadge meetup={post.meetup} />}
           {post.is_ai_curated && <AiBadge />}
+          {post.source_kinds.includes("paper") ? (
+            <span className="badge badge-src badge-src-paper">🎓 논문 출처</span>
+          ) : post.source_kinds.includes("gov") ? (
+            <span className="badge badge-src badge-src-gov">🏛 공공기관 출처</span>
+          ) : null}
           {post.is_suppressed && (
             <span className="badge badge-pending" title="스팸·광고 패턴이 감지되어 노출 순위가 낮아진 글">
               ⚠ 광고 의심
@@ -49,6 +54,7 @@ export function PostCard({ post, terms, showCategory = true }: { post: PostCardD
           <span aria-label="순추천">▲ {net}</span>
           <span aria-label="댓글 수">💬 {post.comment_count}</span>
           {post.image_count > 0 && <span aria-label={`사진 ${post.image_count}장`}>📷 {post.image_count}</span>}
+          {post.source_count > 0 && <span aria-label={`출처 ${post.source_count}개`}>📚 {post.source_count}</span>}
         </div>
       </article>
     </Link>

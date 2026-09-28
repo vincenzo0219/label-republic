@@ -25,13 +25,14 @@ export default async function SearchPage({ searchParams }: Props) {
   const sort = sortSchema.parse(sp.sort);
   const page = Number(sp.page) || 1;
   const category = sp.category ? await getCategoryBySlug(sp.category) : null;
+  const sourced = sp.sourced === "1";
   const terms = searchTerms(q);
 
   let timedOut = false;
   const [categories, results] = await Promise.all([
     listCategories(),
     terms.length
-      ? listPosts({ q, sort, page, categoryId: category?.id }).catch((err) => {
+      ? listPosts({ q, sort, page, categoryId: category?.id, sourced }).catch((err) => {
           if (err instanceof HttpError && err.code === "search_timeout") {
             timedOut = true;
             return null;
@@ -40,7 +41,8 @@ export default async function SearchPage({ searchParams }: Props) {
         })
       : Promise.resolve(null),
   ]);
-  const base: Record<string, string> = { q, ...(category ? { category: category.slug } : {}) };
+  const base: Record<string, string> = { q, ...(category ? { category: category.slug } : {}), ...(sourced ? { sourced: "1" } : {}) };
+  const srcParam: Record<string, string> = sourced ? { sourced: "1" } : {};
 
   return (
     <>
@@ -49,6 +51,7 @@ export default async function SearchPage({ searchParams }: Props) {
         <div className="row" style={{ gridTemplateColumns: "1fr auto" }}>
           <input className="input" type="search" name="q" defaultValue={q} placeholder="예: 마그네슘 비스글리시네이트, 저소음 적축" maxLength={100} autoFocus={!q} />
           {category && <input type="hidden" name="category" value={category.slug} />}
+          {sourced && <input type="hidden" name="sourced" value="1" />}
           <button className="btn btn-primary" style={{ height: "auto" }}>검색</button>
         </div>
       </form>
@@ -61,19 +64,29 @@ export default async function SearchPage({ searchParams }: Props) {
       ) : (
         <>
           <nav className="tabs" aria-label="카테고리 필터">
-            <a className="tab" href={`/search?${new URLSearchParams({ q, ...(sort !== "trust" ? { sort } : {}) })}`} aria-current={!category ? "true" : undefined}>
+            <a className="tab" href={`/search?${new URLSearchParams({ q, ...srcParam, ...(sort !== "trust" ? { sort } : {}) })}`} aria-current={!category ? "true" : undefined}>
               전체
             </a>
             {categories.map((c) => (
               <a
                 key={c.slug}
                 className="tab"
-                href={`/search?${new URLSearchParams({ q, category: c.slug, ...(sort !== "trust" ? { sort } : {}) })}`}
+                href={`/search?${new URLSearchParams({ q, category: c.slug, ...srcParam, ...(sort !== "trust" ? { sort } : {}) })}`}
                 aria-current={category?.slug === c.slug ? "true" : undefined}
               >
                 {c.name}
               </a>
             ))}
+          </nav>
+          <nav className="type-filter" aria-label="검색 필터">
+            <a
+              className="filter-toggle"
+              href={`/search?${new URLSearchParams({ q, ...(category ? { category: category.slug } : {}), ...(sourced ? {} : { sourced: "1" }), ...(sort !== "trust" ? { sort } : {}) })}`}
+              aria-current={sourced ? "true" : undefined}
+              rel="nofollow"
+            >
+              📚 출처 있는 글만
+            </a>
           </nav>
           <SortBar basePath="/search" params={base} sort={sort} total={results.total} capped={results.totalCapped} />
           {results.items.length === 0 ? (

@@ -8,7 +8,7 @@ import { aiModeratePost, createPost, listPosts } from "@/lib/repo/posts";
 import { resolveSummary } from "@/lib/summary";
 import { createPostSchema, postTypeFilterSchema, sortSchema } from "@/lib/validation";
 
-/** GET /api/posts?category=&sort=trust|latest|votes&q=&page= — 피드/검색 */
+/** GET /api/posts?category=&sort=trust|latest|votes&q=&page=&sourced=1 — 피드/검색 */
 export const GET = route(async (req) => {
   const sp = new URL(req.url).searchParams;
   let categoryId: number | undefined;
@@ -24,6 +24,7 @@ export const GET = route(async (req) => {
     q: sp.get("q")?.slice(0, 100) ?? undefined,
     page: Number(sp.get("page")) || 1,
     type: postTypeFilterSchema.parse(sp.get("type") ?? undefined),
+    sourced: sp.get("sourced") === "1",
   });
   return json(result);
 });
@@ -49,6 +50,7 @@ export const POST = route(async (req) => {
     postType: input.postType,
     meetup: input.postType === "meetup" ? input.meetup : undefined,
     images: input.images,
+    sources: input.sources,
   });
   // 응답을 보낸 뒤 AI 스팸 분류로 규칙 기반 판정을 보정 (API 키가 있을 때만 동작)
   after(() => aiModeratePost(post.id).catch((err) => console.error("[moderation]", err)));

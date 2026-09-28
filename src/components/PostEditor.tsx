@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { existingImages, ImagePicker, type PickedImage } from "./ImagePicker";
+import { checkDraft, newSourceDraft, SourceEditor, type SourceDraft } from "./SourceEditor";
 
 type Lines = [string, string, string];
 type PostType = "info" | "chat" | "meetup";
@@ -32,7 +33,13 @@ type Props =
       mode: "edit";
       postId: string;
       categoryName: string;
-      initial: { title: string; body: string; summary: Lines | null; images: { id: string; alt: string }[] };
+      initial: {
+        title: string;
+        body: string;
+        summary: Lines | null;
+        images: { id: string; alt: string }[];
+        sources: { url: string; label: string }[];
+      };
     };
 
 /**
@@ -59,6 +66,7 @@ export function PostEditor(props: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<PickedImage[]>(() => (editing ? existingImages(props.initial.images) : []));
+  const [sources, setSources] = useState<SourceDraft[]>(() => (editing ? props.initial.sources.map((s) => newSourceDraft(s.url, s.label)) : []));
   const summaryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -117,6 +125,13 @@ export function PostEditor(props: Props) {
       setError("올리지 못한 사진이 있어요. 삭제하거나 다시 첨부해주세요.");
       return;
     }
+    const badSource = sources.map(checkDraft).find((c) => c?.ok === false);
+    if (badSource && !badSource.ok) {
+      setError(`출처를 확인해주세요: ${badSource.error}`);
+      return;
+    }
+    const sourceRefs = sources.filter((s) => s.url.trim()).map((s) => ({ url: s.url.trim(), label: s.label.trim() }));
+    const sourcesChanged = editing && JSON.stringify(sourceRefs) !== JSON.stringify(props.initial.sources);
     const imageRefs = images.map((i) => ({ id: i.id!, token: i.token, alt: i.alt }));
     const imagesChanged =
       editing && JSON.stringify(imageRefs.map((i) => [i.id, i.alt])) !== JSON.stringify(props.initial.images.map((i) => [i.id, i.alt]));
@@ -126,6 +141,7 @@ export function PostEditor(props: Props) {
         const { post } = await api<{ post: { id: string } }>("/api/posts", "POST", {
           category, postType, nickname, pw, title, body, summary, summaryToken: token,
           ...(imageRefs.length ? { images: imageRefs } : {}),
+          ...(sourceRefs.length ? { sources: sourceRefs } : {}),
           ...(postType === "meetup"
             ? { meetup: { meetAt: kstToIso(meetAt), location, minParticipants, capacity } }
             : {}),
@@ -138,6 +154,7 @@ export function PostEditor(props: Props) {
         await api(`/api/posts/${props.postId}`, "PATCH", {
           pw, title, body, ...(summaryChanged && summary ? { summary, summaryToken: token } : {}),
           ...(imagesChanged ? { images: imageRefs } : {}),
+          ...(sourcesChanged ? { sources: sourceRefs } : {}),
         });
         router.push(`/posts/${props.postId}`);
       }
@@ -216,6 +233,11 @@ export function PostEditor(props: Props) {
       <div className="field">
         <div className="steps"><b>2-2</b> 사진 (선택)</div>
         <ImagePicker value={images} onChange={setImages} />
+      </div>
+
+      <div className="field">
+        <div className="steps"><b>2-3</b> 출처 (선택)</div>
+        <SourceEditor value={sources} onChange={setSources} body={body} />
       </div>
 
       <div className="field" ref={summaryRef}>

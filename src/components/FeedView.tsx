@@ -18,19 +18,33 @@ const TYPE_FILTERS: { value?: PostType; label: string }[] = [
 ];
 
 /** 홈 피드 / 카테고리 피드 공용 서버 컴포넌트 */
-export async function FeedView({ category, sort, page, type }: { category?: Category; sort: SortKey; page: number; type?: PostType }) {
+export async function FeedView({
+  category,
+  sort,
+  page,
+  type,
+  sourced = false,
+}: {
+  category?: Category;
+  sort: SortKey;
+  page: number;
+  type?: PostType;
+  /** 출처가 달린 글만 */
+  sourced?: boolean;
+}) {
   const [categories, feed, digest] = await Promise.all([
     listCategories(),
-    listPosts({ categoryId: category?.id, sort, page, type }),
+    listPosts({ categoryId: category?.id, sort, page, type, sourced }),
     category ? latestDigest(category.id) : Promise.resolve(null),
   ]);
   const basePath = category ? `/c/${encodeURIComponent(category.slug)}` : "/";
-  const typeParam: Record<string, string> = type ? { type } : {};
+  const typeParam: Record<string, string> = { ...(type ? { type } : {}), ...(sourced ? { sourced: "1" } : {}) };
   const params: Record<string, string> = { ...typeParam, ...(sort === "trust" ? {} : { sort }) };
-  const typeHref = (t?: PostType) => {
-    const qs = new URLSearchParams({ ...(t ? { type: t } : {}), ...(sort === "trust" ? {} : { sort }) }).toString();
+  const href = (t: PostType | undefined, src: boolean) => {
+    const qs = new URLSearchParams({ ...(t ? { type: t } : {}), ...(src ? { sourced: "1" } : {}), ...(sort === "trust" ? {} : { sort }) }).toString();
     return qs ? `${basePath}?${qs}` : basePath;
   };
+  const typeHref = (t?: PostType) => href(t, sourced);
   return (
     <>
       <h1 className="sr-only">{category ? `${category.name} 보드` : "라벨공화국 — 방장 없는 성분·취미 팩트체크 커뮤니티"}</h1>
@@ -62,6 +76,9 @@ export async function FeedView({ category, sort, page, type }: { category?: Cate
             {f.label}
           </Link>
         ))}
+        <Link className="filter-toggle" href={href(type, !sourced)} aria-current={sourced ? "true" : undefined} rel="nofollow">
+          📚 출처 있는 글만
+        </Link>
       </nav>
       <SortBar basePath={basePath} params={typeParam} sort={sort} total={feed.total} />
       {feed.items.length === 0 ? (

@@ -123,6 +123,11 @@ export const config = {
     return isProd ? "postgres" : "memory";
   },
   /** 보드 주간 다이제스트 배치 주기(초). 0이면 끔 */
+  /** 출처 링크 확인 배치 주기(초). 0이면 끔 */
+  get sourceCheckIntervalSec() {
+    const n = Number(process.env.SOURCE_CHECK_INTERVAL_SEC ?? 900);
+    return Number.isFinite(n) && n >= 0 ? n : 900;
+  },
   get digestIntervalSec() {
     const n = Number(process.env.DIGEST_INTERVAL_SEC ?? 3600);
     return Number.isFinite(n) && n >= 0 ? n : 3600;
