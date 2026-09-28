@@ -12,17 +12,20 @@
 |---|---|---|
 | 1 | `.env`: `DATABASE_URL`, `APP_SECRET`(32자 이상 무작위, `openssl rand -base64 48`), `SITE_URL`(https 실도메인), `ADMIN_PASSWORD`, `CONTACT_EMAIL`, `OPERATOR_NAME`, `HOSTING_PROVIDER` | 서버가 시작할 때 환경변수 점검 — 문제가 있으면 시작하지 않음 |
 | 2 | 약관·개인정보처리방침·운영 원칙 법률 검토 → `LEGAL_EFFECTIVE_DATE` | `/terms` 상단 "검토 전 초안" 배너가 사라짐 |
-| 3 | 프록시 뒤라면 `TRUST_PROXY=true`, `TRUST_PROXY_HOPS`(프록시 단 수). WebSocket 업그레이드 허용 | 두 기기에서 같은 글에 추천 → 각각 반영되는지 |
+| 3 | HTTPS: `.env`의 `DOMAIN`(DNS가 이 서버를 가리킴)·`ACME_EMAIL` → `docker compose --profile https up --build -d` (Caddy가 Let's Encrypt 인증서 자동 발급·갱신, WebSocket 포함). 이 구성이면 `TRUST_PROXY=true`, `TRUST_PROXY_HOPS=1`. 앞에 CDN·로드밸런서를 더 두면 그 단 수만큼 늘리고, 앱 포트(3000)는 절대 외부에 열지 않습니다 | `https://도메인/api/health` 200, 두 기기에서 같은 글에 추천 → 각각 반영. 서버 밖에서 `curl http://서버IP:3000` 이 **연결 안 됨** |
 | 4 | `WEB_CONCURRENCY=auto`(CPU 수) + `RATE_LIMIT_BACKEND=postgres` | `/admin` 배치 상태가 한 워커에서만 도는지 |
 | 5 | 이미지 저장소: `UPLOAD_DIR` 볼륨 또는 `IMAGE_STORAGE=s3`(비공개 버킷) | 사진 첨부 글 작성·삭제 후 `/media` 응답 |
 | 6 | 백업: docker compose 의 `backup` 서비스(매일) + `./backups`를 **다른 곳으로 복사하는 작업** | [3. 백업·복구](#3-백업복구)의 리허설 |
 | 7 | 알림: `ALERT_WEBHOOK_URL`(Slack·Discord 웹훅) | `/admin` 서버 오류 패널 문구가 "알림 웹훅으로 보냅니다" |
 | 8 | 외부 감시: `GET /api/health`를 1분마다(503이면 알림), `GET /api/health?deep=1`의 `status`가 `degraded`면 알림 | UptimeRobot 등 |
 | 9 | 푸시(선택): `npm run push:keys` → `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` | 실제 휴대폰에서 `/me` → 알림 켜기 → 지켜보는 글에 댓글 → 한 시간 안에 알림 |
-| 10 | 시드 콘텐츠 사람 검수 → `npm run seed:curator`, `CURATOR_ACTIVE_UNTIL`(오픈 후 약 6주) | `/`에 🤖 배지 글 |
+| 10 | 시드 콘텐츠 사람 검수 → `reviewedBy` 를 채운 파일을 `db/seed/curator/`에 **커밋하고 이미지를 다시 빌드**(시드는 이미지 안에 들어감) → `docker compose exec app npm run seed:curator`, `CURATOR_ACTIVE_UNTIL`(오픈 후 약 6주) | `/`에 🤖 배지 글. 검수 안 된 시드는 게시하지 않고 개수를 알려 줌 |
 | 11 | `ANTHROPIC_API_KEY` 설정 시 요약·스팸 분류·**라벨 사진 읽기** 실제 호출 확인. 라벨 읽기 비용 상한 `LABEL_READ_DAILY_MAX`(기본 300장/24시간) | 글쓰기 요약 미리보기가 "AI 생성". 실제 성분표 사진 몇 장(영양제·사료·스위치 스펙)으로 "라벨 읽기" → 값이 사진과 맞는지 |
 | 12 | 서버에서 외부 사이트로 나가는 요청 허용 여부 (출처 링크 확인·푸시 발송). 막혀 있으면 `SOURCE_CHECK_INTERVAL_SEC=0` | `/admin` 배치 상태 "출처 링크 확인" |
 | 13 | Search Console·서치어드바이저에 `sitemap.xml` 제출 | |
+| 14 | 첫 백업 확인 — 앱이 마이그레이션을 끝낸 뒤 10분 안에 `backup` 서비스가 첫 백업을 만듭니다 | `ls backups/` 에 `.dump`·`.json`, `docker compose --profile ops run --rm restore verify <파일>` 이 "검증 통과" |
+
+> **도메인 없이 미리 띄워 보기**(스테이징·리허설): `DOMAIN=labelrep.test`, `CADDY_TLS="tls internal"` 로 Caddy 자체 인증서를 씁니다. 브라우저가 인증서를 믿지 않으므로 **서비스 워커·오프라인 저장·푸시는 동작하지 않습니다** — 이 기능들은 실제 도메인에서 확인하세요. `SITE_URL`은 http·localhost 를 받지 않으므로(쿠키·링크 보호) 프록시 없이 운영 모드로 띄울 수는 없습니다.
 
 ## 2. 일상 점검 (하루 한 번, 5분)
 
@@ -40,23 +43,36 @@
 - **같은 서버에만 두지 마세요.** `./backups`를 오브젝트 스토리지 등으로 복사하는 작업(예: `rclone copy ./backups remote:labelrep-backups`)을 cron으로 걸어 두세요. 백업에는 게시글·닉네임·비밀번호 해시·식별값이 있으므로 접근을 제한합니다.
 - 소요 시간 참고: 글 20만·DB 3.4GB에서 덤프 1분 + 검증 복원 2분, 덤프 파일 384MB.
 
-### 복구
-1. 앱을 멈춥니다: `docker compose stop app`
-2. 복원할 백업을 검증합니다: `DATABASE_URL=… npm run db:backup:verify -- backups/labelrep-….dump`
-3. 비어 있는 DB에 복원하거나(권장), 기존 DB를 덮어씁니다:
-   `DATABASE_URL=… npm run db:restore -- backups/labelrep-….dump --target postgres://…/labelrep [--force] [--uploads ./data/uploads]`
-   - `--force` 없이는 테이블이 있는 DB에 복원하지 않습니다.
-4. `npm run db:migrate` (백업 이후 추가된 마이그레이션 적용) → 앱 시작 → `/api/health?deep=1`.
+### 복구 (Docker)
+앱 이미지에는 PostgreSQL 클라이언트가 없고 서버에는 보통 Node 가 없으므로, `restore` 서비스(postgres:16 이미지 + `scripts/restore.sh`)를 씁니다.
+1. 복원할 백업을 검증합니다 (DB 는 건드리지 않음): `docker compose --profile ops run --rm restore verify labelrep-….dump`
+2. 앱을 멈춥니다: `docker compose stop app` (붙어 있으면 잠금 때문에 복원이 멈춥니다)
+3. 복원: `docker compose --profile ops run --rm restore restore labelrep-….dump --force --uploads`
+   - `--force` 없이는 테이블이 있는 DB에 복원하지 않습니다(새 서버처럼 빈 DB 면 필요 없음). `--uploads`는 첨부 사진도 백업 시점으로 되돌립니다.
+4. `docker compose up -d app` — 시작할 때 백업 이후 추가된 마이그레이션이 적용됩니다 → `/api/health?deep=1`.
 5. 복구 시점 이후의 글·댓글은 사라집니다. `/transparency`는 공개 기록이므로, 복구로 운영자 조치 기록이 사라졌다면 다시 적습니다.
 
+**서버를 통째로 잃었을 때**: 새 서버에 저장소를 받고 `.env`(따로 보관한 사본 — `APP_SECRET`이 바뀌면 [APP_SECRET 교체](#5-장애-대응)와 같은 영향) → 원격에 복사해 둔 백업을 `./backups`에 → `docker compose up -d db` → 위 1·3단계(빈 DB 라 `--force` 불필요) → `docker compose --profile https up --build -d`. 리허설에서 복원부터 health 200 까지 12초(작은 DB), 글 20만 건 기준으로는 복원 2분 안팎입니다.
+
+### 복구 (Docker 밖)
+`DATABASE_URL=… npm run db:backup:verify -- backups/labelrep-….dump` → `DATABASE_URL=… npm run db:restore -- backups/labelrep-….dump --target postgres://…/labelrep [--force] [--uploads ./data/uploads]` → `npm run db:migrate` → 앱 시작.
+
 ### 리허설 (분기마다)
-`npm run db:backup:verify -- <최근 백업>`을 돌려 "검증 통과"를 확인하고, 1년에 한 번은 새 서버에 실제로 복구해 봅니다.
+`docker compose --profile ops run --rm restore verify <최근 백업>`을 돌려 "검증 통과"를 확인하고, 1년에 한 번은 새 서버에 실제로 복구해 봅니다. 첫 리허설 기록: [REHEARSAL.md](REHEARSAL.md).
 
 ## 4. 업데이트·롤백
 
-- 배포: 새 이미지 빌드 → `RUN_MIGRATIONS=true`로 시작 → `/api/health` 확인. 서버는 SIGTERM을 받으면 요청을 마무리하고 10초 안에 종료합니다.
-- **마이그레이션은 앞으로만** 갑니다. 새 버전에서 문제가 생기면 이전 이미지로 되돌리되, 추가된 컬럼·테이블은 이전 코드가 무시하므로 대부분 그대로 둬도 됩니다.
-- 마이그레이션 자체가 데이터를 망가뜨렸다면: 배포 직전 백업으로 [복구](#복구). 그래서 **배포 전에 `npm run db:backup`** 을 한 번 돌리는 것을 습관으로 합니다.
+업데이트 (사용자가 적은 시간에):
+```sh
+docker compose exec backup /backup.sh                 # 1. 배포 직전 백업 ("[backup] … 완료" 확인)
+docker tag labelrep-app:current labelrep-app:prev     # 2. 지금 이미지를 롤백용으로 보관
+git pull                                              # 3. 새 코드
+docker compose --profile https up -d --build app      # 4. 빌드·교체 (시작할 때 마이그레이션 적용)
+curl -fsS https://도메인/api/health                    # 5. migrations.latest 가 새 번호인지
+```
+- 교체 중에는 프록시가 최대 15초까지 요청을 붙잡고 기다렸다가 새 앱으로 넘깁니다. 리허설(동시 요청 계속 보내며 교체)에서 **300건 중 실패 0건, 가장 긴 대기 6초**였습니다. 서버는 SIGTERM을 받으면 요청을 마무리하고 10초 안에 종료합니다.
+- 롤백: `docker tag labelrep-app:prev labelrep-app:current && docker compose up -d --no-build app`. **마이그레이션은 앞으로만** 갑니다 — 추가된 컬럼·테이블은 이전 코드가 무시하므로 그대로 둡니다(리허설: Sprint 22 이미지를 023 스키마 위에 되돌려 정상 동작 확인).
+- 마이그레이션 자체가 데이터를 망가뜨렸다면: 1단계에서 만든 백업으로 [복구](#복구-docker).
 - 서비스 워커(Sprint 19)는 빌드마다 바뀌어, 배포 후 이용자 화면에 "새 버전이 있어요 [새로고침]"이 뜹니다. 누르기 전까지는 옛 화면이 계속 동작하므로 API 를 바꾸는 배포는 한동안 옛 화면의 요청도 받아야 합니다(지금까지의 API 는 모두 추가만 했습니다).
 - 아이콘을 바꾸려면 `assets/icon.svg` 수정 → `npx tsx scripts/make-icons.ts` → 커밋.
 - 커뮤니티 규칙 값(`community_rules`)은 운영 데이터입니다. **DB 에서 직접 바꾸지 마세요** — 운영 원칙상 투표로만 바뀌고, 바뀐 이력(`rule_changes`)이 공개됩니다. `BOARD_PROMOTION_THRESHOLD` 는 투표로 한 번도 바뀌지 않았을 때의 기본값입니다.
@@ -67,6 +83,8 @@
 | 상황 | 먼저 할 일 | 그다음 |
 |---|---|---|
 | `/api/health` 503 | DB 연결 확인(`docker compose ps`, `pg_isready`) | DB 로그, 디스크(아래), 커넥션 수(`DB_POOL_MAX × 워커 × 인스턴스` ≤ DB `max_connections`) |
+| DB 재시작·일시 중단 | 앱은 그대로 둡니다 — DB가 없는 동안 API 는 500, health 는 503 | DB가 돌아오면 앱이 새로 연결하고 실시간 댓글(LISTEN)도 다시 붙습니다. 앱을 재시작할 필요 없음(리허설: 워커 재시작 0회) |
+| 앱 컨테이너가 죽음 (`Exited`) | 프로세스가 스스로 죽은 경우 Docker 가 몇 초 안에 다시 띄웁니다(리허설 5초). 워커 하나가 죽으면 1초 뒤 다시 띄우고 요청은 다른 워커가 받습니다 | `docker kill`·`docker compose stop` 으로 멈춘 것은 사람이 멈춘 것으로 보고 다시 띄우지 않습니다 → `docker compose up -d app`. 반복해서 죽으면 `docker compose logs app --tail 200` |
 | 디스크 가득 | 백업 볼륨 정리(원격 복사 확인 후), 로그 정리 | DB 볼륨 확장. 첨부 사진이 원인이면 S3로 이전 검토 |
 | 응답이 느림 | `/admin` 배치 상태·서버 오류, DB의 오래 걸리는 쿼리(`pg_stat_activity`) | 검색은 3초가 넘으면 스스로 끊습니다(503 "검색이 너무 오래"). 캐시가 비어 있는 직후(재시작)에는 잠시 느릴 수 있습니다 |
 | 🚨 "새 오류" 알림 | `/admin` 서버 오류 패널에서 경로·스택 확인 | 고친 뒤 배포 → "해결 표시". 같은 오류가 다시 나면 자동으로 다시 열리고 알림이 옵니다 |

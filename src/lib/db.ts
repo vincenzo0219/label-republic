@@ -9,7 +9,11 @@ const g = globalThis as unknown as { __labelRepPool?: Pool };
 
 export function pool(): Pool {
   if (!g.__labelRepPool) {
-    g.__labelRepPool = new Pool({ connectionString: config.databaseUrl, max: config.dbPoolMax });
+    const p = new Pool({ connectionString: config.databaseUrl, max: config.dbPoolMax });
+    // DB 재시작·장애 조치 때 쉬고 있던 연결이 끊기며 오류 이벤트가 온다. 처리하지 않으면 uncaughtException 으로
+    // 워커가 모두 죽는다 (Sprint 24 리허설에서 발견). 풀은 끊긴 연결을 버리고 다음 요청 때 새로 연결한다.
+    p.on("error", (err) => console.warn("[db] 쉬던 연결이 끊겼습니다 (다음 요청 때 다시 연결):", err.message));
+    g.__labelRepPool = p;
   }
   return g.__labelRepPool;
 }

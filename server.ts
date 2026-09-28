@@ -88,9 +88,13 @@ function broadcast(raw: string) {
 async function listen(): Promise<void> {
   const client = new Client({ connectionString: databaseUrl });
   listenClient = client;
+  let retried = false;
   const retry = () => {
-    if (shuttingDown) return;
+    if (shuttingDown || retried) return;
+    retried = true;
     client.removeAllListeners();
+    // 끊기는 연결은 뒤이어 오류를 한 번 더 낼 수 있다 — 받을 곳이 없으면 워커가 죽는다 (Sprint 24 리허설에서 발견)
+    client.on("error", () => {});
     client.end().catch(() => {});
     setTimeout(() => listen().catch(() => {}), 3000);
   };
