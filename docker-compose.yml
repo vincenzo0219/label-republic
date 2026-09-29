@@ -13,6 +13,10 @@ services:
       POSTGRES_USER: labelrep
       POSTGRES_PASSWORD: labelrep
       POSTGRES_DB: labelrep
+      # 한국어 정렬은 ICU 로 (Sprint 38). 이미지 기본값 en_US.utf8(glibc)은 한글 비교가 수십~수백 배 느려
+      # 글 20만 건에서 제목 정렬 61초, posts ANALYZE(자동 포함) 10분 넘게 CPU 한 개를 씀. ICU ko 는 23ms, 순서도 가나다.
+      # DB 를 처음 만들 때만 적용됨 — 이미 만든 DB 는 RUNBOOK "정렬 규칙 바꾸기" 참고
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=ko --locale=C.UTF-8"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

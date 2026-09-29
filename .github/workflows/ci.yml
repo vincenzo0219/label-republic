@@ -24,6 +24,8 @@ jobs:
           POSTGRES_USER: labelrep
           POSTGRES_PASSWORD: labelrep
           POSTGRES_DB: labelrep
+          # 운영과 같은 정렬 규칙 (docker-compose.yml, Sprint 38)
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=ko --locale=C.UTF-8"
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U labelrep"

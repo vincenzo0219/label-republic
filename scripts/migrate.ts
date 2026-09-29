@@ -6,12 +6,29 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { Client } from "pg";
 
+/**
+ * glibc 로캘(en_US.utf8 등)로 만든 DB 는 한글 비교가 수십~수백 배 느리다 (Sprint 38: 제목 정렬 61초, ANALYZE 10분+).
+ * 새 DB 는 docker-compose.yml 의 ICU ko 로 만들어지고, 이미 만든 DB 는 여기서 알려 준다 (고치는 법: RUNBOOK).
+ */
+async function warnSlowCollation(client: Client) {
+  const { rows } = await client.query<{ provider: string; collate: string }>(
+    "SELECT datlocprovider AS provider, datcollate AS collate FROM pg_database WHERE datname = current_database()",
+  );
+  const r = rows[0];
+  if (r && r.provider === "c" && !/^(C|POSIX)(\.utf-?8)?$/i.test(r.collate)) {
+    console.warn(
+      `⚠️  DB 정렬 규칙이 ${r.collate}(glibc)입니다 — 한글 정렬·통계 수집이 매우 느립니다. docs/RUNBOOK.md "DB 정렬 규칙 바꾸기"를 따라 ICU ko 로 옮기세요.`,
+    );
+  }
+}
+
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
   const client = new Client({ connectionString: url });
   await client.connect();
   try {
+    await warnSlowCollation(client);
     await client.query(
       `CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`,
     );
