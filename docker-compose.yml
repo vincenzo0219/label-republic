@@ -6,6 +6,9 @@ services:
   db:
     image: postgres:16
     restart: unless-stopped
+    # Docker 기본 공유 메모리(64MB)로는 큰 병렬 조회(해시 조인)가 "No space left on device" 로 실패한다 —
+    # 글 20만 건 규모에서 투표 집계가 실패함 (Sprint 34 리허설). shared_buffers 등을 올리면 함께 늘릴 것
+    shm_size: 256mb
     environment:
       POSTGRES_USER: labelrep
       POSTGRES_PASSWORD: labelrep
