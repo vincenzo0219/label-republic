@@ -4,6 +4,9 @@ import { listPosts } from "@/lib/repo/posts";
 import type { Category, PostType } from "@/lib/types";
 import type { SortKey } from "@/lib/validation";
 import { latestDigest } from "@/lib/repo/report";
+import { THIN_BOARD_POSTS } from "@/lib/onboarding";
+import { boardNeeds } from "@/lib/repo/onboarding";
+import { BoardGuide } from "./BoardGuide";
 import { CategoryTabs } from "./CategoryTabs";
 import { InterestToggle } from "./InterestToggle";
 import { Pagination } from "./Pagination";
@@ -32,11 +35,15 @@ export async function FeedView({
   /** 출처가 달린 글만 */
   sourced?: boolean;
 }) {
-  const [categories, feed, digest] = await Promise.all([
+  // 글이 적은 보드의 첫 화면(필터 없음)에만 안내 (Sprint 32)
+  const guideCandidate = category && page === 1 && !type && !sourced;
+  const [categories, feed, digest, needs] = await Promise.all([
     listCategories(),
     listPosts({ categoryId: category?.id, sort, page, type, sourced }),
     category ? latestDigest(category.id) : Promise.resolve(null),
+    guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
   ]);
+  const showGuide = category && needs && needs.infoPosts < THIN_BOARD_POSTS;
   const basePath = category ? `/c/${encodeURIComponent(category.slug)}` : "/";
   const typeParam: Record<string, string> = { ...(type ? { type } : {}), ...(sourced ? { sourced: "1" } : {}) };
   const params: Record<string, string> = { ...typeParam, ...(sort === "trust" ? {} : { sort }) };
@@ -81,6 +88,7 @@ export async function FeedView({
           </ol>
         </details>
       )}
+      {showGuide && <BoardGuide slug={category.slug} name={category.name} needs={needs} />}
       <nav className="type-filter" aria-label="글 유형">
         {TYPE_FILTERS.map((f) => (
           <Link key={f.label} href={typeHref(f.value)} aria-current={type === f.value ? "true" : undefined} rel="nofollow">
@@ -95,7 +103,7 @@ export async function FeedView({
       {feed.items.length === 0 ? (
         <div className="empty">
           <p>
-            {type === "meetup" ? "아직 제안된 정모가 없습니다." : type === "chat" ? "아직 잡담이 없습니다." : "아직 글이 없습니다. 첫 번째 팩트를 남겨주세요."}
+            {type === "meetup" ? "아직 제안된 정모가 없습니다." : type === "chat" ? "아직 잡담이 없습니다." : showGuide ? "아직 글이 없습니다. 위의 예시로 첫 글을 시작해 보세요." : "아직 글이 없습니다. 첫 번째 팩트를 남겨주세요."}
           </p>
         </div>
       ) : (

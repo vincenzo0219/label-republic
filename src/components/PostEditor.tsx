@@ -32,7 +32,15 @@ function kstToIso(local: string) {
 type CategoryOption = { slug: string; name: string };
 
 type Props =
-  | { mode: "create"; categories: CategoryOption[]; initialCategory?: string; initialProduct?: ProductTag; labelRead?: boolean }
+  | {
+      mode: "create";
+      categories: CategoryOption[];
+      initialCategory?: string;
+      initialProduct?: ProductTag;
+      labelRead?: boolean;
+      /** 보드 안내의 글쓰기 틀 (Sprint 32) */
+      initialTemplate?: { title: string; body: string; postType: PostType };
+    }
   | {
       mode: "edit";
       labelRead?: boolean;
@@ -124,13 +132,14 @@ export function PostEditor(props: Props) {
   const router = useRouter();
   const editing = props.mode === "edit";
   const [category, setCategory] = useState(props.mode === "create" ? props.initialCategory ?? "" : "");
-  const [postType, setPostType] = useState<PostType | "">("");
+  const template = props.mode === "create" ? props.initialTemplate : undefined;
+  const [postType, setPostType] = useState<PostType | "">(template?.postType ?? "");
   const [meetAt, setMeetAt] = useState(defaultMeetAt);
   const [location, setLocation] = useState("");
   const [minParticipants, setMinParticipants] = useState(4);
   const [capacity, setCapacity] = useState(8);
-  const [title, setTitle] = useState(editing ? props.initial.title : "");
-  const [body, setBody] = useState(editing ? props.initial.body : "");
+  const [title, setTitle] = useState(editing ? props.initial.title : (template?.title ?? ""));
+  const [body, setBody] = useState(editing ? props.initial.body : (template?.body ?? ""));
   const [nickname, setNickname] = useState("");
   const [pw, setPw] = useState("");
   const [summary, setSummary] = useState<Lines | null>(editing ? props.initial.summary : null);

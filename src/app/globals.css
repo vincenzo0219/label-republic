@@ -706,3 +706,22 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .alias-votes { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .alias-votes .btn[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
 .brand-aliases { margin: -4px 0 8px; }
+
+/* 첫 방문·빈 보드 온보딩 (Sprint 32) */
+.welcome { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 14px 16px; margin: 4px 0 16px; }
+.welcome-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.welcome-head h2 { font-size: 17px; margin: 0; }
+.welcome-points { margin: 10px 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+.welcome .chips { margin: 8px 0 12px; }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.board-guide { border: 1px dashed var(--line); border-radius: var(--radius); padding: 12px 14px; margin: 8px 0 14px; background: var(--surface); }
+.board-guide h2 { font-size: 16px; margin: 0 0 6px; }
+.board-guide h3 { font-size: 14px; margin: 14px 0 4px; }
+.guide-templates { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.guide-templates a { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); text-decoration: none; }
+.guide-templates a:hover, .guide-templates a:focus-visible { border-color: var(--brand); }
+.guide-needs { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+.first-guide { margin: 0 0 14px; font-size: 14px; }
+.first-guide summary { cursor: pointer; font-weight: 600; }
+.first-guide ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.template-note { margin: 0 0 8px; }
