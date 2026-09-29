@@ -57,12 +57,13 @@ services:
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
       UPLOAD_DIR: /uploads
     volumes:
-      - ./scripts/backup.sh:/backup.sh:ro
+      # 파일 하나가 아니라 디렉터리를 붙인다 — 파일 하나만 붙이면 git pull 로 파일이 바뀌어도 컨테이너는 옛 파일을 계속 본다 (Sprint 34 리허설에서 발견)
+      - ./scripts:/scripts:ro
       - ./backups:/backups
       - uploads:/uploads:ro
     # 실패하면 하루를 기다리지 않고 BACKUP_RETRY_SEC(기본 10분) 뒤 다시 시도 — 첫 배포 때는 앱이 마이그레이션을 끝내기 전에
     # 첫 백업이 돌아 실패하고 하루 동안 백업이 없던 문제 (Sprint 24 리허설에서 발견)
-    entrypoint: ["/bin/sh", "-c", "while true; do if /backup.sh; then sleep ${BACKUP_INTERVAL_SEC:-86400}; else echo '[backup] 실패 — 잠시 뒤 다시 시도'; sleep ${BACKUP_RETRY_SEC:-600}; fi; done"]
+    entrypoint: ["/bin/sh", "-c", "ln -sf /scripts/backup.sh /backup.sh; while true; do if /backup.sh; then sleep ${BACKUP_INTERVAL_SEC:-86400}; else echo '[backup] 실패 — 잠시 뒤 다시 시도'; sleep ${BACKUP_RETRY_SEC:-600}; fi; done"]
     depends_on:
       db:
         condition: service_healthy
