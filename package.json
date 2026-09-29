@@ -2,7 +2,7 @@
   "name": "label-republic",
   "version": "0.1.0",
   "private": true,
-  "description": "라벨공화국 — 방장 없는 성분/취미 팩트체크 커뮤니티 (노방장)",
+  "description": "노방장 — 방장 없는 덕후 팩트체크 커뮤니티",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "next build",

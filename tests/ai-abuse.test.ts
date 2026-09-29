@@ -11,7 +11,11 @@ describe("AI moderation rules (Sprint 37)", () => {
   });
 
   it("leaves ordinary words and mild slang alone", () => {
-    for (const t of ["시발점이 어디냐", "시발역에서 만나요", "존나 좋은 스위치", "미친 가성비", "이 제품 라벨은 엉터리입니다", "ㅂㅅㄱ 아님", "010 모델과 020 모델"]) {
+    for (const t of [
+      "시발점이 어디냐", "시발역에서 만나요", "존나 좋은 스위치", "미친 가성비", "이 제품 라벨은 엉터리입니다", "ㅂㅅㄱ 아님", "010 모델과 020 모델",
+      // 취미 글에서 흔한 말 (Sprint 38)
+      "매장에 찾아가서 직접 들어봤는데 소리가 좋네요", "폼을 넣으니 통울림을 죽여버리네요", "저음을 죽여버리는 이어팁", "이 가격이면 죽여주네요",
+    ]) {
       expect(heuristicAbuse(t), t).toBeNull();
     }
   });
@@ -20,6 +24,8 @@ describe("AI moderation rules (Sprint 37)", () => {
     expect(heuristicAbuse("한남충들 또 시작")?.category).toBe("hate");
     expect(heuristicAbuse("틀딱 소리")?.category).toBe("hate");
     expect(heuristicAbuse("집 찾아가서 가만 안 둔다")?.category).toBe("harassment");
+    expect(heuristicAbuse("너 진짜 죽여버린다")?.category).toBe("harassment");
+    expect(heuristicAbuse("니네 다 죽일 거야")?.category).toBe("harassment");
     expect(heuristicAbuse("연락 010-1234-5678 로")?.category).toBe("personal_info");
     expect(heuristicAbuse("01012345678")?.category).toBe("personal_info");
     expect(heuristicAbuse("메일 someone@example.com")?.category).toBe("personal_info");
