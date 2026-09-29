@@ -32,7 +32,8 @@ export type Report = {
   watch: WatchUpdates;
 };
 
-export type Watched = { products: string[]; posts: string[]; fingerprint: string | null };
+/** comments: 브라우저가 기억하는 내 댓글 번호 (답글·멘션, Sprint 30) */
+export type Watched = { products: string[]; posts: string[]; comments?: string[]; fingerprint: string | null };
 const NO_WATCH: Watched = { products: [], posts: [], fingerprint: null };
 
 /** since 는 과거 30일 이내로 제한 (처음 방문자는 최근 7일) */
@@ -58,8 +59,8 @@ async function resolveBoards(slugs: string[]) {
 export async function countNew(slugs: string[], since: Date, watched: Watched = NO_WATCH): Promise<number> {
   const [boards, watch] = await Promise.all([
     countBoardPosts(slugs, since),
-    watched.products.length || watched.posts.length
-      ? watchUpdates(watched.products, watched.posts, since, watched.fingerprint).then((w) => w.total)
+    watched.products.length || watched.posts.length || watched.comments?.length
+      ? watchUpdates(watched.products, watched.posts, since, watched.fingerprint, { comments: watched.comments }).then((w) => w.total)
       : Promise.resolve(0),
   ]);
   return boards + watch;
@@ -102,7 +103,7 @@ export async function buildReport(slugs: string[], since: Date, now = new Date()
           [ids, since.toISOString()],
         )
       : Promise.resolve([]),
-    watchUpdates(watched.products, watched.posts, since, watched.fingerprint, { previews: true }),
+    watchUpdates(watched.products, watched.posts, since, watched.fingerprint, { previews: true, comments: watched.comments }),
   ]);
   const counts = new Map(perBoard.map((r) => [r.category_id, r.n]));
   return {

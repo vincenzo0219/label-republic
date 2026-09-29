@@ -154,6 +154,10 @@ export type Comment = {
   body: string;
   is_ai_curated: boolean;
   created_at: string;
+  /** 답글이면 답한 댓글 번호 (그 댓글이 지워지면 null, Sprint 30) */
+  parent_id: string | null;
+  /** 본문의 @닉네임이 가리키는 이 글의 댓글 번호 — 그 댓글을 쓴 브라우저에 알림 */
+  mentions: string[];
 };
 
 export type BoardRequest = {

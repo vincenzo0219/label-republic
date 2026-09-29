@@ -1,5 +1,5 @@
 /**
- * 푸시 알림 배치 (Sprint 16). 알림을 켠 구독마다 지난 확인 이후 관심 제품·지켜보는 글의 새 소식을 세어,
+ * 푸시 알림 배치 (Sprint 16). 알림을 켠 구독마다 지난 확인 이후 관심 제품·지켜보는 글·내 댓글(답글·멘션, Sprint 30)의 새 소식을 세어,
  * 있으면 한 번에 묶어 보낸다. 한 구독에는 PUSH_MIN_GAP_SEC(기본 1시간)에 한 번까지만 보내고, 그동안의 소식은 모인다.
  * advisory lock 으로 여러 인스턴스 중 한 곳에서만 실행된다.
  */
@@ -17,7 +17,10 @@ const STALE_DAYS = 90;
 
 export type PushBatchResult = { ran: boolean; checked: number; sent: number; removed: number };
 
-type Sub = { id: string; endpoint: string; p256dh: string; auth: string; fingerprint: string | null; products: string[]; posts: string[]; checked_until: string };
+type Sub = {
+  id: string; endpoint: string; p256dh: string; auth: string; fingerprint: string | null;
+  products: string[]; posts: string[]; comments: string[]; checked_until: string;
+};
 
 /** 알림 문구: 가장 많은 소식부터 두세 가지만 */
 export function pushMessage(u: WatchUpdates): PushMessage {
@@ -28,7 +31,13 @@ export function pushMessage(u: WatchUpdates): PushMessage {
   const corrections = u.posts.reduce((n, p) => n + p.new_corrections, 0);
   const applied = u.posts.reduce((n, p) => n + p.applied, 0);
   const edited = u.posts.filter((p) => p.edited).length;
+  const replies = u.reply_count;
+  const onlyReply = replies === 1 && u.replies[0] ? u.replies[0] : null;
   const parts = [
+    // 내 댓글에 온 답글·멘션이 가장 먼저 — 한 건이면 누가 무엇이라고 했는지
+    onlyReply
+      ? `💬 ${onlyReply.nickname}님이 ${onlyReply.kind === "reply" ? "답글" : "멘션"}: ${onlyReply.excerpt.replace(/\s+/g, " ").slice(0, 60)}`
+      : replies > 1 && `💬 내 댓글에 답글·멘션 ${replies}개`,
     // 라벨 변경은 가장 먼저 — 한 건이면 무엇이 얼마나 바뀌었는지까지
     renewals.length === 1
       ? `🔄 ${renewals[0]!.attribute} 라벨 변경 ${formatValue(renewals[0]!.from)}→${formatValue(renewals[0]!.to)}${renewals[0]!.unit}`
@@ -41,14 +50,16 @@ export function pushMessage(u: WatchUpdates): PushMessage {
     edited && `수정된 글 ${edited}개`,
   ].filter(Boolean) as string[];
   // 한 제품·한 글의 소식뿐이면 그 이름을 제목에
+  const others = u.products.filter((p) => productUpdateCount(p) > 0).length + u.posts.filter((p) => postUpdateCount(p) > 0).length;
   const single =
-    u.products.filter((p) => productUpdateCount(p) > 0).length + u.posts.filter((p) => postUpdateCount(p) > 0).length === 1
-      ? (u.products.find((p) => productUpdateCount(p) > 0)?.name ?? u.posts.find((p) => postUpdateCount(p) > 0)?.title)
+    others + (replies ? 1 : 0) === 1
+      ? (u.products.find((p) => productUpdateCount(p) > 0)?.name ?? u.posts.find((p) => postUpdateCount(p) > 0)?.title ?? onlyReply?.post_title)
       : undefined;
   return {
     title: single ? `라벨공화국 · ${single.slice(0, 40)}` : "라벨공화국 새 소식",
     body: parts.slice(0, 3).join(" · "),
-    url: "/me",
+    // 답글 하나뿐이면 그 댓글로 바로
+    url: onlyReply && others === 0 ? `/posts/${onlyReply.post_id}#c${onlyReply.id}` : "/me",
     tag: "lr-watch",
   };
 }
@@ -70,9 +81,9 @@ export async function runPushBatch(
       const stale = await client.query("DELETE FROM push_subscriptions WHERE synced_at < $1::timestamptz - make_interval(days => $2)", [now.toISOString(), STALE_DAYS]);
       removed += stale.rowCount ?? 0;
       const { rows } = await client.query<Sub>(
-        `SELECT id, endpoint, p256dh, auth, fingerprint, products::text[] AS products, posts::text[] AS posts, checked_until
+        `SELECT id, endpoint, p256dh, auth, fingerprint, products::text[] AS products, posts::text[] AS posts, comments::text[] AS comments, checked_until
            FROM push_subscriptions
-          WHERE (cardinality(products) > 0 OR cardinality(posts) > 0)
+          WHERE (cardinality(products) > 0 OR cardinality(posts) > 0 OR cardinality(comments) > 0)
             AND (last_sent_at IS NULL OR last_sent_at <= $1::timestamptz - make_interval(secs => $2))
           ORDER BY checked_until LIMIT $3`,
         [now.toISOString(), config.pushMinGapSec, BATCH],
@@ -80,7 +91,7 @@ export async function runPushBatch(
       const send = opts.send ?? ((s: Sub, m: PushMessage) => sendPush(s, m));
       for (const s of rows) {
         checked++;
-        const u = await watchUpdates(s.products, s.posts, new Date(s.checked_until), s.fingerprint);
+        const u = await watchUpdates(s.products, s.posts, new Date(s.checked_until), s.fingerprint, { comments: s.comments });
         if (u.total === 0) {
           await client.query("UPDATE push_subscriptions SET checked_until = $2 WHERE id = $1", [s.id, now.toISOString()]);
           continue;

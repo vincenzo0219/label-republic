@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { onInterestsChange } from "@/lib/interests";
-import { getPushState, getWatchedPosts, getWatchedProducts, setPushState, syncPush } from "@/lib/watchlist";
+import { getMyComments, getPushState, getWatchedPosts, getWatchedProducts, setPushState, syncPush } from "@/lib/watchlist";
 
 type Status = "loading" | "unsupported" | "disabled" | "off" | "on" | "blocked";
 
@@ -13,7 +13,7 @@ function urlBase64ToUint8Array(base64: string) {
 }
 
 /**
- * 푸시 알림 켜기/끄기. 켜면 이 브라우저의 푸시 주소와 관심 제품·지켜보는 글 번호가 서버에 저장되고,
+ * 푸시 알림 켜기/끄기. 켜면 이 브라우저의 푸시 주소와 관심 제품·지켜보는 글·내 댓글 번호가 서버에 저장되고,
  * 끄면 바로 지워진다. 관심 보드 새 글은 푸시로 보내지 않는다 (너무 잦음).
  */
 export function PushSettings() {
@@ -70,6 +70,7 @@ export function PushSettings() {
           subscription: { endpoint: json.endpoint, keys: json.keys },
           products: getWatchedProducts(),
           posts: getWatchedPosts(),
+          comments: getMyComments(),
           ...(getPushState()?.endpoint === json.endpoint ? { token: getPushState()!.token } : {}),
         }),
       });
@@ -77,7 +78,7 @@ export function PushSettings() {
       if (!res.ok) throw new Error(data?.error?.message ?? "알림을 켜지 못했어요.");
       setPushState({ endpoint: json.endpoint, token: data.token });
       setStatus("on");
-      setMsg("알림을 켰어요. 관심 제품·지켜보는 글에 새 소식이 모이면 한 시간에 한 번까지 알려 드려요.");
+      setMsg("알림을 켰어요. 관심 제품·지켜보는 글·내 댓글에 새 소식이 모이면 한 시간에 한 번까지 알려 드려요.");
     } catch (e) {
       setMsg((e as Error).message);
     } finally {
@@ -114,8 +115,8 @@ export function PushSettings() {
       {(status === "off" || status === "on") && (
         <>
           <p className="hint" style={{ marginTop: 0 }}>
-            관심 제품의 새 글, 지켜보는 글의 댓글·정정 제안·수정을 휴대폰 알림으로 받아요 (한 시간에 한 번까지 묶어서). 켜면 이 브라우저의 알림 주소와 관심 제품·글
-            번호만 서버에 저장되고, 끄면 바로 지워집니다. 90일 동안 이 브라우저로 사이트에 오지 않으면 자동으로 지워져요.
+            관심 제품의 새 글, 지켜보는 글의 댓글·정정 제안·수정, 내 댓글에 온 답글·멘션을 휴대폰 알림으로 받아요 (한 시간에 한 번까지 묶어서). 켜면 이 브라우저의
+            알림 주소와 관심 제품·글·내 댓글 번호만 서버에 저장되고, 끄면 바로 지워집니다. 90일 동안 이 브라우저로 사이트에 오지 않으면 자동으로 지워져요.
           </p>
           {status === "off" ? (
             <button type="button" className="btn btn-sm" disabled={busy} onClick={enable}>

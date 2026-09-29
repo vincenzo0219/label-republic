@@ -144,6 +144,8 @@ export const commentSchema = z.object({
   nickname,
   pw: pin,
   body: trimmed(1, 1000, "댓글"),
+  /** 답글이면 답하는 댓글 번호 (Sprint 30) */
+  parentId: z.string().regex(/^\d{1,18}$/).optional(),
 });
 
 export const summaryPreviewSchema = z.object({

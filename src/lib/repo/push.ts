@@ -8,10 +8,11 @@ import { query } from "../db";
 import { config } from "../config";
 import { HttpError, notFound } from "../errors";
 import { isAllowedEndpoint } from "../push";
-import { MAX_WATCH_POSTS, MAX_WATCH_PRODUCTS } from "./watch";
+import { MAX_MY_COMMENTS, MAX_WATCH_POSTS, MAX_WATCH_PRODUCTS } from "./watch";
 
 export type SubscriptionInput = { endpoint: string; p256dh: string; auth: string };
-export type WatchLists = { products: string[]; posts: string[] };
+/** comments: 내 댓글 번호 (답글·멘션 알림, Sprint 30) */
+export type WatchLists = { products: string[]; posts: string[]; comments?: string[] };
 
 export function subscriptionToken(endpoint: string): string {
   return createHmac("sha256", config.appSecret).update(`push:${endpoint}`).digest("base64url");
@@ -29,7 +30,7 @@ function checkToken(endpoint: string, token: string) {
 
 function lists(w: WatchLists) {
   const ids = (xs: string[], max: number) => [...new Set(xs.filter((x) => /^\d{1,18}$/.test(x)))].slice(0, max);
-  return [ids(w.products, MAX_WATCH_PRODUCTS), ids(w.posts, MAX_WATCH_POSTS)] as const;
+  return [ids(w.products, MAX_WATCH_PRODUCTS), ids(w.posts, MAX_WATCH_POSTS), ids(w.comments ?? [], MAX_MY_COMMENTS)] as const;
 }
 
 /**
@@ -39,15 +40,15 @@ function lists(w: WatchLists) {
 export async function subscribe(sub: SubscriptionInput, watch: WatchLists, fp: string, token?: string): Promise<{ token: string }> {
   if (!config.pushEnabled) throw new HttpError(503, "push_disabled", "이 서버에서는 푸시 알림을 쓸 수 없습니다.");
   if (!isAllowedEndpoint(sub.endpoint)) throw new HttpError(400, "invalid_endpoint", "지원하지 않는 푸시 서비스입니다.");
-  const [products, posts] = lists(watch);
+  const [products, posts, comments] = lists(watch);
   await query(
-    `INSERT INTO push_subscriptions (endpoint, p256dh, auth, fingerprint, products, posts)
-     VALUES ($1, $2, $3, $4, $5::bigint[], $6::bigint[])
+    `INSERT INTO push_subscriptions (endpoint, p256dh, auth, fingerprint, products, posts, comments)
+     VALUES ($1, $2, $3, $4, $5::bigint[], $6::bigint[], $8::bigint[])
      ON CONFLICT (endpoint) DO UPDATE SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, fingerprint = EXCLUDED.fingerprint,
-       products = EXCLUDED.products, posts = EXCLUDED.posts, synced_at = now(), fail_count = 0
+       products = EXCLUDED.products, posts = EXCLUDED.posts, comments = EXCLUDED.comments, synced_at = now(), fail_count = 0
        WHERE (push_subscriptions.p256dh = EXCLUDED.p256dh AND push_subscriptions.auth = EXCLUDED.auth) OR $7::boolean
      RETURNING id`,
-    [sub.endpoint, sub.p256dh, sub.auth, fp, products, posts, token ? tokenOk(sub.endpoint, token) : false],
+    [sub.endpoint, sub.p256dh, sub.auth, fp, products, posts, token ? tokenOk(sub.endpoint, token) : false, comments],
   ).then((rows) => {
     if (!rows[0]) throw new HttpError(409, "endpoint_taken", "이미 다른 설정으로 등록된 알림 주소입니다. 브라우저 알림을 껐다 다시 켜 주세요.");
   });
@@ -57,10 +58,10 @@ export async function subscribe(sub: SubscriptionInput, watch: WatchLists, fp: s
 /** 관심 목록이 바뀔 때마다 브라우저가 보낸다 */
 export async function updateWatch(endpoint: string, token: string, watch: WatchLists): Promise<void> {
   checkToken(endpoint, token);
-  const [products, posts] = lists(watch);
+  const [products, posts, comments] = lists(watch);
   const res = await query<{ id: string }>(
-    "UPDATE push_subscriptions SET products = $2::bigint[], posts = $3::bigint[], synced_at = now() WHERE endpoint = $1 RETURNING id",
-    [endpoint, products, posts],
+    "UPDATE push_subscriptions SET products = $2::bigint[], posts = $3::bigint[], comments = $4::bigint[], synced_at = now() WHERE endpoint = $1 RETURNING id",
+    [endpoint, products, posts, comments],
   );
   if (!res[0]) throw notFound("알림 구독");
 }

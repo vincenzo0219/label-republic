@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatValue } from "@/lib/products";
-import type { PostUpdate, ProductUpdate } from "@/lib/repo/watch";
+import type { PostUpdate, ProductUpdate, ReplyUpdate } from "@/lib/repo/watch";
 
 function Count({ n, label, strong }: { n: number; label: string; strong?: boolean }) {
   if (!n) return null;
@@ -95,6 +95,32 @@ export function WatchedPosts({ items, onRemove }: { items: PostUpdate[]; onRemov
         </ul>
       )}
       {quietCount > 0 && active.length > 0 && <p className="hint">새 소식 없는 글 {quietCount}개</p>}
+    </section>
+  );
+}
+
+/** 📬 내 리포트: 내 댓글에 온 답글·@멘션 (Sprint 30). 새 것이 없으면 보이지 않는다 */
+export function MyReplies({ items, count, onMute }: { items: ReplyUpdate[]; count: number; onMute: (commentId: string) => void }) {
+  if (!count) return null;
+  return (
+    <section aria-labelledby="my-replies-h">
+      <h2 id="my-replies-h" className="section-title">💬 내 댓글에 온 답글 {count}</h2>
+      <ul className="watch-list">
+        {items.map((r) => (
+          <li key={r.id}>
+            <div className="watch-row">
+              <Link href={`/posts/${r.post_id}#c${r.id}`} className="watch-title">
+                <b>{r.nickname}</b>님이 {r.kind === "reply" ? "답글" : "멘션"}: {r.excerpt}
+              </Link>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => onMute(r.to)} aria-label={`${r.post_title} 글의 내 댓글 알림 끄기`}>
+                알림 끄기
+              </button>
+            </div>
+            <p className="hint" style={{ margin: "2px 0 0" }}>{r.post_title}</p>
+          </li>
+        ))}
+      </ul>
+      {count > items.length && <p className="hint">최근 {items.length}개만 보여 드려요.</p>}
     </section>
   );
 }

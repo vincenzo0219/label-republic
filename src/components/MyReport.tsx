@@ -6,12 +6,16 @@ import { formatMeetAt } from "@/components/Meetup";
 import { PostCard } from "@/components/PostCard";
 import { getInterests, getSeenAt, onInterestsChange, setInterests, setSeenAt } from "@/lib/interests";
 import type { Report } from "@/lib/repo/report";
-import { getWatchedPosts, getWatchedProducts, reconcile, toggleWatchPost, toggleWatchProduct } from "@/lib/watchlist";
+import { getMyComments, getWatchedPosts, getWatchedProducts, reconcile, removeMyComment, toggleWatchPost, toggleWatchProduct } from "@/lib/watchlist";
 import { InstallPrompt } from "./InstallPrompt";
 import { PushSettings } from "./PushSettings";
-import { WatchedPosts, WatchedProducts } from "./WatchUpdates";
+import { MyReplies, WatchedPosts, WatchedProducts } from "./WatchUpdates";
 
 type Board = { slug: string; name: string };
+type WatchLists = { products: string[]; posts: string[]; comments: string[] };
+const readWatch = (): WatchLists => ({ products: getWatchedProducts(), posts: getWatchedPosts(), comments: getMyComments() });
+const sameWatch = (a: WatchLists, b: WatchLists) =>
+  a.products.join(",") === b.products.join(",") && a.posts.join(",") === b.posts.join(",") && a.comments.join(",") === b.comments.join(",");
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -23,7 +27,7 @@ function fmtDate(iso: string) {
  */
 export function MyReport({ allBoards }: { allBoards: Board[] }) {
   const [interests, setLocal] = useState<string[] | null>(null);
-  const [watched, setWatched] = useState<{ products: string[]; posts: string[] }>({ products: [], posts: [] });
+  const [watched, setWatched] = useState<WatchLists>({ products: [], posts: [], comments: [] });
   const [since, setSince] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,23 +38,24 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
   useEffect(() => {
     setSince(getSeenAt());
     setLocal(getInterests());
-    setWatched({ products: getWatchedProducts(), posts: getWatchedPosts() });
+    setWatched(readWatch());
     // 내용이 같은 변경 알림(확인 시각 저장 등)으로는 다시 불러오지 않는다
     return onInterestsChange(() => {
       const next = getInterests();
       setLocal((cur) => (cur && cur.join(",") === next.join(",") ? cur : next));
-      const w = { products: getWatchedProducts(), posts: getWatchedPosts() };
-      setWatched((cur) => (cur.products.join(",") === w.products.join(",") && cur.posts.join(",") === w.posts.join(",") ? cur : w));
+      const w = readWatch();
+      setWatched((cur) => (sameWatch(cur, w) ? cur : w));
     });
   }, []);
 
-  const load = useCallback(async (boards: string[], w: { products: string[]; posts: string[] }, from: string | null) => {
+  const load = useCallback(async (boards: string[], w: WatchLists, from: string | null) => {
     setError(null);
-    if (!boards.length && !w.products.length && !w.posts.length) return setReport(null);
+    if (!boards.length && !w.products.length && !w.posts.length && !w.comments.length) return setReport(null);
     const qs = new URLSearchParams({
       ...(boards.length ? { boards: boards.join(",") } : {}),
       ...(w.products.length ? { products: w.products.join(",") } : {}),
       ...(w.posts.length ? { posts: w.posts.join(",") } : {}),
+      ...(w.comments.length ? { comments: w.comments.join(",") } : {}),
       ...(from ? { since: from } : {}),
     });
     try {
@@ -62,6 +67,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       reconcile(
         r.watch.products.filter((p) => p.merged_into).map((p) => [p.id, p.merged_into!] as [string, string]),
         r.watch.gone,
+        r.watch.gone_comments,
       );
       // 관심 보드가 있는 리포트를 실제로 보여준 뒤에만 "확인함"으로 기록 → 다음 방문은 이 페이지를 연 시각 이후 새 글만.
       // (관심 보드를 고르기 전 온보딩 화면만 본 경우에는 기록하지 않아 첫 리포트가 최근 7일로 나온다)
@@ -100,7 +106,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
     </div>
   );
 
-  const watching = watched.products.length + watched.posts.length > 0;
+  const watching = watched.products.length + watched.posts.length + watched.comments.length > 0;
   if (!interests.length && !watching) {
     return (
       <div className="report-root">
@@ -110,7 +116,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
           {picker}
           <p className="hint">
             제품 페이지의 <b>☆ 관심 제품</b>, 글의 <b>🔕 이 글 소식 받기</b>로 제품 새 글·댓글·정정 제안도 모을 수 있어요. 내가 쓴 글과 댓글·정정 제안을 단 글은 자동으로
-            모입니다.
+            모이고, 내 댓글에 답글이나 @멘션이 달리면 여기서 알려 드려요.
           </p>
         </section>
         {/* 늦게 나타나는 것(푸시 설정은 서버 응답 뒤)을 맨 아래에 — 위의 내용을 밀지 않게 */}
@@ -127,6 +133,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
           {since ? `${fmtDate(since)} 이후` : "최근 7일"} · 관심 보드 {interests.length}개
           {watched.products.length > 0 && ` · 관심 제품 ${watched.products.length}개`}
           {watched.posts.length > 0 && ` · 지켜보는 글 ${watched.posts.length}개`}
+          {watched.comments.length > 0 && ` · 내 댓글 ${watched.comments.length}개`}
         </p>
         <div style={{ display: "flex", gap: 6 }}>
           {since && (
@@ -142,6 +149,9 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       {editing && picker}
       {error && <p className="error">{error}</p>}
 
+      {report && watched.comments.length > 0 && (
+        <MyReplies items={report.watch.replies} count={report.watch.reply_count} onMute={(id) => removeMyComment(id)} />
+      )}
       {report && watched.products.length > 0 && (
         <WatchedProducts items={report.watch.products} onRemove={(id) => toggleWatchProduct(id)} />
       )}

@@ -163,6 +163,13 @@ mark { background: var(--mark); color: var(--text); border-radius: 3px; padding:
 .comment-head .spacer { flex: 1; }
 .comment-body { white-space: pre-wrap; margin-top: 4px; font-size: 15px; }
 .comment.new { animation: flash 1.6s ease-out; }
+/* 답글 (Sprint 30): 원 댓글 아래 한 단계 들여쓰기, 링크로 온 댓글은 잠시 강조 */
+.comment.is-reply { margin-left: 18px; padding-left: 12px; border-left: 2px solid var(--line); }
+.comment:target, .comment.is-target { background: var(--gold-bg); scroll-margin-top: 80px; }
+.comment-to { font-size: 12px; color: var(--muted); }
+.mention { color: var(--brand); font-weight: 600; }
+.reply-banner { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+.mention-suggest { display: flex; flex-wrap: wrap; gap: 6px; }
 @keyframes flash { from { background: color-mix(in srgb, var(--brand) 14%, transparent); } to { background: transparent; } }
 .linkish { background: none; border: 0; padding: 0; color: var(--muted); font-size: 12px; cursor: pointer; text-decoration: underline; }
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getInterests, getSeenAt, onInterestsChange } from "@/lib/interests";
-import { dailyPushSync, getWatchedPosts, getWatchedProducts } from "@/lib/watchlist";
+import { dailyPushSync, getMyComments, getWatchedPosts, getWatchedProducts } from "@/lib/watchlist";
 
 /** 헤더의 "내 리포트" 링크 + 새 글 개수 배지 */
 export function ReportLink() {
@@ -14,12 +14,14 @@ export function ReportLink() {
       const boards = getInterests();
       const products = getWatchedProducts();
       const posts = getWatchedPosts();
-      if (!boards.length && !products.length && !posts.length) return setCount(0);
+      const comments = getMyComments();
+      if (!boards.length && !products.length && !posts.length && !comments.length) return setCount(0);
       const qs = new URLSearchParams({
         count: "1",
         ...(boards.length ? { boards: boards.join(",") } : {}),
         ...(products.length ? { products: products.join(",") } : {}),
         ...(posts.length ? { posts: posts.join(",") } : {}),
+        ...(comments.length ? { comments: comments.join(",") } : {}),
         ...(getSeenAt() ? { since: getSeenAt()! } : {}),
       });
       fetch(`/api/report?${qs}`)

@@ -425,6 +425,21 @@ Sprint 25~26 의 리뉴얼 감지를 제품 페이지 밖에서도 한눈에 볼
 
 그 밖에: 탐지 뒤 재투표로 기록 세탁(→ 기록 고정, `028`), 오탐으로 닫은 알림이 몰표에도 안 열림(→ 최근 의심 표 기준 재오픈), 마감 뒤 무효화로 기록 불일치(→ 409), 철회로 쉬는 기간 회피, 비밀번호 대상별 한도 30→10/시간, CSRF 경로 인코딩, 읽기 전용 저장본 파일 무한 생성(→ 조건 값 허용 목록·상한), 수집기 식별값 흉내(→ 서버가 붙이는 표시·고정 식별값), 삭제·임시조치 글 저장본 잔존(→ 즉시 삭제·재수집), 연결 오류 메시지 판단, 피드 XML 깨짐. 각 항목에 재현 테스트(단위·DB 316개 중 새 항목 포함, 읽기 전용 E2E 에 위조 추천 단계 추가).
 
+### Sprint 30 — 댓글 답글·멘션 알림
+
+가입이 없어 내 댓글에 답이 달려도 알 방법이 없던 문제를 풀었습니다. **"내 댓글"은 관심 목록처럼 브라우저가 기억하는 댓글 번호**이고, 알림은 그 번호로만 갑니다.
+
+| 항목 | 내용 |
+|---|---|
+| 답글 | 댓글마다 "답글" → 원 댓글 아래 한 단계로 모여 보임. 답글의 답글은 같은 원 댓글 아래에 "↳ 누구에게" + 본문 앞에 `@닉네임`. 답할 댓글은 **같은 글의 댓글만**(다른 글이면 404). 원 댓글이 지워지면 답글은 남고 대상만 비움(`ON DELETE SET NULL`) |
+| @멘션 | 본문의 `@닉네임`을 **이 글에 실제로 있는 닉네임과만** 맞춰(긴 것부터, `a@b.com` 제외) 그 닉네임의 최근 댓글 번호로 바꿔 저장(`comments.mentions`, 닉네임 3명·댓글 10개까지). 내 댓글·AI 큐레이터 댓글은 빼고. 입력 중 `@글자`에 맞는 닉네임 추천 |
+| 흉내 방지 | 닉네임은 누구나 쓸 수 있지만 알림은 **그 댓글을 쓴 브라우저(댓글 번호를 가진 쪽)에만** 가므로, 같은 닉네임을 써도 남의 알림을 받을 수 없음 |
+| 📬 리포트·배지 | `/api/report?comments=` (최대 100개). "💬 내 댓글에 온 답글" (최근 20개 + 전체 개수), 링크는 그 답글로 이동·강조(`#c번호`). 댓글별 "알림 끄기". 지켜보는 글의 "새 댓글"에서는 답글·멘션을 빼고 세어 두 번 세지 않음. 지워진 내 댓글은 목록에서 자동으로 빠짐. 블라인드 글의 답글은 알리지 않음 |
+| 푸시 | 알림을 켠 경우 내 댓글 번호도 구독에 저장(`push_subscriptions.comments`). 답글 하나면 "💬 영양사님이 답글: …" + 그 댓글로 바로 열림, 여럿이면 "내 댓글에 답글·멘션 N개" |
+| 실시간 | 댓글 이벤트(`/ws/comments`)에 `parent_id`·`mentions` 포함 — 보고 있는 화면에 답글이 제자리로 들어옴 |
+| 저장 | `029_comment_replies.sql`: `comments.parent_id`·`mentions`(인덱스), `push_subscriptions.comments`, 댓글 알림 트리거 갱신. 개인정보처리방침에 "내 댓글 번호" 반영 |
+| 검증 | 단위(멘션 찾기·표시·번호 변환, 입력 검사), DB 4가지(저장·다른 글 거부·삭제 시 대상 비움, 답글·멘션 집계·흉내·중복 제외·블라인드, 배지·리포트, 푸시 저장·발송), 브라우저 E2E 7단계(두 브라우저: 답글·멘션 추천·실시간·배지·리포트 링크 강조·답글의 답글·알림 끄기·API 거부), axe 0건 |
+
 ## 기술 스택
 
 - **Next.js 16 (App Router, React Server Components)** + 커스텀 Node 서버(`server.ts`)
@@ -583,10 +598,10 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/uploads` | 이미지 업로드 (본문 = 이미지 바이트) → `{id, token, width, height}` |
 | GET | `/media/:id.webp`, `/media/:id_t.webp`, `/media/:id_s.webp` | 첨부 이미지·썸네일(480px)·목록 카드용 192px 정사각형 (보이는 글에 첨부된 것만) |
 | GET/POST | `/api/posts/:id/appeal` | 재검토 요청 상태 / 작성자 요청 `{pw, message}` (블라인드·광고 의심 글, 글당 1회) |
-| GET/POST | `/api/posts/:id/comments` | 댓글 목록 / 작성 `{nickname, pw, body}` |
+| GET/POST | `/api/posts/:id/comments` | 댓글 목록 / 작성 `{nickname, pw, body, parentId?}` (본문의 `@닉네임`은 멘션) |
 | DELETE | `/api/comments/:id` | 댓글 삭제 `{pw}` |
-| GET | `/api/report?boards=&products=&posts=&since=&count=` | 개인화 리포트 (관심 보드·제품·글은 클라이언트가 전달, 서버 미저장) |
-| GET/POST/PUT/DELETE | `/api/push` | 푸시 사용 가능 여부·공개키 / 알림 켜기 `{subscription, products, posts}` → `{token}` / 목록 갱신 `{endpoint, token, products, posts}` / 끄기 `{endpoint, token}` |
+| GET | `/api/report?boards=&products=&posts=&comments=&since=&count=` | 개인화 리포트 (관심 보드·제품·글·내 댓글은 클라이언트가 전달, 서버 미저장) |
+| GET/POST/PUT/DELETE | `/api/push` | 푸시 사용 가능 여부·공개키 / 알림 켜기 `{subscription, products, posts, comments}` → `{token}` / 목록 갱신 `{endpoint, token, products, posts, comments}` / 끄기 `{endpoint, token}` |
 | GET | `/feed.xml`, `/c/:slug/feed.xml` | Atom 피드 |
 | GET/POST | `/api/posts/:id/rsvp` | 정모 참가자 목록 / 참가 토글 `{nickname}` (확정 인원 도달 시 자동 확정) |
 | POST | `/api/summary/preview` | 글쓰기 단계 요약 미리보기 `{title, body}` |

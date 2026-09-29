@@ -56,7 +56,7 @@ describe("watch & push rules", () => {
   });
 
   it("writes short notification text", () => {
-    const base = { products: [], posts: [], gone: [], total: 0 };
+    const base = { products: [], posts: [], replies: [], reply_count: 0, gone: [], gone_comments: [], total: 0 };
     const post = { id: "1", title: "마그네슘 함량 정리", is_blinded: false, new_comments: 2, new_corrections: 1, newly_supported: 0, applied: 0, edited: false };
     expect(pushMessage({ ...base, posts: [post], total: 3 })).toEqual({
       title: "라벨공화국 · 마그네슘 함량 정리",
@@ -68,6 +68,20 @@ describe("watch & push rules", () => {
     const m = pushMessage({ ...base, posts: [post], products: [product], total: 8 });
     expect(m.title).toBe("라벨공화국 새 소식");
     expect(m.body).toBe("관심 제품 새 글 4개 · 정정 제안 1건 · 동의된 정정 제안 1건");
+
+    // 답글 하나뿐이면 누가 무엇이라고 했는지 + 그 댓글로 바로 (Sprint 30)
+    const reply = {
+      id: "77", post_id: "5", post_title: "비타민 D 흡수율", nickname: "측정러", excerpt: "그 논문은\n표본이 20명이라 조심해야 해요",
+      kind: "reply" as const, to: "70", created_at: "2026-09-29T00:00:00Z",
+    };
+    expect(pushMessage({ ...base, replies: [reply], reply_count: 1, total: 1 })).toEqual({
+      title: "라벨공화국 · 비타민 D 흡수율",
+      body: "💬 측정러님이 답글: 그 논문은 표본이 20명이라 조심해야 해요",
+      url: "/posts/5#c77",
+      tag: "lr-watch",
+    });
+    const many = pushMessage({ ...base, posts: [post], replies: [reply, { ...reply, id: "78", kind: "mention" }], reply_count: 2, total: 5 });
+    expect(many).toMatchObject({ title: "라벨공화국 새 소식", body: "💬 내 댓글에 답글·멘션 2개 · 정정 제안 1건 · 새 댓글 2개", url: "/me" });
   });
 
   it("sends an encrypted web push and maps 410 to gone", async () => {

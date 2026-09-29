@@ -1,14 +1,17 @@
 /**
- * 관심 제품·지켜보는 글 (Sprint 16) — 관심 보드처럼 브라우저(localStorage)에만 저장한다.
+ * 관심 제품·지켜보는 글 (Sprint 16)·내 댓글 (Sprint 30) — 관심 보드처럼 브라우저(localStorage)에만 저장한다.
  * 푸시 알림을 켠 경우에만 목록이 바뀔 때 서버의 구독 정보도 함께 갱신한다.
  */
 import { EVENT, read, write } from "./interests";
 
 const KEY_PRODUCTS = "lr:watchProducts";
 const KEY_POSTS = "lr:watchPosts";
+const KEY_COMMENTS = "lr:myComments";
 const KEY_PUSH = "lr:push";
 export const MAX_PRODUCTS = 30;
 export const MAX_POSTS = 50;
+/** 답글·멘션 알림을 받을 내 댓글 (Sprint 30) — 넘치면 오래된 댓글부터 알림이 끊긴다 */
+export const MAX_MY_COMMENTS = 100;
 
 function readIds(key: string): string[] {
   try {
@@ -28,6 +31,18 @@ function writeIds(key: string, ids: string[], max: number) {
 
 export const getWatchedProducts = () => readIds(KEY_PRODUCTS);
 export const getWatchedPosts = () => readIds(KEY_POSTS);
+export const getMyComments = () => readIds(KEY_COMMENTS);
+
+/** 내가 단 댓글 — 여기 있는 댓글에 답글·멘션이 오면 알린다 */
+export function addMyComment(id: string) {
+  const cur = getMyComments();
+  if (!cur.includes(id)) writeIds(KEY_COMMENTS, [...cur, id], MAX_MY_COMMENTS);
+}
+
+/** 이 댓글의 답글·멘션 알림 끄기 */
+export function removeMyComment(id: string) {
+  writeIds(KEY_COMMENTS, getMyComments().filter((x) => x !== id), MAX_MY_COMMENTS);
+}
 
 export function toggleWatchProduct(id: string): boolean {
   const cur = getWatchedProducts();
@@ -49,8 +64,9 @@ export function watchPost(id: string) {
   if (!cur.includes(id)) writeIds(KEY_POSTS, [...cur, id], MAX_POSTS);
 }
 
-/** 리포트 응답에 따라 목록 정리: 병합된 제품은 새 번호로, 지워진 글은 빼기 */
-export function reconcile(merged: [string, string][], gonePosts: string[]) {
+/** 리포트 응답에 따라 목록 정리: 병합된 제품은 새 번호로, 지워진 글·댓글은 빼기 */
+export function reconcile(merged: [string, string][], gonePosts: string[], goneComments: string[] = []) {
+  if (goneComments.length) writeIds(KEY_COMMENTS, getMyComments().filter((id) => !goneComments.includes(id)), MAX_MY_COMMENTS);
   if (merged.length) {
     const map = new Map(merged);
     writeIds(KEY_PRODUCTS, getWatchedProducts().map((id) => map.get(id) ?? id), MAX_PRODUCTS);
@@ -95,7 +111,7 @@ export async function syncPush(): Promise<void> {
     const res = await fetch("/api/push", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endpoint: s.endpoint, token: s.token, products: getWatchedProducts(), posts: getWatchedPosts() }),
+      body: JSON.stringify({ endpoint: s.endpoint, token: s.token, products: getWatchedProducts(), posts: getWatchedPosts(), comments: getMyComments() }),
     });
     if (res.status === 403 || res.status === 404) setPushState(null);
   } catch {

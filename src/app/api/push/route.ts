@@ -7,6 +7,8 @@ import { hit } from "@/lib/rate-limit";
 import { subscribe, unsubscribe, updateWatch } from "@/lib/repo/push";
 
 const ids = z.array(z.string().regex(/^\d{1,18}$/)).max(50).default([]);
+/** 내 댓글 번호 (답글·멘션 알림, Sprint 30) */
+const commentIds = z.array(z.string().regex(/^\d{1,18}$/)).max(100).default([]);
 const endpoint = z.string().url().max(1000);
 const token = z.string().min(10).max(100);
 
@@ -14,10 +16,11 @@ const subscribeSchema = z.object({
   subscription: z.object({ endpoint, keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }) }),
   products: ids,
   posts: ids,
+  comments: commentIds,
   /** 이미 켠 브라우저가 키를 바꿔 다시 등록할 때 */
   token: token.optional(),
 });
-const updateSchema = z.object({ endpoint, token, products: ids, posts: ids });
+const updateSchema = z.object({ endpoint, token, products: ids, posts: ids, comments: commentIds });
 const deleteSchema = z.object({ endpoint, token });
 
 /** GET /api/push — 이 서버에서 푸시를 쓸 수 있는지 + VAPID 공개키 */
@@ -30,19 +33,19 @@ export const POST = route(async (req) => {
   const input = await parseBody(req, subscribeSchema);
   const r = await subscribe(
     { endpoint: input.subscription.endpoint, p256dh: input.subscription.keys.p256dh, auth: input.subscription.keys.auth },
-    { products: input.products, posts: input.posts },
+    { products: input.products, posts: input.posts, comments: input.comments },
     fp,
     input.token,
   );
   return json(r, 201);
 });
 
-/** PUT /api/push — 관심 목록 갱신 {endpoint, token, products, posts} */
+/** PUT /api/push — 관심 목록 갱신 {endpoint, token, products, posts, comments} */
 export const PUT = route(async (req) => {
   const fp = fingerprint(req.headers);
   if (!(await hit(`push:update:${fp}`, 120, 60 * 60 * 1000))) throw tooMany();
   const input = await parseBody(req, updateSchema);
-  await updateWatch(input.endpoint, input.token, { products: input.products, posts: input.posts });
+  await updateWatch(input.endpoint, input.token, { products: input.products, posts: input.posts, comments: input.comments });
   return json({ ok: true });
 });
 

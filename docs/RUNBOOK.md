@@ -18,7 +18,7 @@
 | 6 | 백업: docker compose 의 `backup` 서비스(매일) + `./backups`를 **다른 곳으로 복사하는 작업** | [3. 백업·복구](#3-백업복구)의 리허설 |
 | 7 | 알림: `ALERT_WEBHOOK_URL`(Slack·Discord 웹훅) | `/admin` 서버 오류 패널 문구가 "알림 웹훅으로 보냅니다" |
 | 8 | 외부 감시: `GET /api/health`를 1분마다(503이면 알림), `GET /api/health?deep=1`의 `status`가 `degraded`면 알림 | UptimeRobot 등 |
-| 9 | 푸시(선택): `npm run push:keys` → `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` | 실제 휴대폰에서 `/me` → 알림 켜기 → 지켜보는 글에 댓글 → 한 시간 안에 알림 |
+| 9 | 푸시(선택): `npm run push:keys` → `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` | 실제 휴대폰에서 `/me` → 알림 켜기 → 지켜보는 글에 댓글 → 한 시간 안에 알림. 내 댓글에 다른 기기로 답글 → "💬 …님이 답글" 알림을 누르면 그 답글로 열림 |
 | 10 | 시드 콘텐츠 사람 검수 → `reviewedBy` 를 채운 파일을 `db/seed/curator/`에 **커밋하고 이미지를 다시 빌드**(시드는 이미지 안에 들어감) → `docker compose exec app npm run seed:curator`, `CURATOR_ACTIVE_UNTIL`(오픈 후 약 6주) | `/`에 🤖 배지 글. 검수 안 된 시드는 게시하지 않고 개수를 알려 줌 |
 | 11 | `ANTHROPIC_API_KEY` 설정 시 요약·스팸 분류·**라벨 사진 읽기** 실제 호출 확인. 라벨 읽기 비용 상한 `LABEL_READ_DAILY_MAX`(기본 300장/24시간) | 글쓰기 요약 미리보기가 "AI 생성". 실제 성분표 사진 몇 장(영양제·사료·스위치 스펙)으로 "라벨 읽기" → 값이 사진과 맞는지 |
 | 12 | 서버에서 외부 사이트로 나가는 요청 허용 여부 (출처 링크 확인·푸시 발송). 막혀 있으면 `SOURCE_CHECK_INTERVAL_SEC=0` | `/admin` 배치 상태 "출처 링크 확인" |
