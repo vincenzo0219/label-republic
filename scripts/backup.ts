@@ -23,6 +23,7 @@ export const CHECK_TABLES = [
   // Sprint 20 이후 (Sprint 34 리허설에서 빠진 것을 발견)
   "label_reads", "community_rules", "rule_proposals", "rule_votes", "rule_changes", "product_renewals",
   "brand_alias_proposals", "brand_alias_votes", "brand_aliases", "attr_alias_proposals", "attr_alias_votes", "attr_aliases",
+  "feedback", "feedback_votes",
 ];
 
 type Manifest = {

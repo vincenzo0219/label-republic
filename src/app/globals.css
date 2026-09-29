@@ -725,3 +725,8 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .first-guide summary { cursor: pointer; font-weight: 600; }
 .first-guide ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 .template-note { margin: 0 0 8px; }
+
+/* 제보 (Sprint 36) */
+.fb-env { margin: 0; padding-left: 18px; }
+.fb-note { margin: 4px 0; padding: 6px 10px; border-left: 3px solid var(--brand); background: var(--surface); font-size: 14px; }
+.fb-metoo { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; }

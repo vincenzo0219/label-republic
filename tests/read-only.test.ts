@@ -103,6 +103,8 @@ describe("connection errors", () => {
     [{ code: "23505" }, false],
     [{ code: "57014" }, false],
     [{ code: "42601", message: "syntax error" }, false],
+    // 쿼리 인자 수가 맞지 않는 코드 버그(protocol_violation)는 DB 장애가 아니다 — 한 화면의 버그로 사이트 전체가 읽기 전용이 되지 않게 (Sprint 36)
+    [{ code: "08P01", message: "bind message supplies 1 parameters, but prepared statement \"\" requires 0" }, false],
     [null, false],
     // 이용자 입력이 섞인 Postgres 오류 메시지로 읽기 전용 모드를 켜지 못하게 (Sprint 29)
     [{ code: "22P02", message: 'invalid input syntax for type bigint: "Connection terminated"' }, false],

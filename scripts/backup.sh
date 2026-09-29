@@ -41,7 +41,7 @@ psql -q -d postgres -c "CREATE DATABASE $SCRATCH"
 pg_restore --no-owner --no-privileges --exit-on-error --dbname "$SCRATCH" "$DUMP"
 ROWS=""
 # Sprint 20 이후 테이블(라벨 읽기·규칙 투표·리뉴얼·브랜드 별칭)도 대조 — Sprint 34 리허설에서 빠진 것을 발견
-for T in posts comments votes reports categories post_images post_sources products post_products product_facts corrections post_revisions moderation_log board_requests push_subscriptions label_reads community_rules rule_proposals rule_votes rule_changes product_renewals brand_alias_proposals brand_alias_votes brand_aliases attr_alias_proposals attr_alias_votes attr_aliases; do
+for T in posts comments votes reports categories post_images post_sources products post_products product_facts corrections post_revisions moderation_log board_requests push_subscriptions label_reads community_rules rule_proposals rule_votes rule_changes product_renewals brand_alias_proposals brand_alias_votes brand_aliases attr_alias_proposals attr_alias_votes attr_aliases feedback feedback_votes; do
   if [ "$(psql -Atq -d "$SCRATCH" -c "SELECT to_regclass('public.$T') IS NOT NULL")" = "t" ]; then
     N=$(psql -Atq -d "$SCRATCH" -c "SELECT count(*) FROM $T")
     ROWS="$ROWS${ROWS:+, }\"$T\": $N"

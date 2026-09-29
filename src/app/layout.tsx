@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { FeedbackLink } from "@/components/FeedbackLink";
 import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
 import { ErrorReporter } from "@/components/ErrorReporter";
@@ -64,7 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <p>
               라벨공화국은 방장이 없습니다. 추천/비추천과 신고 자동 블라인드로 모두가 함께 정화하고, 그 기준도 <Link href="/rules">이용자 투표</Link>로 정합니다.
               <br />
-              원하는 보드가 없나요? <Link href="/boards">보드 개설 요청</Link>
+              원하는 보드가 없나요? <Link href="/boards">보드 개설 요청</Link> · 사이트가 이상하거나 불편하면 <FeedbackLink />
             </p>
             <p>성분·스펙 정보는 사용자 제보이며 의학적 조언이 아닙니다.</p>
             <nav className="footer-links" aria-label="정책">

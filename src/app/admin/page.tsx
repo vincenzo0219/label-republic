@@ -11,6 +11,7 @@ import * as m from "@/lib/repo/metrics";
 import { LegalHoldPanel } from "@/components/admin/LegalHoldPanel";
 import { activeLegalHolds, LEGAL_REASONS } from "@/lib/repo/legal";
 import { pendingCounts } from "@/lib/repo/operator";
+import { countNew as countNewFeedback } from "@/lib/repo/feedback";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +69,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openBoardRequests(),
       m.openErrors(),
     ]);
-  const [holds, pending, rules, ruleVotes] = await Promise.all([activeLegalHolds(), pendingCounts(), getRules(), listProposals({ status: "open" })]);
+  const [holds, pending, rules, ruleVotes, feedback] = await Promise.all([
+    activeLegalHolds(),
+    pendingCounts(),
+    getRules(),
+    listProposals({ status: "open" }),
+    countNewFeedback(),
+  ]);
 
   const last7 = daily.slice(-range);
   const prev7 = daily.slice(-2 * range, -range);
@@ -89,6 +96,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <p>
           <Link className="btn btn-sm" href="/admin/moderation">
             🛡 모더레이션{pending.appeals + pending.alerts > 0 ? ` · 재검토 요청 ${pending.appeals} · 열린 알림 ${pending.alerts}` : ""}
+          </Link>{" "}
+          <Link className="btn btn-sm" href="/admin/feedback">
+            🛠 제보{feedback.new + feedback.open > 0 ? ` · 새 제보 ${feedback.new} · 처리 중 ${feedback.open}` : ""}
           </Link>
         </p>
         <nav className="type-filter" aria-label="기간">

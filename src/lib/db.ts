@@ -18,8 +18,10 @@ export function isConnectionError(err: unknown): boolean {
   if (typeof err !== "object" || err === null) return false;
   const e = err as { code?: string; message?: string };
   if (e.code && /^(ECONNREFUSED|ECONNRESET|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|ENOTFOUND|EAI_AGAIN|EPIPE)$/.test(e.code)) return true;
-  // 08xxx connection_exception, 57P01~03 admin_shutdown / crash_shutdown / cannot_connect_now
-  if (e.code && /^(08\d{3}|08P01|57P0[123])$/.test(e.code)) return true;
+  // 08xxx connection_exception, 57P01~03 admin_shutdown / crash_shutdown / cannot_connect_now.
+  // 08P01(protocol_violation)은 넣지 않는다 — 쿼리 인자 수가 틀린 코드 버그에서 나며, 장애로 보면 한 화면의 버그가
+  // 사이트 전체를 읽기 전용으로 바꾼다 (Sprint 36 테스트 중 발견)
+  if (e.code && /^(08\d{3}|57P0[123])$/.test(e.code)) return true;
   // 메시지로 판단하는 것은 코드가 없는 오류(pg 드라이버가 낸 것)만 — Postgres 오류 메시지에 이용자 입력이 섞여
   // "Connection terminated" 같은 말로 읽기 전용 모드를 켜지 못하게 (Sprint 29)
   if (e.code) return false;

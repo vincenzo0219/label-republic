@@ -208,6 +208,22 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
           WHERE proposer_net IS NOT NULL AND status <> 'open' AND resolved_at < $1::timestamptz - interval '30 days'`,
         [now.toISOString()],
       );
+      // 제보(Sprint 36): 식별값·망 변환값은 도배 방지·"나도 겪었어요" 중복 판단에만 쓰므로 처리되고 30일 뒤 지우고,
+      // 자세한 내용·기기 정보는 처리되고 1년 뒤 지운다 (제목·상태·공개 답변은 현황판 기록으로 남김)
+      await client.query(
+        `UPDATE feedback SET reporter_fingerprint = NULL, reporter_net = NULL
+          WHERE (reporter_fingerprint IS NOT NULL OR reporter_net IS NOT NULL) AND resolved_at < $1::timestamptz - interval '30 days'`,
+        [now.toISOString()],
+      );
+      await client.query(
+        `UPDATE feedback_votes SET voter_net = NULL WHERE voter_net IS NOT NULL
+            AND feedback_id IN (SELECT id FROM feedback WHERE resolved_at < $1::timestamptz - interval '30 days')`,
+        [now.toISOString()],
+      );
+      await client.query(
+        `UPDATE feedback SET body = '', env = '{}' WHERE body <> '' AND resolved_at < $1::timestamptz - interval '365 days'`,
+        [now.toISOString()],
+      );
       // 글의 망 대역 변환값(Sprint 29)은 리뉴얼 판단에만 쓰므로, 표시값(라벨) 수치가 없는 글은 30일 뒤 지운다
       await client.query(
         `UPDATE posts p SET author_net = NULL

@@ -212,4 +212,23 @@ export const attrAliasSchema = z.object({
   nickname,
 });
 
+/** 피드백·버그 제보 (Sprint 36). website 는 사람에게 보이지 않는 칸 — 채워져 있으면 자동 제출로 본다 */
+export const feedbackSchema = z.object({
+  kind: z.enum(["bug", "idea", "other"], { error: "제보 종류를 골라주세요." }),
+  title: trimmed(4, 80, "제목"),
+  body: trimmed(10, 2000, "내용"),
+  pagePath: z.string().max(500).optional(),
+  env: z
+    .object({
+      browser: z.string().max(40).optional(),
+      os: z.string().max(40).optional(),
+      viewport: z.string().max(12).optional(),
+      standalone: z.boolean().optional(),
+      online: z.boolean().optional(),
+    })
+    .nullable()
+    .optional(),
+  website: z.string().max(200).optional(),
+});
+
 export const ruleVoteSchema = z.object({ value: z.union([z.literal(1), z.literal(-1), z.literal(0)], { error: "찬성·반대를 골라주세요." }) });
