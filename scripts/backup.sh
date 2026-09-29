@@ -38,7 +38,9 @@ if [ -n "${UPLOAD_DIR:-}" ] && [ -d "$UPLOAD_DIR" ]; then
 fi
 
 # 덤프 안의 행 수: 임시 DB 에 복원해 센다 (복원 가능 여부 확인도 겸함)
-psql -q -d postgres -c "CREATE DATABASE $SCRATCH"
+# 원래 DB 와 같은 정렬 규칙으로 (클러스터 기본값이 느린 glibc 로캘이어도, Sprint 38)
+CREATE_SQL=$(psql -Atq -c "SELECT CASE datlocprovider WHEN 'i' THEN format('CREATE DATABASE %I TEMPLATE template0 ENCODING %L LOCALE_PROVIDER icu ICU_LOCALE %L LC_COLLATE %L LC_CTYPE %L', '$SCRATCH', pg_encoding_to_char(encoding), coalesce(to_jsonb(d)->>'daticulocale', to_jsonb(d)->>'datlocale'), datcollate, datctype) WHEN 'c' THEN format('CREATE DATABASE %I TEMPLATE template0 ENCODING %L LC_COLLATE %L LC_CTYPE %L', '$SCRATCH', pg_encoding_to_char(encoding), datcollate, datctype) ELSE format('CREATE DATABASE %I', '$SCRATCH') END FROM pg_database d WHERE datname = current_database()")
+psql -q -d postgres -c "${CREATE_SQL:-CREATE DATABASE $SCRATCH}"
 pg_restore --no-owner --no-privileges --exit-on-error --dbname "$SCRATCH" "$DUMP"
 ROWS=""
 # Sprint 20 이후 테이블(라벨 읽기·규칙 투표·리뉴얼·브랜드 별칭)도 대조 — Sprint 34 리허설에서 빠진 것을 발견

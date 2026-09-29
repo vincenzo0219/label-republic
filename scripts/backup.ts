@@ -115,13 +115,28 @@ function withDb(url: string, db: string) {
   return u.toString();
 }
 
+/**
+ * 임시 DB 를 원래 DB 와 같은 정렬 규칙으로 만드는 문장 (Sprint 38).
+ * 그냥 만들면 클러스터 기본값(template1)을 따라가는데, ICU ko 로 옮긴 운영 DB 도 클러스터 기본값은 옛 glibc en_US 로 남아
+ * 검증 복원의 인덱스 재생성이 수십 배 느려진다 (리허설 2차 검증 복원 10분의 상당 부분).
+ */
+export const SCRATCH_CREATE_SQL = `SELECT CASE datlocprovider
+         WHEN 'i' THEN format('CREATE DATABASE %I TEMPLATE template0 ENCODING %L LOCALE_PROVIDER icu ICU_LOCALE %L LC_COLLATE %L LC_CTYPE %L',
+                              $1::text, pg_encoding_to_char(encoding), coalesce(to_jsonb(d)->>'daticulocale', to_jsonb(d)->>'datlocale'), datcollate, datctype)
+         WHEN 'c' THEN format('CREATE DATABASE %I TEMPLATE template0 ENCODING %L LC_COLLATE %L LC_CTYPE %L', $1::text, pg_encoding_to_char(encoding), datcollate, datctype)
+         ELSE format('CREATE DATABASE %I', $1::text) END AS sql
+  FROM pg_database d WHERE datname = current_database()`;
+
 /** 임시 DB 를 만들어 복원하고 행 수를 센 뒤 지운다 */
 export async function restoreToScratch(anyUrl: string, dump: string) {
   const scratch = `labelrep_restore_check_${process.pid}_${Date.now()}`;
+  const source = new Client({ connectionString: anyUrl });
+  await source.connect();
+  const create = await source.query<{ sql: string }>(SCRATCH_CREATE_SQL, [scratch]).finally(() => source.end());
   const admin = new Client({ connectionString: withDb(anyUrl, "postgres") });
   await admin.connect();
   try {
-    await admin.query(`CREATE DATABASE ${scratch}`);
+    await admin.query(create.rows[0]?.sql ?? `CREATE DATABASE ${scratch}`);
     try {
       run("pg_restore", ["--no-owner", "--no-privileges", "--exit-on-error", "--dbname", withDb(anyUrl, scratch), dump]);
       return await snapshot(withDb(anyUrl, scratch));

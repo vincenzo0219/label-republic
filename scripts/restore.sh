@@ -52,7 +52,9 @@ if [ "$CMD" = "verify" ]; then
   SCRATCH="labelrep_verify_$$"
   # 복원 직후 자동 vacuum 이 붙어 있으면 슈퍼유저가 아닌 계정은 지우지 못한다 — 잠깐씩 기다렸다가 다시 (Sprint 37)
   trap 'for _ in 1 2 3 4 5 6 7 8 9 10; do psql -q -d postgres -c "DROP DATABASE IF EXISTS $SCRATCH WITH (FORCE)" >/dev/null 2>&1 && break; sleep 1; done' EXIT
-  psql -q -d postgres -c "CREATE DATABASE $SCRATCH"
+  # 원래 DB 와 같은 정렬 규칙으로 (클러스터 기본값이 느린 glibc 로캘이어도, Sprint 38)
+  CREATE_SQL=$(psql -Atq -c "SELECT CASE datlocprovider WHEN 'i' THEN format('CREATE DATABASE %I TEMPLATE template0 ENCODING %L LOCALE_PROVIDER icu ICU_LOCALE %L LC_COLLATE %L LC_CTYPE %L', '$SCRATCH', pg_encoding_to_char(encoding), coalesce(to_jsonb(d)->>'daticulocale', to_jsonb(d)->>'datlocale'), datcollate, datctype) WHEN 'c' THEN format('CREATE DATABASE %I TEMPLATE template0 ENCODING %L LC_COLLATE %L LC_CTYPE %L', '$SCRATCH', pg_encoding_to_char(encoding), datcollate, datctype) ELSE format('CREATE DATABASE %I', '$SCRATCH') END FROM pg_database d WHERE datname = current_database()")
+  psql -q -d postgres -c "${CREATE_SQL:-CREATE DATABASE $SCRATCH}"
   pg_restore --no-owner --no-privileges --exit-on-error --dbname "$SCRATCH" "$DUMP"
   GOT=$(count_rows "$SCRATCH")
   WANT=$(expected_rows)

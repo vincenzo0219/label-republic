@@ -42,7 +42,7 @@
 - **Docker 밖**: `npm run db:backup` (PostgreSQL 16 클라이언트 필요). `--verify`를 붙이면 임시 DB 복원·체크섬·행 수 대조까지 합니다.
 - S3 저장소를 쓰면 사진은 버킷의 버전 관리·수명주기 규칙으로 따로 보호하세요 (백업 스크립트는 로컬 저장소만 묶습니다).
 - **같은 서버에만 두지 마세요.** `./backups`를 오브젝트 스토리지 등으로 복사하는 작업(예: `rclone copy ./backups remote:labelrep-backups`)을 cron으로 걸어 두세요. 백업에는 게시글·닉네임·비밀번호 해시·식별값이 있으므로 접근을 제한합니다.
-- 소요 시간 참고 (Sprint 34 리허설): 글 20만·댓글 58만·추천 350만·DB 3.9GB에서 **백업 한 번에 약 11분** — 덤프 1분 + 검증 복원·행 수 대조 약 10분, 덤프 파일 449MB. 배포 직전 백업(4장 1단계)도 이만큼 걸리니 미리 돌려 두세요. 검증 복원이 도는 동안 DB CPU 를 씁니다.
+- 소요 시간 참고 (Sprint 34 리허설): 글 20만·댓글 58만·추천 350만·DB 3.9GB에서 **백업 한 번에 약 11분** — 덤프 1분 + 검증 복원·행 수 대조 약 10분, 덤프 파일 449MB. 배포 직전 백업(4장 1단계)도 이만큼 걸리니 미리 돌려 두세요. **(Sprint 38)** DB 를 ICU ko 정렬 규칙으로 만들면(아래) 같은 규모에서 **4분 19초**(덤프 451MB)로 줄었습니다. 검증 복원이 도는 동안 DB CPU 를 씁니다.
 - 행 수 대조 목록(`scripts/backup.sh`의 `for T in …` 과 `scripts/backup.ts`의 `CHECK_TABLES`)에 없는 테이블은 비어서 복원돼도 검증을 통과합니다. **새 테이블을 만드는 마이그레이션을 추가하면 이 목록에도 넣으세요** (Sprint 34 에서 9개가 빠져 있었음).
 
 ### 복구 (Docker)
@@ -58,6 +58,22 @@
 
 ### 복구 (Docker 밖)
 `DATABASE_URL=… npm run db:backup:verify -- backups/labelrep-….dump` → `DATABASE_URL=… npm run db:restore -- backups/labelrep-….dump --target postgres://…/labelrep [--force] [--uploads ./data/uploads]` → `npm run db:migrate` → 앱 시작.
+
+### DB 정렬 규칙 바꾸기 (Sprint 38)
+PostgreSQL 공식 이미지의 기본 정렬 규칙 `en_US.utf8`(glibc)은 **한글 비교가 수십~수백 배 느립니다**. 글 20만 건 기준으로 제목 정렬 1.3초 → ICU ko 23ms, 본문 정렬 19.6초 → 27ms였고, 투표로 글이 바뀔 때마다 자동으로 도는 `ANALYZE posts`가 CPU 하나로 10분 넘게 걸렸습니다(ICU ko 에서는 1초). Sprint 38부터 `docker-compose.yml`은 **DB를 처음 만들 때** ICU `ko`로 만듭니다.
+
+이미 만든 DB는 `npm run db:migrate`(앱 시작 때 포함)가 "⚠️ DB 정렬 규칙이 en_US.utf8(glibc)입니다" 경고를 냅니다. 이용자가 적은 시간에 옮기세요 (글 20만 건·3.9GB 에서 약 4분 + 확인):
+1. 백업을 먼저 (4장 1단계). 앱을 멈춥니다: `docker compose stop app`
+2. 옛 DB 이름을 바꾸고 새 DB 를 만듭니다:
+   `docker compose exec db psql -U labelrep -d postgres -c "ALTER DATABASE labelrep RENAME TO labelrep_en"`
+   `docker compose exec db psql -U labelrep -d postgres -c "CREATE DATABASE labelrep TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER icu ICU_LOCALE 'ko' LOCALE 'C.UTF-8'"`
+3. 옮기고 통계를 모읍니다:
+   `docker compose exec db sh -c "pg_dump -U labelrep -Fc labelrep_en | pg_restore -U labelrep -d labelrep --no-owner --exit-on-error"`
+   `docker compose exec db psql -U labelrep -d labelrep -c ANALYZE`
+4. `docker compose up -d app` → `/api/health?deep=1`, `docker compose logs app | grep 정렬` 에 경고가 없는지.
+5. 문제가 있으면 되돌리기: 앱을 멈추고 `DROP DATABASE labelrep`, `ALTER DATABASE labelrep_en RENAME TO labelrep`. 며칠 이상 없으면 `DROP DATABASE labelrep_en`.
+
+백업 검증의 임시 DB 는 원래 DB 와 같은 정렬 규칙으로 만들어집니다(클러스터 기본값이 옛 로캘이어도).
 
 ### 리허설 (분기마다)
 `docker compose --profile ops run --rm restore verify <최근 백업>`을 돌려 "검증 통과"를 확인하고, 1년에 한 번은 새 서버에 실제로 복구해 봅니다. 리허설 기록(1차 Sprint 24 새 배포, 2차 Sprint 34 운영 규모 업데이트): [REHEARSAL.md](REHEARSAL.md).
