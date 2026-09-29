@@ -20,6 +20,9 @@ import { Client } from "pg";
 export const CHECK_TABLES = [
   "posts", "comments", "votes", "reports", "categories", "post_images", "post_sources", "products", "post_products",
   "product_facts", "corrections", "post_revisions", "moderation_log", "board_requests", "push_subscriptions",
+  // Sprint 20 이후 (Sprint 34 리허설에서 빠진 것을 발견)
+  "label_reads", "community_rules", "rule_proposals", "rule_votes", "rule_changes", "product_renewals",
+  "brand_alias_proposals", "brand_alias_votes", "brand_aliases",
 ];
 
 type Manifest = {
