@@ -43,7 +43,7 @@ export type CuratorDraft = { title: string; body: string; summary: [string, stri
 
 /** 단정적 효능·의학 표현 (시드 검사 tests/curator.test.ts 와 같은 목록을 공유) */
 export const FORBIDDEN_CLAIMS = /완치|특효|만병통치|치료\s*(?:효과|됩|된다|해\s*줍|합니다)|예방\s*효과|효능\s*보장|효과\s*보장|부작용\s*(?:이\s*)?(?:전혀\s*)?없|무조건\s*좋|100\s*%\s*(?:안전|효과)|기적의/;
-const UNIT_NUMBER = /\d+(?:[.,]\d+)?\s*(?:mg|mcg|µg|μg|IU|kcal|mAh|kHz|Hz|dB|Ω|gf|cN|ml|mm|g|%)(?![a-zA-Z])/i;
+const UNIT_NUMBER = /(?<![\d.,])\d{1,12}(?:[.,]\d{1,6})?\s*(?:mg|mcg|µg|μg|IU|kcal|mAh|kHz|Hz|dB|Ω|gf|cN|ml|mm|g|%)(?![a-zA-Z])/i;
 const SOURCE_WORDS = /라벨|표기|제조사|스펙|공식|측정|성분표|기준/;
 
 export function normTitle(t: string): string {
@@ -55,7 +55,7 @@ export function curatorSafetyProblems(d: CuratorDraft, recentTitles: string[] = 
   const problems: string[] = [];
   const text = [d.title, d.body, ...d.summary, ...d.comments].join("\n");
   if (FORBIDDEN_CLAIMS.test(text)) problems.push(`단정적 효능 표현: "${FORBIDDEN_CLAIMS.exec(text)![0]}"`);
-  if (/https?:\/\/|www\.|\b\S+@\S+\.\S+|01[016789][-.\s]?\d{3,4}[-.\s]?\d{4}/i.test(text)) problems.push("링크·연락처");
+  if (/https?:\/\/|www\.|(?<![\w.+-])[\w.+-]{1,64}@[\w-]{1,63}\.|01[016789][-.\s]?\d{3,4}[-.\s]?\d{4}/i.test(text)) problems.push("링크·연락처");
   const spam = heuristicSpam(d.title, d.body);
   if (spam.score >= 0.3) problems.push(`광고 규칙 점수 ${spam.score} (${spam.reasons.join(", ")})`);
   if (UNIT_NUMBER.test(text) && !SOURCE_WORDS.test(text)) problems.push("수치의 근거(라벨·제조사 표기·스펙)를 밝히지 않음");

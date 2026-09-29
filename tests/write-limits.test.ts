@@ -65,6 +65,17 @@ d("automatic write limits after repeated blinds (database, Sprint 37)", async ()
     expect(await writeLimit({ fingerprint: "c".repeat(64), net: "net-b", agent: "agent-a" })).toBeNull();
   });
 
+  it("on a crowded network (carrier CGNAT, same browser build), only counts the same fingerprint (Sprint 38)", async () => {
+    for (let i = 0; i < 3; i++) await blind(await post());
+    const stranger = { fingerprint: "b".repeat(64), net: "net-a", agent: "agent-a" };
+    expect(await writeLimit(stranger)).not.toBeNull();
+    // 같은 망·같은 브라우저 종류로 글을 쓴 사람이 10명을 넘으면 여러 사람이 쓰는 망
+    for (let i = 0; i < 10; i++) await post({ fingerprint: String(i).padStart(64, "f"), net: "net-a", agent: "agent-a" });
+    expect(await writeLimit(stranger)).toBeNull();
+    // 블라인드된 본인(같은 식별값)은 그대로 제한
+    expect(await writeLimit(who)).not.toBeNull();
+  });
+
   it("does not count legal holds or old blinds, and lifts when blinds are undone or the period ends", async () => {
     const ids = [await post(), await post(), await post()];
     await blind(ids[0]!);

@@ -34,6 +34,18 @@ describe("AI moderation rules (Sprint 37)", () => {
     expect(maskPersonalInfo("1588-1234 고객센터, 모델 01012")).toEqual({ text: "1588-1234 고객센터, 모델 01012", masked: false });
   });
 
+  it("stays linear on long crafted input (Sprint 38: the email pattern took ~0.5 s on 20,000 chars)", async () => {
+    const { maskPersonalInfo } = await import("@/lib/abuse");
+    const { curatorSafetyProblems } = await import("@/lib/curator-ai");
+    for (const t of ["a.".repeat(10000) + "@", "010-".repeat(5000), "a_b-c.d+e".repeat(2200), "1.".repeat(10000)]) {
+      const s = performance.now();
+      heuristicAbuse(t);
+      maskPersonalInfo(t);
+      curatorSafetyProblems({ title: "제목입니다", body: t, summary: ["a", "b", "c"], comments: [] });
+      expect(performance.now() - s, t.slice(0, 10)).toBeLessThan(100);
+    }
+  });
+
   it("checks every text given (title and body)", () => {
     expect(heuristicAbuse("평범한 제목", "본문에 씨발")?.category).toBe("profanity");
     expect(heuristicAbuse("평범한 제목", "평범한 본문")).toBeNull();
