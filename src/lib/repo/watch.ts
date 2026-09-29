@@ -140,6 +140,7 @@ export async function watchUpdates(
              FROM comments c JOIN posts p ON p.id = c.post_id
             WHERE (c.parent_id = ANY($1::bigint[]) OR (cardinality(c.mentions) > 0 AND c.mentions && $1::bigint[])) -- 부분 GIN 인덱스를 쓰도록 (Sprint 33)
               AND c.created_at > $2::timestamptz AND c.author_fingerprint IS DISTINCT FROM $3 AND NOT p.is_blinded
+              AND c.ai_hidden_at IS NULL -- AI 자동 운영이 가린 댓글은 알리지 않는다 (Sprint 37)
               -- 내 댓글에 내가 단 답글은 식별값이 바뀌었어도(망 이동) 알리지 않는다
               AND NOT EXISTS (SELECT 1 FROM comments t WHERE t.id = c.parent_id AND t.author_fingerprint = c.author_fingerprint)
             ORDER BY c.id DESC LIMIT $4`,

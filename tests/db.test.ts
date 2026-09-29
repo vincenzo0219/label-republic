@@ -191,6 +191,8 @@ d("database rules", async () => {
     expect(spam.moderation_note).toContain("메신저 유도");
     const feed = await posts.listPosts({ sort: "latest" });
     expect(feed.items.map((p) => p.id)).toEqual([good.id, spam.id]);
+    // 연락처는 광고 판단에 쓰인 뒤 지워져 저장된다 (Sprint 37)
+    expect(spam.body).toContain("[개인정보 가림]");
 
     await query("UPDATE posts SET created_at = now() - interval '2 days'");
     for (let v = 1; v <= 10; v++) await posts.votePost(spam.id, fp(v), 1);

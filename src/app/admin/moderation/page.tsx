@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { StatusPill } from "@/components/admin/charts";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
-import { AlertActions, AttrAliasActions, AttrAliasRemove, BoardRequestActions, BrandAliasActions, BrandAliasRemove, ProductMergeActions, RejectAppeal, ReleaseSuppression } from "@/components/admin/ModerationActions";
+import { AlertActions, AttrAliasActions, AttrAliasRemove, BoardRequestActions, BrandAliasActions, BrandAliasRemove, ProductMergeActions, RejectAppeal, ReleaseAiHide, ReleaseSuppression } from "@/components/admin/ModerationActions";
 import { listForReview as listBrandAliasesForReview, previewProposal } from "@/lib/repo/brand-aliases";
 import { listForReview as listAttrAliasesForReview, previewProposal as previewAttrProposal } from "@/lib/repo/attr-aliases";
 import {
+  listAiHidden,
   listAlertsForReview,
   listDuplicateProductCandidates,
   listOpenAppeals,
@@ -23,7 +24,7 @@ function fmt(iso: string | null) {
 }
 
 export default async function ModerationPage() {
-  const [appeals, alerts, suppressed, blinds, boardReqs, dupes, brandAliases, attrAliases] = await Promise.all([
+  const [appeals, alerts, suppressed, blinds, boardReqs, dupes, brandAliases, attrAliases, aiHidden] = await Promise.all([
     listOpenAppeals(),
     listAlertsForReview(),
     listSuppressed(),
@@ -32,6 +33,7 @@ export default async function ModerationPage() {
     listDuplicateProductCandidates(),
     listBrandAliasesForReview(),
     listAttrAliasesForReview(),
+    listAiHidden(),
   ]);
   const attrPlans = new Map(
     await Promise.all(attrAliases.open.map(async (p) => [p.id, await previewAttrProposal(p.id).catch(() => null)] as const)),
@@ -67,7 +69,7 @@ export default async function ModerationPage() {
                   <Link href={`/posts/${a.post_id}`}>
                     글 #{a.post_id} · {a.title}
                   </Link>
-                  <span className="badge badge-pending">{a.kind === "blinded" ? "🚫 블라인드" : "⚠ 광고 의심"}</span>
+                  <span className="badge badge-pending">{a.kind === "ai_hidden" ? "🤖 AI 가림" : a.kind === "blinded" ? "🚫 블라인드" : "⚠ 광고 의심"}</span>
                   <span className="hint">{fmt(a.created_at)}</span>
                 </div>
                 <p className="hint">
@@ -76,7 +78,42 @@ export default async function ModerationPage() {
                 </p>
                 {a.message && <blockquote className="appeal-msg">{a.message}</blockquote>}
                 {a.is_suppressed && !a.is_blinded && <ReleaseSuppression postId={a.post_id} />}
+                {a.kind === "ai_hidden" && <ReleaseAiHide kind="post" id={a.post_id} />}
                 <RejectAppeal postId={a.post_id} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="panel" aria-labelledby="ai-hidden-h">
+        <h2 id="ai-hidden-h">
+          AI가 가린 글·댓글 {aiHidden.length > 0 && <span className="count-badge">{aiHidden.length}</span>}
+        </h2>
+        <p className="hint">
+          욕설·혐오 표현·인신공격·개인정보는 AI 자동 운영이 가리고 이유를 표시합니다. 운영자는 가리지 않고, <b>오판일 때만</b> 사유와 함께 풉니다 (공개 기록).
+          푼 내용은 AI가 다시 가리지 않으며, 작성자가 고치면 다시 판단합니다. 근거는 운영자에게만 보입니다.
+        </p>
+        {aiHidden.length === 0 ? (
+          <p className="hint">가려진 글·댓글이 없습니다.</p>
+        ) : (
+          <ul className="mod-list">
+            {aiHidden.map((h) => (
+              <li key={`${h.kind}-${h.id}`}>
+                <div className="mod-row">
+                  <Link href={h.kind === "post" ? `/posts/${h.post_id}` : `/posts/${h.post_id}#c${h.id}`}>
+                    {h.kind === "post" ? `글 #${h.id}` : `댓글 #${h.id}`} · {h.title}
+                  </Link>
+                  <span className="badge badge-pending">🤖 {h.label}</span>
+                  <span className="hint">{fmt(h.hidden_at)}</span>
+                </div>
+                <p className="hint">
+                  판단: {h.model === "abuse-rules-v1" ? "규칙" : `Claude (${h.model})`}
+                  {h.note ? ` · 근거: ${h.note}` : ""}
+                </p>
+                <blockquote className="appeal-msg">{h.excerpt}</blockquote>
+                {h.appeal && <p className="hint">📨 재검토 요청: {h.appeal}</p>}
+                <ReleaseAiHide kind={h.kind} id={h.id} />
               </li>
             ))}
           </ul>

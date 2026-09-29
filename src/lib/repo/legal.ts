@@ -41,20 +41,22 @@ export async function applyLegalHold(postId: string, reason: LegalReason, note: 
 export async function releaseLegalHold(postId: string, note: string): Promise<{ stillBlinded: boolean }> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
   return tx(async (client) => {
-    const p = await client.query<{ legal_hold: boolean; legal_hold_reason: string; report_count: number; report_score: number }>(
-      "SELECT legal_hold, legal_hold_reason, report_count, report_score FROM posts WHERE id = $1 FOR UPDATE",
+    const p = await client.query<{ legal_hold: boolean; legal_hold_reason: string; report_count: number; report_score: number; ai_hidden: boolean }>(
+      "SELECT legal_hold, legal_hold_reason, report_count, report_score, ai_hidden_at IS NOT NULL AS ai_hidden FROM posts WHERE id = $1 FOR UPDATE",
       [postId],
     );
     const row = p.rows[0];
     if (!row) throw notFound();
     if (!row.legal_hold) throw new HttpError(409, "not_held", "임시조치 중인 게시물이 아닙니다.");
     const blindAt = await getRule("post_blind_reports");
-    const stillBlinded = row.report_count >= blindAt && row.report_score >= blindAt;
+    const reportBlind = row.report_count >= blindAt && row.report_score >= blindAt;
+    // AI 자동 가림은 임시조치와 따로 유지된다 (Sprint 37)
+    const stillBlinded = reportBlind || row.ai_hidden;
     await client.query(
       `UPDATE posts SET legal_hold = false, legal_hold_until = NULL, is_blinded = $2,
-         blinded_at = CASE WHEN $2 THEN blinded_at ELSE NULL END
+         blinded_at = CASE WHEN $3 THEN blinded_at ELSE NULL END
        WHERE id = $1`,
-      [postId, stillBlinded],
+      [postId, stillBlinded, reportBlind],
     );
     await client.query("INSERT INTO moderation_log (action, post_id, subject_id, reason, note) VALUES ('legal_release', $1, $4, $2, $3)", [
       postId,
@@ -70,7 +72,7 @@ export type ModerationLogRow = {
   id: string;
   action: import("./operator").ModAction;
   post_id: string | null;
-  subject_type: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias" | "attr_alias";
+  subject_type: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias" | "attr_alias" | "comment";
   subject_id: string;
   /** 법적 임시조치 사유(LegalReason) 또는 보드 요청 거절 사유(BoardRejectReason) */
   reason: string | null;
@@ -97,7 +99,7 @@ export async function activeLegalHolds(): Promise<HeldPost[]> {
   );
 }
 
-export type MonthlyStats = { month: string; auto_blinds: number; legal_holds: number; legal_releases: number; corrections: number };
+export type MonthlyStats = { month: string; auto_blinds: number; ai_hides: number; legal_holds: number; legal_releases: number; corrections: number };
 
 /** 공개 투명성 통계: 최근 6개월 자동 블라인드 / 임시조치 / 해제 건수 */
 export async function transparencyStats(): Promise<MonthlyStats[]> {
@@ -112,6 +114,12 @@ export async function transparencyStats(): Promise<MonthlyStats[]> {
      ), b AS (
        SELECT to_char(p.blinded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') AS month, count(*)::int AS n
          FROM posts p, since WHERE p.is_blinded AND NOT p.legal_hold AND p.blinded_at >= since.t GROUP BY 1
+     ), h AS (
+       -- AI 자동 가림 (글·댓글, 운영자가 풀어 준 것은 빠짐, Sprint 37)
+       SELECT to_char(x.t AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') AS month, count(*)::int AS n
+         FROM (SELECT ai_hidden_at AS t FROM posts WHERE ai_hidden_at IS NOT NULL
+               UNION ALL SELECT ai_hidden_at FROM comments WHERE ai_hidden_at IS NOT NULL) x, since
+        WHERE x.t >= since.t GROUP BY 1
      ), l AS (
        SELECT to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') AS month,
               count(*) FILTER (WHERE l.action = 'legal_hold')::int AS holds,
@@ -120,9 +128,9 @@ export async function transparencyStats(): Promise<MonthlyStats[]> {
               count(*) FILTER (WHERE l.action NOT IN ('legal_hold', 'legal_release'))::int AS corrections
          FROM moderation_log l, since WHERE l.created_at >= since.t GROUP BY 1
      )
-     SELECT m.month, coalesce(b.n, 0) AS auto_blinds, coalesce(l.holds, 0) AS legal_holds,
+     SELECT m.month, coalesce(b.n, 0) AS auto_blinds, coalesce(h.n, 0) AS ai_hides, coalesce(l.holds, 0) AS legal_holds,
             coalesce(l.releases, 0) AS legal_releases, coalesce(l.corrections, 0) AS corrections
-       FROM m LEFT JOIN b ON b.month = m.month LEFT JOIN l ON l.month = m.month
+       FROM m LEFT JOIN b ON b.month = m.month LEFT JOIN h ON h.month = m.month LEFT JOIN l ON l.month = m.month
       ORDER BY m.month DESC`,
   );
 }

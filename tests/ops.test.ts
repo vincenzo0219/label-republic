@@ -66,7 +66,7 @@ d("launch hardening (database)", async () => {
   const newPost = (title = "마그네슘 함량 정리") =>
     posts.createPost({
       categorySlug: "supplements", nickname: "작성자", pin: "1234", title,
-      body: "이 제품은 1정에 마그네슘 350mg이 들어 있습니다.\n문의는 010-1234-5678 로 주세요.",
+      body: "이 제품은 1정에 마그네슘 350mg이 들어 있습니다.\n문의는 카톡 아이디 mag350 로 주세요.",
       summary: { lines: ["하나", "둘", "셋"], model: "author", isAuthorEdited: true },
       fingerprint: AUTHOR,
       products: [{ brand: "NOW", name: "Mag" }],
@@ -178,7 +178,7 @@ d("launch hardening (database)", async () => {
     await posts.updatePost(post.id, AUTHOR, "1234", { body: "이 제품은 1정에 마그네슘 350mg이 들어 있습니다.\n문의는 댓글로 주세요." });
     await posts.updatePost(post.id, AUTHOR, "1234", { title: "마그네슘 함량 정리 (수정)" });
     let revs = await posts.listRevisions(post.id);
-    expect(revs.map((r) => r.body.includes("010-1234-5678"))).toEqual([false, true]);
+    expect(revs.map((r) => r.body.includes("mag350"))).toEqual([false, true]);
     await expect(posts.redactRevision(post.id, revs[1]!.id, { kind: "author", fp: AUTHOR, pin: "0000" })).rejects.toMatchObject({ status: 403 });
     await posts.redactRevision(post.id, revs[1]!.id, { kind: "author", fp: AUTHOR, pin: "1234" });
     await posts.redactRevision(post.id, revs[0]!.id, { kind: "legal", reason: "privacy", note: "" });

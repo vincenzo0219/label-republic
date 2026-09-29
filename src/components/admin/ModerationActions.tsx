@@ -104,6 +104,31 @@ export function ReleaseSuppression({ postId }: { postId: string }) {
   );
 }
 
+/** AI 자동 가림 오판 해제 (사유 필수, 공개) — Sprint 37 */
+export function ReleaseAiHide({ kind, id }: { kind: "post" | "comment"; id: string }) {
+  const { msg, busy, run } = useAction();
+  const [note, setNote] = useState("");
+  const what = kind === "post" ? `글 #${id}` : `댓글 #${id}`;
+  return (
+    <div className="mod-actions">
+      <input className="input input-sm" maxLength={300} placeholder="해제 사유 (공개됨)" aria-label="해제 사유" value={note} onChange={(e) => setNote(e.target.value)} />
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={busy || !note.trim()}
+        onClick={() =>
+          run(`${what}의 AI 자동 가림을 오판으로 풉니다. 투명성 기록에 공개됩니다. 계속할까요?`, { action: "release_ai_hide", kind, id, note }, (r) =>
+            (r as { stillBlinded?: boolean }).stillBlinded ? "해제 완료 (신고 블라인드는 그대로)" : "해제 완료",
+          )
+        }
+      >
+        가림 해제
+      </button>
+      {msg && <span className="hint">{msg}</span>}
+    </div>
+  );
+}
+
 /** 재검토 요청 기각 (사유 필수, 공개) */
 export function RejectAppeal({ postId }: { postId: string }) {
   const { msg, busy, run } = useAction();

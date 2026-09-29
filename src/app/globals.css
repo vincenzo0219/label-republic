@@ -162,6 +162,7 @@ mark { background: var(--mark); color: var(--text); border-radius: 3px; padding:
 .comment-head b { color: var(--text); }
 .comment-head .spacer { flex: 1; }
 .comment-body { white-space: pre-wrap; margin-top: 4px; font-size: 15px; }
+.comment-hidden { color: var(--muted); font-size: 14px; }
 .comment.new { animation: flash 1.6s ease-out; }
 /* 답글 (Sprint 30): 원 댓글 아래 한 단계 들여쓰기, 링크로 온 댓글은 잠시 강조 */
 .comment.is-reply { margin-left: 18px; padding-left: 12px; border-left: 2px solid var(--line); }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { abuseLabel } from "@/lib/abuse-labels";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -81,7 +82,7 @@ export default async function PostPage({ params }: Props) {
     return (
       <>
         <p className="hint"><Link href={`/c/${encodeURIComponent(post.category.slug)}`}>← {post.category.name}</Link></p>
-        <h1 className="sr-only">{post.legal_hold ? "임시조치된 게시글" : "블라인드된 게시글"}</h1>
+        <h1 className="sr-only">{post.legal_hold ? "임시조치된 게시글" : post.ai_hidden_reason ? "AI가 가린 게시글" : "블라인드된 게시글"}</h1>
         {post.legal_hold ? (
           <div className="notice" style={{ marginTop: 24 }}>
             ⚖️ 권리침해 신고({LEGAL_REASONS[post.legal_hold_reason as LegalReason] ?? "법적 요청"})에 따라 정보통신망법 제44조의2에 의거 임시조치된
@@ -89,9 +90,17 @@ export default async function PostPage({ params }: Props) {
           </div>
         ) : (
           <>
-            <div className="notice" style={{ marginTop: 24 }}>
-              🚫 신고 {post.report_count}회 누적으로 자동 블라인드된 게시글입니다. 노방장은 방장 없이 커뮤니티 신고로만 정화됩니다.
-            </div>
+            {post.ai_hidden_reason ? (
+              <div className="notice" style={{ marginTop: 24 }}>
+                🤖 AI 자동 운영이 <b>{abuseLabel(post.ai_hidden_reason)}</b>이(가) 담긴 것으로 판단해 가린 게시글입니다.
+                욕설·혐오 표현·인신공격·개인정보는 사람 운영자 없이 AI가 가리고, 오판이면 작성자가 아래에서 재검토를 요청할 수 있습니다.
+                운영자가 푼 기록은 <Link href="/transparency">투명성 기록</Link>에 공개됩니다.
+              </div>
+            ) : (
+              <div className="notice" style={{ marginTop: 24 }}>
+                🚫 신고 {post.report_count}회 누적으로 자동 블라인드된 게시글입니다. 노방장은 방장 없이 커뮤니티 신고로만 정화됩니다.
+              </div>
+            )}
             {!post.is_ai_curated && <AppealBox postId={post.id} initial={await getAppeal(post.id)} />}
           </>
         )}

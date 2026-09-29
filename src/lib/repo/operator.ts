@@ -11,6 +11,7 @@
  * /api/admin/* 와 /admin 은 server.ts 의 ADMIN_PASSWORD Basic 인증 뒤에 있다.
  */
 import type { PoolClient } from "pg";
+import { ABUSE_LABELS, type AbuseCategory } from "../abuse";
 import { query, tx } from "../db";
 import { HttpError, notFound } from "../errors";
 import { assertPin } from "./pin-guard";
@@ -43,12 +44,13 @@ export const MOD_ACTIONS = {
   attr_alias_rejected: "성분명 별칭 제안 기각",
   attr_alias_removed: "성분명 별칭 해제",
   attr_alias_reason_hidden: "성분명 제안 사유 가림 (권리침해)",
+  ai_hide_released: "AI 자동 가림 해제 (오판)",
 } as const;
 export type ModAction = keyof typeof MOD_ACTIONS;
 
 type LogInput = {
   action: ModAction;
-  subjectType: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias" | "attr_alias";
+  subjectType: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias" | "attr_alias" | "comment";
   subjectId: string;
   note: string;
   affected?: number;
@@ -274,7 +276,7 @@ export async function releaseSuppression(postId: string, note: string): Promise<
 // 재검토 요청
 // ---------------------------------------------------------------------------
 
-export type AppealStatus = { kind: "blinded" | "suppressed"; status: "open" | "accepted" | "rejected"; decision_note: string; created_at: string; decided_at: string | null };
+export type AppealStatus = { kind: "blinded" | "suppressed" | "ai_hidden"; status: "open" | "accepted" | "rejected"; decision_note: string; created_at: string; decided_at: string | null };
 
 export async function getAppeal(postId: string): Promise<AppealStatus | null> {
   if (!ID.test(postId)) return null;
@@ -289,8 +291,8 @@ export async function getAppeal(postId: string): Promise<AppealStatus | null> {
 export async function createAppeal(postId: string, fp: string, pin: string, message: string): Promise<AppealStatus> {
   assertId(postId, "게시글");
   await tx(async (client) => {
-    const { rows } = await client.query<{ pw_hash: string; is_blinded: boolean; is_suppressed: boolean; legal_hold: boolean; is_ai_curated: boolean }>(
-      "SELECT pw_hash, is_blinded, is_suppressed, legal_hold, is_ai_curated FROM posts WHERE id = $1 FOR UPDATE",
+    const { rows } = await client.query<{ pw_hash: string; is_blinded: boolean; is_suppressed: boolean; legal_hold: boolean; is_ai_curated: boolean; ai_hidden: boolean }>(
+      "SELECT pw_hash, is_blinded, is_suppressed, legal_hold, is_ai_curated, ai_hidden_at IS NOT NULL AS ai_hidden FROM posts WHERE id = $1 FOR UPDATE",
       [postId],
     );
     const p = rows[0];
@@ -303,7 +305,7 @@ export async function createAppeal(postId: string, fp: string, pin: string, mess
     await assertPin(`post:${postId}`, fp, pin, p.pw_hash);
     const ins = await client.query(
       "INSERT INTO appeals (post_id, kind, message) VALUES ($1, $2, $3) ON CONFLICT (post_id) DO NOTHING",
-      [postId, p.is_blinded ? "blinded" : "suppressed", message],
+      [postId, p.ai_hidden ? "ai_hidden" : p.is_blinded ? "blinded" : "suppressed", message],
     );
     if (ins.rowCount === 0) throw new HttpError(409, "already_appealed", "이미 재검토를 요청한 글입니다. 결과는 이 페이지에 표시됩니다.");
   });
@@ -475,7 +477,7 @@ export async function listDuplicateProductCandidates(limit = 30): Promise<Duplic
 
 export type OpenAppeal = {
   post_id: string;
-  kind: "blinded" | "suppressed";
+  kind: "blinded" | "suppressed" | "ai_hidden";
   message: string;
   created_at: string;
   title: string;
@@ -541,7 +543,7 @@ export async function listRecentAutoBlinds(limit = 30): Promise<BlindedPost[]> {
             (SELECT count(*)::int FROM reports r WHERE r.post_id = p.id AND r.voided_at IS NOT NULL) AS voided_reports,
             coalesce((SELECT array_agg(x.id::text ORDER BY x.id) FROM abuse_alerts x
                        WHERE x.status = 'open' AND x.subject_type = 'post' AND x.subject_id = p.id::text), '{}') AS open_alert_ids
-       FROM posts p WHERE p.is_blinded AND NOT p.legal_hold ORDER BY p.blinded_at DESC NULLS LAST LIMIT $1`,
+       FROM posts p WHERE p.is_blinded AND NOT p.legal_hold AND p.blinded_at IS NOT NULL ORDER BY p.blinded_at DESC LIMIT $1`,
     [limit],
   );
 }
@@ -561,4 +563,72 @@ export async function pendingCounts(): Promise<{ appeals: number; alerts: number
             (SELECT count(*)::int FROM abuse_alerts WHERE status = 'open') AS alerts`,
   );
   return rows[0]!;
+}
+
+// ---------------------------------------------------------------------------
+// AI 자동 운영이 가린 글·댓글 (Sprint 37) — 운영자는 오판을 풀 수만 있다 (공개 기록)
+// ---------------------------------------------------------------------------
+
+export type AiHiddenRow = {
+  kind: "post" | "comment";
+  id: string;
+  post_id: string;
+  title: string;
+  excerpt: string;
+  reason: AbuseCategory;
+  label: string;
+  note: string;
+  model: string;
+  hidden_at: string;
+  appeal: string | null;
+};
+
+export async function listAiHidden(limit = 50): Promise<AiHiddenRow[]> {
+  const rows = await query<Omit<AiHiddenRow, "label">>(
+    `(SELECT 'post' AS kind, p.id::text AS id, p.id::text AS post_id, p.title, left(p.body, 200) AS excerpt,
+             p.ai_hidden_reason AS reason, p.ai_hidden_note AS note, p.ai_hidden_model AS model, p.ai_hidden_at AS hidden_at,
+             (SELECT a.message FROM appeals a WHERE a.post_id = p.id AND a.status = 'open') AS appeal
+        FROM posts p WHERE p.ai_hidden_at IS NOT NULL ORDER BY p.ai_hidden_at DESC LIMIT $1)
+     UNION ALL
+     (SELECT 'comment', c.id::text, c.post_id::text, p.title, left(c.body, 200),
+             c.ai_hidden_reason, c.ai_hidden_note, c.ai_hidden_model, c.ai_hidden_at, NULL
+        FROM comments c JOIN posts p ON p.id = c.post_id WHERE c.ai_hidden_at IS NOT NULL ORDER BY c.ai_hidden_at DESC LIMIT $1)
+     ORDER BY hidden_at DESC LIMIT $1`,
+    [limit],
+  );
+  return rows.map((r) => ({ ...r, label: ABUSE_LABELS[r.reason] ?? r.reason }));
+}
+
+export async function countAiHidden(): Promise<number> {
+  const rows = await query<{ n: number }>(
+    "SELECT (SELECT count(*) FROM posts WHERE ai_hidden_at IS NOT NULL) + (SELECT count(*) FROM comments WHERE ai_hidden_at IS NOT NULL) AS n",
+  );
+  return Number(rows[0]!.n);
+}
+
+/**
+ * AI 가림을 푼다. 글은 신고·임시조치로 블라인드될 조건이면 그대로 가려진 채 둔다.
+ * 풀린 내용은 늦게 끝난 AI 판단이 다시 가리지 않는다 (작성자가 고치면 다시 판단).
+ */
+export async function releaseAiHide(kind: "post" | "comment", id: string, note: string): Promise<{ stillBlinded: boolean }> {
+  assertId(id, kind === "post" ? "게시글" : "댓글");
+  if (!note.trim()) throw new HttpError(400, "note_required", "해제 사유를 적어주세요. 공개됩니다.");
+  return tx(async (client) => {
+    const table = kind === "post" ? "posts" : "comments";
+    const { rows } = await client.query<{ reason: string | null }>(`SELECT ai_hidden_reason AS reason FROM ${table} WHERE id = $1 FOR UPDATE`, [id]);
+    if (!rows[0]) throw notFound(kind === "post" ? "게시글" : "댓글");
+    if (!rows[0].reason) throw new HttpError(409, "not_hidden", "AI가 가린 상태가 아닙니다.");
+    await client.query(
+      `UPDATE ${table} SET ai_hidden_reason = NULL, ai_hidden_note = '', ai_hidden_model = '', ai_hidden_at = NULL, ai_hide_released = true WHERE id = $1`,
+      [id],
+    );
+    let stillBlinded = false;
+    if (kind === "post") {
+      const b = await client.query<{ blind: boolean }>("SELECT recount_reports($1) AS blind", [id]);
+      stillBlinded = b.rows[0]!.blind;
+    }
+    await writeLog(client, { action: "ai_hide_released", subjectType: kind, subjectId: id, reason: rows[0].reason, note });
+    if (kind === "post") await settleAppeal(client, id);
+    return { stillBlinded };
+  });
 }

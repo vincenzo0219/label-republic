@@ -5,6 +5,7 @@ import { HttpError, blinded, notFound, tooMany } from "../errors";
 import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import { aiSpam, combine, heuristicSpam, moderationNote, shouldSuppress, type SpamVerdict } from "../moderation";
+import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
 import { searchTerms } from "../highlight";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
@@ -257,7 +258,7 @@ type PostRow = Omit<PostDetail, "images" | "sources" | "facts"> & { pw_hash: str
 
 async function loadPost(id: string, client?: PoolClient, forUpdate = false): Promise<PostRow | null> {
   if (!/^\d{1,18}$/.test(id)) return null;
-  const sql = `SELECT ${CARD_SELECT}, p.body, p.report_count, p.is_blinded, p.updated_at, p.moderation_note, p.legal_hold, p.legal_hold_reason, p.pw_hash, p.category_id, p.revision_count, p.ai_reviewed
+  const sql = `SELECT ${CARD_SELECT}, p.body, p.report_count, p.is_blinded, p.updated_at, p.moderation_note, p.legal_hold, p.legal_hold_reason, p.pw_hash, p.category_id, p.revision_count, p.ai_reviewed, p.ai_hidden_reason
     ${FROM} WHERE p.id = $1 ${forUpdate ? "FOR UPDATE OF p" : ""}`;
   const rows = client ? (await client.query<PostRow>(sql, [id])).rows : await query<PostRow>(sql, [id]);
   return rows[0] ?? null;
@@ -324,14 +325,19 @@ export type CreatePostInput = {
   facts?: FactInput[];
 };
 
-export async function createPost(input: CreatePostInput): Promise<PostDetail> {
+export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
+  // 광고 판단은 원문으로 (연락처 자체가 광고 신호), 저장은 휴대전화·이메일·주민등록번호를 지운 판으로 (Sprint 37)
+  const spam = heuristicSpam(raw.title, raw.body);
+  const input = { ...raw, title: maskPersonalInfo(raw.title).text.slice(0, 120), body: maskPersonalInfo(raw.body).text };
+  if (input.summary) input.summary = { ...input.summary, lines: input.summary.lines.map((l) => maskPersonalInfo(l).text) as typeof input.summary.lines };
   const postType: PostType = input.postType ?? "info";
   if (postType === "meetup" && !input.meetup) throw new HttpError(400, "invalid_input", "정모 일시·장소·인원을 입력해주세요.");
   const summary: ResolvedSummary =
     input.summary ?? { ...(await generateSummary(input.title, input.body)), isAuthorEdited: false };
   const pwHash = await hashPin(input.pin);
-  const spam = heuristicSpam(input.title, input.body);
   const spamCut = await getRule("spam_suppress_score");
+  // 분명한 욕설·혐오·개인정보는 처음부터 가려진 채 올라간다 (AI 자동 운영, Sprint 37)
+  const abuse = heuristicAbuse(input.title, input.body);
 
   const id = await tx(async (client) => {
     const cat = await client.query<{ id: number }>("SELECT id FROM categories WHERE slug = $1", [input.categorySlug]);
@@ -339,8 +345,10 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
     if (postType === "meetup") await assertCanPropose(client, cat.rows[0].id, input.nickname, input.fingerprint);
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO posts (category_id, nickname, pw_hash, title, body, spam_score, is_suppressed, moderation_note, moderated_by,
-                          author_fingerprint, post_type, trust_tier, author_net, author_agent)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+                          author_fingerprint, post_type, trust_tier, author_net, author_agent,
+                          is_blinded, ai_hidden_reason, ai_hidden_note, ai_hidden_model, ai_hidden_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+               $15::text IS NOT NULL, $15::text, $16, $17, CASE WHEN $15::text IS NOT NULL THEN now() END) RETURNING id`,
       [
         cat.rows[0].id,
         input.nickname,
@@ -354,6 +362,7 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
         postType === "info" ? "pending" : "none",
         input.network ?? null,
         input.agent ?? null,
+        ...hideParams(abuse),
       ],
     );
     await insertSummary(client, rows[0]!.id, summary);
@@ -393,8 +402,10 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
     if (!post) throw notFound();
     if (post.is_blinded) throw blinded();
     await assertPin(`post:${id}`, fp, pin, post.pw_hash);
-    const title = input.title ?? post.title;
-    const body = input.body ?? post.body;
+    // 휴대전화·이메일·주민등록번호는 지운 판으로 저장 (Sprint 37)
+    const title = input.title === undefined ? post.title : maskPersonalInfo(input.title).text.slice(0, 120);
+    const body = input.body === undefined ? post.body : maskPersonalInfo(input.body).text;
+    const spamSource = { title: input.title ?? post.title, body: input.body ?? post.body };
     // 수정 이력: 제목·본문·수치가 바뀌면 바뀌기 전 판을 남긴다 (정정 제안이 어떻게 반영됐는지 누구나 확인)
     const oldFacts = await client.query<{ facts: unknown }>(
       `SELECT coalesce(json_agg(json_build_object(
@@ -411,13 +422,18 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
       );
       await client.query("UPDATE posts SET revision_count = revision_count + 1 WHERE id = $1", [id]);
     }
+    // 고친 내용은 다시 판단한다 (운영자가 풀어 준 판단도 새 내용에는 이어지지 않음)
+    const abuse = heuristicAbuse(title, body);
     await client.query(
       `UPDATE posts SET title = $2, body = $3, updated_at = now(),
-         spam_score = $4, is_suppressed = $5, moderation_note = $6, moderated_by = $7
+         spam_score = $4, is_suppressed = $5, moderation_note = $6, moderated_by = $7,
+         ai_hide_released = false,
+         is_blinded = $8::text IS NOT NULL, ai_hidden_reason = $8::text, ai_hidden_note = $9, ai_hidden_model = $10,
+         ai_hidden_at = CASE WHEN $8::text IS NOT NULL THEN now() END
        WHERE id = $1`,
-      [id, title, body, ...moderationParams(heuristicSpam(title, body), await getRule("spam_suppress_score"))],
+      [id, title, body, ...moderationParams(heuristicSpam(spamSource.title, spamSource.body), await getRule("spam_suppress_score")), ...hideParams(abuse)],
     );
-    if (input.summary) await insertSummary(client, id, input.summary);
+    if (input.summary) await insertSummary(client, id, { ...input.summary, lines: input.summary.lines.map((l) => maskPersonalInfo(l).text) as typeof input.summary.lines });
     if (input.sources) await setPostSources(client, id, input.sources);
     // 사진을 먼저 붙인다 — 수치의 근거 사진은 이 글에 붙은 사진이어야 한다 (Sprint 20)
     const removedImages = input.images ? await setPostImages(client, id, input.images) : [];
@@ -465,7 +481,7 @@ export async function replaceSummary(
   await assertPin(`post:${id}`, fp, pin, post.pw_hash);
   let summary: ResolvedSummary;
   if (lines) {
-    summary = { lines, model: "author", isAuthorEdited: true };
+    summary = { lines: lines.map((l) => maskPersonalInfo(l).text) as typeof lines, model: "author", isAuthorEdited: true };
   } else {
     if (!(await hit(`summary:${fp}`, 10, 60_000))) throw tooMany();
     summary = { ...(await generateSummary(post.title, post.body)), isAuthorEdited: false };
@@ -490,7 +506,15 @@ function moderationParams(v: SpamVerdict, spamCut: number): [number, boolean, st
 export async function aiModeratePost(id: string): Promise<SpamVerdict | null> {
   const post = await loadPost(id);
   if (!post || post.is_blinded) return null;
-  const ai = await aiSpam(post.title, post.body);
+  const [ai, abuse] = await Promise.all([aiSpam(post.title, post.body), aiAbuse(`${post.title}\n\n${post.body}`)]);
+  // 욕설·혐오·인신공격·개인정보: 확신이 높으면 가린다 (운영자가 이 내용을 풀어 줬으면 다시 가리지 않음)
+  if (abuse) {
+    await query(
+      `UPDATE posts SET is_blinded = true, ai_hidden_reason = $2, ai_hidden_note = $3, ai_hidden_model = $4, ai_hidden_at = now()
+        WHERE id = $1 AND date_trunc('milliseconds', updated_at) = $5::timestamptz AND ai_hidden_at IS NULL AND NOT ai_hide_released`,
+      [id, ...hideParams(abuse), post.updated_at],
+    );
+  }
   if (!ai) return null;
   const verdict = combine(heuristicSpam(post.title, post.body), ai);
   await query(

@@ -1,3 +1,4 @@
+import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
 import { query, tx } from "../db";
 import { blinded, HttpError, notFound } from "../errors";
 import { extractMentions, resolveMentions } from "../mentions";
@@ -9,7 +10,9 @@ import { assertPin } from "./pin-guard";
 /** 같은 망에서 한 댓글로 보내는 답글·멘션 알림 (시간당) */
 export const TARGET_LIMIT = 5;
 
-const COLS = "id, post_id, nickname, body, is_ai_curated, created_at, parent_id::text AS parent_id, mentions::text[] AS mentions";
+// AI 자동 운영이 가린 댓글은 자리는 남기고 본문을 내보내지 않는다 (Sprint 37)
+const COLS = `id, post_id, nickname, CASE WHEN ai_hidden_reason IS NULL THEN body ELSE '' END AS body, is_ai_curated, created_at,
+  parent_id::text AS parent_id, mentions::text[] AS mentions, ai_hidden_reason AS hidden_reason`;
 
 export async function listComments(postId: string): Promise<Comment[]> {
   if (!/^\d{1,18}$/.test(postId)) return [];
@@ -29,6 +32,8 @@ export async function createComment(
   input: { nickname: string; pin: string; body: string; fingerprint?: string; net?: string; parentId?: string },
 ): Promise<Comment> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
+  // 휴대전화·이메일·주민등록번호는 지운 판으로 저장 (Sprint 37)
+  input = { ...input, body: maskPersonalInfo(input.body).text };
   const pwHash = await hashPin(input.pin);
   return tx(async (client) => {
     const post = await client.query<{ is_blinded: boolean }>("SELECT is_blinded FROM posts WHERE id = $1 FOR SHARE", [postId]);
@@ -57,10 +62,13 @@ export async function createComment(
       // 한도를 넘은 대상은 멘션에서만 뺀다 (댓글은 올라감)
       for (const id of resolved) if (await hit(targetKey(id), TARGET_LIMIT, 3600_000)) mentions.push(id);
     }
+    // 분명한 욕설·혐오·개인정보는 처음부터 가려진 채 올라간다 (AI 자동 운영, Sprint 37)
+    const abuse = heuristicAbuse(input.body);
     const { rows } = await client.query<Comment>(
-      `INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, parent_id, mentions)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::bigint[]) RETURNING ${COLS}`,
-      [postId, input.nickname, pwHash, input.body, input.fingerprint ?? null, parentId, mentions],
+      `INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, parent_id, mentions,
+                             ai_hidden_reason, ai_hidden_note, ai_hidden_model, ai_hidden_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::bigint[], $8::text, $9, $10, CASE WHEN $8::text IS NOT NULL THEN now() END) RETURNING ${COLS}`,
+      [postId, input.nickname, pwHash, input.body, input.fingerprint ?? null, parentId, mentions, ...hideParams(abuse)],
     );
     return rows[0]!;
   });
@@ -72,4 +80,25 @@ export async function deleteComment(id: string, fp: string, pin: string): Promis
   if (!rows[0]) throw notFound("댓글");
   await assertPin(`comment:${id}`, fp, pin, rows[0].pw_hash);
   await query("DELETE FROM comments WHERE id = $1", [id]);
+}
+
+/**
+ * 등록 직후 비동기로: Claude 가 문맥으로 판단해 확신이 높으면 가린다 (API 키가 없으면 규칙 판단만).
+ * 운영자가 풀어 준 댓글, 이미 가려진 댓글은 건드리지 않는다. 가려지면 트리거가 실시간으로 알린다.
+ */
+export async function aiModerateComment(id: string): Promise<boolean> {
+  if (!/^\d{1,18}$/.test(id)) return false;
+  const rows = await query<{ body: string }>(
+    "SELECT body FROM comments WHERE id = $1 AND ai_hidden_at IS NULL AND NOT ai_hide_released AND NOT is_ai_curated",
+    [id],
+  );
+  if (!rows[0]) return false;
+  const verdict = await aiAbuse(rows[0].body);
+  if (!verdict) return false;
+  const res = await query<{ id: string }>(
+    `UPDATE comments SET ai_hidden_reason = $2, ai_hidden_note = $3, ai_hidden_model = $4, ai_hidden_at = now()
+      WHERE id = $1 AND ai_hidden_at IS NULL AND NOT ai_hide_released RETURNING id`,
+    [id, ...hideParams(verdict)],
+  );
+  return res.length > 0;
 }

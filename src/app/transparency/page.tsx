@@ -4,6 +4,7 @@ import { LEGAL_REASONS, moderationLog, transparencyStats, type ModerationLogRow 
 import { ruleChanges } from "@/lib/repo/rules";
 import { formatRule, RULES } from "@/lib/rules";
 import { BOARD_REJECT_REASONS, MOD_ACTIONS } from "@/lib/repo/operator";
+import { ABUSE_LABELS } from "@/lib/abuse";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -18,7 +19,7 @@ function fmt(iso: string) {
 
 function reasonLabel(r: ModerationLogRow) {
   if (!r.reason) return "-";
-  return (LEGAL_REASONS as Record<string, string>)[r.reason] ?? (BOARD_REJECT_REASONS as Record<string, string>)[r.reason] ?? r.reason;
+  return (LEGAL_REASONS as Record<string, string>)[r.reason] ?? (BOARD_REJECT_REASONS as Record<string, string>)[r.reason] ?? (ABUSE_LABELS as Record<string, string>)[r.reason] ?? r.reason;
 }
 
 function subjectLabel(r: ModerationLogRow) {
@@ -27,6 +28,7 @@ function subjectLabel(r: ModerationLogRow) {
   if (r.subject_type === "product") return <Link href={`/p/${r.subject_id}`}>제품 #{r.subject_id}</Link>;
   if (r.subject_type === "rule_proposal") return <Link href={`/rules#proposal-${r.subject_id}`}>규칙 제안 #{r.subject_id}</Link>;
   if (r.subject_type === "brand_alias") return `브랜드 제안 #${r.subject_id}`;
+  if (r.subject_type === "comment") return `댓글 #${r.subject_id}`;
   // 기본 사전 해제는 "보드번호:이름" (Sprint 35)
   if (r.subject_type === "attr_alias") return /^\d+$/.test(r.subject_id) ? `성분 이름 제안 #${r.subject_id}` : "성분명 기본 사전";
   return "신고자 1명";
@@ -38,8 +40,9 @@ export default async function TransparencyPage() {
     <article className="legal">
       <h1>투명성 기록</h1>
       <p>
-        노방장에는 방장이 없습니다. 글이 가려지는 경우는 두 가지뿐입니다. 이용자 신고에 따른 <b>자동 블라인드</b>와, 권리침해 신고에 따른 운영자의{" "}
-        <b>법적 임시조치</b>(정보통신망법 제44조의2)입니다. 운영자는 그 밖에 탐지된 신고·투표 조작의 무효화, AI 광고 의심 오탐 해제, 작성자 재검토 요청 기각,
+        노방장에는 방장이 없습니다. 글이 가려지는 경우는 세 가지뿐입니다. 이용자 신고에 따른 <b>자동 블라인드</b>, 욕설·혐오 표현·인신공격·개인정보를
+        AI가 알아보고 가리는 <b>AI 자동 가림</b>(이유가 함께 표시됨), 권리침해 신고에 따른 운영자의 <b>법적 임시조치</b>(정보통신망법 제44조의2)입니다.
+        운영자는 그 밖에 탐지된 신고·투표 조작의 무효화, AI 광고 의심·자동 가림 오판 해제, 작성자 재검토 요청 기각,
         보드 개설 요청·중복 제품 정리만 할 수 있습니다. 운영자의 조치는 한 건도 빠짐없이 아래에 공개됩니다. 규칙은 <Link href="/policy">커뮤니티 운영 원칙</Link>에
         있습니다.
       </p>
@@ -51,6 +54,7 @@ export default async function TransparencyPage() {
           <tr>
             <th>월</th>
             <th className="num">자동 블라인드</th>
+            <th className="num">AI 자동 가림</th>
             <th className="num">법적 임시조치</th>
             <th className="num">임시조치 해제</th>
             <th className="num">운영자 정정</th>
@@ -61,6 +65,7 @@ export default async function TransparencyPage() {
             <tr key={s.month}>
               <td>{s.month}</td>
               <td className="num">{s.auto_blinds}</td>
+              <td className="num">{s.ai_hides}</td>
               <td className="num">{s.legal_holds}</td>
               <td className="num">{s.legal_releases}</td>
               <td className="num">{s.corrections}</td>

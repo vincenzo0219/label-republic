@@ -6,8 +6,13 @@ import { splitMentions } from "@/lib/mentions";
 import { addMyComment, watchPost } from "@/lib/watchlist";
 import { timeAgo } from "@/lib/format";
 import type { Comment } from "@/lib/types";
+import { abuseLabel } from "@/lib/abuse-labels";
 
-type Event = { type: "created"; comment: Comment } | { type: "deleted"; comment: { id: string | number } };
+type Event =
+  | { type: "created"; comment: Comment }
+  | { type: "deleted"; comment: { id: string | number } }
+  // AI 자동 운영이 가리거나 운영자가 풀었을 때 (Sprint 37)
+  | { type: "hidden"; comment: { id: string | number; body: string; hidden_reason: string | null } };
 
 /** 소켓·예전 응답에서 온 댓글의 번호를 문자열로, 답글 필드는 빈 값으로 맞춘다 */
 const norm = (c: Comment): Comment => ({
@@ -101,6 +106,9 @@ export function LiveComments({ postId, initial }: { postId: string; initial: Com
             setFresh((s) => new Set(s).add(String(ev.comment.id)));
           } else if (ev.type === "deleted") {
             setComments((list) => dropComment(list, String(ev.comment.id)));
+          } else if (ev.type === "hidden") {
+            const { id, body, hidden_reason } = ev.comment;
+            setComments((list) => list.map((c) => (c.id === String(id) ? { ...c, body, hidden_reason } : c)));
           }
         } catch {}
       };
@@ -199,9 +207,15 @@ export function LiveComments({ postId, initial }: { postId: string; initial: Com
                   )}
                 </div>
                 {to && <div className="comment-to">↳ {to.nickname}님에게</div>}
-                <div className="comment-body">
-                  {splitMentions(c.body, nicknames).map((p, i) => (p.mention ? <span key={i} className="mention">{p.text}</span> : p.text))}
-                </div>
+                {c.hidden_reason ? (
+                  <div className="comment-body comment-hidden">
+                    🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가린 댓글입니다.
+                  </div>
+                ) : (
+                  <div className="comment-body">
+                    {splitMentions(c.body, nicknames).map((p, i) => (p.mention ? <span key={i} className="mention">{p.text}</span> : p.text))}
+                  </div>
+                )}
               </div>
             );
           })}

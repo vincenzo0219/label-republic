@@ -7,6 +7,7 @@ import {
   mergeProduct,
   rejectAppeal,
   rejectBoardRequest,
+  releaseAiHide,
   releaseSuppression,
   voidAlert,
   type BoardRejectReason,
@@ -25,6 +26,8 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("void_alert"), alertId: id, note }),
   z.object({ action: z.literal("dismiss_alert"), alertId: id, note }),
   z.object({ action: z.literal("release_suppression"), postId: id, note }),
+  // AI 자동 가림 오판 해제 (Sprint 37) — 사유 필수, 공개
+  z.object({ action: z.literal("release_ai_hide"), kind: z.enum(["post", "comment"]), id, note: z.string().trim().min(1, "해제 사유를 적어주세요.").max(300) }),
   z.object({ action: z.literal("reject_appeal"), postId: id, note: z.string().trim().min(1, "기각 사유를 적어주세요.").max(300) }),
   z.object({
     action: z.literal("reject_board_request"),
@@ -66,6 +69,8 @@ export const POST = route(async (req) => {
     case "release_suppression":
       await releaseSuppression(input.postId, input.note);
       return json({ ok: true });
+    case "release_ai_hide":
+      return json({ ok: true, ...(await releaseAiHide(input.kind, input.id, input.note)) });
     case "reject_appeal":
       await rejectAppeal(input.postId, input.note);
       return json({ ok: true });

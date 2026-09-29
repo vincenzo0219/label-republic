@@ -113,6 +113,8 @@ export type PostDetail = PostCard & {
   revision_count: number;
   /** AI 큐레이터 글을 사람이 검수했는지 (Sprint 37부터 검수 없이 게시되는 글이 있음) */
   ai_reviewed?: boolean;
+  /** AI 자동 운영이 가린 이유 (profanity·hate·harassment·personal_info, Sprint 37) */
+  ai_hidden_reason?: string | null;
 };
 
 export type Correction = {
@@ -160,6 +162,8 @@ export type Comment = {
   parent_id: string | null;
   /** 본문의 @닉네임이 가리키는 이 글의 댓글 번호 — 그 댓글을 쓴 브라우저에 알림 */
   mentions: string[];
+  /** AI 자동 운영이 가린 댓글이면 이유 — 본문은 빈 문자열로 온다 (Sprint 37) */
+  hidden_reason?: string | null;
 };
 
 export type BoardRequest = {
