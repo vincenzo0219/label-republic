@@ -27,6 +27,8 @@ function subjectLabel(r: ModerationLogRow) {
   if (r.subject_type === "product") return <Link href={`/p/${r.subject_id}`}>제품 #{r.subject_id}</Link>;
   if (r.subject_type === "rule_proposal") return <Link href={`/rules#proposal-${r.subject_id}`}>규칙 제안 #{r.subject_id}</Link>;
   if (r.subject_type === "brand_alias") return `브랜드 제안 #${r.subject_id}`;
+  // 기본 사전 해제는 "보드번호:이름" (Sprint 35)
+  if (r.subject_type === "attr_alias") return /^\d+$/.test(r.subject_id) ? `성분 이름 제안 #${r.subject_id}` : "성분명 기본 사전";
   return "신고자 1명";
 }
 

@@ -197,6 +197,17 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
           WHERE proposer_net IS NOT NULL AND status <> 'open' AND resolved_at < $1::timestamptz - interval '30 days'`,
         [now.toISOString()],
       );
+      // 성분명 별칭 제안·투표(Sprint 35)도 같은 기준
+      await client.query(
+        `UPDATE attr_alias_votes SET voter_net = NULL WHERE voter_net IS NOT NULL
+            AND proposal_id IN (SELECT id FROM attr_alias_proposals WHERE status <> 'open' AND resolved_at < $1::timestamptz - interval '30 days')`,
+        [now.toISOString()],
+      );
+      await client.query(
+        `UPDATE attr_alias_proposals SET proposer_net = NULL
+          WHERE proposer_net IS NOT NULL AND status <> 'open' AND resolved_at < $1::timestamptz - interval '30 days'`,
+        [now.toISOString()],
+      );
       // 글의 망 대역 변환값(Sprint 29)은 리뉴얼 판단에만 쓰므로, 표시값(라벨) 수치가 없는 글은 30일 뒤 지운다
       await client.query(
         `UPDATE posts p SET author_net = NULL

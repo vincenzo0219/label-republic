@@ -299,3 +299,78 @@ export function BrandAliasRemove({ aliasKey, pair }: { aliasKey: string; pair: s
     </div>
   );
 }
+
+/** 성분명 별칭 제안 (Sprint 35): 동의된 제안만 확정 — 대표 이름을 고를 수 있다 */
+export function AttrAliasActions({
+  proposalId,
+  supported,
+  pair,
+  plan,
+}: {
+  proposalId: string;
+  supported: boolean;
+  pair: string;
+  plan: { canonical: string; alias: string; canonicalLabel: string; aliasLabel: string; facts: number } | null;
+}) {
+  const { msg, busy, run } = useAction();
+  const [note, setNote] = useState("");
+  const accept = (canonical: string, into: string, from: string) =>
+    run(
+      `${pair}\n${from} → ${into}(대표)로 확정합니다. ${plan ? `수치 ${plan.facts}개의 항목이 바뀝니다(해제하면 되돌릴 수 있음). ` : ""}투명성 기록에 공개됩니다. 계속할까요?`,
+      { action: "accept_attr_alias", proposalId, note, canonical },
+      (r) => `확정 · 합친 수치 ${r.rekeyed}`,
+    );
+  return (
+    <div className="mod-actions">
+      <input className="input input-sm" maxLength={300} placeholder={PUBLIC_NOTE} aria-label="공개 메모" value={note} onChange={(e) => setNote(e.target.value)} />
+      {plan && (
+        <>
+          <button type="button" className="btn btn-sm" disabled={busy || !supported} title={supported ? undefined : "커뮤니티 동의를 얻은 제안만 확정할 수 있습니다"}
+            onClick={() => accept(plan.canonical, plan.canonicalLabel, plan.aliasLabel)}>
+            확정 ({plan.canonicalLabel} 대표)
+          </button>
+          <button type="button" className="btn btn-sm" disabled={busy || !supported} onClick={() => accept(plan.alias, plan.aliasLabel, plan.canonicalLabel)}>
+            {plan.aliasLabel} 대표로 확정
+          </button>
+        </>
+      )}
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={busy || !note.trim()}
+        onClick={() => run(`${pair}\n제안을 기각합니다 (사유 공개). 계속할까요?`, { action: "reject_attr_alias", proposalId, note }, () => "기각했습니다")}
+      >
+        기각
+      </button>
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={busy || !note.trim()}
+        onClick={() => run(`${pair}\n제안 사유만 가립니다 (제안·투표는 그대로, 공개 기록). 계속할까요?`, { action: "hide_attr_alias_reason", proposalId, note }, () => "사유를 가렸습니다")}
+      >
+        사유 가림
+      </button>
+      {msg && <span className="hint">{msg}</span>}
+    </div>
+  );
+}
+
+/** 확정된 성분명 별칭(기본 사전 포함) 해제 — 그 이름으로 적힌 수치는 원래 항목으로 되돌아간다 */
+export function AttrAliasRemove({ categoryId, aliasKey, pair }: { categoryId: number; aliasKey: string; pair: string }) {
+  const { msg, busy, run } = useAction();
+  const [note, setNote] = useState("");
+  return (
+    <div className="mod-actions">
+      <input className="input input-sm" maxLength={300} placeholder="해제 사유 (공개)" aria-label={`${pair} 해제 사유`} value={note} onChange={(e) => setNote(e.target.value)} />
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={busy || !note.trim()}
+        onClick={() => run(`${pair}\n별칭을 해제합니다. 계속할까요?`, { action: "remove_attr_alias", categoryId, aliasKey, note }, (r) => `해제 · 되돌린 수치 ${r.restored}`)}
+      >
+        해제
+      </button>
+      {msg && <span className="hint">{msg}</span>}
+    </div>
+  );
+}

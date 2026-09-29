@@ -70,7 +70,7 @@ export type ModerationLogRow = {
   id: string;
   action: import("./operator").ModAction;
   post_id: string | null;
-  subject_type: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias";
+  subject_type: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias" | "attr_alias";
   subject_id: string;
   /** 법적 임시조치 사유(LegalReason) 또는 보드 요청 거절 사유(BoardRejectReason) */
   reason: string | null;

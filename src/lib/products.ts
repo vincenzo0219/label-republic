@@ -24,11 +24,11 @@ export function attrKey(attribute: string): string {
   return normText(attribute).slice(0, 40);
 }
 
-/** 단위 표기 통일 (mcg·μg → µg, iu → IU, ㎎ → mg …) */
+/** 단위 표기 통일 (mcg·μg → µg, iu → IU, ㎎ → mg, 마이크로그램 → µg …) */
 const UNIT_ALIASES: Record<string, string> = {
-  mcg: "µg", ug: "µg", "μg": "µg", "㎍": "µg", "µg": "µg",
-  mg: "mg", "㎎": "mg", g: "g", kg: "kg", "㎏": "kg",
-  iu: "IU", ml: "ml", "㎖": "ml", l: "L", "ℓ": "L",
+  mcg: "µg", ug: "µg", "μg": "µg", "㎍": "µg", "µg": "µg", 마이크로그램: "µg", 마이크로: "µg",
+  mg: "mg", "㎎": "mg", 밀리그램: "mg", 미리그램: "mg", g: "g", 그램: "g", kg: "kg", "㎏": "kg", 킬로그램: "kg",
+  iu: "IU", 아이유: "IU", ml: "ml", "㎖": "ml", 밀리리터: "ml", l: "L", "ℓ": "L", 리터: "L",
   kcal: "kcal", "%": "%", db: "dB", hz: "Hz", khz: "kHz", ohm: "Ω", "ω": "Ω", mah: "mAh", mm: "mm", cm: "cm",
 };
 
@@ -56,14 +56,33 @@ const UNIT_GROUPS: Record<string, { group: string; factor: number }> = {
   kHz: { group: "freq", factor: 1000 },
 };
 
-/** 같은 묶음이면 기준 단위 값으로, 아니면 단위 자체를 묶음으로 본다 */
-export function toBase(value: number, unit: string): { group: string; base: number } {
+/**
+ * 국제단위(IU)를 질량으로 바꿀 수 있는 성분 (Sprint 35). 비타민 D 는 형태(D2·D3)와 상관없이 1 µg = 40 IU 로 정해져 있다.
+ * 비타민 A·E 는 형태(레티놀·베타카로틴, 천연·합성 토코페롤)마다 환산값이 달라 라벨만으로는 알 수 없어 바꾸지 않는다.
+ * 키는 attrKey 로 정규화한 항목 이름 — 별칭으로 합쳐진 대표 키든 원래 키든 들어 있으면 바꾼다.
+ * DB 의 같은 규칙: db/migrations/033_attribute_aliases.sql (tests/attr-aliases.test.ts 가 둘이 같은지 확인)
+ */
+export const IU_MG: Record<string, number> = Object.fromEntries(
+  ["비타민d", "비타민d3", "비타민d2", "vitamind", "vitamind3", "vitamind2", "콜레칼시페롤", "cholecalciferol", "에르고칼시페롤", "ergocalciferol"].map((k) => [k, 0.000025]),
+);
+
+/** 이 항목에서 IU 를 질량(mg)으로 바꾸는 배수, 없으면 null */
+export function iuFactor(attr: string | undefined): number | null {
+  return attr ? IU_MG[attr] ?? null : null;
+}
+
+/** 같은 묶음이면 기준 단위 값으로, 아니면 단위 자체를 묶음으로 본다. 항목 키를 주면 성분별 IU 환산(비타민 D)도 한다 */
+export function toBase(value: number, unit: string, attr?: string): { group: string; base: number } {
+  const iu = unit === "IU" ? iuFactor(attr) : null;
+  if (iu !== null) return { group: "mass", base: value * iu };
   const g = UNIT_GROUPS[unit];
   return g ? { group: g.group, base: value * g.factor } : { group: `unit:${unit}`, base: value };
 }
 
 /** base 값을 target 단위로 */
-export function fromBase(base: number, unit: string): number {
+export function fromBase(base: number, unit: string, attr?: string): number {
+  const iu = unit === "IU" ? iuFactor(attr) : null;
+  if (iu !== null) return base / iu;
   const g = UNIT_GROUPS[unit];
   return g ? base / g.factor : base;
 }

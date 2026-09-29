@@ -108,6 +108,7 @@ d("fact search (database)", async () => {
     await post("C", "Mag", [{ attribute: "마그네슘", value: 100000, unit: "µg", kind: "label" }]);
     await post("D", "Mag", [{ attribute: "마그네슘", value: 400, unit: "mg", basis: "2정", kind: "label" }]); // 기준이 다름
     await post("E", "D", [{ attribute: "비타민 D", value: 1000, unit: "IU", kind: "label" }]);
+    await post("E", "E", [{ attribute: "비타민 E", value: 400, unit: "IU", kind: "label" }]);
     const spam = await post("F", "Mag", [{ attribute: "마그네슘", value: 999, unit: "mg", kind: "label" }]);
     await query("UPDATE posts SET is_suppressed = true WHERE id = $1", [spam.id]);
 
@@ -115,6 +116,7 @@ d("fact search (database)", async () => {
     expect(attrs.map((a) => [a.attr_key, a.products, a.bases.map((b) => b.basis)])).toEqual([
       ["마그네슘", 3, ["1정", "2정"]],
       ["비타민d", 1, ["1정"]],
+      ["비타민e", 1, ["1정"]],
     ]);
 
     let r = (await facts.rankProducts({ categoryId: 1, attrKey: "마그네슘" }))!;
@@ -135,8 +137,12 @@ d("fact search (database)", async () => {
     // 다른 기준
     r = (await facts.rankProducts({ categoryId: 1, attrKey: "마그네슘", basisKey: "2정" }))!;
     expect(r.items.map((x) => x.brand)).toEqual(["D"]);
-    // 바꿔 계산할 수 없는 단위
+    // 비타민 D 는 IU 를 µg 으로 바꿔 비교한다 (1 µg = 40 IU, Sprint 35)
     r = (await facts.rankProducts({ categoryId: 1, attrKey: "비타민d", unit: "µg", min: 10 }))!;
+    expect(r).toMatchObject({ unit_mismatch: false, unit: "µg" });
+    expect(r.items.map((x) => [x.brand, x.value])).toEqual([["E", expect.closeTo(25, 9)]]);
+    // 바꿔 계산할 수 없는 단위 (비타민 E 의 IU 는 형태마다 달라 mg 과 바꾸지 않는다)
+    r = (await facts.rankProducts({ categoryId: 1, attrKey: "비타민e", unit: "mg", min: 10 }))!;
     expect(r).toMatchObject({ unit_mismatch: true, items: [] });
     // 표시값이 없으면 실측값으로
     await post("G", "Zinc", [{ attribute: "아연", value: 12, unit: "mg", kind: "measured" }]);

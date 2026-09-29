@@ -13,6 +13,8 @@ import {
 } from "@/lib/repo/operator";
 import { acceptProposal, hideProposalReason as hideBrandAliasReason, rejectProposal, removeAlias } from "@/lib/repo/brand-aliases";
 import { hideProposalReason } from "@/lib/repo/rules";
+import * as attrAliases from "@/lib/repo/attr-aliases";
+import { clearFactCache } from "@/lib/repo/facts";
 
 // /api/admin/* 는 server.ts 에서 ADMIN_PASSWORD Basic 인증을 통과해야만 도달한다.
 const id = z.string().regex(/^\d{1,18}$/, "번호를 확인하세요.");
@@ -40,6 +42,16 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("hide_brand_alias_reason"), proposalId: id, note: z.string().trim().min(1, "가리는 이유를 적어주세요.").max(300) }),
   z.object({ action: z.literal("reject_brand_alias"), proposalId: id, note: z.string().trim().min(1, "기각 사유를 적어주세요.").max(300) }),
   z.object({ action: z.literal("remove_brand_alias"), aliasKey: z.string().min(1).max(60), note: z.string().trim().min(1, "해제 사유를 적어주세요.").max(300) }),
+  // 성분명 별칭 (Sprint 35): 브랜드 별칭과 같은 기준. 해제는 기본 사전도 가능 (보드 번호 + 별칭 키)
+  z.object({ action: z.literal("accept_attr_alias"), proposalId: id, note, canonical: z.string().min(1).max(40).optional() }),
+  z.object({ action: z.literal("hide_attr_alias_reason"), proposalId: id, note: z.string().trim().min(1, "가리는 이유를 적어주세요.").max(300) }),
+  z.object({ action: z.literal("reject_attr_alias"), proposalId: id, note: z.string().trim().min(1, "기각 사유를 적어주세요.").max(300) }),
+  z.object({
+    action: z.literal("remove_attr_alias"),
+    categoryId: z.number().int().positive(),
+    aliasKey: z.string().min(1).max(40),
+    note: z.string().trim().min(1, "해제 사유를 적어주세요.").max(300),
+  }),
 ]);
 
 /** POST /api/admin/moderation — 운영자 조치 (알림 오탐 닫기 외에는 모두 /transparency 에 공개) */
@@ -77,5 +89,21 @@ export const POST = route(async (req) => {
       return json({ ok: true });
     case "remove_brand_alias":
       return json({ ok: true, ...(await removeAlias(input.aliasKey, input.note)) });
+    case "accept_attr_alias": {
+      const r = await attrAliases.acceptProposal(input.proposalId, input.note, input.canonical);
+      clearFactCache();
+      return json({ ok: true, ...r });
+    }
+    case "hide_attr_alias_reason":
+      await attrAliases.hideProposalReason(input.proposalId, input.note);
+      return json({ ok: true });
+    case "reject_attr_alias":
+      await attrAliases.rejectProposal(input.proposalId, input.note);
+      return json({ ok: true });
+    case "remove_attr_alias": {
+      const r = await attrAliases.removeAlias(input.categoryId, input.aliasKey, input.note);
+      clearFactCache();
+      return json({ ok: true, ...r });
+    }
   }
 });

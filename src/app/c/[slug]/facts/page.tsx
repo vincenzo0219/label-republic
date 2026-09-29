@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
+import { AttrAliasPanel } from "@/components/AttrAliasPanel";
 import { config } from "@/lib/config";
 import { numParam } from "@/lib/fact-query";
-import { FACT_KIND_LABEL, formatValue, normalizeUnit, validUnit } from "@/lib/products";
+import { fingerprint } from "@/lib/fingerprint";
+import { attrKey, FACT_KIND_LABEL, formatValue, iuFactor, normalizeUnit, validUnit } from "@/lib/products";
+import { aliasesOf, listProposals } from "@/lib/repo/attr-aliases";
 import { getCategoryBySlug as getCategoryUncached } from "@/lib/repo/categories";
 import { listBoardAttributes, rankProducts, resolveAttribute } from "@/lib/repo/facts";
+import { getRules } from "@/lib/repo/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +57,12 @@ export default async function FactsPage({ params, searchParams }: Props) {
   const boardPath = `/c/${encodeURIComponent(category.slug)}`;
   const attrs = await getAttributes(category.id);
   const attr = sp.attr ? resolveAttribute(attrs, sp.attr) : null;
+  // 합쳐진 옛 이름의 주소는 대표 항목 주소로 (Sprint 35) — 영구 이동은 아니다(별칭은 해제될 수 있음)
+  if (attr && sp.attr && attrKey(sp.attr) !== attr.attr_key && attr.aliases.includes(attrKey(sp.attr))) {
+    const q = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string"));
+    q.set("attr", attr.attr_key);
+    redirect(`${boardPath}/facts?${q}`);
+  }
 
   const unitRaw = sp.unit?.trim() ? normalizeUnit(sp.unit) : undefined;
   const unit = unitRaw && validUnit(unitRaw) ? unitRaw : undefined;
@@ -70,6 +81,10 @@ export default async function FactsPage({ params, searchParams }: Props) {
         order,
       })
     : null;
+
+  const [aliases, proposals, rules] = attr
+    ? await Promise.all([aliasesOf(category.id, attr.attr_key), listProposals(category.id, attr.attr_key, fingerprint((await headers()) as unknown as Headers)), getRules()])
+    : [[], [], null];
 
   const jsonLd = result && {
     "@context": "https://schema.org",
@@ -154,7 +169,7 @@ export default async function FactsPage({ params, searchParams }: Props) {
           </p>
           {result.unit_mismatch && (
             <p className="notice" role="alert">
-              {unit} 단위로는 이 항목의 수치와 비교할 수 없어요 (예: IU와 mg은 성분마다 환산이 달라요). 단위를 비우거나 바꿔 보세요.
+              {unit} 단위로는 이 항목의 수치와 비교할 수 없어요 (예: 비타민 A·E 의 IU 는 형태마다 mg 환산이 달라요). 단위를 비우거나 바꿔 보세요.
             </p>
           )}
 
@@ -217,10 +232,22 @@ export default async function FactsPage({ params, searchParams }: Props) {
             </form>
           )}
           <p className="hint">
-            값은 각 제품 글들의 중앙값입니다. mg·µg·g처럼 바꿔 계산할 수 있는 단위는 맞춰서 비교하고, 기준(1정, 1일 섭취량 등)이 다른 값은 섞지 않습니다. 블라인드·광고
+            값은 각 제품 글들의 중앙값입니다. mg·µg·g처럼 바꿔 계산할 수 있는 단위는 맞춰서 비교하고
+            {iuFactor(result.attr_key) !== null && " (비타민 D 는 1 µg = 40 IU 로 IU 도 함께)"}, 기준(1정, 1일 섭취량 등)이 다른 값은 섞지 않습니다. 블라인드·광고
             의심 글과 커뮤니티가 동의한 정정 제안이 걸린 값은 빠집니다. 수치는 이용자가 적은 값이며 의학적 조언이 아닙니다.
           </p>
         </>
+      )}
+      {attr && rules && (
+        <AttrAliasPanel
+          board={category.slug}
+          attrKey={attr.attr_key}
+          attrLabel={attr.attribute}
+          aliases={aliases}
+          others={attrs.filter((a) => a.attr_key !== attr.attr_key).slice(0, 100).map((a) => ({ key: a.attr_key, label: a.attribute, products: a.products }))}
+          initial={proposals}
+          rule={{ score: rules.correction_support_score, ratio: rules.correction_support_ratio }}
+        />
       )}
       {!attr && attrs.length > 0 && <p className="hint">항목을 누르면 그 수치가 많은(또는 적은) 제품 순으로 볼 수 있어요. 검색창에 &ldquo;마그네슘 200mg 이상&rdquo;처럼 적어도 됩니다.</p>}
     </>

@@ -13,6 +13,7 @@ import {
   attrKey,
   FACT_KIND_LABEL,
   fromBase,
+  fromBase as fromBaseFor,
   MAX_FACTS_PER_POST,
   MAX_PRODUCTS_PER_POST,
   median,
@@ -151,16 +152,36 @@ export async function setPostFacts(client: PoolClient, postId: string, productId
   });
   // 근거 사진·출처 (Sprint 20) — 사진은 먼저 글에 붙어 있어야 한다
   const evidence = await resolveEvidence(client, postId, facts);
+  // 성분명 별칭 (Sprint 35): 보드에서 합쳐진 이름이면 대표 이름의 키로 넣는다 (표시 이름은 쓴 그대로).
+  // 별칭 확정·해제(배타 잠금)와 겹치지 않게 공유 잠금을 잡는다
+  const canonical = await canonicalAttrKeys(client, postId, [...new Set(rows.map((r) => r.key))]);
   await client.query("DELETE FROM product_facts WHERE post_id = $1", [postId]);
   for (const [position, r] of rows.entries()) {
     const ev = evidence[position]!;
+    const key = canonical.get(r.key) ?? r.key;
+    const { group, base } = toBase(r.value, r.unit, key);
     await client.query(
       `INSERT INTO product_facts (post_id, product_id, position, attribute, attr_key, value, unit, basis, kind, basis_key, unit_group, base_value, source_image_id, origin)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-      [postId, r.productId, position, r.attribute, r.key, r.value, r.unit, r.basis, r.kind, normText(r.basis).slice(0, 30), toBase(r.value, r.unit).group, toBase(r.value, r.unit).base, ev.image, ev.origin],
+      [postId, r.productId, position, r.attribute, key, r.value, r.unit, r.basis, r.kind, normText(r.basis).slice(0, 30), group, base, ev.image, ev.origin],
     );
   }
 }
+
+/** 글의 보드에서 별칭으로 합쳐진 항목 키 → 대표 키 (Sprint 35) */
+async function canonicalAttrKeys(client: PoolClient, postId: string, keys: string[]): Promise<Map<string, string>> {
+  if (!keys.length) return new Map();
+  await client.query("SELECT pg_advisory_xact_lock_shared($1)", [ATTR_ALIAS_LOCK]);
+  const { rows } = await client.query<{ alias_key: string; canonical_key: string }>(
+    `SELECT a.alias_key, a.canonical_key FROM attr_aliases a
+      WHERE a.category_id = (SELECT category_id FROM posts WHERE id = $1) AND a.alias_key = ANY($2::text[])`,
+    [postId, keys],
+  );
+  return new Map(rows.map((r) => [r.alias_key, r.canonical_key]));
+}
+
+/** 성분명 별칭 확정·해제와 수치 저장이 겹치지 않게 하는 advisory lock 키 */
+export const ATTR_ALIAS_LOCK = 4823035;
 
 /** 글에 태그한 제품의 라벨 날짜 (적은 제품만, 태그 순서) */
 export async function listPostProductDates(postId: string): Promise<PostProductDates[]> {
@@ -274,8 +295,8 @@ function mostCommon(xs: string[], tieBreak: (x: string) => number = () => 0): st
 }
 
 /** 이 단위로 쓰면 값이 읽기 좋은가 (1~1000 사이가 가장 좋다) — 단위가 동률일 때 고른다 */
-function unitReadability(bases: number[], unit: string): number {
-  const m = median(bases.map((b) => fromBase(b, unit)));
+function unitReadability(bases: number[], unit: string, attr?: string): number {
+  const m = median(bases.map((b) => fromBase(b, unit, attr)));
   if (m <= 0) return 0;
   const lg = Math.log10(m);
   return lg < 0 ? -lg : lg > 3 ? lg - 3 : 0;
@@ -291,7 +312,8 @@ export function aggregateFacts(rows: FactRow[], minReports = DEFAULT_MIN_REPORTS
   const timeOf = (r: FactRow) => ptime.get(`${r.product_id}|${r.post_id}`);
   const groups = new Map<string, { rows: (FactRow & { base: number })[] }>();
   for (const r of rows) {
-    const { group, base } = toBase(r.value, r.unit);
+    // 비타민 D 의 IU 는 µg 과 같은 묶음으로 (Sprint 35)
+    const { group, base } = toBase(r.value, r.unit, r.attr_key);
     const key = `${r.attr_key}|${normText(r.basis)}|${group}`;
     const g = groups.get(key) ?? { rows: [] };
     g.rows.push({ ...r, base });
@@ -300,10 +322,12 @@ export function aggregateFacts(rows: FactRow[], minReports = DEFAULT_MIN_REPORTS
   const out: FactGroup[] = [];
   for (const [key, g] of groups) {
     const bases = g.rows.map((r) => r.base);
+    const attr = g.rows[0]!.attr_key;
     const unit = mostCommon(
       g.rows.map((r) => r.unit),
-      (u) => unitReadability(bases, u),
+      (u) => unitReadability(bases, u, attr),
     );
+    const fromBase = (b: number, u: string) => fromBaseFor(b, u, attr);
     // 리뉴얼 감지: 정정 제안이 걸리지 않은 표시값을 추정 제조 시각 순으로
     const reports: LabelReport[] = g.rows
       .filter((r) => r.kind === "label" && !r.disputed && timeOf(r))
@@ -532,7 +556,8 @@ export async function compareProducts(products: Product[]): Promise<CompareRow[]
       cells: per.map((groups) => {
         const mine = groups.find((x) => x.key === g.key);
         if (!mine) return null;
-        const conv = (v: number) => fromBase(toBase(v, mine.unit).base, g.unit);
+        const attr = g.key.slice(0, g.key.indexOf("|"));
+        const conv = (v: number) => fromBase(toBase(v, mine.unit, attr).base, g.unit, attr);
         return {
           label: mine.label ? conv(mine.label.median) : null,
           measured: mine.measured ? conv(mine.measured.median) : null,

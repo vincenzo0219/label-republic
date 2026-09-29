@@ -39,12 +39,16 @@ export const MOD_ACTIONS = {
   brand_alias_rejected: "브랜드 별칭 제안 기각",
   brand_alias_removed: "브랜드 별칭 해제",
   brand_alias_reason_hidden: "브랜드 제안 사유 가림 (권리침해)",
+  attr_alias_accepted: "성분명 별칭 확정",
+  attr_alias_rejected: "성분명 별칭 제안 기각",
+  attr_alias_removed: "성분명 별칭 해제",
+  attr_alias_reason_hidden: "성분명 제안 사유 가림 (권리침해)",
 } as const;
 export type ModAction = keyof typeof MOD_ACTIONS;
 
 type LogInput = {
   action: ModAction;
-  subjectType: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias";
+  subjectType: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias" | "attr_alias";
   subjectId: string;
   note: string;
   affected?: number;

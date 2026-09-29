@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { StatusPill } from "@/components/admin/charts";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
-import { AlertActions, BoardRequestActions, BrandAliasActions, BrandAliasRemove, ProductMergeActions, RejectAppeal, ReleaseSuppression } from "@/components/admin/ModerationActions";
+import { AlertActions, AttrAliasActions, AttrAliasRemove, BoardRequestActions, BrandAliasActions, BrandAliasRemove, ProductMergeActions, RejectAppeal, ReleaseSuppression } from "@/components/admin/ModerationActions";
 import { listForReview as listBrandAliasesForReview, previewProposal } from "@/lib/repo/brand-aliases";
+import { listForReview as listAttrAliasesForReview, previewProposal as previewAttrProposal } from "@/lib/repo/attr-aliases";
 import {
   listAlertsForReview,
   listDuplicateProductCandidates,
@@ -22,7 +23,7 @@ function fmt(iso: string | null) {
 }
 
 export default async function ModerationPage() {
-  const [appeals, alerts, suppressed, blinds, boardReqs, dupes, brandAliases] = await Promise.all([
+  const [appeals, alerts, suppressed, blinds, boardReqs, dupes, brandAliases, attrAliases] = await Promise.all([
     listOpenAppeals(),
     listAlertsForReview(),
     listSuppressed(),
@@ -30,7 +31,11 @@ export default async function ModerationPage() {
     listOpenBoardRequestsForReview(),
     listDuplicateProductCandidates(),
     listBrandAliasesForReview(),
+    listAttrAliasesForReview(),
   ]);
+  const attrPlans = new Map(
+    await Promise.all(attrAliases.open.map(async (p) => [p.id, await previewAttrProposal(p.id).catch(() => null)] as const)),
+  );
   // 확정하면 무엇이 바뀌는지 미리 계산 (대표 브랜드·옮길 제품·되돌릴 수 없는 병합) — Sprint 33
   const plans = new Map(
     await Promise.all(brandAliases.open.map(async (p) => [p.id, await previewProposal(p.id).catch(() => null)] as const)),
@@ -300,6 +305,64 @@ export default async function ModerationPage() {
               ))}
             </ul>
           </>
+        )}
+      </section>
+
+      <section className="panel" aria-labelledby="attr-alias-h">
+        <h2 id="attr-alias-h">성분명 별칭 제안 ({attrAliases.open.length})</h2>
+        <p className="hint">
+          이용자가 보드의 성분 순위 화면에서 올린 &ldquo;같은 성분&rdquo; 제안입니다. <b>커뮤니티 동의를 얻은 제안만 확정</b>할 수 있고, 확정하면 제품이 많은 쪽 이름이
+          대표가 되어 다른 이름으로 적힌 수치가 한 순위에 모입니다(표시 이름은 그대로, 해제하면 되돌아감). 형태에 따라 함량 기준이 다른 성분(엽산과 DFE, 비타민 A 와
+          베타카로틴 등)은 기각하세요.
+        </p>
+        {attrAliases.open.length > 0 && (
+          <ul className="mod-list">
+            {attrAliases.open.map((p) => {
+              const plan = attrPlans.get(p.id) ?? null;
+              return (
+                <li key={p.id}>
+                  <div className="mod-row">
+                    <span>
+                      {p.board} · {p.label_a} = {p.label_b}{" "}
+                      <span className="hint">
+                        #{p.id} · {p.nickname} · 동의 {p.agree_count} · 반대 {p.disagree_count}
+                      </span>
+                    </span>
+                    <span className="hint">{p.is_supported ? "✔ 동의됨" : "의견 받는 중"}</span>
+                  </div>
+                  <p className="hint" style={{ margin: "4px 0" }}>{p.reason_hidden ? "(사유 가림)" : p.reason}</p>
+                  {plan && (
+                    <p className="hint" style={{ margin: "4px 0" }}>
+                      확정하면: 대표 <b>{plan.canonicalLabel}</b> ← {plan.aliasLabel} · 옮길 수치 {plan.facts} (제품 {plan.products})
+                      {plan.iuConverted > 0 && ` · IU 를 µg 으로 환산해 비교하게 되는 수치 ${plan.iuConverted}`}
+                      {plan.unitGroups.alias.some((g) => !plan.unitGroups.canonical.includes(g)) &&
+                        ` · 단위가 달라 따로 비교되는 값 있음 (${plan.unitGroups.alias.filter((g) => !plan.unitGroups.canonical.includes(g)).join(", ")})`}
+                    </p>
+                  )}
+                  <AttrAliasActions proposalId={p.id} supported={p.is_supported} pair={`${p.board} · ${p.label_a} = ${p.label_b}`} plan={plan} />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {attrAliases.aliases.length > 0 && (
+          <details>
+            <summary className="hint">확정된 별칭·기본 사전 ({attrAliases.aliases.length}) — 잘못 묶였으면 해제</summary>
+            <ul className="mod-list">
+              {attrAliases.aliases.map((a) => (
+                <li key={`${a.category_id}:${a.alias_key}`}>
+                  <div className="mod-row">
+                    <span>
+                      {a.board} · {a.label} → {a.canonical_key}
+                      {a.builtin && <span className="hint"> (기본 사전)</span>}
+                    </span>
+                    <span className="hint">{fmt(a.created_at)}</span>
+                  </div>
+                  <AttrAliasRemove categoryId={a.category_id} aliasKey={a.alias_key} pair={`${a.board} · ${a.label} → ${a.canonical_key}`} />
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </section>
     </div>

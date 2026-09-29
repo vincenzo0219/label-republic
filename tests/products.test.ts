@@ -52,7 +52,9 @@ describe("product rules", () => {
       row("4", "마그네슘", 180, "mg", "measured"),
       row("5", "마그네슘", 400, "mg", "label", "1일 섭취량"), // 기준이 다르면 다른 줄
       row("6", "비타민 D", 1000, "IU", "label"),
-      row("7", "비타민D", 25, "µg", "label"), // IU 와 µg 는 바꿔 계산하지 않는다
+      row("7", "비타민D", 25, "µg", "label"), // 비타민 D 는 1 µg = 40 IU 로 한 묶음 (Sprint 35)
+      row("8", "비타민 E", 400, "IU", "label"),
+      row("9", "비타민E", 268, "mg", "label"), // 비타민 E 의 IU 는 형태마다 달라 바꿔 계산하지 않는다
     ]);
     const mg = groups.find((g) => g.attribute === "마그네슘" && g.basis === "1정")!;
     expect(mg.unit).toBe("mg");
@@ -62,7 +64,11 @@ describe("product rules", () => {
     expect(mg.diff_pct).toBeCloseTo(-12.5);
     expect(mg.entries).toHaveLength(4);
     expect(groups.find((g) => g.basis === "1일 섭취량")!.label).toEqual({ median: 400, n: 1 });
-    expect(groups.filter((g) => g.attribute.startsWith("비타민"))).toHaveLength(2);
+    const d = groups.filter((g) => g.key.startsWith("비타민d|"));
+    expect(d).toHaveLength(1);
+    expect(d[0]!.label).toMatchObject({ n: 2 });
+    expect(d[0]!.label!.median).toBeCloseTo(d[0]!.unit === "IU" ? 1000 : 25);
+    expect(groups.filter((g) => g.key.startsWith("비타민e|"))).toHaveLength(2);
   });
 
   it("validates product and fact input shapes", () => {

@@ -24,7 +24,10 @@ const CURRENT_LABEL_ERA = `NOT EXISTS (
 
 // 보드 전체 수치를 훑는 조회라 인스턴스별로 잠깐 캐시한다 (새 수치는 1분 안에 반영)
 const TTL_MS = 60_000;
-const cache = new Map<string, { at: number; value: unknown }>();
+// 라우트 핸들러(운영자 확정 뒤 비우기)와 페이지 번들이 이 모듈을 따로 불러오므로 globalThis 에 하나만 둔다 (Sprint 35 E2E 에서 발견:
+// 확정 뒤에도 페이지는 1분 동안 옛 항목 목록을 봤다)
+const g = globalThis as unknown as { __labelRepFactCache?: Map<string, { at: number; value: unknown }> };
+const cache = (g.__labelRepFactCache ??= new Map());
 async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.value as T;
@@ -38,7 +41,14 @@ export function clearFactCache() {
 }
 
 export type BasisSummary = { basis_key: string; basis: string; products: number };
-export type AttributeSummary = { attr_key: string; attribute: string; products: number; bases: BasisSummary[] };
+export type AttributeSummary = {
+  attr_key: string;
+  attribute: string;
+  products: number;
+  bases: BasisSummary[];
+  /** 이 항목으로 합쳐진 다른 이름의 키 (성분명 별칭, Sprint 35) — 검색어가 옛 이름이어도 찾는다 */
+  aliases: string[];
+};
 
 /** 보드에 있는 수치 항목 (제품 많은 순) */
 export async function listBoardAttributes(categoryId: number): Promise<AttributeSummary[]> {
@@ -51,17 +61,30 @@ export async function listBoardAttributes(categoryId: number): Promise<Attribute
         GROUP BY f.attr_key, f.basis_key`,
       [categoryId],
     );
+    const [aliasRows, names] = await Promise.all([
+      query<{ alias_key: string; canonical_key: string }>("SELECT alias_key, canonical_key FROM attr_aliases WHERE category_id = $1", [categoryId]),
+      // 항목마다 쓰인 이름과 횟수 — 합쳐진 항목은 대표 키와 같은 이름을 먼저 보여 준다 ("Vitamin D3" 보다 "비타민 D", Sprint 35)
+      query<{ attr_key: string; attribute: string; n: number }>(
+        `SELECT f.attr_key, f.attribute, count(*)::int AS n
+           FROM product_facts f JOIN posts p ON p.id = f.post_id JOIN products pr ON pr.id = f.product_id
+          WHERE pr.category_id = $1 AND pr.merged_into IS NULL AND ${VISIBLE}
+          GROUP BY 1, 2`,
+        [categoryId],
+      ),
+    ]);
     const byAttr = new Map<string, AttributeSummary>();
     for (const r of rows) {
-      const a = byAttr.get(r.attr_key) ?? { attr_key: r.attr_key, attribute: r.attribute, products: 0, bases: [] };
+      const a = byAttr.get(r.attr_key) ?? { attr_key: r.attr_key, attribute: r.attribute, products: 0, bases: [], aliases: [] };
       a.bases.push({ basis_key: r.basis_key, basis: r.basis, products: r.products });
       byAttr.set(r.attr_key, a);
     }
+    for (const al of aliasRows) byAttr.get(al.canonical_key)?.aliases.push(al.alias_key);
     for (const a of byAttr.values()) {
       a.bases.sort((x, y) => y.products - x.products);
       // 기준이 여러 개인 제품은 두 번 셀 수 있지만 순서를 정하는 데는 충분하다
       a.products = Math.max(...a.bases.map((b) => b.products));
-      a.attribute = rows.filter((r) => r.attr_key === a.attr_key).sort((x, y) => y.products - x.products)[0]!.attribute;
+      const used = names.filter((r) => r.attr_key === a.attr_key).sort((x, y) => y.n - x.n || x.attribute.localeCompare(y.attribute, "ko"));
+      a.attribute = (used.find((r) => attrKey(r.attribute) === a.attr_key) ?? used[0])?.attribute ?? a.attribute;
     }
     return [...byAttr.values()].sort((a, b) => b.products - a.products || a.attribute.localeCompare(b.attribute, "ko"));
   });
@@ -74,10 +97,12 @@ export async function listBoardAttributes(categoryId: number): Promise<Attribute
 export function resolveAttribute(attrs: AttributeSummary[], text: string): AttributeSummary | null {
   const key = attrKey(text);
   if (!key) return null;
+  // 항목의 대표 키와 합쳐진 다른 이름(별칭)을 모두 이름으로 본다 ("vitamin d3" → 비타민d)
+  const names = attrs.flatMap((a) => [a.attr_key, ...(a.aliases ?? [])].map((k) => ({ a, k })));
   return (
-    attrs.find((a) => a.attr_key === key) ??
-    attrs.filter((a) => key.includes(a.attr_key) && a.attr_key.length >= 2).sort((a, b) => b.attr_key.length - a.attr_key.length)[0] ??
-    attrs.filter((a) => a.attr_key.startsWith(key)).sort((a, b) => b.products - a.products)[0] ??
+    names.find((n) => n.k === key)?.a ??
+    names.filter((n) => key.includes(n.k) && n.k.length >= 2).sort((x, y) => y.k.length - x.k.length)[0]?.a ??
+    names.filter((n) => n.k.startsWith(key)).sort((x, y) => y.a.products - x.a.products)[0]?.a ??
     null
   );
 }
@@ -163,7 +188,8 @@ export async function rankProducts(p: RankParams): Promise<RankResult | null> {
   const rows = await aggregate(p.categoryId, attr.attr_key, basis.basis_key);
 
   // 단위 묶음: 조건 단위가 있으면 그 묶음, 없으면 제품이 가장 많은 묶음
-  const wanted = p.unit ? toBase(1, p.unit).group : mostCommon(rows.map((r) => r.unit_group));
+  // 비타민 D 는 IU 조건으로도 µg 값과 비교한다 (Sprint 35)
+  const wanted = p.unit ? toBase(1, p.unit, attr.attr_key).group : mostCommon(rows.map((r) => r.unit_group));
   const inGroup = rows.filter((r) => r.unit_group === wanted);
   const unitMismatch = Boolean(p.unit) && inGroup.length === 0 && rows.length > 0;
   const unit = p.unit ?? mostCommon(inGroup.map((r) => r.unit)) ?? "";
@@ -178,14 +204,14 @@ export async function rankProducts(p: RankParams): Promise<RankResult | null> {
     }
   }
 
-  const conv = (b: number | null) => (b === null ? null : fromBase(b, unit));
+  const conv = (b: number | null) => (b === null ? null : fromBase(b, unit, attr.attr_key));
   const all: RankRow[] = inGroup.flatMap((r) => {
     const base = kind === "label" ? r.label_base : r.measured_base;
     if (base === null) return [];
     const label = conv(r.label_base);
     const measured = conv(r.measured_base);
     return [{
-      id: r.product_id, brand: r.brand, name: r.name, value: fromBase(base, unit), label, measured,
+      id: r.product_id, brand: r.brand, name: r.name, value: fromBase(base, unit, attr.attr_key), label, measured,
       n_label: r.n_label, n_measured: r.n_measured, posts: r.posts,
       diff_pct: label && measured !== null && label > 0 ? ((measured - label) / label) * 100 : null,
     }];
@@ -218,11 +244,12 @@ export async function boardsWithAttribute(key: string): Promise<Set<number>> {
   return new Set([...byBoard.entries()].filter(([, keys]) => keys.has(key)).map(([id]) => id));
 }
 
-/** 보드별 수치 항목 키 (보이는 글 여부는 보지 않는 가벼운 1차 필터) */
+/** 보드별 수치 항목 키와 합쳐진 다른 이름의 키 (보이는 글 여부는 보지 않는 가벼운 1차 필터) */
 async function attrKeysByBoard(): Promise<Map<number, Set<string>>> {
   return cached("attrkeys", async () => {
     const rows = await query<{ category_id: number; attr_key: string }>(
-      `SELECT DISTINCT pr.category_id, f.attr_key FROM product_facts f JOIN products pr ON pr.id = f.product_id WHERE pr.merged_into IS NULL`,
+      `SELECT DISTINCT pr.category_id, f.attr_key FROM product_facts f JOIN products pr ON pr.id = f.product_id WHERE pr.merged_into IS NULL
+       UNION SELECT category_id, alias_key FROM attr_aliases`,
     );
     const m = new Map<number, Set<string>>();
     for (const r of rows) m.set(r.category_id, (m.get(r.category_id) ?? new Set()).add(r.attr_key));
