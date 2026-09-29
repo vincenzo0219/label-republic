@@ -55,6 +55,9 @@ async function burstCandidates(
 
 /** 어뷰징 패턴 탐지. 자동 처분은 하지 않고 알림만 남긴다 (방장 없는 구조 — 판단 근거를 투명하게 쌓는 용도). */
 export async function scanAbuse(client: PoolClient, now = new Date()): Promise<AlertCandidate[]> {
+  // JS 시각은 ms, DB 시각은 µs 단위 — 탐지 직전 같은 ms 안에 들어온 행동이 "지금 이후"로 빠지지 않게 1ms 올린다.
+  // (빠지면 탐지는 되는데 알림의 last_seen 보다 늦어 무효화 대상에서도 빠진다 — CI 에서 드물게 재현)
+  now = new Date(now.getTime() + 1);
   const alerts: AlertCandidate[] = [];
 
   for (const r of await burstCandidates(client, now, "reports", "reporter_fingerprint", "post_id", 4)) {
