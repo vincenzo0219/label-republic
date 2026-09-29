@@ -12,8 +12,14 @@ export function Welcome({ boards, stats }: { boards: { slug: string; name: strin
   const [open, setOpen] = useState(true);
   if (!open) return null;
   const close = () => {
-    document.cookie = `${WELCOME_COOKIE}=1; Max-Age=31536000; Path=/; SameSite=Lax`;
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${WELCOME_COOKIE}=1; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
     setOpen(false);
+    // 닫기 버튼이 사라지므로 키보드·화면 낭독기 초점을 본문(보드 탭)으로 옮긴다
+    requestAnimationFrame(() => {
+      const next = document.getElementById("main");
+      next?.focus();
+    });
   };
   return (
     <section className="welcome" aria-labelledby="welcome-h">

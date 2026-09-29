@@ -31,17 +31,29 @@ function writeIds(key: string, ids: string[], max: number) {
 
 export const getWatchedProducts = () => readIds(KEY_PRODUCTS);
 export const getWatchedPosts = () => readIds(KEY_POSTS);
-export const getMyComments = () => readIds(KEY_COMMENTS);
+/** 내 댓글은 "번호.증표" — 댓글을 쓸 때 서버가 준 증표가 있어야 알림을 받는다 (Sprint 33) */
+const COMMENT_REF = /^\d{1,18}\.[A-Za-z0-9_-]{16}$/;
+export const refId = (ref: string) => ref.slice(0, ref.indexOf("."));
 
-/** 내가 단 댓글 — 여기 있는 댓글에 답글·멘션이 오면 알린다 */
-export function addMyComment(id: string) {
-  const cur = getMyComments();
-  if (!cur.includes(id)) writeIds(KEY_COMMENTS, [...cur, id], MAX_MY_COMMENTS);
+export function getMyComments(): string[] {
+  try {
+    const v = JSON.parse(read(KEY_COMMENTS) ?? "[]");
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && COMMENT_REF.test(x)) : [];
+  } catch {
+    return [];
+  }
 }
 
-/** 이 댓글의 답글·멘션 알림 끄기 */
+/** 내가 단 댓글 — 여기 있는 댓글에 답글·멘션이 오면 알린다 */
+export function addMyComment(ref: string) {
+  if (!COMMENT_REF.test(ref)) return;
+  const cur = getMyComments();
+  if (!cur.includes(ref)) writeIds(KEY_COMMENTS, [...cur, ref], MAX_MY_COMMENTS);
+}
+
+/** 이 댓글(번호)의 답글·멘션 알림 끄기 */
 export function removeMyComment(id: string) {
-  writeIds(KEY_COMMENTS, getMyComments().filter((x) => x !== id), MAX_MY_COMMENTS);
+  writeIds(KEY_COMMENTS, getMyComments().filter((x) => refId(x) !== id), MAX_MY_COMMENTS);
 }
 
 export function toggleWatchProduct(id: string): boolean {
@@ -66,7 +78,7 @@ export function watchPost(id: string) {
 
 /** 리포트 응답에 따라 목록 정리: 병합된 제품은 새 번호로, 지워진 글·댓글은 빼기 */
 export function reconcile(merged: [string, string][], gonePosts: string[], goneComments: string[] = []) {
-  if (goneComments.length) writeIds(KEY_COMMENTS, getMyComments().filter((id) => !goneComments.includes(id)), MAX_MY_COMMENTS);
+  if (goneComments.length) writeIds(KEY_COMMENTS, getMyComments().filter((ref) => !goneComments.includes(refId(ref))), MAX_MY_COMMENTS);
   if (merged.length) {
     const map = new Map(merged);
     writeIds(KEY_PRODUCTS, getWatchedProducts().map((id) => map.get(id) ?? id), MAX_PRODUCTS);

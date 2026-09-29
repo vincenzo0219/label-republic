@@ -79,6 +79,8 @@ export type AliasProposal = {
   label_a: string;
   label_b: string;
   reason: string;
+  /** 운영자가 사유만 가림 (Sprint 33) */
+  reason_hidden: boolean;
   nickname: string;
   status: "open" | "accepted" | "rejected";
   agree_count: number;
@@ -93,7 +95,8 @@ export type AliasProposal = {
   my_vote?: 1 | -1 | 0;
 };
 
-const COLS = `p.id::text, p.brand_a, p.brand_b, p.label_a, p.label_b, p.reason, p.nickname, p.status, p.agree_count, p.disagree_count,
+const COLS = `p.id::text, p.brand_a, p.brand_b, p.label_a, p.label_b,
+  CASE WHEN p.reason_hidden THEN '' ELSE p.reason END AS reason, p.reason_hidden, p.nickname, p.status, p.agree_count, p.disagree_count,
   p.is_supported, p.created_at, p.resolved_at, p.resolution_note, p.canonical_key, p.merged_products, p.rekeyed_products`;
 
 /** 브랜드 페이지: 이 브랜드(또는 이 브랜드로 합쳐진 별칭)가 들어간 제안 — 열린 것 먼저 */
@@ -171,13 +174,16 @@ export type AliasVoteResult = Pick<AliasProposal, "agree_count" | "disagree_coun
 export async function voteProposal(id: string, fp: string, net: string | null, value: 1 | -1): Promise<AliasVoteResult> {
   if (!ID.test(id)) throw notFound("브랜드 제안");
   return tx(async (client) => {
-    const { rows } = await client.query<{ status: string; proposer_fingerprint: string | null }>(
-      "SELECT status, proposer_fingerprint FROM brand_alias_proposals WHERE id = $1 FOR UPDATE",
+    const { rows } = await client.query<{ status: string; proposer_fingerprint: string | null; proposer_net: string | null }>(
+      "SELECT status, proposer_fingerprint, proposer_net FROM brand_alias_proposals WHERE id = $1 FOR UPDATE",
       [id],
     );
     if (!rows[0]) throw notFound("브랜드 제안");
     if (rows[0].status !== "open") throw new HttpError(409, "proposal_closed", "이미 처리된 제안입니다.");
-    if (rows[0].proposer_fingerprint === fp) throw new HttpError(403, "own_proposal", "내가 올린 제안에는 투표할 수 없습니다.");
+    // 제안자는 다른 브라우저(같은 망)로도 투표할 수 없다 (Sprint 33)
+    if (rows[0].proposer_fingerprint === fp || (net && rows[0].proposer_net === net)) {
+      throw new HttpError(403, "own_proposal", "내가 올린 제안에는 투표할 수 없습니다.");
+    }
     const existing = await client.query<{ value: number }>("SELECT value FROM brand_alias_votes WHERE proposal_id = $1 AND voter_fingerprint = $2", [id, fp]);
     let myVote: 1 | -1 | 0 = value;
     if (!existing.rows[0]) {
@@ -193,24 +199,104 @@ export async function voteProposal(id: string, fp: string, net: string | null, v
     } else {
       await client.query("UPDATE brand_alias_votes SET value = $3 WHERE proposal_id = $1 AND voter_fingerprint = $2", [id, fp, value]);
     }
-    // 같은 망(또는 망 정보가 없으면 같은 식별값)의 같은 쪽 표는 하나로
-    const { rows: agg } = await client.query<{ agree_count: number; disagree_count: number; agree_score: number; disagree_score: number }>(
-      `SELECT count(*) FILTER (WHERE value = 1)::int AS agree_count, count(*) FILTER (WHERE value = -1)::int AS disagree_count,
-              coalesce(sum(w) FILTER (WHERE value = 1), 0)::float8 AS agree_score, coalesce(sum(w) FILTER (WHERE value = -1), 0)::float8 AS disagree_score
-         FROM (SELECT value, max(weight) AS w FROM brand_alias_votes WHERE proposal_id = $1
-                GROUP BY value, coalesce(voter_net, voter_fingerprint)) g`,
+    const a = await retally(client, id);
+    return { agree_count: a.agree_count, disagree_count: a.disagree_count, is_supported: a.is_supported, my_vote: myVote };
+  });
+}
+
+/**
+ * 동의·반대를 지금 규칙으로 다시 세어 저장한다. 같은 망(망 정보가 없으면 같은 식별값)의 같은 쪽 표는 하나로,
+ * 제안자와 같은 망의 표는 세지 않는다 (Sprint 33). 확정할 때도 다시 센다 — 저장된 "동의됨"만 믿지 않는다.
+ */
+async function retally(client: Q, id: string): Promise<{ agree_count: number; disagree_count: number; is_supported: boolean }> {
+  const { rows: agg } = await client.query<{ agree_count: number; disagree_count: number; agree_score: number; disagree_score: number }>(
+    `SELECT count(*) FILTER (WHERE value = 1)::int AS agree_count, count(*) FILTER (WHERE value = -1)::int AS disagree_count,
+            coalesce(sum(w) FILTER (WHERE value = 1), 0)::float8 AS agree_score, coalesce(sum(w) FILTER (WHERE value = -1), 0)::float8 AS disagree_score
+       FROM (SELECT v.value, max(v.weight) AS w FROM brand_alias_votes v JOIN brand_alias_proposals p ON p.id = v.proposal_id
+              WHERE v.proposal_id = $1 AND v.voter_net IS DISTINCT FROM p.proposer_net
+              GROUP BY v.value, coalesce(v.voter_net, v.voter_fingerprint)) g`,
+    [id],
+  );
+  const a = agg[0]!;
+  const rules = await getRules();
+  const supported = isSupported(a.agree_score, a.disagree_score, rules.correction_support_score, rules.correction_support_ratio);
+  await client.query(
+    `UPDATE brand_alias_proposals SET agree_count = $2, disagree_count = $3, agree_score = $4, disagree_score = $5, is_supported = $6,
+            supported_at = CASE WHEN NOT $6 THEN NULL WHEN is_supported THEN supported_at ELSE now() END
+      WHERE id = $1`,
+    [id, a.agree_count, a.disagree_count, a.agree_score, a.disagree_score, supported],
+  );
+  return { agree_count: a.agree_count, disagree_count: a.disagree_count, is_supported: supported };
+}
+
+/** 대표 브랜드 다툼에 세는 제품: 보이는 글이 있고, 처음 태그된 지 7일이 지난 것 (확정 직전에 스팸 제품으로 대표를 뺏지 못하게, Sprint 33) */
+const ESTABLISHED_PRODUCT = `${VISIBLE_PRODUCT} AND pr.created_at < now() - interval '7 days'`;
+
+export type AliasPlan = {
+  canonical: string;
+  alias: string;
+  canonicalLabel: string;
+  aliasLabel: string;
+  /** 대표 키로 바꿀 제품 수 */
+  rekey: number;
+  /** 같은 보드의 같은 이름 제품 — 병합되며 되돌릴 수 없다 */
+  merges: { from: { id: string; name: string }; into: { id: string; name: string }; category: string }[];
+};
+
+async function planAlias(
+  client: Q,
+  p: { brand_a: string; brand_b: string; label_a: string; label_b: string },
+  prefer?: string,
+): Promise<AliasPlan & { products: { id: string; category_id: number; norm_key: string; merged_into: string | null }[] }> {
+  const a = await canonicalBrandKey(p.brand_a, client);
+  const b = await canonicalBrandKey(p.brand_b, client);
+  if (a === b) throw new HttpError(409, "already_same", "이미 같은 브랜드로 묶여 있습니다.");
+  let canonical: string;
+  if (prefer) {
+    const want = await canonicalBrandKey(prefer, client);
+    if (want !== a && want !== b) throw new HttpError(400, "invalid_brand", "대표 브랜드는 제안된 두 브랜드 중 하나여야 합니다.");
+    canonical = want;
+  } else {
+    const size = (await client.query<{ key: string; n: number; first: string }>(
+      `SELECT split_part(pr.norm_key, '|', 1) AS key, count(*) FILTER (WHERE ${ESTABLISHED_PRODUCT})::int AS n, min(pr.id)::text AS first
+         FROM products pr WHERE split_part(pr.norm_key, '|', 1) = ANY($1::text[]) GROUP BY 1`,
+      [[a, b]],
+    )).rows;
+    const info = (k: string) => size.find((r) => r.key === k) ?? { key: k, n: 0, first: "9".repeat(18) };
+    const [ia, ib] = [info(a), info(b)];
+    canonical = (ia.n !== ib.n ? ia.n > ib.n : BigInt(ia.first) <= BigInt(ib.first)) ? a : b;
+  }
+  const alias = canonical === a ? b : a;
+  const label = (k: string) => (k === p.brand_a ? p.label_a : k === p.brand_b ? p.label_b : k);
+  const products = (await client.query<{ id: string; category_id: number; norm_key: string; merged_into: string | null; name: string; category: string }>(
+    `SELECT pr.id::text, pr.category_id, pr.norm_key, pr.merged_into::text, pr.name, c.name AS category
+       FROM products pr JOIN categories c ON c.id = pr.category_id WHERE split_part(pr.norm_key, '|', 1) = $1 ORDER BY pr.id`,
+    [alias],
+  )).rows;
+  let rekey = 0;
+  const merges: AliasPlan["merges"] = [];
+  for (const pr of products) {
+    const same = (await client.query<{ id: string; merged_into: string | null; name: string }>(
+      "SELECT id::text, merged_into::text, name FROM products WHERE category_id = $1 AND norm_key = $2",
+      [pr.category_id, `${canonical}|${pr.norm_key.slice(pr.norm_key.indexOf("|") + 1)}`],
+    )).rows[0];
+    if (!same) rekey++;
+    else if (!pr.merged_into) merges.push({ from: { id: pr.id, name: pr.name }, into: { id: same.merged_into ?? same.id, name: same.name }, category: pr.category });
+  }
+  return { canonical, alias, canonicalLabel: label(canonical), aliasLabel: label(alias), rekey, merges, products };
+}
+
+/** 운영자 화면: 확정하면 무엇이 바뀌는지 미리 보기 (Sprint 33) */
+export async function previewProposal(id: string, prefer?: string): Promise<AliasPlan> {
+  if (!ID.test(id)) throw notFound("브랜드 제안");
+  return tx(async (client) => {
+    const { rows } = await client.query<{ brand_a: string; brand_b: string; label_a: string; label_b: string }>(
+      "SELECT brand_a, brand_b, label_a, label_b FROM brand_alias_proposals WHERE id = $1",
       [id],
     );
-    const a = agg[0]!;
-    const rules = await getRules();
-    const supported = isSupported(a.agree_score, a.disagree_score, rules.correction_support_score, rules.correction_support_ratio);
-    await client.query(
-      `UPDATE brand_alias_proposals SET agree_count = $2, disagree_count = $3, agree_score = $4, disagree_score = $5, is_supported = $6,
-              supported_at = CASE WHEN NOT $6 THEN NULL WHEN is_supported THEN supported_at ELSE now() END
-        WHERE id = $1`,
-      [id, a.agree_count, a.disagree_count, a.agree_score, a.disagree_score, supported],
-    );
-    return { agree_count: a.agree_count, disagree_count: a.disagree_count, is_supported: supported, my_vote: myVote };
+    if (!rows[0]) throw notFound("브랜드 제안");
+    const { products: _p, ...plan } = await planAlias(client, rows[0], prefer);
+    return plan;
   });
 }
 
@@ -220,33 +306,23 @@ export type AcceptResult = { canonical: string; alias: string; merged: number; r
  * 운영자 확정 (동의된 제안만). 제품이 많은 쪽이 대표(같으면 먼저 생긴 쪽).
  * 별칭 쪽 제품 키를 대표 키로 바꾸고, 같은 보드에 같은 이름 제품이 있으면 병합한다.
  */
-export async function acceptProposal(id: string, note: string): Promise<AcceptResult> {
+export async function acceptProposal(id: string, note: string, prefer?: string): Promise<AcceptResult> {
   if (!ID.test(id)) throw notFound("브랜드 제안");
   return tx(async (client) => {
-    const { rows } = await client.query<{ brand_a: string; brand_b: string; label_a: string; label_b: string; status: string; is_supported: boolean }>(
-      "SELECT brand_a, brand_b, label_a, label_b, status, is_supported FROM brand_alias_proposals WHERE id = $1 FOR UPDATE",
+    const { rows } = await client.query<{ brand_a: string; brand_b: string; label_a: string; label_b: string; status: string }>(
+      "SELECT brand_a, brand_b, label_a, label_b, status FROM brand_alias_proposals WHERE id = $1 FOR UPDATE",
       [id],
     );
     const p = rows[0];
     if (!p) throw notFound("브랜드 제안");
     if (p.status !== "open") throw new HttpError(409, "proposal_closed", "이미 처리된 제안입니다.");
-    if (!p.is_supported) throw new HttpError(409, "not_supported", "커뮤니티 동의를 얻은 제안만 확정할 수 있습니다.");
-    // 확정은 한 번에 하나씩 (별칭 표가 동시에 바뀌지 않게)
+    // 저장된 "동의됨"이 아니라 지금 규칙·지금 표로 다시 센다 (Sprint 33)
+    if (!(await retally(client, id)).is_supported) throw new HttpError(409, "not_supported", "커뮤니티 동의를 얻은 제안만 확정할 수 있습니다.");
+    // 확정은 한 번에 하나씩, 그동안 새 제품 태그(findOrCreate 의 공유 잠금)도 기다린다
     await client.query("SELECT pg_advisory_xact_lock(4823031)");
-    const a = await canonicalBrandKey(p.brand_a, client);
-    const b = await canonicalBrandKey(p.brand_b, client);
-    if (a === b) throw new HttpError(409, "already_same", "이미 같은 브랜드로 묶여 있습니다.");
-    const size = await client.query<{ key: string; n: number; first: string }>(
-      `SELECT split_part(pr.norm_key, '|', 1) AS key, count(*) FILTER (WHERE ${VISIBLE_PRODUCT})::int AS n, min(pr.id)::text AS first
-         FROM products pr WHERE split_part(pr.norm_key, '|', 1) = ANY($1::text[]) GROUP BY 1`,
-      [[a, b]],
-    );
-    const info = (k: string) => size.rows.find((r) => r.key === k) ?? { key: k, n: 0, first: "9".repeat(18) };
-    const [ia, ib] = [info(a), info(b)];
-    const aWins = ia.n !== ib.n ? ia.n > ib.n : BigInt(ia.first) <= BigInt(ib.first);
-    const canonical = aWins ? a : b;
-    const alias = aWins ? b : a;
-    const label = (k: string) => (k === p.brand_a ? p.label_a : k === p.brand_b ? p.label_b : k);
+    const plan = await planAlias(client, p, prefer);
+    const { canonical, alias } = plan;
+    const label = (k: string) => (k === canonical ? plan.canonicalLabel : plan.aliasLabel);
 
     // 별칭의 별칭도 새 대표를 가리키게 (한 단계로 펴 둔다)
     await client.query("UPDATE brand_aliases SET canonical_key = $2 WHERE canonical_key = $1", [alias, canonical]);
@@ -254,11 +330,8 @@ export async function acceptProposal(id: string, note: string): Promise<AcceptRe
 
     let merged = 0;
     let rekeyed = 0;
-    const products = await client.query<{ id: string; category_id: number; norm_key: string; merged_into: string | null }>(
-      "SELECT id::text, category_id, norm_key, merged_into::text FROM products WHERE split_part(norm_key, '|', 1) = $1 ORDER BY id FOR UPDATE",
-      [alias],
-    );
-    for (const pr of products.rows) {
+    await client.query("SELECT 1 FROM products WHERE split_part(norm_key, '|', 1) = $1 FOR UPDATE", [alias]);
+    for (const pr of plan.products) {
       const newKey = `${canonical}|${pr.norm_key.slice(pr.norm_key.indexOf("|") + 1)}`;
       const same = await client.query<{ id: string; merged_into: string | null }>(
         "SELECT id::text, merged_into::text FROM products WHERE category_id = $1 AND norm_key = $2",
@@ -329,11 +402,16 @@ export async function removeAlias(aliasKey: string, note: string): Promise<{ res
       [canonical],
     );
     let restored = 0;
+    // 그 사이 옛 키로 같은 이름 제품이 새로 생겼으면 되돌리지 못한다 — 기록에 번호를 남겨 운영자가 병합하도록 (Sprint 33)
+    const skipped: string[] = [];
     for (const pr of products.rows) {
       if (normText(pr.brand) !== aliasKey) continue;
       const oldKey = `${aliasKey}|${pr.norm_key.slice(pr.norm_key.indexOf("|") + 1)}`;
       const clash = await client.query("SELECT 1 FROM products WHERE category_id = $1 AND norm_key = $2", [pr.category_id, oldKey]);
-      if (clash.rows[0]) continue;
+      if (clash.rows[0]) {
+        skipped.push(pr.id);
+        continue;
+      }
       await client.query("UPDATE products SET norm_key = $2 WHERE id = $1", [pr.id, oldKey]);
       restored++;
     }
@@ -344,9 +422,19 @@ export async function removeAlias(aliasKey: string, note: string): Promise<{ res
       action: "brand_alias_removed",
       subjectType: "brand_alias",
       subjectId: rows[0].proposal_id ?? aliasKey,
-      note: `${aliasKey} ↛ ${canonical} (되돌린 제품 ${restored}${merged ? ` · 확정 때 병합된 제품 ${merged}개는 그대로` : ""})${note ? ` — ${note}` : ""}`,
+      note: `${aliasKey} ↛ ${canonical} (되돌린 제품 ${restored}${merged ? ` · 확정 때 병합된 제품 ${merged}개는 그대로` : ""}${skipped.length ? ` · 같은 이름 제품이 있어 못 되돌린 제품 #${skipped.join(", #")}` : ""})${note ? ` — ${note}` : ""}`,
       affected: restored,
     });
     return { restored };
+  });
+}
+
+/** 제안 사유에 괴롭힘·권리침해가 있을 때 사유만 가린다 (제안·투표는 그대로, 공개 기록) — Sprint 33 */
+export async function hideProposalReason(id: string, note: string): Promise<void> {
+  if (!ID.test(id)) throw notFound("브랜드 제안");
+  await tx(async (client) => {
+    const { rows } = await client.query<{ id: string }>("UPDATE brand_alias_proposals SET reason_hidden = true WHERE id = $1 RETURNING id::text", [id]);
+    if (!rows[0]) throw notFound("브랜드 제안");
+    await writeLog(client, { action: "brand_alias_reason_hidden", subjectType: "brand_alias", subjectId: id, note });
   });
 }

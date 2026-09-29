@@ -225,28 +225,40 @@ export function ProductMergeActions({ a, b }: { a?: { id: string; label: string 
   );
 }
 
-/** 브랜드 별칭 제안 확정·기각 (Sprint 31) — 확정은 커뮤니티 동의를 얻은 제안만 */
-export function BrandAliasActions({ proposalId, supported, pair }: { proposalId: string; supported: boolean; pair: string }) {
+/** 브랜드 별칭 제안 확정·기각·사유 가림 (Sprint 31·33) — 확정은 커뮤니티 동의를 얻은 제안만, 대표 브랜드는 운영자가 바꿀 수 있다 */
+export function BrandAliasActions({
+  proposalId,
+  supported,
+  pair,
+  plan,
+}: {
+  proposalId: string;
+  supported: boolean;
+  pair: string;
+  plan: { canonical: string; alias: string; canonicalLabel: string; aliasLabel: string; rekey: number; merges: unknown[] } | null;
+}) {
   const { msg, busy, run } = useAction();
   const [note, setNote] = useState("");
+  const accept = (canonical: string, into: string, from: string) =>
+    run(
+      `${pair}\n${from} → ${into}(대표)로 확정합니다. ${plan ? `같은 이름 제품 ${plan.merges.length}개는 병합되어 되돌릴 수 없습니다. ` : ""}투명성 기록에 공개됩니다. 계속할까요?`,
+      { action: "accept_brand_alias", proposalId, note, canonical },
+      (r) => `확정 · 제품 병합 ${r.merged} · 합친 제품 ${r.rekeyed}`,
+    );
   return (
     <div className="mod-actions">
       <input className="input input-sm" maxLength={300} placeholder={PUBLIC_NOTE} aria-label="공개 메모" value={note} onChange={(e) => setNote(e.target.value)} />
-      <button
-        type="button"
-        className="btn btn-sm"
-        disabled={busy || !supported}
-        title={supported ? undefined : "커뮤니티 동의를 얻은 제안만 확정할 수 있습니다"}
-        onClick={() =>
-          run(
-            `${pair}\n같은 브랜드로 확정합니다. 제품이 많은 쪽이 대표가 되고, 같은 이름 제품은 병합됩니다(되돌리기 어려움). 투명성 기록에 공개됩니다. 계속할까요?`,
-            { action: "accept_brand_alias", proposalId, note },
-            (r) => `확정 · 제품 병합 ${r.merged} · 합친 제품 ${r.rekeyed}`,
-          )
-        }
-      >
-        확정
-      </button>
+      {plan && (
+        <>
+          <button type="button" className="btn btn-sm" disabled={busy || !supported} title={supported ? undefined : "커뮤니티 동의를 얻은 제안만 확정할 수 있습니다"}
+            onClick={() => accept(plan.canonical, plan.canonicalLabel, plan.aliasLabel)}>
+            확정 ({plan.canonicalLabel} 대표)
+          </button>
+          <button type="button" className="btn btn-sm" disabled={busy || !supported} onClick={() => accept(plan.alias, plan.aliasLabel, plan.canonicalLabel)}>
+            {plan.aliasLabel} 대표로 확정
+          </button>
+        </>
+      )}
       <button
         type="button"
         className="btn btn-sm"
@@ -254,6 +266,14 @@ export function BrandAliasActions({ proposalId, supported, pair }: { proposalId:
         onClick={() => run(`${pair}\n제안을 기각합니다 (사유 공개). 계속할까요?`, { action: "reject_brand_alias", proposalId, note }, () => "기각했습니다")}
       >
         기각
+      </button>
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={busy || !note.trim()}
+        onClick={() => run(`${pair}\n제안 사유만 가립니다 (제안·투표는 그대로, 공개 기록). 계속할까요?`, { action: "hide_brand_alias_reason", proposalId, note }, () => "사유를 가렸습니다")}
+      >
+        사유 가림
       </button>
       {msg && <span className="hint">{msg}</span>}
     </div>

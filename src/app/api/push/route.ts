@@ -4,11 +4,12 @@ import { tooMany } from "@/lib/errors";
 import { fingerprint } from "@/lib/fingerprint";
 import { json, parseBody, route } from "@/lib/http";
 import { hit } from "@/lib/rate-limit";
+import { verifiedCommentIds } from "@/lib/comment-token";
 import { subscribe, unsubscribe, updateWatch } from "@/lib/repo/push";
 
 const ids = z.array(z.string().regex(/^\d{1,18}$/)).max(50).default([]);
-/** 내 댓글 번호 (답글·멘션 알림, Sprint 30) */
-const commentIds = z.array(z.string().regex(/^\d{1,18}$/)).max(100).default([]);
+/** 내 댓글 "번호.증표" (답글·멘션 알림, Sprint 30·33) — 증표가 맞는 것만 저장 */
+const commentIds = z.array(z.string().max(40)).max(100).default([]).transform((xs) => verifiedCommentIds(xs, 100));
 const endpoint = z.string().url().max(1000);
 const token = z.string().min(10).max(100);
 

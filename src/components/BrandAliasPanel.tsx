@@ -109,7 +109,7 @@ export function BrandAliasPanel({
                     {p.status === "open" && p.is_supported ? "동의됨 · 운영자 확인 대기" : STATUS[p.status]}
                   </span>
                 </div>
-                <p className="alias-reason">{p.reason}</p>
+                <p className="alias-reason">{p.reason_hidden ? <span className="hint">(권리침해로 운영자가 사유를 가렸어요)</span> : p.reason}</p>
                 <p className="hint" style={{ margin: 0 }}>
                   {p.nickname} · <time dateTime={p.created_at} suppressHydrationWarning>{timeAgo(p.created_at)}</time> · 동의 {p.agree_count} · 반대 {p.disagree_count}
                   {p.status === "accepted" && ` · 제품 병합 ${p.merged_products} · 합친 제품 ${p.rekeyed_products}`}

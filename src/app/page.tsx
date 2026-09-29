@@ -1,6 +1,7 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { FeedView } from "@/components/FeedView";
 import { Welcome } from "@/components/Welcome";
+import { CRAWLER_HEADER } from "@/lib/fingerprint";
 import { WELCOME_COOKIE } from "@/lib/onboarding";
 import { listCategories } from "@/lib/repo/categories";
 import { siteStats } from "@/lib/repo/onboarding";
@@ -14,7 +15,9 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   // 첫 방문 안내 (Sprint 32): 닫은 적이 없는 사람에게만, 첫 페이지에서만
-  const firstVisit = !(await cookies()).has(WELCOME_COOKIE) && !sp.page;
+  // 읽기 전용 모드 저장본(수집기 요청)에는 넣지 않는다 — 장애 중에는 글을 쓸 수 없고, 닫은 사람에게 다시 보이면 안 되므로 (Sprint 33)
+  const crawler = (await headers()).get(CRAWLER_HEADER) === "1";
+  const firstVisit = !crawler && !(await cookies()).has(WELCOME_COOKIE) && !sp.page;
   const [boards, stats] = firstVisit ? await Promise.all([listCategories(), siteStats()]) : [[], null];
   // 검색엔진 사이트 이름·사이트 내 검색창(SearchAction)용 구조화 데이터
   const jsonLd = {

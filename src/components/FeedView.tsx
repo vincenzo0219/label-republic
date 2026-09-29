@@ -35,7 +35,7 @@ export async function FeedView({
   /** 출처가 달린 글만 */
   sourced?: boolean;
 }) {
-  // 글이 적은 보드의 첫 화면(필터 없음)에만 안내 (Sprint 32)
+  // 글이 적은 보드의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced;
   const [categories, feed, digest, needs] = await Promise.all([
     listCategories(),

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { BrandAliasPanel } from "@/components/BrandAliasPanel";
 import { RenewalList } from "@/components/RenewalList";
@@ -37,10 +37,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /** 브랜드별 라벨 변경 이력 (Sprint 28) + 같은 브랜드의 다른 표기 (Sprint 31) */
 export default async function BrandPage({ params }: Props) {
   const key = decodeKey((await params).key);
-  // 합쳐진 옛 표기의 주소는 대표 브랜드로
+  // 합쳐진 옛 표기의 주소는 대표 브랜드로 — 별칭은 해제될 수 있으므로 영구(308)가 아니라 임시 이동 (Sprint 33)
   if (isBrandKey(key)) {
     const canonical = await canonicalBrandKey(key);
-    if (canonical !== key) permanentRedirect(`/brand/${encodeURIComponent(canonical)}`);
+    if (canonical !== key) redirect(`/brand/${encodeURIComponent(canonical)}`);
   }
   const [h, minReports, rules] = await Promise.all([brandHistory(key), getRule("renewal_min_reports"), getRules()]);
   if (!h) notFound();

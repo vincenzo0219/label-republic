@@ -38,6 +38,7 @@ export const MOD_ACTIONS = {
   brand_alias_accepted: "브랜드 별칭 확정",
   brand_alias_rejected: "브랜드 별칭 제안 기각",
   brand_alias_removed: "브랜드 별칭 해제",
+  brand_alias_reason_hidden: "브랜드 제안 사유 가림 (권리침해)",
 } as const;
 export type ModAction = keyof typeof MOD_ACTIONS;
 

@@ -65,6 +65,8 @@ async function findOrCreate(client: PoolClient, categoryId: number, brand: strin
   // 브랜드 별칭이면 대표 브랜드 키로 (Sprint 31) — "나우푸드 마그네슘"이 합쳐진 "NOW Foods 마그네슘"으로 들어간다
   const raw = productKey(brand, name);
   const bk = raw.slice(0, raw.indexOf("|"));
+  // 별칭 확정(배타 잠금)과 겹치면 끝날 때까지 기다린다 — 확정 중에 옛 키로 제품이 새로 생겨 떨어져 남지 않게 (Sprint 33)
+  await client.query("SELECT pg_advisory_xact_lock_shared(4823031)");
   const alias = await client.query<{ canonical_key: string }>("SELECT canonical_key FROM brand_aliases WHERE alias_key = $1", [bk]);
   const key = alias.rows[0] ? `${alias.rows[0].canonical_key}${raw.slice(raw.indexOf("|"))}` : raw;
   // 이미 있으면 INSERT 하지 않는다 (ON CONFLICT 도 시퀀스 번호를 소모하므로 먼저 찾는다)

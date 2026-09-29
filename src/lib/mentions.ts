@@ -54,22 +54,32 @@ export function splitMentions(body: string, nicknames: string[]): { text: string
   return parts;
 }
 
+/** 닉네임 하나당 알림 받을 댓글 수 — 서로 다른 작성자의 최근 댓글 */
+export const MAX_IDS_PER_NICKNAME = 3;
+
 /**
- * 멘션한 닉네임 → 알림 받을 댓글 번호. 닉네임마다 그 닉네임의 최근 댓글부터, 전체 최대 10개.
+ * 멘션한 닉네임 → 알림 받을 댓글 번호. 닉네임마다 그 닉네임을 쓴 **서로 다른 작성자**의 최근 댓글 하나씩, 최대 3명 (Sprint 33).
+ * 같은 닉네임으로 댓글을 여러 개 달아 멘션을 가로채거나(닉네임 선점) 앞 닉네임이 자리를 다 차지하던 문제를 막는다.
  * 쓰는 사람 본인의 댓글·AI 큐레이터 댓글·답글 대상(이미 답글로 알림)은 뺀다.
  */
 export function resolveMentions(
   nicknames: string[],
-  thread: { id: string; nickname: string; mine: boolean; ai: boolean }[],
+  thread: { id: string; nickname: string; mine: boolean; ai: boolean; author?: string | null }[],
   exclude: string | null,
 ): string[] {
   const ids: string[] = [];
   const newest = [...thread].sort((a, b) => Number(BigInt(b.id) - BigInt(a.id)));
   for (const n of nicknames) {
+    const authors = new Set<string>();
+    let taken = 0;
     for (const c of newest) {
-      if (ids.length >= MAX_MENTION_IDS) return ids;
+      if (taken >= MAX_IDS_PER_NICKNAME || ids.length >= MAX_MENTION_IDS) break;
       if (key(c.nickname) !== key(n) || c.mine || c.ai || c.id === exclude || ids.includes(c.id)) continue;
+      const who = c.author ?? `id:${c.id}`;
+      if (authors.has(who)) continue;
+      authors.add(who);
       ids.push(c.id);
+      taken++;
     }
   }
   return ids;

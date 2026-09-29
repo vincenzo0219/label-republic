@@ -3,7 +3,7 @@ import Link from "next/link";
 import { StatusPill } from "@/components/admin/charts";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
 import { AlertActions, BoardRequestActions, BrandAliasActions, BrandAliasRemove, ProductMergeActions, RejectAppeal, ReleaseSuppression } from "@/components/admin/ModerationActions";
-import { listForReview as listBrandAliasesForReview } from "@/lib/repo/brand-aliases";
+import { listForReview as listBrandAliasesForReview, previewProposal } from "@/lib/repo/brand-aliases";
 import {
   listAlertsForReview,
   listDuplicateProductCandidates,
@@ -31,6 +31,10 @@ export default async function ModerationPage() {
     listDuplicateProductCandidates(),
     listBrandAliasesForReview(),
   ]);
+  // 확정하면 무엇이 바뀌는지 미리 계산 (대표 브랜드·옮길 제품·되돌릴 수 없는 병합) — Sprint 33
+  const plans = new Map(
+    await Promise.all(brandAliases.open.map(async (p) => [p.id, await previewProposal(p.id).catch(() => null)] as const)),
+  );
 
   return (
     <div className="admin">
@@ -265,8 +269,16 @@ export default async function ModerationPage() {
                   </span>
                   <span className="hint">{p.is_supported ? "✔ 동의됨" : "의견 받는 중"}</span>
                 </div>
-                <p className="hint" style={{ margin: "4px 0" }}>{p.reason}</p>
-                <BrandAliasActions proposalId={p.id} supported={p.is_supported} pair={`${p.label_a} = ${p.label_b}`} />
+                <p className="hint" style={{ margin: "4px 0" }}>{p.reason_hidden ? "(사유 가림)" : p.reason}</p>
+                {plans.get(p.id) && (
+                  <p className="hint" style={{ margin: "4px 0" }}>
+                    확정하면: 대표 <b>{plans.get(p.id)!.canonicalLabel}</b> ← {plans.get(p.id)!.aliasLabel} · 대표 키로 옮길 제품 {plans.get(p.id)!.rekey} ·{" "}
+                    <b>병합 {plans.get(p.id)!.merges.length}</b>
+                    {plans.get(p.id)!.merges.length > 0 &&
+                      ` (${plans.get(p.id)!.merges.map((m) => `${m.category} #${m.from.id} ${m.from.name} → #${m.into.id}`).join(", ")})`}
+                  </p>
+                )}
+                <BrandAliasActions proposalId={p.id} supported={p.is_supported} pair={`${p.label_a} = ${p.label_b}`} plan={plans.get(p.id) ?? null} />
               </li>
             ))}
           </ul>

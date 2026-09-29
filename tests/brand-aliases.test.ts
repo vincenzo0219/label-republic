@@ -69,6 +69,8 @@ d("brand aliases (database, Sprint 31)", async () => {
   it("counts one vote per network and needs community support before the operator can accept", async () => {
     const [p] = await aliases.listProposals("nowfoods");
     await expect(aliases.voteProposal(p!.id, "p".repeat(64), "x", 1)).rejects.toMatchObject({ status: 403 });
+    // 제안자가 같은 망의 다른 브라우저로 동의해도 막는다 (Sprint 33)
+    await expect(aliases.voteProposal(p!.id, "p2".padEnd(64, "p"), "proposer-net", 1)).rejects.toMatchObject({ status: 403 });
     await expect(aliases.acceptProposal(p!.id, "")).rejects.toMatchObject({ status: 409, code: "not_supported" });
     // 같은 망에서 4명(브라우저만 바꿈)이 동의해도 한 명
     const sameNet = await voters(4, "same");
@@ -91,6 +93,15 @@ d("brand aliases (database, Sprint 31)", async () => {
     const mag = await pid("NOW Foods", "Magnesium Citrate");
     const oldMag = await pid("나우푸드", "Magnesium Citrate");
     const vitc = await pid("나우푸드", "Vitamin C");
+    // 확정 전 미리 보기: 대표·옮길 제품·되돌릴 수 없는 병합 (Sprint 33)
+    const plan = await aliases.previewProposal(p!.id);
+    expect(plan).toMatchObject({ canonical: "nowfoods", alias: "나우푸드", rekey: 1, merges: [{ from: { id: oldMag }, into: { id: mag } }] });
+    expect((await aliases.previewProposal(p!.id, "나우푸드")).canonical).toBe("나우푸드");
+    await expect(aliases.previewProposal(p!.id, "solgar")).rejects.toMatchObject({ status: 400 });
+    // 확정할 때 지금 표로 다시 센다 — 표가 무효가 되면 확정할 수 없다
+    await query("UPDATE brand_alias_votes SET value = -1 WHERE voter_fingerprint LIKE 'many%'");
+    await expect(aliases.acceptProposal(p!.id, "")).rejects.toMatchObject({ code: "not_supported" });
+    await query("UPDATE brand_alias_votes SET value = 1 WHERE voter_fingerprint LIKE 'many%'");
     // 제품 수가 같으면 먼저 생긴 쪽이 대표
     const res = await aliases.acceptProposal(p!.id, "수입사 확인");
     expect(res).toEqual({ canonical: "nowfoods", alias: "나우푸드", merged: 1, rekeyed: 1 });
@@ -120,6 +131,9 @@ d("brand aliases (database, Sprint 31)", async () => {
     await expect(ask("NOW Foods", "r".repeat(64), "net-r", "나우푸드")).rejects.toMatchObject({ code: "already_same" });
     const solgar = await ask("Solgar", "r".repeat(64), "net-r", "나우푸드");
     expect(solgar).toMatchObject({ brand_a: "nowfoods", brand_b: "solgar" });
+    // 사유만 가리기 (공개 기록)
+    await aliases.hideProposalReason(solgar.id, "특정인 비방");
+    expect((await aliases.listProposals("solgar"))[0]).toMatchObject({ reason: "", reason_hidden: true });
     await aliases.rejectProposal(solgar.id, "제조사가 다릅니다");
     await expect(aliases.voteProposal(solgar.id, "z".repeat(64), "n", 1)).rejects.toMatchObject({ code: "proposal_closed" });
   });
@@ -146,5 +160,15 @@ d("brand aliases (database, Sprint 31)", async () => {
     // 식별값만 바꿔도 같은 망이면 하루 5건
     for (const [i, o] of others.entries()) await ask(o, `s${i}`.padEnd(64, "s"), "spam-net", "solgar");
     await expect(ask("Brand F", "s9".padEnd(64, "s"), "spam-net", "solgar")).rejects.toMatchObject({ status: 429 });
+  });
+
+  it("new spam products do not win the canonical brand; only established (7+ days) products count (Sprint 33)", async () => {
+    await post("Thorne", "Magnesium");
+    await post("Thorne", "Zinc");
+    await query("UPDATE products SET created_at = now() - interval '30 days' WHERE brand = 'Thorne'");
+    // 확정 직전에 옛 표기로 제품을 잔뜩 만들어도
+    for (const n of ["A", "B", "C", "D"]) await post("쏜리서치", n);
+    const p = await aliases.createProposal({ brandKey: "thorne", other: "쏜리서치", reason: "같은 브랜드의 한국 표기입니다. 확인했습니다.", nickname: "제안자", fingerprint: "t".repeat(64), net: "tn" });
+    expect((await aliases.previewProposal(p.id)).canonical).toBe("thorne");
   });
 });

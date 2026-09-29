@@ -11,7 +11,7 @@ import {
   voidAlert,
   type BoardRejectReason,
 } from "@/lib/repo/operator";
-import { acceptProposal, rejectProposal, removeAlias } from "@/lib/repo/brand-aliases";
+import { acceptProposal, hideProposalReason as hideBrandAliasReason, rejectProposal, removeAlias } from "@/lib/repo/brand-aliases";
 import { hideProposalReason } from "@/lib/repo/rules";
 
 // /api/admin/* 는 server.ts 에서 ADMIN_PASSWORD Basic 인증을 통과해야만 도달한다.
@@ -35,7 +35,9 @@ const schema = z.discriminatedUnion("action", [
   // 규칙 변경 제안 사유에 권리침해가 있을 때 사유만 가린다 (제안·투표는 그대로) — Sprint 21
   z.object({ action: z.literal("hide_rule_reason"), proposalId: id, note: z.string().trim().min(1, "가리는 이유를 적어주세요.").max(300) }),
   // 브랜드 별칭 (Sprint 31): 동의된 제안만 확정, 기각·해제는 사유 필수
-  z.object({ action: z.literal("accept_brand_alias"), proposalId: id, note }),
+  // canonical: 운영자가 대표 브랜드를 직접 고를 때 (두 브랜드 중 하나) — Sprint 33
+  z.object({ action: z.literal("accept_brand_alias"), proposalId: id, note, canonical: z.string().min(1).max(60).optional() }),
+  z.object({ action: z.literal("hide_brand_alias_reason"), proposalId: id, note: z.string().trim().min(1, "가리는 이유를 적어주세요.").max(300) }),
   z.object({ action: z.literal("reject_brand_alias"), proposalId: id, note: z.string().trim().min(1, "기각 사유를 적어주세요.").max(300) }),
   z.object({ action: z.literal("remove_brand_alias"), aliasKey: z.string().min(1).max(60), note: z.string().trim().min(1, "해제 사유를 적어주세요.").max(300) }),
 ]);
@@ -66,7 +68,10 @@ export const POST = route(async (req) => {
       await hideProposalReason(input.proposalId, input.note);
       return json({ ok: true });
     case "accept_brand_alias":
-      return json({ ok: true, ...(await acceptProposal(input.proposalId, input.note)) });
+      return json({ ok: true, ...(await acceptProposal(input.proposalId, input.note, input.canonical)) });
+    case "hide_brand_alias_reason":
+      await hideBrandAliasReason(input.proposalId, input.note);
+      return json({ ok: true });
     case "reject_brand_alias":
       await rejectProposal(input.proposalId, input.note);
       return json({ ok: true });

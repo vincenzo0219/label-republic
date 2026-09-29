@@ -143,7 +143,7 @@ export function LiveComments({ postId, initial }: { postId: string; initial: Com
     setError(null);
     const payload = { ...form, ...(replyTo ? { parentId: replyTo.id } : {}) };
     try {
-      const { comment } = await api<{ comment: Comment }>(`/api/posts/${postId}/comments`, "POST", payload, {
+      const { comment, notifyRef } = await api<{ comment: Comment; notifyRef?: string }>(`/api/posts/${postId}/comments`, "POST", payload, {
         idempotencyKey: requestKeyFor(sending, payload),
       });
       sending.current = undefined;
@@ -155,7 +155,7 @@ export function LiveComments({ postId, initial }: { postId: string; initial: Com
       } catch {}
       // 댓글을 단 글은 자동으로 소식 받기 + 이 댓글에 답글·멘션이 오면 알림
       watchPost(postId);
-      addMyComment(String(comment.id));
+      if (notifyRef) addMyComment(notifyRef);
     } catch (err) {
       setError(isNetworkError(err) ? "연결이 끊겨 등록 결과를 받지 못했어요. 연결되면 다시 눌러주세요. (두 번 달리지 않아요)" : (err as Error).message);
     } finally {

@@ -9,6 +9,7 @@ process.env.VAPID_PUBLIC_KEY = vapid.publicKey;
 process.env.VAPID_PRIVATE_KEY = vapid.privateKey;
 const { extractMentions, resolveMentions, splitMentions } = await import("@/lib/mentions");
 const { commentSchema } = await import("@/lib/validation");
+const { commentRef, verifiedCommentIds } = await import("@/lib/comment-token");
 
 describe("mentions (Sprint 30)", () => {
   const nicks = ["홍길동", "홍길동님", "Measure Kim", "측정러"];
@@ -39,8 +40,25 @@ describe("mentions (Sprint 30)", () => {
     ];
     expect(resolveMentions(["측정러", "홍길동"], thread, "8")).toEqual(["5", "1"]);
     expect(resolveMentions(["AI 큐레이터"], thread, null)).toEqual([]);
+    // 닉네임 하나당 서로 다른 작성자의 최근 댓글 3개까지 (Sprint 33)
     const many = Array.from({ length: 15 }, (_, i) => ({ id: String(i + 10), nickname: "도배", mine: false, ai: false }));
-    expect(resolveMentions(["도배"], many, null)).toHaveLength(10);
+    expect(resolveMentions(["도배"], many, null)).toEqual(["24", "23", "22"]);
+    // 닉네임 선점: 한 사람이 같은 닉네임으로 댓글 10개를 달아도 한 자리만 — 원래 주인의 댓글도 알림을 받는다
+    const squat = [
+      { id: "1", nickname: "측정러", mine: false, ai: false, author: "real" },
+      ...Array.from({ length: 10 }, (_, i) => ({ id: String(i + 100), nickname: "측정러", mine: false, ai: false, author: "squatter" })),
+    ];
+    expect(resolveMentions(["측정러"], squat, null)).toEqual(["109", "1"]);
+    // 앞 닉네임이 자리를 다 차지하지 않는다
+    const two = [...many.map((c) => ({ ...c, author: c.id })), { id: "5", nickname: "홍길동", mine: false, ai: false, author: "h" }];
+    expect(resolveMentions(["도배", "홍길동"], two, null)).toEqual(["24", "23", "22", "5"]);
+  });
+
+  it("only accepts comment ids with the token given to the writer (Sprint 33)", () => {
+    const ref = commentRef("77");
+    expect(ref).toMatch(/^77\.[A-Za-z0-9_-]{16}$/);
+    expect(verifiedCommentIds([ref, ref, "78." + ref.split(".")[1], "79", "80.xxxxxxxxxxxxxxxx"], 10)).toEqual(["77"]);
+    expect(verifiedCommentIds([commentRef("1"), commentRef("2"), commentRef("3")], 2)).toEqual(["1", "2"]);
   });
 
   it("accepts a numeric parentId only", () => {
@@ -177,5 +195,33 @@ d("replies & mentions (database)", async () => {
     // 목록을 비우면 알림 대상에서 빠진다
     await push.updateWatch(endpoint, token, { products: [], posts: [] });
     expect((await query<{ comments: string[] }>("SELECT comments::text[] FROM push_subscriptions"))[0]!.comments).toEqual([]);
+  });
+
+  it("limits replies and mentions sent to one comment from one network (Sprint 33)", async () => {
+    const post = await newPost(OTHER, "알림 폭탄 글");
+    const victim = await say(post.id, ME, "피해자", "처음 쓴 댓글");
+    // 같은 망에서 식별값을 바꿔 가며 답글 — 시간당 5개까지
+    for (let i = 0; i < 5; i++) await comments.createComment(post.id, { nickname: "도배", pin: "1111", body: `답글 ${i}`, fingerprint: `${i}`.padEnd(64, "b"), net: "bomb-net", parentId: victim.id });
+    await expect(
+      comments.createComment(post.id, { nickname: "도배", pin: "1111", body: "답글 6", fingerprint: "6".padEnd(64, "b"), net: "bomb-net", parentId: victim.id }),
+    ).rejects.toMatchObject({ status: 429 });
+    // 멘션은 한도를 넘으면 댓글은 올라가고 멘션만 빠진다
+    const m = await comments.createComment(post.id, { nickname: "도배", pin: "1111", body: "@피해자 또 봐요", fingerprint: "7".padEnd(64, "b"), net: "bomb-net" });
+    expect(m.mentions).toEqual([]);
+    // 다른 망은 영향 없음
+    const ok = await comments.createComment(post.id, { nickname: "다른사람", pin: "1111", body: "@피해자 질문 있어요", fingerprint: "o2".padEnd(64, "o"), net: "other-net" });
+    expect(ok.mentions).toEqual([victim.id]);
+  });
+
+  it("does not notify my own replies after my fingerprint changed, and hides comments of blinded posts (Sprint 33)", async () => {
+    const post = await newPost(OTHER, "망을 옮긴 글");
+    const mine = await say(post.id, ME, "나나", "첫 댓글");
+    const since = new Date();
+    await new Promise((r) => setTimeout(r, 10));
+    await say(post.id, ME, "나나", "제 댓글에 덧붙임", mine.id);
+    // 구독에 저장된 예전 식별값(다른 값)으로 세도 내 답글은 빠진다
+    expect((await watchUpdates([], [], since, "z".repeat(64), { comments: [mine.id] })).reply_count).toBe(0);
+    await query("UPDATE posts SET is_blinded = true WHERE id = $1", [post.id]);
+    expect(await comments.listComments(post.id)).toEqual([]);
   });
 });

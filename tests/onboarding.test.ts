@@ -35,7 +35,7 @@ d("onboarding queries (database)", async () => {
   const { pool, query, tx } = await import("@/lib/db");
   const { resetRateLimits } = await import("@/lib/rate-limit");
   const posts = await import("@/lib/repo/posts");
-  const { boardNeeds, siteStats } = await import("@/lib/repo/onboarding");
+  const { boardNeeds, resetSiteStatsCache, siteStats } = await import("@/lib/repo/onboarding");
   const renewals = await import("@/lib/repo/renewals");
 
   let seq = 0;
@@ -68,18 +68,21 @@ d("onboarding queries (database)", async () => {
 
   it("counts visible info posts, lists lonely products and renewals that need one more report", async () => {
     expect(await boardNeeds(supplements)).toEqual({ infoPosts: 0, pending: [], lonely: [] });
-    await post("NOW", "Zinc");
-    await post("NOW", "Iron", { type: "chat" });
-    await post("NOW", "Magnesium");
-    await post("NOW", "Magnesium");
+    await post("NOW", "Zinc", { daysAgo: 2 });
+    await post("NOW", "Iron", { type: "chat", daysAgo: 1 });
+    await post("NOW", "Magnesium", { daysAgo: 1 });
+    await post("NOW", "Magnesium", { daysAgo: 1 });
+    await post("NOW", "Fresh"); // 방금 올린 글의 제품은 1시간 동안 안내에 걸지 않는다 (Sprint 33)
     const hidden = await post("Solgar", "D3");
     await query("UPDATE posts SET is_blinded = true WHERE id = $1", [hidden.id]);
     let n = await boardNeeds(supplements);
-    expect(n.infoPosts).toBe(3); // 잡담·블라인드 제외
-    expect(n.lonely.map((p) => p.name)).toEqual(["Iron", "Zinc"]); // 글이 하나뿐인 제품 (최근 순), 두 글 제품·블라인드 제외
+    expect(n.infoPosts).toBe(4); // 잡담·블라인드 제외
+    // 글이 하나뿐인 제품: 정보 글만(잡담에만 붙은 Iron 제외), 두 글 제품·블라인드·방금 올린 제품 제외
+    expect(n.lonely.map((p) => p.name)).toEqual(["Zinc"]);
     expect(n.lonely.map((p) => p.name)).not.toContain("Magnesium");
 
-    // 리뉴얼 확인 중(새 값 제보 1명) → 제보가 더 필요한 제품
+    // 리뉴얼 확인 중(새 값 제보 1명) → 제보가 더 필요한 제품 (정보 글이 5개 미만이게 앞의 글은 가린다)
+    await query("UPDATE posts SET is_blinded = true WHERE title LIKE 'NOW %'");
     await post("Doctor", "Mag", { value: 200, daysAgo: 100 });
     await post("Doctor", "Mag", { value: 200, daysAgo: 90 });
     await post("Doctor", "Mag", { value: 150, daysAgo: 10 });
@@ -87,6 +90,16 @@ d("onboarding queries (database)", async () => {
     n = await boardNeeds(supplements);
     expect(n.pending.map((r) => [r.product.name, r.new_authors])).toEqual([["Mag", 1]]);
 
-    expect(await siteStats()).toEqual({ posts: 7, products: 4, boards: 5 });
+    resetSiteStatsCache();
+    expect(await siteStats()).toEqual({ posts: 3, products: 1, boards: 5 });
+    // 5분 동안 재사용 (요청마다 전체를 세지 않게)
+    await post("Cache", "Item");
+    expect(await siteStats()).toEqual({ posts: 3, products: 1, boards: 5 });
+    resetSiteStatsCache();
+    expect((await siteStats()).posts).toBe(4);
+
+    // 정보 글이 5개 이상이면 다른 조회를 하지 않고 바로 끝낸다
+    for (let i = 0; i < 3; i++) await post("Bulk", `P${i}`, { daysAgo: 1 });
+    expect(await boardNeeds(supplements)).toEqual({ infoPosts: 5, pending: [], lonely: [] });
   });
 });

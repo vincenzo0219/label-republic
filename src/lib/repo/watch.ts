@@ -115,7 +115,7 @@ export async function watchUpdates(
                   CASE WHEN p.is_blinded THEN 0 ELSE (SELECT count(*)::int FROM comments c
                     WHERE c.post_id = p.id AND c.created_at > $2::timestamptz AND c.author_fingerprint IS DISTINCT FROM $3
                       -- 내 댓글에 온 답글·멘션은 아래 replies 로 따로 센다 (두 번 세지 않게)
-                      AND NOT (coalesce(c.parent_id = ANY($4::bigint[]), false) OR c.mentions && $4::bigint[])) END AS new_comments,
+                      AND NOT (coalesce(c.parent_id = ANY($4::bigint[]), false) OR (cardinality(c.mentions) > 0 AND c.mentions && $4::bigint[]))) END AS new_comments,
                   CASE WHEN p.is_blinded THEN 0 ELSE (SELECT count(*)::int FROM corrections c
                     WHERE c.post_id = p.id AND c.created_at > $2::timestamptz AND NOT c.is_hidden AND c.author_fingerprint IS DISTINCT FROM $3) END AS new_corrections,
                   CASE WHEN p.is_blinded THEN 0 ELSE (SELECT count(*)::int FROM corrections c
@@ -138,8 +138,10 @@ export async function watchUpdates(
                         ELSE (SELECT m FROM unnest(c.mentions) m WHERE m = ANY($1::bigint[]) LIMIT 1) END)::text AS "to",
                   c.created_at, count(*) OVER ()::int AS n
              FROM comments c JOIN posts p ON p.id = c.post_id
-            WHERE (c.parent_id = ANY($1::bigint[]) OR c.mentions && $1::bigint[])
+            WHERE (c.parent_id = ANY($1::bigint[]) OR (cardinality(c.mentions) > 0 AND c.mentions && $1::bigint[])) -- 부분 GIN 인덱스를 쓰도록 (Sprint 33)
               AND c.created_at > $2::timestamptz AND c.author_fingerprint IS DISTINCT FROM $3 AND NOT p.is_blinded
+              -- 내 댓글에 내가 단 답글은 식별값이 바뀌었어도(망 이동) 알리지 않는다
+              AND NOT EXISTS (SELECT 1 FROM comments t WHERE t.id = c.parent_id AND t.author_fingerprint = c.author_fingerprint)
             ORDER BY c.id DESC LIMIT $4`,
           [mine, sinceIso, fp, MAX_REPLY_ITEMS],
         )

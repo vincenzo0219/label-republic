@@ -1,15 +1,23 @@
 import { query, tx } from "../db";
-import { blinded, notFound } from "../errors";
+import { blinded, HttpError, notFound } from "../errors";
 import { extractMentions, resolveMentions } from "../mentions";
 import { hashPin } from "../password";
+import { hit } from "../rate-limit";
 import type { Comment } from "../types";
 import { assertPin } from "./pin-guard";
+
+/** 같은 망에서 한 댓글로 보내는 답글·멘션 알림 (시간당) */
+export const TARGET_LIMIT = 5;
 
 const COLS = "id, post_id, nickname, body, is_ai_curated, created_at, parent_id::text AS parent_id, mentions::text[] AS mentions";
 
 export async function listComments(postId: string): Promise<Comment[]> {
   if (!/^\d{1,18}$/.test(postId)) return [];
-  return query<Comment>(`SELECT ${COLS} FROM comments WHERE post_id = $1 ORDER BY id LIMIT 1000`, [postId]);
+  // 블라인드·임시조치된 글의 댓글은 내보내지 않는다 (글 API 와 같게, Sprint 33)
+  return query<Comment>(
+    `SELECT ${COLS} FROM comments WHERE post_id = $1 AND NOT EXISTS (SELECT 1 FROM posts WHERE id = $1 AND is_blinded) ORDER BY id LIMIT 1000`,
+    [postId],
+  );
 }
 
 /**
@@ -18,7 +26,7 @@ export async function listComments(postId: string): Promise<Comment[]> {
  */
 export async function createComment(
   postId: string,
-  input: { nickname: string; pin: string; body: string; fingerprint?: string; parentId?: string },
+  input: { nickname: string; pin: string; body: string; fingerprint?: string; net?: string; parentId?: string },
 ): Promise<Comment> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
   const pwHash = await hashPin(input.pin);
@@ -33,14 +41,21 @@ export async function createComment(
       if (!p.rows[0]) throw notFound("답글을 달 댓글");
       parentId = p.rows[0].id;
     }
+    // 한 댓글(한 사람)에게 알림을 몰아 보내지 못하게: 같은 망에서 같은 댓글로 가는 답글·멘션은 시간당 TARGET_LIMIT 개까지 (Sprint 33)
+    const targetKey = (id: string) => `comment:target:${input.net ?? input.fingerprint ?? "-"}:${id}`;
+    if (parentId && !(await hit(targetKey(parentId), TARGET_LIMIT, 3600_000))) {
+      throw new HttpError(429, "rate_limited", "이 댓글에 답글을 너무 많이 달았어요. 잠시 후 다시 시도해주세요.");
+    }
     let mentions: string[] = [];
     if (input.body.includes("@")) {
-      const { rows: thread } = await client.query<{ id: string; nickname: string; mine: boolean; ai: boolean }>(
-        `SELECT id::text, nickname, ($2::text IS NOT NULL AND author_fingerprint = $2::text) AS mine, is_ai_curated AS ai
+      const { rows: thread } = await client.query<{ id: string; nickname: string; mine: boolean; ai: boolean; author: string | null }>(
+        `SELECT id::text, nickname, ($2::text IS NOT NULL AND author_fingerprint = $2::text) AS mine, is_ai_curated AS ai, author_fingerprint AS author
            FROM comments WHERE post_id = $1 ORDER BY id DESC LIMIT 1000`,
         [postId, input.fingerprint ?? null],
       );
-      mentions = resolveMentions(extractMentions(input.body, thread.map((c) => c.nickname)), thread, parentId);
+      const resolved = resolveMentions(extractMentions(input.body, thread.map((c) => c.nickname)), thread, parentId);
+      // 한도를 넘은 대상은 멘션에서만 뺀다 (댓글은 올라감)
+      for (const id of resolved) if (await hit(targetKey(id), TARGET_LIMIT, 3600_000)) mentions.push(id);
     }
     const { rows } = await client.query<Comment>(
       `INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, parent_id, mentions)

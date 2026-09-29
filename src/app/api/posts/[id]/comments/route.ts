@@ -3,6 +3,7 @@ import { withIdempotency } from "@/lib/idempotency";
 import { tooMany } from "@/lib/errors";
 import { fingerprint, networkHash } from "@/lib/fingerprint";
 import { hit } from "@/lib/rate-limit";
+import { commentRef } from "@/lib/comment-token";
 import { createComment, listComments } from "@/lib/repo/comments";
 import { commentSchema } from "@/lib/validation";
 
@@ -17,9 +18,11 @@ export const POST = route<P>(async (req, { id }) => {
   return withIdempotency(req, "comment", async () => {
     if (!(await hit(`comment:create:${fp}`, 20, 60 * 1000))) throw tooMany();
     // 망 단위로도 — 브라우저만 바꿔 댓글을 몰아 쓰는 것(기여 수 부풀리기 등) 방지 (Sprint 29)
-    if (!(await hit(`comment:create-net:${networkHash(req.headers)}`, 60, 10 * 60 * 1000))) throw tooMany();
+    const net = networkHash(req.headers);
+    if (!(await hit(`comment:create-net:${net}`, 60, 10 * 60 * 1000))) throw tooMany();
     const input = await parseBody(req, commentSchema);
-    const comment = await createComment(id, { nickname: input.nickname, pin: input.pw, body: input.body, fingerprint: fp, parentId: input.parentId });
-    return json({ comment }, 201);
+    const comment = await createComment(id, { nickname: input.nickname, pin: input.pw, body: input.body, fingerprint: fp, net, parentId: input.parentId });
+    // 답글·멘션 알림을 받을 증표 — 쓴 브라우저만 받는다 (Sprint 33)
+    return json({ comment, notifyRef: commentRef(String(comment.id)) }, 201);
   });
 });
