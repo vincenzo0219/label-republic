@@ -33,7 +33,8 @@ CREATE TABLE brand_alias_proposals (
   canonical_key        varchar(60),
   merged_products      integer      NOT NULL DEFAULT 0,
   rekeyed_products     integer      NOT NULL DEFAULT 0,
-  CHECK (brand_a < brand_b)
+  -- DB 로캘과 상관없이 바이트 순서로 (앱도 UTF-8 바이트로 정렬 — en_US 등에서는 한글·영문 순서가 달라진다)
+  CHECK (brand_a COLLATE "C" < brand_b COLLATE "C")
 );
 -- 같은 두 브랜드에는 열린 제안 하나만
 CREATE UNIQUE INDEX brand_alias_proposals_open_pair ON brand_alias_proposals (brand_a, brand_b) WHERE status = 'open';

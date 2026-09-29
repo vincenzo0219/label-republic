@@ -144,7 +144,8 @@ export async function createProposal(input: {
     if (a0 === b0) throw new HttpError(409, "already_same", "이미 같은 브랜드로 묶여 있습니다.");
     const [ia, ib] = [await brandInfo(a0, client), await brandInfo(b0, client)];
     if (!ia || !ib) throw new HttpError(404, "brand_not_found", "보이는 제품이 있는 브랜드끼리만 제안할 수 있습니다.");
-    const [x, y] = a0 < b0 ? [ia, ib] : [ib, ia];
+    // 순서 없는 쌍은 UTF-8 바이트 순서로 (DB 의 CHECK ... COLLATE "C" 와 같게 — 로캘마다 한글·영문 순서가 다르다)
+    const [x, y] = Buffer.compare(Buffer.from(a0), Buffer.from(b0)) < 0 ? [ia, ib] : [ib, ia];
     // 제안 도배 방지: 한 사람·한 망이 하루에 여러 건 (Sprint 29 원칙: 식별값만이 아니라 망 기준도)
     const recent = await client.query<{ n: number }>(
       `SELECT count(*)::int AS n FROM brand_alias_proposals
