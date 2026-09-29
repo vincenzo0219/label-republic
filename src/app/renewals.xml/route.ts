@@ -10,7 +10,7 @@ export async function GET() {
   return atomResponse(
     buildRenewalAtom({
       id: `${config.siteUrl}/renewals.xml`,
-      title: "라벨공화국 — 라벨 변경 이력",
+      title: "노방장 — 라벨 변경 이력",
       selfUrl: `${config.siteUrl}/renewals.xml`,
       siteUrl: config.siteUrl,
       alternateUrl: `${config.siteUrl}/renewals`,

@@ -17,7 +17,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   return atomResponse(
     buildAtom({
       id: `${config.siteUrl}${path}/feed.xml`,
-      title: `라벨공화국 — ${category.name}`,
+      title: `노방장 — ${category.name}`,
       subtitle: category.description,
       selfUrl: `${config.siteUrl}${path}/feed.xml`,
       siteUrl: config.siteUrl,

@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage title="개인정보처리방침">
       <p>
-        {config.operatorName}(이하 &ldquo;운영자&rdquo;)는 라벨공화국(이하 &ldquo;서비스&rdquo;)을 운영하며 「개인정보 보호법」에 따라 이용자의 개인정보를
+        {config.operatorName}(이하 &ldquo;운영자&rdquo;)는 노방장(이하 &ldquo;서비스&rdquo;)을 운영하며 「개인정보 보호법」에 따라 이용자의 개인정보를
         보호합니다. 서비스는 회원가입이 없고, 실명·전화번호·이메일을 수집하지 않습니다.
       </p>
 

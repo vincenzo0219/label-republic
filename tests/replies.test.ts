@@ -191,7 +191,7 @@ d("replies & mentions (database)", async () => {
     expect(await runPushBatch(new Date(), { send })).toMatchObject({ checked: 1, sent: 0 });
     const reply = await say(post.id, OTHER, "작성자", "좋은 지적이에요", mine.id);
     expect(await runPushBatch(new Date(), { send })).toMatchObject({ sent: 1 });
-    expect(sent).toEqual([{ body: "💬 작성자님이 답글: 좋은 지적이에요", url: `/posts/${post.id}#c${reply.id}`, title: "라벨공화국 · 비타민 D 흡수율", tag: "lr-watch" }]);
+    expect(sent).toEqual([{ body: "💬 작성자님이 답글: 좋은 지적이에요", url: `/posts/${post.id}#c${reply.id}`, title: "노방장 · 비타민 D 흡수율", tag: "lr-watch" }]);
     // 목록을 비우면 알림 대상에서 빠진다
     await push.updateWatch(endpoint, token, { products: [], posts: [] });
     expect((await query<{ comments: string[] }>("SELECT comments::text[] FROM push_subscriptions"))[0]!.comments).toEqual([]);

@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "라벨공화국",
-    short_name: "라벨공화국",
+    name: "노방장",
+    short_name: "노방장",
     description: "방장 없는 성분·취미 팩트체크 커뮤니티",
     lang: "ko",
     dir: "ltr",

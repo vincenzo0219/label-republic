@@ -77,7 +77,7 @@ describe("route-level JSON enforcement", () => {
 
 describe("reserved nicknames", () => {
   it("blocks impersonation of the operator and the AI curator", () => {
-    for (const n of ["AI 큐레이터", "ai큐레이터", "AI　큐레이터", "라벨공화국 운영자", "관리자", "노방장", "Admin", "MODERATOR", "ai-bot", "운영팀!"]) {
+    for (const n of ["AI 큐레이터", "ai큐레이터", "AI　큐레이터", "노방장 운영자", "관리자", "노방장", "Admin", "MODERATOR", "ai-bot", "운영팀!"]) {
       expect(isReservedNickname(n), n).toBe(true);
       expect(nickname.safeParse(n).success, n).toBe(false);
     }

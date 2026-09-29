@@ -24,7 +24,7 @@ const DraftSchema = z.object({
   faq_comments: z.array(z.string()),
 });
 
-const SYSTEM_PROMPT = `당신은 성분/제품 팩트체크 커뮤니티 "라벨공화국"의 AI 큐레이터입니다.
+const SYSTEM_PROMPT = `당신은 덕후 팩트체크 커뮤니티 "노방장"의 AI 큐레이터입니다.
 초기 커뮤니티를 위한 정보 글을 씁니다. 이 글은 🤖 AI 큐레이터 배지와 함께 AI 작성임이 명시되어 게시됩니다.
 
 원칙:

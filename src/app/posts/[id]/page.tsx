@@ -90,7 +90,7 @@ export default async function PostPage({ params }: Props) {
         ) : (
           <>
             <div className="notice" style={{ marginTop: 24 }}>
-              🚫 신고 {post.report_count}회 누적으로 자동 블라인드된 게시글입니다. 라벨공화국은 방장 없이 커뮤니티 신고로만 정화됩니다.
+              🚫 신고 {post.report_count}회 누적으로 자동 블라인드된 게시글입니다. 노방장은 방장 없이 커뮤니티 신고로만 정화됩니다.
             </div>
             {!post.is_ai_curated && <AppealBox postId={post.id} initial={await getAppeal(post.id)} />}
           </>

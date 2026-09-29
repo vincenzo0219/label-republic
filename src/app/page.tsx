@@ -23,7 +23,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "라벨공화국",
+    name: "노방장",
     alternateName: ["노방장", "Label Republic"],
     url: `${config.siteUrl}/`,
     inLanguage: "ko-KR",

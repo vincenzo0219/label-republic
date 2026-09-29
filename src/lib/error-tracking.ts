@@ -93,7 +93,7 @@ export async function flushErrors(): Promise<void> {
       const spike = r.hour_count >= SPIKE_PER_HOUR && (!r.alerted_at || Date.now() - Date.parse(r.alerted_at) > 3600_000);
       if (r.is_new || r.reopened || spike) {
         const label = r.is_new ? "새 오류" : r.reopened ? "해결 표시 후 재발" : `급증 (최근 1시간 ${r.hour_count}회)`;
-        if (await sendAlert(`🚨 라벨공화국 ${label} [${p.kind}] ${p.message}${p.path ? ` — ${p.path}` : ""} (누적 ${r.count}회)`)) {
+        if (await sendAlert(`🚨 노방장 ${label} [${p.kind}] ${p.message}${p.path ? ` — ${p.path}` : ""} (누적 ${r.count}회)`)) {
           await query("UPDATE error_events SET alerted_at = now() WHERE id = $1", [r.id]);
         }
       }

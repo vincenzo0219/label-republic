@@ -54,7 +54,7 @@ export async function FeedView({
   const typeHref = (t?: PostType) => href(t, sourced);
   return (
     <>
-      <h1 className="sr-only">{category ? `${category.name} 보드` : "라벨공화국 — 방장 없는 성분·취미 팩트체크 커뮤니티"}</h1>
+      <h1 className="sr-only">{category ? `${category.name} 보드` : "노방장 — 방장 없는 덕후 팩트체크 커뮤니티"}</h1>
       <CategoryTabs categories={categories} active={category?.slug} />
       {category && (
         <div className="board-head">

@@ -7,7 +7,7 @@ import { compareProducts, getProduct, type Product } from "@/lib/repo/products";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "제품 비교",
-  description: "라벨공화국 글에 모인 성분·스펙 수치로 제품을 나란히 비교합니다.",
+  description: "노방장 글에 모인 성분·스펙 수치로 제품을 나란히 비교합니다.",
   robots: { index: false, follow: true },
 };
 

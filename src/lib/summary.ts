@@ -61,7 +61,7 @@ const SummarySchema = z.object({
   line3: z.string(),
 });
 
-const SYSTEM_PROMPT = `당신은 성분/제품 정보 커뮤니티 "라벨공화국"의 요약 도우미입니다.
+const SYSTEM_PROMPT = `당신은 덕후 정보 커뮤니티 "노방장"의 요약 도우미입니다.
 사용자 게시글에서 핵심 사실(성분명, 함량, 스펙, 측정치, 주의사항 등)을 정확히 3줄로 요약합니다.
 
 규칙:

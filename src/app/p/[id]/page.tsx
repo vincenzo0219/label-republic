@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const name = `${p.brand} ${p.name}`;
   return {
     title: `${name} — ${p.category.name} 제품`,
-    description: `${name}에 대한 라벨공화국 글 ${p.post_count}개의 성분·스펙 수치, 사진, 출처를 모았습니다. 표시값과 실측값을 비교해 보세요.`,
+    description: `${name}에 대한 노방장 글 ${p.post_count}개의 성분·스펙 수치, 사진, 출처를 모았습니다. 표시값과 실측값을 비교해 보세요.`,
     alternates: { canonical: `/p/${p.id}` },
     openGraph: { type: "website", title: name },
   };

@@ -128,7 +128,7 @@ function withClientIp(req: IncomingMessage) {
 }
 
 function runPrimary(workers: number) {
-  console.log(`> 라벨공화국 cluster: 워커 ${workers}개 시작 (WEB_CONCURRENCY)`);
+  console.log(`> 노방장 cluster: 워커 ${workers}개 시작 (WEB_CONCURRENCY)`);
   let stopping = false;
   const fork = (index: number) => {
     const w = cluster.fork({ LR_WORKER_INDEX: String(index) });
@@ -327,7 +327,7 @@ function startWorker() {
     viewFlush.unref();
     server.listen(port, hostname, () => {
       const who = cluster.isWorker ? ` [워커 ${workerIndex}]` : "";
-      console.log(`> 라벨공화국 ready on http://${hostname}:${port} (${dev ? "dev" : "prod"})${who}`);
+      console.log(`> 노방장 ready on http://${hostname}:${port} (${dev ? "dev" : "prod"})${who}`);
     });
 
     // 컨테이너 종료(SIGTERM) 시: 새 연결 거부 → 웹소켓 정리 → 진행 중 요청 마무리 → DB 풀 종료

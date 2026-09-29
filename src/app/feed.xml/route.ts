@@ -10,7 +10,7 @@ export async function GET() {
   return atomResponse(
     buildAtom({
       id: `${config.siteUrl}/feed.xml`,
-      title: "라벨공화국 — 전체 보드",
+      title: "노방장 — 전체 보드",
       subtitle: "방장 없는 성분·취미 팩트체크 커뮤니티의 새 글",
       selfUrl: `${config.siteUrl}/feed.xml`,
       siteUrl: config.siteUrl,

@@ -8,7 +8,7 @@ import { COOLDOWN_DAYS, ELIGIBLE_AGE_DAYS, formatRule, MIN_CONTRIBUTIONS, VOTING
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "커뮤니티 운영 원칙",
-  description: "방장 없는 라벨공화국이 추천·신고·AI로 스스로 정화되는 방식",
+  description: "방장 없는 노방장이 추천·신고·AI로 스스로 정화되는 방식",
   alternates: { canonical: "/policy" },
 };
 
@@ -17,7 +17,7 @@ export default async function PolicyPage() {
   return (
     <LegalPage title="커뮤니티 운영 원칙">
       <p>
-        라벨공화국에는 방장이 없습니다. 아래 규칙은 모두 코드로 자동 실행되며, 누구에게나 똑같이 적용됩니다. <b>굵게 표시한 숫자</b>는 운영자가 아니라{" "}
+        노방장에는 방장이 없습니다. 아래 규칙은 모두 코드로 자동 실행되며, 누구에게나 똑같이 적용됩니다. <b>굵게 표시한 숫자</b>는 운영자가 아니라{" "}
         <Link href="/rules">커뮤니티 규칙 투표</Link>로 정해지며, 지금 값을 보여줍니다.
       </p>
 

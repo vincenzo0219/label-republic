@@ -68,7 +68,7 @@ export async function renderPostCard(post: PostDetail, format: CardFormat, siteH
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: square ? 0 : 24, fontSize: square ? 28 : 24, color: C.muted }}>
           <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
-            <span style={{ fontWeight: 700, color: C.text, fontSize: square ? 34 : 28 }}>라벨공화국</span>
+            <span style={{ fontWeight: 700, color: C.text, fontSize: square ? 34 : 28 }}>노방장</span>
             <span>방장 없는 성분 팩트체크</span>
           </div>
           <div style={{ display: "flex" }}>{`${siteHost}/posts/${post.id}`}</div>

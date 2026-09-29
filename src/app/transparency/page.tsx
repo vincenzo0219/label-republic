@@ -8,7 +8,7 @@ import { BOARD_REJECT_REASONS, MOD_ACTIONS } from "@/lib/repo/operator";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "투명성 기록",
-  description: "라벨공화국의 자동 블라인드, 법적 임시조치, 운영자 정정 조치 공개 기록",
+  description: "노방장의 자동 블라인드, 법적 임시조치, 운영자 정정 조치 공개 기록",
   alternates: { canonical: "/transparency" },
 };
 
@@ -38,7 +38,7 @@ export default async function TransparencyPage() {
     <article className="legal">
       <h1>투명성 기록</h1>
       <p>
-        라벨공화국에는 방장이 없습니다. 글이 가려지는 경우는 두 가지뿐입니다. 이용자 신고에 따른 <b>자동 블라인드</b>와, 권리침해 신고에 따른 운영자의{" "}
+        노방장에는 방장이 없습니다. 글이 가려지는 경우는 두 가지뿐입니다. 이용자 신고에 따른 <b>자동 블라인드</b>와, 권리침해 신고에 따른 운영자의{" "}
         <b>법적 임시조치</b>(정보통신망법 제44조의2)입니다. 운영자는 그 밖에 탐지된 신고·투표 조작의 무효화, AI 광고 의심 오탐 해제, 작성자 재검토 요청 기각,
         보드 개설 요청·중복 제품 정리만 할 수 있습니다. 운영자의 조치는 한 건도 빠짐없이 아래에 공개됩니다. 규칙은 <Link href="/policy">커뮤니티 운영 원칙</Link>에
         있습니다.

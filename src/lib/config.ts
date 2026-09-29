@@ -87,7 +87,7 @@ export const config = {
   },
   /** 서비스 운영 주체 표기 (개인정보처리방침) */
   get operatorName() {
-    return process.env.OPERATOR_NAME || "라벨공화국 운영팀";
+    return process.env.OPERATOR_NAME || "노방장 운영팀";
   },
   /** 법률 검토를 마친 약관·방침의 시행일 (YYYY-MM-DD). 비우면 "검토 중 초안" 배너가 표시된다 */
   get legalEffectiveDate() {

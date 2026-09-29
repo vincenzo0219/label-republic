@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 // 제보 제목을 검색 결과에 올리려는 도배를 부르지 않게 색인하지 않는다
 export const metadata: Metadata = {
   title: "고쳐 주세요 · 제안하기",
-  description: "라벨공화국의 고장·불편·제안을 알려 주세요. 처리 상태는 모두 공개됩니다.",
+  description: "노방장의 고장·불편·제안을 알려 주세요. 처리 상태는 모두 공개됩니다.",
   robots: { index: false, follow: true },
 };
 

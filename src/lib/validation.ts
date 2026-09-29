@@ -13,7 +13,8 @@ const trimmed = (min: number, max: number, label: string) =>
  * 운영 주체나 AI 큐레이터로 오인될 수 있는 닉네임은 사람이 쓸 수 없다 (🤖 배지 없는 "AI 큐레이터" 사칭 방지).
  * 공백·기호·대소문자·전각 문자를 정규화한 뒤 검사한다.
  */
-const RESERVED_CONTAINS = ["큐레이터", "운영자", "관리자", "운영팀", "라벨공화국", "노방장", "방장"];
+// 예전 이름(라벨공화국)도 사칭에 쓰이지 않게 막는다 (Sprint 37)
+const RESERVED_CONTAINS = ["큐레이터", "운영자", "관리자", "운영팀", "노방장", "라벨공화국", "방장"];
 const RESERVED_EXACT = ["admin", "administrator", "moderator", "mod", "system", "ai", "bot", "labelrepublic"];
 
 export function isReservedNickname(name: string): boolean {

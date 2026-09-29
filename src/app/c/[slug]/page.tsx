@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!category) return {};
   return {
     title: `${category.name} 보드`,
-    description: `${category.name} — ${category.description} 방장 없이 검증되는 라벨공화국 정보 아카이브.`,
+    description: `${category.name} — ${category.description} 방장 없이 검증되는 노방장 정보 아카이브.`,
     alternates: {
       canonical: `/c/${encodeURIComponent(category.slug)}`,
       types: { "application/atom+xml": [{ url: `/c/${encodeURIComponent(category.slug)}/feed.xml`, title: `${category.name} 새 글` }] },

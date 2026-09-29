@@ -11,7 +11,7 @@
  * 관리자 화면·API 는 저장하지 않는다.
  */
 export function serviceWorkerSource(version: string): string {
-  return `/* 라벨공화국 서비스 워커 — build ${version} */
+  return `/* 노방장 서비스 워커 — build ${version} */
 const VERSION = ${JSON.stringify(version)};
 const PRECACHE = "lr-precache-" + VERSION;
 const PAGES = "lr-pages";
@@ -96,7 +96,7 @@ function withIndex(fn) {
 
 function titleOf(html) {
   const m = /<title[^>]*>([\\s\\S]*?)<\\/title>/i.exec(html);
-  return m ? m[1].replace(/\\s*[|—]\\s*라벨공화국.*$/, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").trim().slice(0, 200) : "";
+  return m ? m[1].replace(/\\s*[|—]\\s*(노방장|라벨공화국).*$/, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").trim().slice(0, 200) : "";
 }
 const noStore = (html) => /<meta[^>]+name="lr-offline"[^>]+content="no-store"/i.test(html);
 
@@ -278,7 +278,7 @@ async function navigate(event, req, url) {
 // 푸시 알림 (Sprint 16)
 // ---------------------------------------------------------------------------
 self.addEventListener("push", (event) => {
-  let data = { title: "라벨공화국 새 소식", body: "관심 제품·지켜보는 글에 새 소식이 있어요.", url: "/me", tag: "lr-watch" };
+  let data = { title: "노방장 새 소식", body: "관심 제품·지켜보는 글에 새 소식이 있어요.", url: "/me", tag: "lr-watch" };
   try {
     if (event.data) data = Object.assign(data, event.data.json());
   } catch (e) {}
@@ -321,7 +321,7 @@ self.addEventListener("notificationclick", (event) => {
  * 화면을 강제로 새로 불러오지 않는다: 빌드 때 만들어 둔 정적 화면(/offline 등)은 다시 등록하므로 무한 새로고침이 될 수 있다.
  */
 export function killSwitchSource(): string {
-  return `/* 라벨공화국 서비스 워커 — 비상 해제 */
+  return `/* 노방장 서비스 워커 — 비상 해제 */
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {

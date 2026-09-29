@@ -47,7 +47,7 @@ export function buildAtom(opts: {
   <link rel="self" type="application/atom+xml" href="${xmlEscape(opts.selfUrl)}"/>
   <link rel="alternate" type="text/html" href="${xmlEscape(opts.alternateUrl)}"/>
   <updated>${updated}</updated>
-  <generator>라벨공화국</generator>
+  <generator>노방장</generator>
 ${entries}
 </feed>
 `;
@@ -66,7 +66,7 @@ export function buildRenewalAtom(opts: { id: string; title: string; selfUrl: str
     <link href="${xmlEscape(url)}"/>
     <published>${r.confirmed_at}</published>
     <updated>${r.confirmed_at}</updated>
-    <author><name>라벨공화국</name></author>
+    <author><name>노방장</name></author>
     <category term="${xmlEscape(r.category.slug)}" label="${xmlEscape(r.category.name)}"/>
     <summary type="text">${xmlEscape(summary)}</summary>
   </entry>`;
@@ -80,7 +80,7 @@ export function buildRenewalAtom(opts: { id: string; title: string; selfUrl: str
   <link rel="self" type="application/atom+xml" href="${xmlEscape(opts.selfUrl)}"/>
   <link rel="alternate" type="text/html" href="${xmlEscape(opts.alternateUrl)}"/>
   <updated>${updated}</updated>
-  <generator>라벨공화국</generator>
+  <generator>노방장</generator>
 ${entries}
 </feed>
 `;

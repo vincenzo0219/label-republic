@@ -52,7 +52,7 @@ const ClassificationSchema = z.object({
   reason: z.string(),
 });
 
-const SYSTEM_PROMPT = `당신은 성분/제품 정보 커뮤니티 "라벨공화국"의 스팸 분류기입니다.
+const SYSTEM_PROMPT = `당신은 덕후 정보 커뮤니티 "노방장"의 스팸 분류기입니다.
 게시글이 광고·스팸·뒷광고(대가를 숨긴 홍보)·판매 유도일 확률을 0~1 사이 숫자로 판단합니다.
 
 판단 기준:

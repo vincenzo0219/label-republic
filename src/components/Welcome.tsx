@@ -24,7 +24,7 @@ export function Welcome({ boards, stats }: { boards: { slug: string; name: strin
   return (
     <section className="welcome" aria-labelledby="welcome-h">
       <div className="welcome-head">
-        <h2 id="welcome-h">👋 라벨공화국은 처음이세요?</h2>
+        <h2 id="welcome-h">👋 노방장은 처음이세요?</h2>
         <button type="button" className="btn btn-sm btn-ghost" onClick={close} aria-label="안내 닫기">
           닫기
         </button>

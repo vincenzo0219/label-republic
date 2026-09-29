@@ -18,7 +18,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   return atomResponse(
     buildRenewalAtom({
       id: `${config.siteUrl}${path}.xml`,
-      title: `라벨공화국 — ${category.name} 라벨 변경 이력`,
+      title: `노방장 — ${category.name} 라벨 변경 이력`,
       selfUrl: `${config.siteUrl}${path}.xml`,
       siteUrl: config.siteUrl,
       alternateUrl: `${config.siteUrl}${path}`,

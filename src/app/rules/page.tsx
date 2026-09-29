@@ -23,7 +23,7 @@ import {
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "커뮤니티 규칙",
-  description: "라벨공화국의 자동 규칙 기준값은 운영자가 아니라 이용자 투표로 정합니다.",
+  description: "노방장의 자동 규칙 기준값은 운영자가 아니라 이용자 투표로 정합니다.",
   alternates: { canonical: "/rules" },
 };
 

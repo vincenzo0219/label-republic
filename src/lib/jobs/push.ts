@@ -56,7 +56,7 @@ export function pushMessage(u: WatchUpdates): PushMessage {
       ? (u.products.find((p) => productUpdateCount(p) > 0)?.name ?? u.posts.find((p) => postUpdateCount(p) > 0)?.title ?? onlyReply?.post_title)
       : undefined;
   return {
-    title: single ? `라벨공화국 · ${single.slice(0, 40)}` : "라벨공화국 새 소식",
+    title: single ? `노방장 · ${single.slice(0, 40)}` : "노방장 새 소식",
     body: parts.slice(0, 3).join(" · "),
     // 답글 하나뿐이면 그 댓글로 바로
     url: onlyReply && others === 0 ? `/posts/${onlyReply.post_id}#c${onlyReply.id}` : "/me",

@@ -31,7 +31,7 @@ export function extractiveDigest(boardName: string, posts: DigestSource[]): Dige
 
 const DigestSchema = z.object({ headline: z.string(), bullets: z.array(z.string()) });
 
-const SYSTEM_PROMPT = `당신은 성분/제품 정보 커뮤니티 "라벨공화국"의 주간 다이제스트 편집자입니다.
+const SYSTEM_PROMPT = `당신은 덕후 정보 커뮤니티 "노방장"의 주간 다이제스트 편집자입니다.
 한 보드의 지난 7일 인기 글 목록(제목과 3줄 요약)을 받아, 이번 주 흐름을 한국어로 정리합니다.
 
 규칙:

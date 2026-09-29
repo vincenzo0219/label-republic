@@ -217,7 +217,7 @@ export async function snapshotStats(): Promise<{ count: number; newest: number |
 /** 저장본이 없을 때 보여줄 점검 안내 (DB 없이 만든다) */
 export function outagePage(hasHome: boolean): string {
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><title>잠시 점검 중 — 라벨공화국</title>
+<meta name="robots" content="noindex"><title>잠시 점검 중 — 노방장</title>
 <style>body{font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;max-width:560px;margin:0 auto;padding:40px 16px;line-height:1.6;color:#1d2521;background:#f7f6f1}
 @media (prefers-color-scheme:dark){body{color:#e8ece9;background:#141816}a{color:#8fd3b0}}a{color:#1f6b4a}</style></head>
 <body><main><h1>잠시 점검 중이에요</h1>
