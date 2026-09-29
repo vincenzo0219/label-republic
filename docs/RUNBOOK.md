@@ -19,8 +19,8 @@
 | 7 | 알림: `ALERT_WEBHOOK_URL`(Slack·Discord 웹훅) | `/admin` 서버 오류 패널 문구가 "알림 웹훅으로 보냅니다" |
 | 8 | 외부 감시: `GET /api/health`를 1분마다(503이면 알림), `GET /api/health?deep=1`의 `status`가 `degraded`면 알림 | UptimeRobot 등 |
 | 9 | 푸시(선택): `npm run push:keys` → `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` | 실제 휴대폰에서 `/me` → 알림 켜기 → 지켜보는 글에 댓글 → 한 시간 안에 알림. 내 댓글에 다른 기기로 답글 → "💬 …님이 답글" 알림을 누르면 그 답글로 열림 |
-| 10 | 시드 콘텐츠 사람 검수 → `reviewedBy` 를 채운 파일을 `db/seed/curator/`에 **커밋하고 이미지를 다시 빌드**(시드는 이미지 안에 들어감) → `docker compose exec app npm run seed:curator`, `CURATOR_ACTIVE_UNTIL`(오픈 후 약 6주) | `/`에 🤖 배지 글. 검수 안 된 시드는 게시하지 않고 개수를 알려 줌 |
-| 11 | `ANTHROPIC_API_KEY` 설정 시 요약·스팸 분류·**라벨 사진 읽기** 실제 호출 확인. 라벨 읽기 비용 상한 `LABEL_READ_DAILY_MAX`(기본 300장/24시간) | 글쓰기 요약 미리보기가 "AI 생성". 실제 성분표 사진 몇 장(영양제·사료·스위치 스펙)으로 "라벨 읽기" → 값이 사진과 맞는지 |
+| 10 | AI 큐레이터: `npm run seed:curator` 로 준비된 시드 게시(Sprint 37부터 **사람 검수 없이** 안전 검사만 통과하면 게시, 예전처럼 검수한 것만 올리려면 `--require-review`). 시드가 떨어진 보드는 `ANTHROPIC_API_KEY` 가 있으면 AI가 새 글을 씀 — 하루 시도 `CURATOR_AUTOGEN_DAILY_MAX`(기본 10), 끄려면 `CURATOR_AUTOGEN=0`. `CURATOR_ACTIVE_UNTIL`(오픈 후 약 6주) | `/`에 🤖 배지 글과 "사람이 검수하지 않았습니다" 안내. 안전 검사에 걸린 초안은 `SELECT status, title, reasons FROM curator_generations ORDER BY id DESC LIMIT 20` 으로 확인 |
+| 11 | `ANTHROPIC_API_KEY` 설정 시 요약·스팸 분류·**욕설·인신공격 자동 가림**·**라벨 사진 읽기** 실제 호출 확인. 라벨 읽기 비용 상한 `LABEL_READ_DAILY_MAX`(기본 300장/24시간) | 글쓰기 요약 미리보기가 "AI 생성". 실제 성분표 사진 몇 장(영양제·사료·스위치 스펙)으로 "라벨 읽기" → 값이 사진과 맞는지 |
 | 12 | 서버에서 외부 사이트로 나가는 요청 허용 여부 (출처 링크 확인·푸시 발송). 막혀 있으면 `SOURCE_CHECK_INTERVAL_SEC=0` | `/admin` 배치 상태 "출처 링크 확인" |
 | 13 | Search Console·서치어드바이저에 `sitemap.xml` 제출 | |
 | 14 | 첫 백업 확인 — 앱이 마이그레이션을 끝낸 뒤 10분 안에 `backup` 서비스가 첫 백업을 만듭니다 | `ls backups/` 에 `.dump`·`.json`, `docker compose --profile ops run --rm restore verify <파일>` 이 "검증 통과" |
@@ -30,7 +30,7 @@
 ## 2. 일상 점검 (하루 한 번, 5분)
 
 1. `/admin` → **배치 상태**가 모두 정상인지, **서버 오류** 패널에 새 오류가 있는지.
-2. `/admin/moderation` → 재검토 요청·어뷰징 알림·중복 의심 제품·동의된 브랜드 별칭 제안(수입사·판매처처럼 제조사가 다르면 기각)·동의된 성분명 별칭 제안(형태에 따라 함량 기준이 다른 성분 — 엽산과 DFE, 비타민 A 와 베타카로틴 — 은 기각). 처리 기준은 `/policy`.
+2. `/admin/moderation` → 재검토 요청·어뷰징 알림·중복 의심 제품·동의된 브랜드 별칭 제안(수입사·판매처처럼 제조사가 다르면 기각)·동의된 성분명 별칭 제안(형태에 따라 함량 기준이 다른 성분 — 엽산과 DFE, 비타민 A 와 베타카로틴 — 은 기각). 처리 기준은 `/policy`. **AI가 가린 글·댓글**(Sprint 37)은 오판만 사유와 함께 풉니다 — 운영자가 직접 가리지는 않습니다.
 3. `/admin/feedback` → 새 제보(Sprint 36). 확인했으면 "확인함"으로 바꿔 두면 현황판에서 이용자가 봅니다. 공개 답변에는 제보자·개인정보를 적지 마세요.
 4. `./backups`에 오늘 날짜 백업과 `.json`이 있는지, 원격 복사가 됐는지.
 5. 디스크 사용량(DB·업로드·백업 볼륨) 80% 미만인지.
