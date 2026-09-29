@@ -41,7 +41,8 @@
 - **Docker 밖**: `npm run db:backup` (PostgreSQL 16 클라이언트 필요). `--verify`를 붙이면 임시 DB 복원·체크섬·행 수 대조까지 합니다.
 - S3 저장소를 쓰면 사진은 버킷의 버전 관리·수명주기 규칙으로 따로 보호하세요 (백업 스크립트는 로컬 저장소만 묶습니다).
 - **같은 서버에만 두지 마세요.** `./backups`를 오브젝트 스토리지 등으로 복사하는 작업(예: `rclone copy ./backups remote:labelrep-backups`)을 cron으로 걸어 두세요. 백업에는 게시글·닉네임·비밀번호 해시·식별값이 있으므로 접근을 제한합니다.
-- 소요 시간 참고: 글 20만·DB 3.4GB에서 덤프 1분 + 검증 복원 2분, 덤프 파일 384MB.
+- 소요 시간 참고 (Sprint 34 리허설): 글 20만·댓글 58만·추천 350만·DB 3.9GB에서 **백업 한 번에 약 11분** — 덤프 1분 + 검증 복원·행 수 대조 약 10분, 덤프 파일 449MB. 배포 직전 백업(4장 1단계)도 이만큼 걸리니 미리 돌려 두세요. 검증 복원이 도는 동안 DB CPU 를 씁니다.
+- 행 수 대조 목록(`scripts/backup.sh`의 `CHECK_TABLES`)에 없는 테이블은 비어서 복원돼도 검증을 통과합니다. **새 테이블을 만드는 마이그레이션을 추가하면 이 목록에도 넣으세요** (Sprint 34 에서 9개가 빠져 있었음).
 
 ### 복구 (Docker)
 앱 이미지에는 PostgreSQL 클라이언트가 없고 서버에는 보통 Node 가 없으므로, `restore` 서비스(postgres:16 이미지 + `scripts/restore.sh`)를 씁니다.
@@ -52,13 +53,13 @@
 4. `docker compose up -d app` — 시작할 때 백업 이후 추가된 마이그레이션이 적용됩니다 → `/api/health?deep=1`.
 5. 복구 시점 이후의 글·댓글은 사라집니다. `/transparency`는 공개 기록이므로, 복구로 운영자 조치 기록이 사라졌다면 다시 적습니다.
 
-**서버를 통째로 잃었을 때**: 새 서버에 저장소를 받고 `.env`(따로 보관한 사본 — `APP_SECRET`이 바뀌면 [APP_SECRET 교체](#5-장애-대응)와 같은 영향) → 원격에 복사해 둔 백업을 `./backups`에 → `docker compose up -d db` → 위 1·3단계(빈 DB 라 `--force` 불필요) → `docker compose --profile https up --build -d`. 리허설에서 복원부터 health 200 까지 12초(작은 DB), 글 20만 건 기준으로는 복원 2분 안팎입니다.
+**서버를 통째로 잃었을 때**: 새 서버에 저장소를 받고 `.env`(따로 보관한 사본 — `APP_SECRET`이 바뀌면 [APP_SECRET 교체](#5-장애-대응)와 같은 영향) → 원격에 복사해 둔 백업을 `./backups`에 → `docker compose up -d db` → 위 1·3단계(빈 DB 라 `--force` 불필요) → `docker compose --profile https up --build -d`. 리허설에서 복원부터 health 200 까지 12초(작은 DB), 글 20만 건·3.9GB 기준으로는 복원에 10분 안팎입니다.
 
 ### 복구 (Docker 밖)
 `DATABASE_URL=… npm run db:backup:verify -- backups/labelrep-….dump` → `DATABASE_URL=… npm run db:restore -- backups/labelrep-….dump --target postgres://…/labelrep [--force] [--uploads ./data/uploads]` → `npm run db:migrate` → 앱 시작.
 
 ### 리허설 (분기마다)
-`docker compose --profile ops run --rm restore verify <최근 백업>`을 돌려 "검증 통과"를 확인하고, 1년에 한 번은 새 서버에 실제로 복구해 봅니다. 첫 리허설 기록: [REHEARSAL.md](REHEARSAL.md).
+`docker compose --profile ops run --rm restore verify <최근 백업>`을 돌려 "검증 통과"를 확인하고, 1년에 한 번은 새 서버에 실제로 복구해 봅니다. 리허설 기록(1차 Sprint 24 새 배포, 2차 Sprint 34 운영 규모 업데이트): [REHEARSAL.md](REHEARSAL.md).
 
 ## 4. 업데이트·롤백
 
@@ -70,8 +71,10 @@ git pull                                              # 3. 새 코드
 docker compose --profile https up -d --build app      # 4. 빌드·교체 (시작할 때 마이그레이션 적용)
 curl -fsS https://도메인/api/health                    # 5. migrations.latest 가 새 번호인지
 ```
+- 앱 로그에 마이그레이션 파일마다 `applied 0xx_….sql (0.0s)`가 찍힙니다 — 오래 멈춰 있으면 어느 파일인지 여기서 봅니다. 리허설(글 20만 건)에서 024~032 는 모두 합쳐 1초 미만이었습니다.
+- 업데이트 뒤 첫 정리 배치(리뉴얼 전체 계산)는 제품 4만 개에서 약 16초 걸립니다. 0번 워커에서 돌아 요청 처리엔 영향이 없습니다.
 - 교체 중에는 프록시가 최대 15초까지 요청을 붙잡고 기다렸다가 새 앱으로 넘깁니다. 리허설(동시 요청 계속 보내며 교체)에서 **300건 중 실패 0건, 가장 긴 대기 6초**였습니다. 서버는 SIGTERM을 받으면 요청을 마무리하고 10초 안에 종료합니다.
-- 롤백: `docker tag labelrep-app:prev labelrep-app:current && docker compose up -d --no-build app`. **마이그레이션은 앞으로만** 갑니다 — 추가된 컬럼·테이블은 이전 코드가 무시하므로 그대로 둡니다(리허설: Sprint 22 이미지를 023 스키마 위에 되돌려 정상 동작 확인).
+- 롤백: `docker tag labelrep-app:prev labelrep-app:current && docker compose up -d --no-build app`. **마이그레이션은 앞으로만** 갑니다 — 추가된 컬럼·테이블은 이전 코드가 무시하므로 그대로 둡니다(리허설: Sprint 22 이미지를 023 스키마 위에, Sprint 24 이미지를 031 스키마 위에 되돌려 읽기·쓰기 정상 확인, 교체 1.5초).
 - 마이그레이션 자체가 데이터를 망가뜨렸다면: 1단계에서 만든 백업으로 [복구](#복구-docker).
 - 서비스 워커(Sprint 19)는 빌드마다 바뀌어, 배포 후 이용자 화면에 "새 버전이 있어요 [새로고침]"이 뜹니다. 누르기 전까지는 옛 화면이 계속 동작하므로 API 를 바꾸는 배포는 한동안 옛 화면의 요청도 받아야 합니다(지금까지의 API 는 모두 추가만 했습니다).
 - 아이콘을 바꾸려면 `assets/icon.svg` 수정 → `npx tsx scripts/make-icons.ts` → 커밋.
@@ -84,8 +87,9 @@ curl -fsS https://도메인/api/health                    # 5. migrations.latest
 |---|---|---|
 | `/api/health` 503 | DB 연결 확인(`docker compose ps`, `pg_isready`) | DB 로그, 디스크(아래), 커넥션 수(`DB_POOL_MAX × 워커 × 인스턴스` ≤ DB `max_connections`) |
 | DB 재시작·일시 중단 | 앱은 그대로 둡니다 — **읽기 전용 모드**(Sprint 27): 공개 페이지는 저장본을 "⚠️ 지금은 서버 점검 중이라 읽기만 할 수 있어요 · ○시 ○분 기준 화면" 띠와 함께 보여주고, 저장본이 없는 페이지(검색·글쓰기)는 점검 안내(503), 추천·댓글·글쓰기 API 는 503 `db_unavailable`("잠시 뒤 다시 시도"), health 는 503 + `readOnly.snapshots`(저장본 수) | DB가 돌아오면 2초 안에 알아채 정상 화면으로(띠는 "돌아왔어요"로 바뀌고 다음 이동에서 사라짐). 실시간 댓글(LISTEN)도 다시 붙습니다. 앱을 재시작할 필요 없음 |
-| 읽기 전용 모드인데 "잠시 점검 중이에요"(503)만 나옴 | 그 페이지의 저장본이 없음 — `/api/health` 의 `readOnly.snapshots` 확인 | 저장본은 0번 워커가 `SNAPSHOT_INTERVAL_SEC`(기본 10분)마다 홈·보드·추천 많은/최근 글 `SNAPSHOT_POSTS`개·제품 `SNAPSHOT_PRODUCTS`개를 받아 만들고, 이용자가 연 글·제품도 곧 받아 둡니다. 배포 직후(새 빌드)에는 첫 수집(시작 15초 뒤) 전까지 비어 있습니다 |
+| 읽기 전용 모드인데 "잠시 점검 중이에요"(503)만 나옴 | 그 페이지의 저장본이 없음 — `/api/health` 의 `readOnly.snapshots` 확인 | 저장본은 0번 워커가 `SNAPSHOT_INTERVAL_SEC`(기본 10분)마다 홈·보드·추천 많은/최근 글 `SNAPSHOT_POSTS`개·제품 `SNAPSHOT_PRODUCTS`개를 받아 만들고, 이용자가 연 글·제품도 곧 받아 둡니다. 저장본은 컨테이너 안에 있어 **업데이트·롤백으로 컨테이너가 새로 뜨면 비어 있고**, 첫 수집(시작 15초 뒤)부터 약 45초 안에 90개가량 다시 모입니다(리허설). DB 작업은 배포 직후 1분은 피하세요 |
 | 앱 컨테이너가 죽음 (`Exited`) | 프로세스가 스스로 죽은 경우 Docker 가 몇 초 안에 다시 띄웁니다(리허설 5초). 워커 하나가 죽으면 1초 뒤 다시 띄우고 요청은 다른 워커가 받습니다 | `docker kill`·`docker compose stop` 으로 멈춘 것은 사람이 멈춘 것으로 보고 다시 띄우지 않습니다 → `docker compose up -d app`. 반복해서 죽으면 `docker compose logs app --tail 200` |
+| DB 로그에 `could not resize shared memory segment … No space left on device` | 디스크가 아니라 DB 컨테이너의 공유 메모리(`/dev/shm`) 부족 — 큰 조회가 실패합니다 | `docker-compose.yml` 의 db `shm_size`(기본 256mb)를 늘리고 `docker compose up -d db`. Docker 기본값 64MB 로는 글 20만 건 규모에서 실패했습니다(Sprint 34) |
 | 디스크 가득 | 백업 볼륨 정리(원격 복사 확인 후), 로그 정리 | DB 볼륨 확장. 첨부 사진이 원인이면 S3로 이전 검토 |
 | 응답이 느림 | `/admin` 배치 상태·서버 오류, DB의 오래 걸리는 쿼리(`pg_stat_activity`) | 검색은 3초가 넘으면 스스로 끊습니다(503 "검색이 너무 오래"). 캐시가 비어 있는 직후(재시작)에는 잠시 느릴 수 있습니다 |
 | 🚨 "새 오류" 알림 | `/admin` 서버 오류 패널에서 경로·스택 확인 | 고친 뒤 배포 → "해결 표시". 같은 오류가 다시 나면 자동으로 다시 열리고 알림이 옵니다 |
