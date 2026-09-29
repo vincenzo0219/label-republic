@@ -23,12 +23,14 @@ async function main() {
     for (const file of files) {
       if (applied.has(file)) continue;
       const sql = await readFile(path.join(dir, file), "utf8");
+      const started = Date.now();
       await client.query("BEGIN");
       try {
         await client.query(sql);
         await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [file]);
         await client.query("COMMIT");
-        console.log(`applied ${file}`);
+        // 걸린 시간 — 업데이트 중에는 앱이 멈춰 있으므로 배포 시간 추정에 쓴다 (Sprint 34 리허설)
+        console.log(`applied ${file} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
       } catch (err) {
         await client.query("ROLLBACK");
         throw new Error(`migration ${file} failed: ${(err as Error).message}`);
