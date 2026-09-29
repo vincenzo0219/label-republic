@@ -2,9 +2,10 @@ import { after } from "next/server";
 import { json, parseBody, route } from "@/lib/http";
 import { withIdempotency } from "@/lib/idempotency";
 import { HttpError, tooMany } from "@/lib/errors";
-import { fingerprint, networkHash } from "@/lib/fingerprint";
+import { agentHash, fingerprint, networkHash } from "@/lib/fingerprint";
 import { hit } from "@/lib/rate-limit";
 import { getCategoryBySlug } from "@/lib/repo/categories";
+import { assertCanWrite } from "@/lib/repo/write-limits";
 import { aiModeratePost, createPost, listPosts } from "@/lib/repo/posts";
 import { resolveSummary } from "@/lib/summary";
 import { createPostSchema, postTypeFilterSchema, sortSchema } from "@/lib/validation";
@@ -38,6 +39,8 @@ export const POST = route(async (req) => {
     if (!(await hit(`post:create:${fp}`, 10, 10 * 60 * 1000))) throw tooMany();
     if (!(await hit(`post:create-net:${networkHash(req.headers)}`, 30, 10 * 60 * 1000))) throw tooMany();
     const input = await parseBody(req, createPostSchema);
+    // 신고로 여러 번 블라인드된 곳이면 한동안 쓸 수 없다 (강퇴 대신 자동 쓰기 제한, Sprint 37)
+    await assertCanWrite({ fingerprint: fp, net: networkHash(req.headers), agent: agentHash(req.headers) });
     if (input.postType === "meetup") {
       if (!input.meetup) throw new HttpError(400, "invalid_input", "정모 일시·장소·인원을 입력해주세요.");
       // 정모 제안은 하루 3건까지 (도배 방지)
@@ -52,6 +55,7 @@ export const POST = route(async (req) => {
       summary: resolveSummary(input.summary, input.summaryToken),
       fingerprint: fp,
       network: networkHash(req.headers),
+      agent: agentHash(req.headers),
       postType: input.postType,
       meetup: input.postType === "meetup" ? input.meetup : undefined,
       images: input.images,

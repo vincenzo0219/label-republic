@@ -224,6 +224,11 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
         `UPDATE feedback SET body = '', env = '{}' WHERE body <> '' AND resolved_at < $1::timestamptz - interval '365 days'`,
         [now.toISOString()],
       );
+      // 쓰기 제한용 브라우저 종류 값(Sprint 37)은 30일 창만 쓰므로 30일 뒤 지운다
+      await client.query(
+        `UPDATE posts SET author_agent = NULL WHERE author_agent IS NOT NULL AND created_at < $1::timestamptz - interval '30 days'`,
+        [now.toISOString()],
+      );
       // 글의 망 대역 변환값(Sprint 29)은 리뉴얼 판단에만 쓰므로, 표시값(라벨) 수치가 없는 글은 30일 뒤 지운다
       await client.query(
         `UPDATE posts p SET author_net = NULL

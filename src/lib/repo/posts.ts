@@ -308,6 +308,8 @@ export type CreatePostInput = {
   fingerprint?: string;
   /** 접속 망 대역 변환값 (networkHash, Sprint 29) — 리뉴얼 판단에서 같은 망의 글을 한 사람으로 센다 */
   network?: string;
+  /** 같은 망 안에서 사람을 좁히는 값 (쓰기 제한, Sprint 37) */
+  agent?: string;
   /** [정보]/[잡담]/[정모] — 기본 정보 */
   postType?: PostType;
   /** postType = meetup 일 때 필수 */
@@ -337,8 +339,8 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
     if (postType === "meetup") await assertCanPropose(client, cat.rows[0].id, input.nickname, input.fingerprint);
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO posts (category_id, nickname, pw_hash, title, body, spam_score, is_suppressed, moderation_note, moderated_by,
-                          author_fingerprint, post_type, trust_tier, author_net)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+                          author_fingerprint, post_type, trust_tier, author_net, author_agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
       [
         cat.rows[0].id,
         input.nickname,
@@ -351,6 +353,7 @@ export async function createPost(input: CreatePostInput): Promise<PostDetail> {
         // 잡담·정모 글은 신뢰도 배지 대상이 아니므로 "검증 대기" 대신 배지 없음으로 시작
         postType === "info" ? "pending" : "none",
         input.network ?? null,
+        input.agent ?? null,
       ],
     );
     await insertSummary(client, rows[0]!.id, summary);

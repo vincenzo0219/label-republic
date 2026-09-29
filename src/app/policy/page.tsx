@@ -37,6 +37,12 @@ export default async function PolicyPage() {
         <li>
           서로 다른 <b>{formatRule("post_blind_reports", rules.post_blind_reports)}명</b> 이상이 신고하고 신고 가중치 합이 {formatRule("post_blind_reports", rules.post_blind_reports)} 이상이면 사람의 판단 없이 자동으로 블라인드됩니다.
         </li>
+        <li>
+          <b>강퇴 대신 자동 쓰기 제한</b>: 가입이 없어 사람을 내보낼 수는 없습니다. 대신 같은 곳(같은 브라우저, 또는 같은 접속 망의 같은 브라우저 종류)에서 쓴 글이 최근
+          30일 안에 이용자 신고로 <b>{formatRule("write_limit_blinds", rules.write_limit_blinds)}번</b> 블라인드되면, 마지막 블라인드부터{" "}
+          <b>{formatRule("write_limit_days", rules.write_limit_days)}일</b> 동안 글·댓글·정정 제안을 쓸 수 없습니다. 운영자가 정하지 않고, 조작된 신고가 무효가 되어 블라인드가
+          풀리면 제한도 함께 풀립니다. 법적 임시조치와 AI가 가린 글은 세지 않습니다. 접속 망과 브라우저를 모두 바꾸면 피할 수 있는 한계가 있습니다.
+        </li>
         <li>짧은 시간에 신고를 몰아서 하거나, 갓 생긴 이용자들이 한 글에 신고를 몰면 그 신고의 가중치가 자동으로 낮아집니다. 조직적인 신고로 정상 글을 가리는 것을 막기 위해서입니다.</li>
       </ul>
 

@@ -61,3 +61,8 @@ export function networkPrefix(ip: string): string {
 export function networkHash(headers: Headers): string {
   return createHmac("sha256", config.appSecret).update(`net:${networkPrefix(clientIp(headers))}`).digest("hex").slice(0, 16);
 }
+
+/** 같은 망 안에서 사람을 조금 더 좁히는 값: User-Agent 의 HMAC 앞 16자 (쓰기 제한, Sprint 37) */
+export function agentHash(headers: Headers): string {
+  return createHmac("sha256", config.appSecret).update(`agent:${headers.get("user-agent") ?? ""}`).digest("hex").slice(0, 16);
+}
