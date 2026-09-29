@@ -8,7 +8,22 @@ import { topRenewalBrands } from "@/lib/repo/renewal-feed";
 
 export const dynamic = "force-dynamic";
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+// 검색 로봇이 자주 받아 가는데 보드마다 성분 목록까지 모으느라 무겁다 (Sprint 34 리허설: 글 20만 건에서 1.3초) — 10분 재사용
+const TTL_MS = 10 * 60_000;
+const g = globalThis as unknown as { __lrSitemap?: { at: number; value: Promise<MetadataRoute.Sitemap> } };
+
+export default function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const c = g.__lrSitemap;
+  if (c && Date.now() - c.at < TTL_MS) return c.value;
+  const value = build();
+  g.__lrSitemap = { at: Date.now(), value };
+  value.catch(() => {
+    if (g.__lrSitemap?.value === value) g.__lrSitemap = undefined;
+  });
+  return value;
+}
+
+async function build(): Promise<MetadataRoute.Sitemap> {
   const [categories, posts, products, brands] = await Promise.all([
     listCategories(), listPostIdsForSitemap(), listProductIdsForSitemap(), topRenewalBrands({ limit: 500 }),
   ]);

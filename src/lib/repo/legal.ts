@@ -101,22 +101,28 @@ export type MonthlyStats = { month: string; auto_blinds: number; legal_holds: nu
 
 /** 공개 투명성 통계: 최근 6개월 자동 블라인드 / 임시조치 / 해제 건수 */
 export async function transparencyStats(): Promise<MonthlyStats[]> {
+  // 월마다 전체 글을 다시 훑지 않게, 최근 6개월 범위만 한 번씩 월별로 묶어 센다 (Sprint 34 리허설: 글 20만 건에서 1.6초 → 인덱스·한 번 훑기)
   return query<MonthlyStats>(
     `WITH m AS (
        SELECT to_char(d, 'YYYY-MM') AS month
          FROM generate_series(date_trunc('month', now() AT TIME ZONE 'Asia/Seoul') - interval '5 months',
                               date_trunc('month', now() AT TIME ZONE 'Asia/Seoul'), interval '1 month') d
+     ), since AS (
+       SELECT (date_trunc('month', now() AT TIME ZONE 'Asia/Seoul') - interval '5 months') AT TIME ZONE 'Asia/Seoul' AS t
+     ), b AS (
+       SELECT to_char(p.blinded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') AS month, count(*)::int AS n
+         FROM posts p, since WHERE p.is_blinded AND NOT p.legal_hold AND p.blinded_at >= since.t GROUP BY 1
+     ), l AS (
+       SELECT to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') AS month,
+              count(*) FILTER (WHERE l.action = 'legal_hold')::int AS holds,
+              count(*) FILTER (WHERE l.action = 'legal_release')::int AS releases,
+              -- 운영자 정정 (조작 무효화·AI 오탐 해제·재검토 기각·보드 요청 정리·제품 병합)
+              count(*) FILTER (WHERE l.action NOT IN ('legal_hold', 'legal_release'))::int AS corrections
+         FROM moderation_log l, since WHERE l.created_at >= since.t GROUP BY 1
      )
-     SELECT m.month,
-            (SELECT count(*)::int FROM posts p WHERE p.is_blinded AND NOT p.legal_hold
-               AND to_char(p.blinded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS auto_blinds,
-            (SELECT count(*)::int FROM moderation_log l WHERE l.action = 'legal_hold'
-               AND to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS legal_holds,
-            (SELECT count(*)::int FROM moderation_log l WHERE l.action = 'legal_release'
-               AND to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS legal_releases,
-            -- 운영자 정정 (조작 무효화·AI 오탐 해제·재검토 기각·보드 요청 정리·제품 병합)
-            (SELECT count(*)::int FROM moderation_log l WHERE l.action NOT IN ('legal_hold', 'legal_release')
-               AND to_char(l.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM') = m.month) AS corrections
-       FROM m ORDER BY m.month DESC`,
+     SELECT m.month, coalesce(b.n, 0) AS auto_blinds, coalesce(l.holds, 0) AS legal_holds,
+            coalesce(l.releases, 0) AS legal_releases, coalesce(l.corrections, 0) AS corrections
+       FROM m LEFT JOIN b ON b.month = m.month LEFT JOIN l ON l.month = m.month
+      ORDER BY m.month DESC`,
   );
 }
