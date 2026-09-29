@@ -219,31 +219,37 @@ d("database rules", async () => {
       category,
       phase,
       title: `시드 ${key}`,
-      body: "라벨을 읽는 법에 대한 정보 글입니다. ".repeat(6),
+      body: "라벨을 읽는 법에 대한 정보 글입니다. 표기 기준과 단위를 함께 봅니다. ".repeat(12) + "\n확인 체크리스트\n- 라벨의 1회 제공량을 확인합니다.",
       summary: ["첫째 줄 요약", "둘째 줄 요약", "셋째 줄 요약"],
       comments: ["Q. 질문 / A. 답변", "Q. 질문2 / A. 답변2"],
       ...extra,
     });
 
-  it("refuses unreviewed seeds unless explicitly allowed, and is idempotent", async () => {
+  it("publishes unreviewed seeds that pass the safety check (Sprint 37), skips unsafe ones, and is idempotent", async () => {
     const seeds = [seed("s-launch", "supplements", "launch"), seed("s-drip", "supplements", "drip", { reviewedBy: "검수자" })];
+    const unsafe = seed("s-unsafe", "supplements", "launch", { body: "이 성분은 불면증을 완치합니다. ".repeat(20) + "\n확인 체크리스트\n- 라벨 확인" });
     const client = await pool().connect();
     try {
-      const refused = await curator.importSeeds(client, seeds);
+      // 예전처럼 사람 검수를 요구하면(requireReview) 아무것도 하지 않는다
+      const refused = await curator.importSeeds(client, seeds, { requireReview: true });
       expect(refused).toMatchObject({ published: 0, queued: 0, unreviewed: ["s-launch"] });
       expect((await posts.listPosts({ sort: "latest" })).total).toBe(0);
 
-      expect(await curator.importSeeds(client, seeds, { allowUnreviewed: true, dryRun: true })).toMatchObject({ published: 1, queued: 1 });
+      expect(await curator.importSeeds(client, [...seeds, unsafe], { dryRun: true })).toMatchObject({ published: 1, queued: 1 });
       expect((await posts.listPosts({ sort: "latest" })).total).toBe(0); // dry run rolled back
 
-      expect(await curator.importSeeds(client, seeds, { allowUnreviewed: true })).toMatchObject({ published: 1, queued: 1, skipped: 0 });
+      const r = await curator.importSeeds(client, [...seeds, unsafe]);
+      expect(r).toMatchObject({ published: 1, queued: 1, skipped: 1, unsafe: [{ key: "s-unsafe", problems: expect.arrayContaining([expect.stringContaining("완치")]) }] });
+      // 검수 여부가 글에 남는다 ("사람이 검수하지 않은 AI 글" 안내)
+      expect((await query<{ ai_reviewed: boolean }>("SELECT ai_reviewed FROM posts WHERE seed_key = 's-launch'"))[0]!.ai_reviewed).toBe(false);
+      expect((await query<{ reviewed: boolean }>("SELECT reviewed FROM curator_queue WHERE seed_key = 's-drip'"))[0]!.reviewed).toBe(true);
       await curator.importSeeds(client, [
         seed("s-first", "supplements", "launch", { priority: 1 }),
         seed("s-second", "supplements", "launch", { priority: 2 }),
-      ], { allowUnreviewed: true });
+      ]);
       const latest = (await posts.listPosts({ sort: "latest" })).items.map((p) => p.title);
       expect(latest.slice(0, 2)).toEqual(["시드 s-first", "시드 s-second"]);
-      expect(await curator.importSeeds(client, seeds, { allowUnreviewed: true })).toMatchObject({ published: 0, queued: 0, skipped: 2 });
+      expect(await curator.importSeeds(client, seeds)).toMatchObject({ published: 0, queued: 0, skipped: 2 });
       await expect(curator.importSeeds(client, [seed("bad-board", "no-such-board", "launch", { reviewedBy: "r" })])).rejects.toThrow(/unknown categories/);
     } finally {
       client.release();
@@ -284,7 +290,7 @@ d("database rules", async () => {
     const t0 = new Date();
     const first = await runCuratorBatch(t0);
     expect(first.published).toBe(2);
-    expect(first.categories.find((c) => c.slug === "supplements")).toMatchObject({ reason: "queue empty" });
+    expect(first.categories.find((c) => c.slug === "supplements")).toMatchObject({ reason: "queue empty (autogen off)" }); // API 키가 없으면 자동 작성도 꺼짐
 
     // 12시간이 지나지 않았으면 게시하지 않는다
     expect((await runCuratorBatch(new Date(t0.getTime() + 3600_000))).published).toBe(0);

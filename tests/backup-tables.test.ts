@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CHECK_TABLES } from "../scripts/backup";
+import { CHECK_TABLES, dropScratch } from "../scripts/backup";
 
 /**
  * 백업 검증의 행 수 대조 목록이 새 테이블을 빠뜨리지 않게 (Sprint 34 리허설: Sprint 20 이후 테이블 9개가 빠져
@@ -14,6 +14,7 @@ const NOT_CHECKED: Record<string, string> = {
   board_digests: "요약 캐시",
   curator_queue: "시드 작업 대기열",
   curator_runs: "배치 실행 기록",
+  curator_generations: "AI 자동 작성 시도 기록",
   digest_runs: "배치 실행 기록",
   error_events: "오류 기록",
   idempotency_keys: "24시간 뒤 지우는 중복 방지 키",
@@ -51,5 +52,27 @@ describe("backup row-count check list", () => {
     const sh = readFileSync(path.join(process.cwd(), "scripts", "backup.sh"), "utf8");
     const list = /for T in ([a-z_ ]+); do/.exec(sh)![1]!.trim().split(/\s+/);
     expect(list).toEqual(CHECK_TABLES);
+  });
+});
+
+describe("dropping the scratch restore database (Sprint 37)", () => {
+  it("waits and retries while autovacuum (another role) is still connected, and gives up on other errors", async () => {
+    const calls: string[] = [];
+    let fail = 2;
+    const admin = {
+      query: async (sql: string) => {
+        calls.push(sql);
+        if (fail-- > 0) throw Object.assign(new Error("permission denied to terminate process"), { code: "42501" });
+        return { rows: [] };
+      },
+    } as never;
+    await dropScratch(admin, "labelrep_restore_check_1", 5, 1);
+    expect(calls).toHaveLength(3);
+    const broken = { query: async () => { throw Object.assign(new Error("syntax"), { code: "42601" }); } } as never;
+    await expect(dropScratch(broken, "x", 5, 1)).rejects.toThrow("syntax");
+    let always = 0;
+    const stuck = { query: async () => { always++; throw Object.assign(new Error("in use"), { code: "55006" }); } } as never;
+    await expect(dropScratch(stuck, "x", 3, 1)).rejects.toThrow("in use");
+    expect(always).toBe(3);
   });
 });

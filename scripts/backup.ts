@@ -126,10 +126,29 @@ export async function restoreToScratch(anyUrl: string, dump: string) {
       run("pg_restore", ["--no-owner", "--no-privileges", "--exit-on-error", "--dbname", withDb(anyUrl, scratch), dump]);
       return await snapshot(withDb(anyUrl, scratch));
     } finally {
-      await admin.query(`DROP DATABASE IF EXISTS ${scratch} WITH (FORCE)`);
+      await dropScratch(admin, scratch);
     }
   } finally {
     await admin.end();
+  }
+}
+
+/**
+ * 임시 DB 지우기. 복원 직후에는 Postgres 의 자동 vacuum 작업자(슈퍼유저 소유)가 그 DB 에 붙어 있을 수 있는데,
+ * 슈퍼유저가 아닌 계정은 WITH (FORCE) 로도 그 연결을 끊지 못해 "permission denied to terminate process" 로 실패한다
+ * (Sprint 37 에서 테스트가 가끔 실패해 찾음). 작업은 금방 끝나므로 잠깐씩 기다렸다가 다시 시도한다.
+ */
+export async function dropScratch(admin: Pick<Client, "query">, name: string, tries = 20, waitMs = 500): Promise<void> {
+  for (let i = 1; ; i++) {
+    try {
+      await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+      return;
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      // 42501 insufficient_privilege (다른 역할의 연결), 55006 object_in_use
+      if (i >= tries || (code !== "42501" && code !== "55006")) throw err;
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
   }
 }
 

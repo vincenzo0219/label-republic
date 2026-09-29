@@ -257,7 +257,7 @@ type PostRow = Omit<PostDetail, "images" | "sources" | "facts"> & { pw_hash: str
 
 async function loadPost(id: string, client?: PoolClient, forUpdate = false): Promise<PostRow | null> {
   if (!/^\d{1,18}$/.test(id)) return null;
-  const sql = `SELECT ${CARD_SELECT}, p.body, p.report_count, p.is_blinded, p.updated_at, p.moderation_note, p.legal_hold, p.legal_hold_reason, p.pw_hash, p.category_id, p.revision_count
+  const sql = `SELECT ${CARD_SELECT}, p.body, p.report_count, p.is_blinded, p.updated_at, p.moderation_note, p.legal_hold, p.legal_hold_reason, p.pw_hash, p.category_id, p.revision_count, p.ai_reviewed
     ${FROM} WHERE p.id = $1 ${forUpdate ? "FOR UPDATE OF p" : ""}`;
   const rows = client ? (await client.query<PostRow>(sql, [id])).rows : await query<PostRow>(sql, [id]);
   return rows[0] ?? null;

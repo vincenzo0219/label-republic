@@ -10,32 +10,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { z } from "zod";
 import { config } from "../src/lib/config";
 import { seedPostSchema, type SeedPost } from "../src/lib/curator";
+import { CURATOR_SYSTEM_PROMPT, CuratorDraftSchema } from "../src/lib/curator-ai";
 import { pool, query } from "../src/lib/db";
 
-const DraftSchema = z.object({
-  title: z.string(),
-  body: z.string(),
-  summary_line1: z.string(),
-  summary_line2: z.string(),
-  summary_line3: z.string(),
-  faq_comments: z.array(z.string()),
-});
-
-const SYSTEM_PROMPT = `당신은 덕후 팩트체크 커뮤니티 "노방장"의 AI 큐레이터입니다.
-초기 커뮤니티를 위한 정보 글을 씁니다. 이 글은 🤖 AI 큐레이터 배지와 함께 AI 작성임이 명시되어 게시됩니다.
-
-원칙:
-- 라벨·스펙을 "읽는 법"과 널리 확립된 사실 위주로 씁니다. 불확실하거나 논쟁 중인 내용은 그렇다고 밝힙니다.
-- 특정 브랜드·제품을 추천하거나 비방하지 않습니다.
-- 질병의 예방·치료·완치, 효능 보장 같은 단정적 의학·효능 표현을 쓰지 않습니다(표시광고법·건강기능식품법).
-- 수치는 일반적으로 알려진 범위로 쓰고, 제품마다 다르니 라벨을 확인하라고 안내합니다.
-- 사람인 척하거나 개인 경험담을 지어내지 않습니다.
-- 본문은 한국어 700~1200자, 소제목 없이 짧은 문단 여러 개. 마지막 문단에 "확인 체크리스트"를 한 줄씩.
-- summary_line1~3은 각각 60자 안팎의 핵심 사실 한 문장.
-- faq_comments는 독자가 물을 법한 질문과 답을 "Q. ... / A. ..." 형식으로 2개. 사람 댓글처럼 꾸미지 않습니다.`;
+// 안내문·출력 형식은 자동 작성(src/lib/curator-ai.ts)과 같은 것을 쓴다
+const DraftSchema = CuratorDraftSchema;
+const SYSTEM_PROMPT = CURATOR_SYSTEM_PROMPT;
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);

@@ -57,6 +57,15 @@ export const config = {
     return Number.isFinite(n) && n >= 0 ? n : 1800;
   },
   /** 이 시각 이후 AI 큐레이터는 게시하지 않는다 (오픈 후 초기 N주). 비우면 물러남 정책만 적용. */
+  /** AI 큐레이터 자동 작성 (Sprint 37): 시드가 떨어지면 AI가 새 글을 써서 검수 없이 게시. CURATOR_AUTOGEN=0 이면 끔 (API 키가 없어도 꺼짐) */
+  get curatorAutogen(): boolean {
+    return process.env.CURATOR_AUTOGEN !== "0" && Boolean(this.anthropicApiKey);
+  },
+  /** 자동 작성 시도 하루 한도 (전체 보드 합, 안전 검사 탈락 포함) */
+  get curatorAutogenDailyMax(): number {
+    const n = Number(process.env.CURATOR_AUTOGEN_DAILY_MAX ?? 10);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 10;
+  },
   get curatorActiveUntil(): Date | null {
     const v = process.env.CURATOR_ACTIVE_UNTIL;
     if (!v) return null;

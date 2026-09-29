@@ -7,6 +7,7 @@
  */
 import type { PoolClient } from "pg";
 import { z } from "zod";
+import { curatorSafetyProblems } from "./curator-ai";
 
 export const CURATOR_NICKNAME = "AI 큐레이터";
 export const CURATOR_MODEL = "ai-curator";
@@ -23,7 +24,7 @@ export const seedPostSchema = z.object({
   body: z.string().trim().min(100).max(20000),
   summary: z.tuple([z.string().min(2).max(120), z.string().min(2).max(120), z.string().min(2).max(120)]),
   comments: z.array(z.string().trim().min(2).max(1000)).max(5).default([]),
-  /** 사람이 사실관계를 검수했으면 검수자 이름. 없으면 기본적으로 게시를 거부한다. */
+  /** 사람이 사실관계를 검수했으면 검수자 이름. 없으면 "사람이 검수하지 않은 AI 글"로 게시한다 (Sprint 37부터, 안전 검사는 통과해야 함) */
   reviewedBy: z.string().trim().min(1).optional(),
 });
 export type SeedPost = z.infer<typeof seedPostSchema>;
@@ -53,15 +54,15 @@ export function curatorIntervalHours({ humanPosts7d: h, aiPosts7d: ai }: Retreat
 // 게시
 // ---------------------------------------------------------------------------
 
-export type SeedContent = Pick<SeedPost, "key" | "title" | "body" | "summary" | "comments">;
+export type SeedContent = Pick<SeedPost, "key" | "title" | "body" | "summary" | "comments"> & { reviewed?: boolean };
 
 /** 시드 한 건을 게시한다. 같은 key 가 이미 게시돼 있으면 null. 트랜잭션 안에서 호출할 것. */
 export async function publishSeed(client: PoolClient, categoryId: number, seed: SeedContent): Promise<string | null> {
   const ins = await client.query<{ id: string }>(
-    `INSERT INTO posts (category_id, nickname, pw_hash, title, body, is_ai_curated, seed_key, moderated_by)
-     VALUES ($1, $2, $3, $4, $5, true, $6, 'ai-curator')
+    `INSERT INTO posts (category_id, nickname, pw_hash, title, body, is_ai_curated, seed_key, moderated_by, ai_reviewed)
+     VALUES ($1, $2, $3, $4, $5, true, $6, 'ai-curator', $7)
      ON CONFLICT (seed_key) DO NOTHING RETURNING id`,
-    [categoryId, CURATOR_NICKNAME, CURATOR_PW_HASH, seed.title, seed.body, seed.key],
+    [categoryId, CURATOR_NICKNAME, CURATOR_PW_HASH, seed.title, seed.body, seed.key, Boolean(seed.reviewed)],
   );
   const postId = ins.rows[0]?.id;
   if (!postId) return null;
@@ -81,10 +82,10 @@ export async function publishSeed(client: PoolClient, categoryId: number, seed: 
 
 export async function enqueueSeed(client: PoolClient, categoryId: number, seed: SeedPost): Promise<boolean> {
   const res = await client.query(
-    `INSERT INTO curator_queue (category_id, seed_key, title, body, summary_lines, comments, priority)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO curator_queue (category_id, seed_key, title, body, summary_lines, comments, priority, reviewed)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (seed_key) DO NOTHING`,
-    [categoryId, seed.key, seed.title, seed.body, seed.summary, JSON.stringify(seed.comments), seed.priority],
+    [categoryId, seed.key, seed.title, seed.body, seed.summary, JSON.stringify(seed.comments), seed.priority, Boolean(seed.reviewedBy)],
   );
   return (res.rowCount ?? 0) > 0;
 }
@@ -93,12 +94,13 @@ export async function enqueueSeed(client: PoolClient, categoryId: number, seed: 
 // 시드 파일 가져오기
 // ---------------------------------------------------------------------------
 
-export type ImportOptions = { allowUnreviewed?: boolean; dryRun?: boolean };
-export type ImportResult = { published: number; queued: number; skipped: number; unreviewed: string[] };
+export type ImportOptions = { requireReview?: boolean; dryRun?: boolean };
+export type ImportResult = { published: number; queued: number; skipped: number; unreviewed: string[]; unsafe: { key: string; problems: string[] }[] };
 
 /**
  * launch 시드는 즉시 게시하고, drip 시드는 대기열에 넣는다. 이미 게시·등록된 key는 건너뛴다.
- * reviewedBy 가 없는 시드가 하나라도 있으면 allowUnreviewed 없이는 아무것도 하지 않는다.
+ * Sprint 37부터 사람 검수(reviewedBy) 없이도 게시한다 — 대신 AI 자동 작성과 같은 안전 검사에 걸린 시드는 빼고,
+ * 검수 안 된 글에는 "사람이 검수하지 않은 AI 글" 안내가 붙는다. requireReview 면 예전처럼 검수 안 된 시드가 있으면 아무것도 하지 않는다.
  */
 export async function importSeeds(client: PoolClient, seeds: SeedPost[], opts: ImportOptions = {}): Promise<ImportResult> {
   const keys = new Set<string>();
@@ -107,15 +109,20 @@ export async function importSeeds(client: PoolClient, seeds: SeedPost[], opts: I
     keys.add(s.key);
   }
   const unreviewed = seeds.filter((s) => !s.reviewedBy).map((s) => s.key);
-  if (unreviewed.length && !opts.allowUnreviewed) {
-    return { published: 0, queued: 0, skipped: seeds.length, unreviewed };
+  if (unreviewed.length && opts.requireReview) {
+    return { published: 0, queued: 0, skipped: seeds.length, unreviewed, unsafe: [] };
   }
+  const unsafe = seeds
+    .map((s) => ({ key: s.key, problems: curatorSafetyProblems({ title: s.title, body: s.body, summary: s.summary, comments: s.comments }) }))
+    .filter((u) => u.problems.length);
+  const unsafeKeys = new Set(unsafe.map((u) => u.key));
+  seeds = seeds.filter((s) => !unsafeKeys.has(s.key));
   const cats = await client.query<{ id: number; slug: string }>("SELECT id, slug FROM categories");
   const catId = new Map(cats.rows.map((c) => [c.slug, c.id]));
   const missing = seeds.filter((s) => !catId.has(s.category)).map((s) => `${s.key} → ${s.category}`);
   if (missing.length) throw new Error(`unknown categories: ${missing.join(", ")}`);
 
-  const result: ImportResult = { published: 0, queued: 0, skipped: 0, unreviewed };
+  const result: ImportResult = { published: 0, queued: 0, skipped: unsafe.length, unreviewed, unsafe };
   await client.query("BEGIN");
   try {
     // launch 글은 우선순위가 높은(숫자가 작은) 글이 가장 최신이 되도록 역순으로 게시한다
@@ -123,7 +130,7 @@ export async function importSeeds(client: PoolClient, seeds: SeedPost[], opts: I
     for (const seed of ordered) {
       const id = catId.get(seed.category)!;
       if (seed.phase === "launch") {
-        (await publishSeed(client, id, seed)) ? result.published++ : result.skipped++;
+        (await publishSeed(client, id, { ...seed, reviewed: Boolean(seed.reviewedBy) })) ? result.published++ : result.skipped++;
       } else {
         (await enqueueSeed(client, id, seed)) ? result.queued++ : result.skipped++;
       }

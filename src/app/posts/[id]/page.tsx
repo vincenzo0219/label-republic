@@ -187,7 +187,9 @@ export default async function PostPage({ params }: Props) {
 
       {post.is_ai_curated && (
         <div className="notice" style={{ marginTop: 12 }}>
-          🤖 초기 커뮤니티를 위해 AI 큐레이터가 작성한 정보 글입니다. 사실과 다른 부분은 댓글과 비추천·신고로 바로잡아 주세요.
+          🤖 AI 큐레이터가 작성한 정보 글입니다.{" "}
+          {post.ai_reviewed ? "사람이 사실관계를 확인했습니다." : <b>사람이 검수하지 않았습니다.</b>} 수치는 제품·시기에 따라 다를 수 있으니 실제 라벨·스펙을 확인하세요.
+          사실과 다른 부분은 <a href="#corrections">정정 제안</a>과 비추천·신고로 바로잡아 주세요.
         </div>
       )}
 

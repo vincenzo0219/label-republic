@@ -111,6 +111,8 @@ export type PostDetail = PostCard & {
   legal_hold_reason: string | null;
   updated_at: string;
   revision_count: number;
+  /** AI 큐레이터 글을 사람이 검수했는지 (Sprint 37부터 검수 없이 게시되는 글이 있음) */
+  ai_reviewed?: boolean;
 };
 
 export type Correction = {

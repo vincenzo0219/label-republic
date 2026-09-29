@@ -16,7 +16,8 @@ DONE=0
 # 끝까지 가지 못하면(중간 실패) 이번에 만든 파일을 지운다 — 반쪽 백업이 남아 "백업이 있다"고 착각하지 않게,
 # 그리고 .json 이 없는 파일은 보관 개수 정리에도 걸리지 않아 계속 쌓이므로 (Sprint 24 리허설에서 발견)
 cleanup() {
-  psql -q -d postgres -c "DROP DATABASE IF EXISTS $SCRATCH WITH (FORCE)" >/dev/null 2>&1 || true
+  # 복원 직후 자동 vacuum 이 붙어 있으면 슈퍼유저가 아닌 계정은 지우지 못한다 — 잠깐씩 기다렸다가 다시 (Sprint 37)
+  for _ in 1 2 3 4 5 6 7 8 9 10; do psql -q -d postgres -c "DROP DATABASE IF EXISTS $SCRATCH WITH (FORCE)" >/dev/null 2>&1 && break; sleep 1; done
   if [ "$DONE" != 1 ]; then rm -f "$DUMP" "$DIR/$NAME-uploads.tar.gz" "$DIR/$NAME.json"; fi
 }
 trap cleanup EXIT

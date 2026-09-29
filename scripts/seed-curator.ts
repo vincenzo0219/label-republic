@@ -3,7 +3,10 @@
  *
  *   npm run seed:curator                       # db/seed/curator/*.json 전체
  *   npm run seed:curator -- --dry-run          # 트랜잭션을 롤백하고 결과만 출력
- *   npm run seed:curator -- --allow-unreviewed # reviewedBy 가 없는 시드도 게시 (개발/스테이징용)
+ *   npm run seed:curator -- --require-review   # reviewedBy(사람 검수자)가 없는 시드가 있으면 게시하지 않음 (Sprint 36까지의 기본)
+ *
+ * Sprint 37부터 사람 검수 없이 게시한다: AI 자동 작성과 같은 안전 검사(src/lib/curator-ai.ts)에 걸린 시드만 빼고,
+ * 검수 안 된 글에는 "사람이 검수하지 않은 AI 글" 안내가 붙는다.
  *   npm run seed:curator -- path/to/file.json  # 특정 파일만
  *
  * phase=launch 는 즉시 게시, phase=drip 은 대기열에 넣어 서버 스케줄러가 물러남 정책에 따라 게시한다.
@@ -30,7 +33,7 @@ async function loadSeeds(files: string[]): Promise<SeedPost[]> {
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
-  const allowUnreviewed = args.includes("--allow-unreviewed");
+  const requireReview = args.includes("--require-review");
   let files = args.filter((a) => !a.startsWith("--"));
   if (!files.length) {
     const dir = path.join(process.cwd(), "db", "seed", "curator");
@@ -41,18 +44,15 @@ async function main() {
 
   const client = await pool().connect();
   try {
-    const r = await importSeeds(client, seeds, { dryRun, allowUnreviewed });
-    if (r.unreviewed.length && !allowUnreviewed) {
-      console.error(
-        `\n${r.unreviewed.length}개 시드에 reviewedBy(사람 검수자)가 없어 게시하지 않았습니다.\n` +
-          `성분·건강 정보는 표시광고법/건강기능식품법 리스크가 있으니 사실관계를 검수한 뒤 reviewedBy 를 채우세요.\n` +
-          `개발/스테이징에서만 --allow-unreviewed 로 강제할 수 있습니다.`,
-      );
+    const r = await importSeeds(client, seeds, { dryRun, requireReview });
+    if (r.unreviewed.length && requireReview) {
+      console.error(`\n${r.unreviewed.length}개 시드에 reviewedBy(사람 검수자)가 없어 게시하지 않았습니다 (--require-review).`);
       process.exitCode = 2;
       return;
     }
-    console.log(`${dryRun ? "[dry-run] " : ""}published ${r.published}, queued ${r.queued}, skipped(existing) ${r.skipped}`);
-    if (r.unreviewed.length) console.warn(`warning: ${r.unreviewed.length} unreviewed seeds were included (--allow-unreviewed)`);
+    for (const u of r.unsafe) console.warn(`안전 검사에 걸려 뺌: ${u.key} — ${u.problems.join(", ")}`);
+    console.log(`${dryRun ? "[dry-run] " : ""}published ${r.published}, queued ${r.queued}, skipped ${r.skipped} (unsafe ${r.unsafe.length})`);
+    if (r.unreviewed.length) console.log(`사람 검수 없이 게시·등록: ${r.unreviewed.length}건 ("사람이 검수하지 않은 AI 글" 안내가 붙음)`);
   } finally {
     client.release();
     await pool().end();

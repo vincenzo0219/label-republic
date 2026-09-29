@@ -50,7 +50,8 @@ if [ "$CMD" = "verify" ]; then
     elif [ "$(sha256sum "$DIR/$UP" | cut -d' ' -f1)" != "$(field uploads_sha256)" ]; then echo "✗ 첨부 사진 묶음 체크섬이 다릅니다"; PROBLEMS=1; fi
   fi
   SCRATCH="labelrep_verify_$$"
-  trap 'psql -q -d postgres -c "DROP DATABASE IF EXISTS $SCRATCH WITH (FORCE)" >/dev/null 2>&1 || true' EXIT
+  # 복원 직후 자동 vacuum 이 붙어 있으면 슈퍼유저가 아닌 계정은 지우지 못한다 — 잠깐씩 기다렸다가 다시 (Sprint 37)
+  trap 'for _ in 1 2 3 4 5 6 7 8 9 10; do psql -q -d postgres -c "DROP DATABASE IF EXISTS $SCRATCH WITH (FORCE)" >/dev/null 2>&1 && break; sleep 1; done' EXIT
   psql -q -d postgres -c "CREATE DATABASE $SCRATCH"
   pg_restore --no-owner --no-privileges --exit-on-error --dbname "$SCRATCH" "$DUMP"
   GOT=$(count_rows "$SCRATCH")

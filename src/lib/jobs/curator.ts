@@ -1,20 +1,24 @@
 import { pool } from "../db";
 import { config } from "../config";
 import { curatorIntervalHours, publishSeed } from "../curator";
+import { curatorSafetyProblems, generateWithClaude, type CuratorGenerator } from "../curator-ai";
 import { reportError } from "../error-tracking";
 
 const CURATOR_LOCK_KEY = 4_823_002;
 
-type CategoryState = { id: number; slug: string; human: number; ai: number; last_ai_at: string | null };
+type CategoryState = { id: number; slug: string; name: string; description: string; human: number; ai: number; last_ai_at: string | null };
 export type CuratorCategoryResult = { slug: string; human: number; ai: number; intervalHours: number | null; published: string | null; reason: string };
 export type CuratorBatchResult = { ran: boolean; published: number; categories: CuratorCategoryResult[] };
 
 /**
  * 오픈 후 "활성화 유지": 카테고리별로 물러남 정책(curatorIntervalHours)을 계산해
  * 게시 간격이 지났으면 대기열(curator_queue)에서 한 건을 게시한다.
- * CURATOR_ACTIVE_UNTIL 이 지나면 아무것도 게시하지 않는다.
+ * 대기열이 비었으면(Sprint 37) AI가 새 글을 써서 안전 검사를 통과하면 사람 검수 없이 게시한다 — 하루 시도 한도,
+ * CURATOR_AUTOGEN=0 으로 끌 수 있다. CURATOR_ACTIVE_UNTIL 이 지나면 아무것도 게시하지 않는다.
  */
-export async function runCuratorBatch(now = new Date()): Promise<CuratorBatchResult> {
+export async function runCuratorBatch(now = new Date(), opts: { generate?: CuratorGenerator; dailyMax?: number } = {}): Promise<CuratorBatchResult> {
+  const generate = opts.generate ?? (config.curatorAutogen ? generateWithClaude : null);
+  const dailyMax = opts.dailyMax ?? config.curatorAutogenDailyMax;
   const until = config.curatorActiveUntil;
   const client = await pool().connect();
   try {
@@ -25,7 +29,7 @@ export async function runCuratorBatch(now = new Date()): Promise<CuratorBatchRes
     const results: CuratorCategoryResult[] = [];
     try {
       const states = await client.query<CategoryState>(
-        `SELECT c.id, c.slug,
+        `SELECT c.id, c.slug, c.name, coalesce(c.description, '') AS description,
                 -- 물러남 판단은 사람이 쓴 [정보] 글 기준 (잡담·정모는 정보 공백을 메우지 않음)
                 count(p.id) FILTER (WHERE NOT p.is_ai_curated AND p.post_type = 'info')::int AS human,
                 count(p.id) FILTER (WHERE p.is_ai_curated)::int     AS ai,
@@ -52,15 +56,15 @@ export async function runCuratorBatch(now = new Date()): Promise<CuratorBatchRes
         }
         await client.query("BEGIN");
         try {
-          const next = await client.query<{ id: string; seed_key: string; title: string; body: string; summary_lines: [string, string, string]; comments: string[] }>(
-            `SELECT id, seed_key, title, body, summary_lines, comments FROM curator_queue
+          const next = await client.query<{ id: string; seed_key: string; title: string; body: string; summary_lines: [string, string, string]; comments: string[]; reviewed: boolean }>(
+            `SELECT id, seed_key, title, body, summary_lines, comments, reviewed FROM curator_queue
               WHERE category_id = $1 AND status = 'queued' ORDER BY priority, id LIMIT 1 FOR UPDATE SKIP LOCKED`,
             [s.id],
           );
           const item = next.rows[0];
           if (!item) {
             await client.query("ROLLBACK");
-            results.push({ ...base, reason: "queue empty" });
+            results.push({ ...base, ...(await autogenerate(client, s, now, generate, dailyMax)) });
             continue;
           }
           const postId = await publishSeed(client, s.id, {
@@ -69,6 +73,7 @@ export async function runCuratorBatch(now = new Date()): Promise<CuratorBatchRes
             body: item.body,
             summary: item.summary_lines,
             comments: item.comments,
+            reviewed: item.reviewed,
           });
           await client.query(
             `UPDATE curator_queue SET status = $2, published_post_id = $3, published_at = now() WHERE id = $1`,
@@ -99,6 +104,71 @@ export async function runCuratorBatch(now = new Date()): Promise<CuratorBatchRes
     }
   } finally {
     client.release();
+  }
+}
+
+/**
+ * 대기열이 빈 보드: AI 가 새 글을 쓰고 안전 검사를 통과하면 사람 검수 없이 게시한다 (Sprint 37).
+ * 시도(게시·탈락·실패)는 curator_generations 에 남고 하루 한도에 센다 — 탈락이 반복돼도 비용이 새지 않게.
+ */
+async function autogenerate(
+  client: import("pg").PoolClient,
+  s: CategoryState,
+  now: Date,
+  generate: CuratorGenerator | null,
+  dailyMax: number,
+): Promise<{ published: string | null; reason: string }> {
+  if (!generate) return { published: null, reason: "queue empty (autogen off)" };
+  const used = await client.query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM curator_generations WHERE created_at > $1::timestamptz - interval '1 day'",
+    [now.toISOString()],
+  );
+  if (used.rows[0]!.n >= dailyMax) return { published: null, reason: "queue empty (autogen daily limit)" };
+  const recent = await client.query<{ title: string }>(
+    "SELECT title FROM posts WHERE category_id = $1 ORDER BY id DESC LIMIT 40",
+    [s.id],
+  );
+  const recentTitles = recent.rows.map((r) => r.title);
+  let draft;
+  try {
+    draft = await generate({ slug: s.slug, name: s.name, description: s.description }, recentTitles);
+  } catch (err) {
+    await client.query("INSERT INTO curator_generations (category_id, status, reasons) VALUES ($1, 'failed', $2)", [s.id, String(err).slice(0, 1000)]);
+    return { published: null, reason: "autogen failed" };
+  }
+  if (!draft) {
+    await client.query("INSERT INTO curator_generations (category_id, status, reasons) VALUES ($1, 'failed', 'no draft (refusal or invalid output)')", [s.id]);
+    return { published: null, reason: "autogen failed" };
+  }
+  const problems = curatorSafetyProblems(draft, recentTitles);
+  if (problems.length) {
+    await client.query("INSERT INTO curator_generations (category_id, status, title, reasons) VALUES ($1, 'rejected', $2, $3)", [
+      s.id,
+      draft.title.slice(0, 200),
+      problems.join(" · ").slice(0, 1000),
+    ]);
+    return { published: null, reason: `autogen rejected: ${problems.join(", ")}` };
+  }
+  await client.query("BEGIN");
+  try {
+    const postId = await publishSeed(client, s.id, {
+      key: `auto-${s.slug}-${now.getTime().toString(36)}`,
+      title: draft.title,
+      body: draft.body,
+      summary: draft.summary,
+      comments: draft.comments,
+      reviewed: false,
+    });
+    await client.query("INSERT INTO curator_generations (category_id, status, title, post_id) VALUES ($1, 'published', $2, $3)", [
+      s.id,
+      draft.title.slice(0, 200),
+      postId,
+    ]);
+    await client.query("COMMIT");
+    return { published: postId, reason: postId ? "autogen published" : "autogen duplicate key" };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
   }
 }
 
