@@ -31,12 +31,15 @@ describe("service worker source", () => {
 describe("request keys (client)", () => {
   it("reuses the key for the same content and makes a new one when it changes", () => {
     const slot: { current: { key: string; sent: string } | undefined } = { current: undefined };
-    const k1 = requestKeyFor(slot, { body: "안녕", pw: "1234" });
-    expect(requestKeyFor(slot, { body: "안녕", pw: "1234" })).toBe(k1);
-    expect(requestKeyFor(slot, { body: "안녕하세요", pw: "1234" })).not.toBe(k1);
+    // 비밀번호 표본은 키(UUID)·해시(base36)에 우연히 나올 수 없는 글자로 — "1234" 는 무작위 UUID 에 가끔 들어 있었다
+    const pw = "비번-1234";
+    const k1 = requestKeyFor(slot, { body: "안녕", pw });
+    expect(requestKeyFor(slot, { body: "안녕", pw })).toBe(k1);
+    expect(requestKeyFor(slot, { body: "안녕하세요", pw })).not.toBe(k1);
     expect(k1).toMatch(/^[A-Za-z0-9-]{16,64}$/);
-    // 슬롯(글쓰기 임시저장에도 저장됨)에는 비밀번호가 그대로 남지 않는다
-    expect(JSON.stringify(slot.current)).not.toContain("1234");
+    // 슬롯(글쓰기 임시저장에도 저장됨)에는 비밀번호가 그대로 남지 않는다 — 키와 내용 해시만
+    expect(Object.keys(slot.current!).sort()).toEqual(["key", "sent"]);
+    expect(JSON.stringify(slot.current)).not.toContain(pw);
     expect(contentHash("a")).not.toBe(contentHash("b"));
   });
 });
