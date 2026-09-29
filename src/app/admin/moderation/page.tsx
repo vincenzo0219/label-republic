@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { StatusPill } from "@/components/admin/charts";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
-import { AlertActions, BoardRequestActions, ProductMergeActions, RejectAppeal, ReleaseSuppression } from "@/components/admin/ModerationActions";
+import { AlertActions, BoardRequestActions, BrandAliasActions, BrandAliasRemove, ProductMergeActions, RejectAppeal, ReleaseSuppression } from "@/components/admin/ModerationActions";
+import { listForReview as listBrandAliasesForReview } from "@/lib/repo/brand-aliases";
 import {
   listAlertsForReview,
   listDuplicateProductCandidates,
@@ -21,13 +22,14 @@ function fmt(iso: string | null) {
 }
 
 export default async function ModerationPage() {
-  const [appeals, alerts, suppressed, blinds, boardReqs, dupes] = await Promise.all([
+  const [appeals, alerts, suppressed, blinds, boardReqs, dupes, brandAliases] = await Promise.all([
     listOpenAppeals(),
     listAlertsForReview(),
     listSuppressed(),
     listRecentAutoBlinds(),
     listOpenBoardRequestsForReview(),
     listDuplicateProductCandidates(),
+    listBrandAliasesForReview(),
   ]);
 
   return (
@@ -242,6 +244,51 @@ export default async function ModerationPage() {
         )}
         <p className="hint">번호로 직접 병합:</p>
         <ProductMergeActions />
+      </section>
+
+      <section className="panel" aria-labelledby="brand-alias-h">
+        <h2 id="brand-alias-h">브랜드 별칭 제안 ({brandAliases.open.length})</h2>
+        <p className="hint">
+          이용자가 브랜드 페이지에서 올린 &ldquo;같은 브랜드&rdquo; 제안입니다. <b>커뮤니티 동의를 얻은 제안만 확정</b>할 수 있고, 확정하면 제품이 많은 쪽이 대표가
+          되며 같은 보드의 같은 이름 제품은 병합됩니다. 수입사·판매처·자회사처럼 제조사가 다른 경우는 기각하세요.
+        </p>
+        {brandAliases.open.length > 0 && (
+          <ul className="mod-list">
+            {brandAliases.open.map((p) => (
+              <li key={p.id}>
+                <div className="mod-row">
+                  <span>
+                    <Link href={`/brand/${encodeURIComponent(p.brand_a)}`}>{p.label_a}</Link> = <Link href={`/brand/${encodeURIComponent(p.brand_b)}`}>{p.label_b}</Link>{" "}
+                    <span className="hint">
+                      #{p.id} · {p.nickname} · 동의 {p.agree_count} · 반대 {p.disagree_count}
+                    </span>
+                  </span>
+                  <span className="hint">{p.is_supported ? "✔ 동의됨" : "의견 받는 중"}</span>
+                </div>
+                <p className="hint" style={{ margin: "4px 0" }}>{p.reason}</p>
+                <BrandAliasActions proposalId={p.id} supported={p.is_supported} pair={`${p.label_a} = ${p.label_b}`} />
+              </li>
+            ))}
+          </ul>
+        )}
+        {brandAliases.aliases.length > 0 && (
+          <>
+            <p className="hint">확정된 별칭 (잘못 확정했으면 해제):</p>
+            <ul className="mod-list">
+              {brandAliases.aliases.map((a) => (
+                <li key={a.alias_key}>
+                  <div className="mod-row">
+                    <span>
+                      {a.label} → <Link href={`/brand/${encodeURIComponent(a.canonical_key)}`}>{a.canonical_label}</Link>
+                    </span>
+                    <span className="hint">{fmt(a.created_at)}</span>
+                  </div>
+                  <BrandAliasRemove aliasKey={a.alias_key} pair={`${a.label} → ${a.canonical_label}`} />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
     </div>
   );

@@ -35,12 +35,15 @@ export const MOD_ACTIONS = {
   revision_redacted: "수정 이력 삭제 (법적 요청)",
   rule_reason_hidden: "규칙 제안 사유 가림 (권리침해)",
   rule_votes_voided: "조직적 규칙 투표 무효화",
+  brand_alias_accepted: "브랜드 별칭 확정",
+  brand_alias_rejected: "브랜드 별칭 제안 기각",
+  brand_alias_removed: "브랜드 별칭 해제",
 } as const;
 export type ModAction = keyof typeof MOD_ACTIONS;
 
 type LogInput = {
   action: ModAction;
-  subjectType: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal";
+  subjectType: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias";
   subjectId: string;
   note: string;
   affected?: number;
@@ -48,7 +51,7 @@ type LogInput = {
   reason?: string | null;
 };
 
-async function writeLog(client: PoolClient, e: LogInput): Promise<void> {
+export async function writeLog(client: PoolClient, e: LogInput): Promise<void> {
   await client.query(
     `INSERT INTO moderation_log (action, post_id, subject_type, subject_id, reason, note, affected, alert_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -376,40 +379,43 @@ export async function mergeProduct(productId: string, intoId: string, note: stri
   assertId(productId, "제품");
   assertId(intoId, "제품");
   if (productId === intoId) throw new HttpError(400, "same_product", "같은 제품끼리는 병합할 수 없습니다.");
-  return tx(async (client) => {
-    const { rows } = await client.query<{ id: string; category_id: number; merged_into: string | null; brand: string; name: string }>(
-      "SELECT id, category_id, merged_into, brand, name FROM products WHERE id = ANY($1::bigint[]) ORDER BY id FOR UPDATE",
-      [[productId, intoId]],
-    );
-    const from = rows.find((r) => r.id === productId);
-    const into = rows.find((r) => r.id === intoId);
-    if (!from || !into) throw notFound("제품");
-    if (from.merged_into || into.merged_into) throw new HttpError(409, "product_merged", "이미 병합된 제품입니다.");
-    if (from.category_id !== into.category_id) throw new HttpError(400, "different_board", "같은 보드의 제품끼리만 병합할 수 있습니다.");
-    // 두 제품을 모두 태그한 글은 한 번만 남는다
-    const moved = await client.query(
-      `INSERT INTO post_products (post_id, product_id, position)
-       SELECT post_id, $2, position FROM post_products WHERE product_id = $1
-       ON CONFLICT DO NOTHING`,
-      [productId, intoId],
-    );
-    await client.query("DELETE FROM post_products WHERE product_id = $1", [productId]);
-    await client.query("UPDATE product_facts SET product_id = $2 WHERE product_id = $1", [productId, intoId]);
-    // 정정 제안이 가리키는 수치도 따라가게 (안 옮기면 "수치가 이미 고쳐짐"으로 잘못 보인다)
-    await client.query("UPDATE corrections SET fact_product_id = $2 WHERE fact_product_id = $1", [productId, intoId]);
-    // 이 제품으로 병합돼 있던 제품도 새 대상을 바로 가리키게 (체인을 펴 둔다)
-    await client.query("UPDATE products SET merged_into = $2 WHERE id = $1 OR merged_into = $1", [productId, intoId]);
-    // 두 제품의 표시값이 합쳐졌으니 리뉴얼 기록도 다시 계산 (Sprint 25)
-    await reconcileRenewals(client, [productId, intoId]);
-    await writeLog(client, {
-      action: "product_merged",
-      subjectType: "product",
-      subjectId: productId,
-      note: note || `${from.brand} ${from.name} → 제품 #${intoId} ${into.brand} ${into.name}`,
-      affected: moved.rowCount ?? 0,
-    });
-    return { moved: moved.rowCount ?? 0 };
+  return tx((client) => mergeProductIn(client, productId, intoId, note));
+}
+
+/** 이미 열린 트랜잭션 안에서 병합 (브랜드 별칭 확정이 여러 제품을 한 번에 합칠 때, Sprint 31) */
+export async function mergeProductIn(client: PoolClient, productId: string, intoId: string, note: string): Promise<{ moved: number }> {
+  const { rows } = await client.query<{ id: string; category_id: number; merged_into: string | null; brand: string; name: string }>(
+    "SELECT id, category_id, merged_into, brand, name FROM products WHERE id = ANY($1::bigint[]) ORDER BY id FOR UPDATE",
+    [[productId, intoId]],
+  );
+  const from = rows.find((r) => r.id === productId);
+  const into = rows.find((r) => r.id === intoId);
+  if (!from || !into) throw notFound("제품");
+  if (from.merged_into || into.merged_into) throw new HttpError(409, "product_merged", "이미 병합된 제품입니다.");
+  if (from.category_id !== into.category_id) throw new HttpError(400, "different_board", "같은 보드의 제품끼리만 병합할 수 있습니다.");
+  // 두 제품을 모두 태그한 글은 한 번만 남는다
+  const moved = await client.query(
+    `INSERT INTO post_products (post_id, product_id, position)
+     SELECT post_id, $2, position FROM post_products WHERE product_id = $1
+     ON CONFLICT DO NOTHING`,
+    [productId, intoId],
+  );
+  await client.query("DELETE FROM post_products WHERE product_id = $1", [productId]);
+  await client.query("UPDATE product_facts SET product_id = $2 WHERE product_id = $1", [productId, intoId]);
+  // 정정 제안이 가리키는 수치도 따라가게 (안 옮기면 "수치가 이미 고쳐짐"으로 잘못 보인다)
+  await client.query("UPDATE corrections SET fact_product_id = $2 WHERE fact_product_id = $1", [productId, intoId]);
+  // 이 제품으로 병합돼 있던 제품도 새 대상을 바로 가리키게 (체인을 펴 둔다)
+  await client.query("UPDATE products SET merged_into = $2 WHERE id = $1 OR merged_into = $1", [productId, intoId]);
+  // 두 제품의 표시값이 합쳐졌으니 리뉴얼 기록도 다시 계산 (Sprint 25)
+  await reconcileRenewals(client, [productId, intoId]);
+  await writeLog(client, {
+    action: "product_merged",
+    subjectType: "product",
+    subjectId: productId,
+    note: note || `${from.brand} ${from.name} → 제품 #${intoId} ${into.brand} ${into.name}`,
+    affected: moved.rowCount ?? 0,
   });
+  return { moved: moved.rowCount ?? 0 };
 }
 
 export type DuplicateProductPair = {

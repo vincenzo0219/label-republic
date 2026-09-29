@@ -26,6 +26,7 @@ function subjectLabel(r: ModerationLogRow) {
   if (r.subject_type === "board_request") return `보드 요청 #${r.subject_id}`;
   if (r.subject_type === "product") return <Link href={`/p/${r.subject_id}`}>제품 #{r.subject_id}</Link>;
   if (r.subject_type === "rule_proposal") return <Link href={`/rules#proposal-${r.subject_id}`}>규칙 제안 #{r.subject_id}</Link>;
+  if (r.subject_type === "brand_alias") return `브랜드 제안 #${r.subject_id}`;
   return "신고자 1명";
 }
 

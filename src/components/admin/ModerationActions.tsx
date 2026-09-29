@@ -224,3 +224,58 @@ export function ProductMergeActions({ a, b }: { a?: { id: string; label: string 
     </div>
   );
 }
+
+/** 브랜드 별칭 제안 확정·기각 (Sprint 31) — 확정은 커뮤니티 동의를 얻은 제안만 */
+export function BrandAliasActions({ proposalId, supported, pair }: { proposalId: string; supported: boolean; pair: string }) {
+  const { msg, busy, run } = useAction();
+  const [note, setNote] = useState("");
+  return (
+    <div className="mod-actions">
+      <input className="input input-sm" maxLength={300} placeholder={PUBLIC_NOTE} aria-label="공개 메모" value={note} onChange={(e) => setNote(e.target.value)} />
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={busy || !supported}
+        title={supported ? undefined : "커뮤니티 동의를 얻은 제안만 확정할 수 있습니다"}
+        onClick={() =>
+          run(
+            `${pair}\n같은 브랜드로 확정합니다. 제품이 많은 쪽이 대표가 되고, 같은 이름 제품은 병합됩니다(되돌리기 어려움). 투명성 기록에 공개됩니다. 계속할까요?`,
+            { action: "accept_brand_alias", proposalId, note },
+            (r) => `확정 · 제품 병합 ${r.merged} · 합친 제품 ${r.rekeyed}`,
+          )
+        }
+      >
+        확정
+      </button>
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={busy || !note.trim()}
+        onClick={() => run(`${pair}\n제안을 기각합니다 (사유 공개). 계속할까요?`, { action: "reject_brand_alias", proposalId, note }, () => "기각했습니다")}
+      >
+        기각
+      </button>
+      {msg && <span className="hint">{msg}</span>}
+    </div>
+  );
+}
+
+/** 확정된 브랜드 별칭 해제 — 잘못 확정했을 때. 키만 바꾼 제품은 되돌리고, 병합된 제품은 그대로 */
+export function BrandAliasRemove({ aliasKey, pair }: { aliasKey: string; pair: string }) {
+  const { msg, busy, run } = useAction();
+  const [note, setNote] = useState("");
+  return (
+    <div className="mod-actions">
+      <input className="input input-sm" maxLength={300} placeholder="해제 사유 (공개)" aria-label="해제 사유" value={note} onChange={(e) => setNote(e.target.value)} />
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={busy || !note.trim()}
+        onClick={() => run(`${pair}\n별칭을 해제합니다. 확정 때 병합된 제품은 되돌리지 않습니다. 계속할까요?`, { action: "remove_brand_alias", aliasKey, note }, (r) => `해제 · 되돌린 제품 ${r.restored}`)}
+      >
+        해제
+      </button>
+      {msg && <span className="hint">{msg}</span>}
+    </div>
+  );
+}

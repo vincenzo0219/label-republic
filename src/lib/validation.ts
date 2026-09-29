@@ -195,4 +195,12 @@ export const ruleProposalSchema = z.object({
   pw: pin,
 });
 
+/** 브랜드 별칭 제안 (Sprint 31): 지금 브랜드 페이지의 키 + 같은 브랜드라고 보는 다른 표기 */
+export const brandAliasSchema = z.object({
+  brandKey: z.string().min(1).max(60),
+  other: trimmed(1, 60, "다른 표기"),
+  reason: trimmed(10, 500, "이유"),
+  nickname,
+});
+
 export const ruleVoteSchema = z.object({ value: z.union([z.literal(1), z.literal(-1), z.literal(0)], { error: "찬성·반대를 골라주세요." }) });

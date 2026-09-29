@@ -62,7 +62,11 @@ async function resolveMerged(client: PoolClient, id: string): Promise<{ id: stri
 async function findOrCreate(client: PoolClient, categoryId: number, brand: string, name: string, fp?: string): Promise<string> {
   const problem = productNameProblem(brand, name);
   if (problem) throw badProduct(problem);
-  const key = productKey(brand, name);
+  // 브랜드 별칭이면 대표 브랜드 키로 (Sprint 31) — "나우푸드 마그네슘"이 합쳐진 "NOW Foods 마그네슘"으로 들어간다
+  const raw = productKey(brand, name);
+  const bk = raw.slice(0, raw.indexOf("|"));
+  const alias = await client.query<{ canonical_key: string }>("SELECT canonical_key FROM brand_aliases WHERE alias_key = $1", [bk]);
+  const key = alias.rows[0] ? `${alias.rows[0].canonical_key}${raw.slice(raw.indexOf("|"))}` : raw;
   // 이미 있으면 INSERT 하지 않는다 (ON CONFLICT 도 시퀀스 번호를 소모하므로 먼저 찾는다)
   const found = await client.query<{ id: string }>("SELECT id FROM products WHERE category_id = $1 AND norm_key = $2", [categoryId, key]);
   if (found.rows[0]) {
@@ -418,7 +422,9 @@ export async function searchProducts(q: string, categoryId?: number, limit = 10)
   const args: unknown[] = [limit];
   const where = terms.map((t) => {
     args.push(`%${t.replace(/[\\%_]/g, (m) => `\\${m}`)}%`);
-    return `replace(pr.norm_key, '|', '') LIKE $${args.length}`;
+    // 합쳐진 브랜드의 옛 표기로 찾아도 (예: "나우푸드" → nowfoods 제품) — Sprint 31
+    return `(replace(pr.norm_key, '|', '') LIKE $${args.length}
+             OR split_part(pr.norm_key, '|', 1) = ANY(ARRAY(SELECT canonical_key FROM brand_aliases WHERE alias_key LIKE $${args.length})))`;
   });
   if (categoryId) {
     args.push(categoryId);

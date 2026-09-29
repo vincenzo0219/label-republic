@@ -697,3 +697,12 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .brand-counts { margin: 6px 0; padding-left: 18px; }
 .brand-counts li { margin: 3px 0; }
 .product-brand a { color: inherit; }
+
+/* 브랜드 별칭 제안 (Sprint 31) */
+.alias-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
+.alias-item { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--surface); }
+.alias-head { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.alias-reason { margin: 6px 0 4px; white-space: pre-wrap; }
+.alias-votes { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.alias-votes .btn[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.brand-aliases { margin: -4px 0 8px; }

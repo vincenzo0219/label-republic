@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
+import { BrandAliasPanel } from "@/components/BrandAliasPanel";
 import { RenewalList } from "@/components/RenewalList";
+import { fingerprint } from "@/lib/fingerprint";
+import { aliasesOf, canonicalBrandKey, isBrandKey, listProposals } from "@/lib/repo/brand-aliases";
 import { brandHistory as brandHistoryUncached } from "@/lib/repo/renewal-feed";
-import { getRule } from "@/lib/repo/rules";
+import { getRule, getRules } from "@/lib/repo/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -30,16 +34,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/** 브랜드별 라벨 변경 이력 (Sprint 28) */
+/** 브랜드별 라벨 변경 이력 (Sprint 28) + 같은 브랜드의 다른 표기 (Sprint 31) */
 export default async function BrandPage({ params }: Props) {
-  const [h, minReports] = await Promise.all([brandHistory(decodeKey((await params).key)), getRule("renewal_min_reports")]);
+  const key = decodeKey((await params).key);
+  // 합쳐진 옛 표기의 주소는 대표 브랜드로
+  if (isBrandKey(key)) {
+    const canonical = await canonicalBrandKey(key);
+    if (canonical !== key) permanentRedirect(`/brand/${encodeURIComponent(canonical)}`);
+  }
+  const [h, minReports, rules] = await Promise.all([brandHistory(key), getRule("renewal_min_reports"), getRules()]);
   if (!h) notFound();
+  const [aliases, proposals] = await Promise.all([aliasesOf(h.key), listProposals(h.key, fingerprint((await headers()) as unknown as Headers))]);
   return (
     <>
       <p className="hint">
         <Link href="/renewals">← 라벨 변경 이력</Link>
       </p>
       <h1 style={{ fontSize: 20, margin: "4px 0 8px" }}>🏭 {h.brand}</h1>
+      {aliases.length > 0 && <p className="hint brand-aliases">다른 표기: {aliases.map((a) => a.label).join(" · ")}</p>}
       <p className="post-meta">
         <span>제품 {h.stats.products}개</span>
         <span>라벨 변경 {h.stats.renewals}건 (제품 {h.stats.renewed_products}개)</span>
@@ -89,6 +101,13 @@ export default async function BrandPage({ params }: Props) {
           ))}
         </ul>
       </section>
+
+      <BrandAliasPanel
+        brandKey={h.key}
+        brandLabel={h.brand}
+        initial={proposals}
+        rule={{ score: rules.correction_support_score, ratio: rules.correction_support_ratio }}
+      />
     </>
   );
 }
