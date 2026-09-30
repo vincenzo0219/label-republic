@@ -1,0 +1,37 @@
+# 노방장 HTTPS 리버스 프록시 (Sprint 24) — docker compose --profile https 로 함께 뜬다.
+#
+#   DOMAIN=nobangjang.com           실제 도메인 (DNS 가 이 서버를 가리키고 80·443 포트가 열려 있어야 함)
+#   ACME_EMAIL=ops@example.com      인증서 만료 안내를 받을 주소
+#   CADDY_TLS=                      비워 두면 Let's Encrypt 인증서를 자동으로 받고 갱신한다.
+#                                   사내·리허설용으로 도메인이 없으면 "tls internal" (Caddy 자체 인증서)
+#
+# 앱은 X-Forwarded-For 의 오른쪽 1번째 값을 믿으므로(.env: TRUST_PROXY=true, TRUST_PROXY_HOPS=1)
+# 앱 포트(3000)는 이 서버 밖에서 직접 닿지 않게 해야 한다 (docker-compose.yml 은 127.0.0.1 에만 연다).
+{
+	# docker-compose 가 ACME_EMAIL 이 있을 때만 "email …" 한 줄로 넘긴다 (Sprint 38: 비어 있으면 "email" 만 남아 Caddy 가 시작하지 않았음)
+	{$CADDY_GLOBAL:}
+}
+
+{$DOMAIN} {
+	{$CADDY_TLS:}
+	encode zstd gzip
+	# 사진 업로드(최대 10MB)보다 조금 넉넉하게
+	request_body {
+		max_size 12MB
+	}
+	reverse_proxy app:3000 {
+		# 배포·재시작 중에는 잠시 기다렸다가 넘긴다 (앱이 SIGTERM 뒤 10초 안에 마무리)
+		lb_try_duration 15s
+	}
+	# 접속 기록(access log)은 남기지 않는다 — 방문자 IP·요청 헤더가 그대로 남아 개인정보처리방침("원본 IP 미저장")과
+	# 어긋난다 (Sprint 24 리허설에서 발견). 오류·인증서 로그는 그대로 나온다.
+}
+
+# www 로 온 요청은 www 없는 주소로 (Sprint 38 — 주소가 둘이면 푸시 구독·홈 화면 앱·"내 댓글"이 주소별로 갈라진다).
+# DNS 에 www 레코드가 없으면 이 블록의 인증서 발급만 실패하고(로그에 재시도) 본 주소는 영향 없다.
+www.{$DOMAIN} {
+	{$CADDY_TLS:}
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+# http:// 로 온 요청은 자동으로 https:// 로 넘어간다 (Caddy 기본 동작)

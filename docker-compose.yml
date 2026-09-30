@@ -1,0 +1,125 @@
+# 운영 이미지 구성
+#   cp .env.example .env  # 값 채우기 (docs/RUNBOOK.md 1장)
+#   docker compose up --build -d                     # 앱 + DB + 백업 (앱은 이 서버의 127.0.0.1:3000 에만 열림)
+#   docker compose --profile https up --build -d     # + HTTPS 리버스 프록시(Caddy, 80·443) — 실제 서비스는 이쪽
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    # Docker 기본 공유 메모리(64MB)로는 큰 병렬 조회(해시 조인)가 "No space left on device" 로 실패한다 —
+    # 글 20만 건 규모에서 투표 집계가 실패함 (Sprint 34 리허설). shared_buffers 등을 올리면 함께 늘릴 것
+    shm_size: 256mb
+    environment:
+      POSTGRES_USER: labelrep
+      POSTGRES_PASSWORD: labelrep
+      POSTGRES_DB: labelrep
+      # 한국어 정렬은 ICU 로 (Sprint 38). 이미지 기본값 en_US.utf8(glibc)은 한글 비교가 수십~수백 배 느려
+      # 글 20만 건에서 제목 정렬 61초, posts ANALYZE(자동 포함) 10분 넘게 CPU 한 개를 씀. ICU ko 는 23ms, 순서도 가나다.
+      # DB 를 처음 만들 때만 적용됨 — 이미 만든 DB 는 RUNBOOK "정렬 규칙 바꾸기" 참고
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=ko --locale=C.UTF-8"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labelrep"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build: .
+    # 빌드한 이미지에 고정 이름을 붙여 둔다 — 업데이트 전에 `docker tag labelrep-app:current labelrep-app:prev` 해 두면
+    # 롤백이 `docker tag labelrep-app:prev labelrep-app:current && docker compose up -d --no-build app` 한 줄 (RUNBOOK 4장)
+    image: labelrep-app:current
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://labelrep:labelrep@db:5432/labelrep
+      RUN_MIGRATIONS: "true"
+      # CPU 코어 수만큼 워커 (Sprint 10)
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-auto}
+    ports:
+      # 이 서버 안에서만 (프록시가 붙는 자리). 0.0.0.0 으로 열면 TRUST_PROXY=true 일 때 누구나 X-Forwarded-For 를
+      # 위조해 매 요청 다른 사람처럼 보일 수 있다 (중복 추천·신고 방지 우회) — Sprint 24 리허설에서 발견
+      - "127.0.0.1:3000:3000"
+    volumes:
+      # 첨부 이미지 (IMAGE_STORAGE=local)
+      - uploads:/app/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 매일 DB·첨부 사진 백업 (Sprint 18) — ./backups 에 최근 14개. 복구·검증은 docs/RUNBOOK.md
+  # 같은 서버 디스크에만 두면 서버를 잃을 때 함께 잃으므로, ./backups 를 다른 곳(오브젝트 스토리지 등)으로 옮기는 작업을 따로 걸어 둘 것
+  backup:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: labelrep
+      PGPASSWORD: labelrep
+      PGDATABASE: labelrep
+      BACKUP_DIR: /backups
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      UPLOAD_DIR: /uploads
+    volumes:
+      # 파일 하나가 아니라 디렉터리를 붙인다 — 파일 하나만 붙이면 git pull 로 파일이 바뀌어도 컨테이너는 옛 파일을 계속 본다 (Sprint 34 리허설에서 발견)
+      - ./scripts:/scripts:ro
+      - ./backups:/backups
+      - uploads:/uploads:ro
+    # 실패하면 하루를 기다리지 않고 BACKUP_RETRY_SEC(기본 10분) 뒤 다시 시도 — 첫 배포 때는 앱이 마이그레이션을 끝내기 전에
+    # 첫 백업이 돌아 실패하고 하루 동안 백업이 없던 문제 (Sprint 24 리허설에서 발견)
+    entrypoint: ["/bin/sh", "-c", "ln -sf /scripts/backup.sh /backup.sh; while true; do if /backup.sh; then sleep ${BACKUP_INTERVAL_SEC:-86400}; else echo '[backup] 실패 — 잠시 뒤 다시 시도'; sleep ${BACKUP_RETRY_SEC:-600}; fi; done"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 백업 검증·복구 (필요할 때만, --profile ops) — docs/RUNBOOK.md 3장
+  #   docker compose --profile ops run --rm restore verify  labelrep-….dump
+  #   docker compose stop app && docker compose --profile ops run --rm restore restore labelrep-….dump --force --uploads
+  restore:
+    image: postgres:16
+    profiles: ["ops"]
+    environment:
+      PGHOST: db
+      PGUSER: labelrep
+      PGPASSWORD: labelrep
+      PGDATABASE: labelrep
+      BACKUP_DIR: /backups
+      UPLOAD_DIR: /uploads
+    volumes:
+      - ./scripts/restore.sh:/restore.sh:ro
+      - ./backups:/backups:ro
+      # 사진을 되돌려야 하므로 쓰기 가능
+      - uploads:/uploads
+    entrypoint: ["/restore.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # HTTPS 리버스 프록시 (선택, --profile https). 설정은 deploy/Caddyfile
+  proxy:
+    image: caddy:2
+    profiles: ["https"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      # 실제 도메인 (.env 의 DOMAIN). 비어 있으면 localhost 로 떠서 인증서를 받지 않는다
+      DOMAIN: ${DOMAIN:-localhost}
+      # 인증서 만료 안내 주소 — 있을 때만 전역 설정 한 줄로 (deploy/Caddyfile)
+      CADDY_GLOBAL: ${ACME_EMAIL:+email ${ACME_EMAIL}}
+      CADDY_TLS: ${CADDY_TLS:-}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # 발급받은 인증서 — 지우면 다시 발급받아야 하고, Let's Encrypt 발급 한도에 걸릴 수 있다
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:

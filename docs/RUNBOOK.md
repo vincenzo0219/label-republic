@@ -1,0 +1,179 @@
+# 노방장 운영 런북
+
+오픈 이후 운영자가 보는 문서입니다. 기능 설명은 [README](../README.md), 운영 원칙(운영자가 하는 일과 하지 않는 일)은 사이트의 `/policy`에 있습니다.
+
+> **원칙**: 운영자는 글을 골라 숨기거나 되살리지 않습니다. 운영자 조치는 탐지된 조작의 무효화, AI 오탐 해제, 재검토 요청 처리, 보드 요청·중복 제품 정리, 법적 임시조치·이력 삭제뿐이며 모두 `/transparency`에 공개됩니다. 장애 대응 중에도 이 원칙을 지킵니다.
+
+---
+
+## 1. 첫 배포 체크리스트
+
+> 처음 올릴 때는 [DEPLOY.md](DEPLOY.md)(nobangjang.com 기준 서버·Cloudflare DNS·`.env`·확인 순서)를 먼저 따라 하고, 아래 표로 빠진 것을 확인하세요.
+
+| # | 할 일 | 확인 방법 |
+|---|---|---|
+| 1 | `.env`: `DATABASE_URL`, `APP_SECRET`(32자 이상 무작위, `openssl rand -base64 48`), `SITE_URL`(https 실도메인), `ADMIN_PASSWORD`, `CONTACT_EMAIL`, `OPERATOR_NAME`, `HOSTING_PROVIDER` | 서버가 시작할 때 환경변수 점검 — 문제가 있으면 시작하지 않음 |
+| 2 | 약관·개인정보처리방침·운영 원칙 법률 검토 → `LEGAL_EFFECTIVE_DATE` | `/terms` 상단 "검토 전 초안" 배너가 사라짐 |
+| 3 | HTTPS: `.env`의 `DOMAIN`(DNS가 이 서버를 가리킴)·`ACME_EMAIL` → `docker compose --profile https up --build -d` (Caddy가 Let's Encrypt 인증서 자동 발급·갱신, WebSocket 포함). 이 구성이면 `TRUST_PROXY=true`, `TRUST_PROXY_HOPS=1`. 앞에 CDN·로드밸런서를 더 두면 그 단 수만큼 늘리고, 앱 포트(3000)는 절대 외부에 열지 않습니다 | `https://도메인/api/health` 200, 두 기기에서 같은 글에 추천 → 각각 반영. 서버 밖에서 `curl http://서버IP:3000` 이 **연결 안 됨** |
+| 4 | `WEB_CONCURRENCY=auto`(CPU 수) + `RATE_LIMIT_BACKEND=postgres` | `/admin` 배치 상태가 한 워커에서만 도는지 |
+| 5 | 이미지 저장소: `UPLOAD_DIR` 볼륨 또는 `IMAGE_STORAGE=s3`(비공개 버킷) | 사진 첨부 글 작성·삭제 후 `/media` 응답 |
+| 6 | 백업: docker compose 의 `backup` 서비스(매일) + `./backups`를 **다른 곳으로 복사하는 작업** | [3. 백업·복구](#3-백업복구)의 리허설 |
+| 7 | 알림: `ALERT_WEBHOOK_URL`(Slack·Discord 웹훅) | `/admin` 서버 오류 패널 문구가 "알림 웹훅으로 보냅니다" |
+| 8 | 외부 감시: `GET /api/health`를 1분마다(503이면 알림), `GET /api/health?deep=1`의 `status`가 `degraded`면 알림 | UptimeRobot 등 |
+| 9 | 푸시(선택): `npm run push:keys` → `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` | 실제 휴대폰에서 `/me` → 알림 켜기 → 지켜보는 글에 댓글 → 한 시간 안에 알림. 내 댓글에 다른 기기로 답글 → "💬 …님이 답글" 알림을 누르면 그 답글로 열림 |
+| 10 | AI 큐레이터: `npm run seed:curator` 로 준비된 시드 게시(Sprint 37부터 **사람 검수 없이** 안전 검사만 통과하면 게시, 예전처럼 검수한 것만 올리려면 `--require-review`). 시드가 떨어진 보드는 `ANTHROPIC_API_KEY` 가 있으면 AI가 새 글을 씀 — 하루 시도 `CURATOR_AUTOGEN_DAILY_MAX`(기본 10), 끄려면 `CURATOR_AUTOGEN=0`. `CURATOR_ACTIVE_UNTIL`(오픈 후 약 6주) | `/`에 🤖 배지 글과 "사람이 검수하지 않았습니다" 안내. 안전 검사에 걸린 초안은 `SELECT status, title, reasons FROM curator_generations ORDER BY id DESC LIMIT 20` 으로 확인 |
+| 11 | `ANTHROPIC_API_KEY` 설정 시 요약·스팸 분류·**욕설·인신공격 자동 가림**·**라벨 사진 읽기** 실제 호출 확인. 라벨 읽기 비용 상한 `LABEL_READ_DAILY_MAX`(기본 300장/24시간) | 글쓰기 요약 미리보기가 "AI 생성". 실제 성분표 사진 몇 장(영양제·사료·스위치 스펙)으로 "라벨 읽기" → 값이 사진과 맞는지 |
+| 12 | 서버에서 외부 사이트로 나가는 요청 허용 여부 (출처 링크 확인·푸시 발송). 막혀 있으면 `SOURCE_CHECK_INTERVAL_SEC=0` | `/admin` 배치 상태 "출처 링크 확인" |
+| 13 | Search Console·서치어드바이저에 `sitemap.xml` 제출 | |
+| 14 | 첫 백업 확인 — 앱이 마이그레이션을 끝낸 뒤 10분 안에 `backup` 서비스가 첫 백업을 만듭니다 | `ls backups/` 에 `.dump`·`.json`, `docker compose --profile ops run --rm restore verify <파일>` 이 "검증 통과" |
+
+> **도메인 없이 미리 띄워 보기**(스테이징·리허설): `DOMAIN=labelrep.test`, `CADDY_TLS="tls internal"` 로 Caddy 자체 인증서를 씁니다. 브라우저가 인증서를 믿지 않으므로 **서비스 워커·오프라인 저장·푸시는 동작하지 않습니다** — 이 기능들은 실제 도메인에서 확인하세요. `SITE_URL`은 http·localhost 를 받지 않으므로(쿠키·링크 보호) 프록시 없이 운영 모드로 띄울 수는 없습니다.
+
+## 2. 일상 점검 (하루 한 번, 5분)
+
+1. `/admin` → **배치 상태**가 모두 정상인지, **서버 오류** 패널에 새 오류가 있는지.
+2. `/admin/moderation` → 재검토 요청·어뷰징 알림·중복 의심 제품·동의된 브랜드 별칭 제안(수입사·판매처처럼 제조사가 다르면 기각)·동의된 성분명 별칭 제안(형태에 따라 함량 기준이 다른 성분 — 엽산과 DFE, 비타민 A 와 베타카로틴 — 은 기각). 처리 기준은 `/policy`. **AI가 가린 글·댓글**(Sprint 37)은 오판만 사유와 함께 풉니다 — 운영자가 직접 가리지는 않습니다.
+3. `/admin/feedback` → 새 제보(Sprint 36). 확인했으면 "확인함"으로 바꿔 두면 현황판에서 이용자가 봅니다. 공개 답변에는 제보자·개인정보를 적지 마세요.
+4. `./backups`에 오늘 날짜 백업과 `.json`이 있는지, 원격 복사가 됐는지.
+5. 디스크 사용량(DB·업로드·백업 볼륨) 80% 미만인지.
+
+## 3. 백업·복구
+
+### 백업
+- **Docker**: `backup` 서비스가 `BACKUP_INTERVAL_SEC`(기본 하루)마다 `./backups/labelrep-YYYYMMDD-HHMMSS.{dump,json}`과 첨부 사진 묶음 `-uploads.tar.gz`를 만들고 최근 `BACKUP_KEEP`(기본 14)개만 남깁니다. 백업할 때마다 임시 DB에 복원해 행 수를 세므로, **만들어진 백업은 복원이 되는 백업**입니다.
+- **Docker 밖**: `npm run db:backup` (PostgreSQL 16 클라이언트 필요). `--verify`를 붙이면 임시 DB 복원·체크섬·행 수 대조까지 합니다.
+- S3 저장소를 쓰면 사진은 버킷의 버전 관리·수명주기 규칙으로 따로 보호하세요 (백업 스크립트는 로컬 저장소만 묶습니다).
+- **같은 서버에만 두지 마세요.** `./backups`를 오브젝트 스토리지 등으로 복사하는 작업(예: `rclone copy ./backups remote:labelrep-backups`)을 cron으로 걸어 두세요. 백업에는 게시글·닉네임·비밀번호 해시·식별값이 있으므로 접근을 제한합니다.
+- 소요 시간 참고 (Sprint 34 리허설): 글 20만·댓글 58만·추천 350만·DB 3.9GB에서 **백업 한 번에 약 11분** — 덤프 1분 + 검증 복원·행 수 대조 약 10분, 덤프 파일 449MB. 배포 직전 백업(4장 1단계)도 이만큼 걸리니 미리 돌려 두세요. **(Sprint 38)** DB 를 ICU ko 정렬 규칙으로 만들면(아래) 같은 규모에서 **4분 19초**(덤프 451MB)로 줄었습니다. 검증 복원이 도는 동안 DB CPU 를 씁니다.
+- 행 수 대조 목록(`scripts/backup.sh`의 `for T in …` 과 `scripts/backup.ts`의 `CHECK_TABLES`)에 없는 테이블은 비어서 복원돼도 검증을 통과합니다. **새 테이블을 만드는 마이그레이션을 추가하면 이 목록에도 넣으세요** (Sprint 34 에서 9개가 빠져 있었음).
+
+### 복구 (Docker)
+앱 이미지에는 PostgreSQL 클라이언트가 없고 서버에는 보통 Node 가 없으므로, `restore` 서비스(postgres:16 이미지 + `scripts/restore.sh`)를 씁니다.
+1. 복원할 백업을 검증합니다 (DB 는 건드리지 않음): `docker compose --profile ops run --rm restore verify labelrep-….dump`
+2. 앱을 멈춥니다: `docker compose stop app` (붙어 있으면 잠금 때문에 복원이 멈춥니다)
+3. 복원: `docker compose --profile ops run --rm restore restore labelrep-….dump --force --uploads`
+   - `--force` 없이는 테이블이 있는 DB에 복원하지 않습니다(새 서버처럼 빈 DB 면 필요 없음). `--uploads`는 첨부 사진도 백업 시점으로 되돌립니다.
+4. `docker compose up -d app` — 시작할 때 백업 이후 추가된 마이그레이션이 적용됩니다 → `/api/health?deep=1`.
+5. 복구 시점 이후의 글·댓글은 사라집니다. `/transparency`는 공개 기록이므로, 복구로 운영자 조치 기록이 사라졌다면 다시 적습니다.
+
+**서버를 통째로 잃었을 때**: 새 서버에 저장소를 받고 `.env`(따로 보관한 사본 — `APP_SECRET`이 바뀌면 [APP_SECRET 교체](#5-장애-대응)와 같은 영향) → 원격에 복사해 둔 백업을 `./backups`에 → `docker compose up -d db` → 위 1·3단계(빈 DB 라 `--force` 불필요) → `docker compose --profile https up --build -d`. 리허설에서 복원부터 health 200 까지 12초(작은 DB), 글 20만 건·3.9GB 기준으로는 복원에 10분 안팎입니다.
+
+### 복구 (Docker 밖)
+`DATABASE_URL=… npm run db:backup:verify -- backups/labelrep-….dump` → `DATABASE_URL=… npm run db:restore -- backups/labelrep-….dump --target postgres://…/labelrep [--force] [--uploads ./data/uploads]` → `npm run db:migrate` → 앱 시작.
+
+### DB 정렬 규칙 바꾸기 (Sprint 38)
+PostgreSQL 공식 이미지의 기본 정렬 규칙 `en_US.utf8`(glibc)은 **한글 비교가 수십~수백 배 느립니다**. 글 20만 건 기준으로 제목 정렬 1.3초 → ICU ko 23ms, 본문 정렬 19.6초 → 27ms였고, 투표로 글이 바뀔 때마다 자동으로 도는 `ANALYZE posts`가 CPU 하나로 10분 넘게 걸렸습니다(ICU ko 에서는 1초). Sprint 38부터 `docker-compose.yml`은 **DB를 처음 만들 때** ICU `ko`로 만듭니다.
+
+이미 만든 DB는 `npm run db:migrate`(앱 시작 때 포함)가 "⚠️ DB 정렬 규칙이 en_US.utf8(glibc)입니다" 경고를 냅니다. 이용자가 적은 시간에 옮기세요 (글 20만 건·3.9GB 에서 약 4분 + 확인):
+1. 백업을 먼저 (4장 1단계). 앱을 멈춥니다: `docker compose stop app`
+2. 옛 DB 이름을 바꾸고 새 DB 를 만듭니다:
+   `docker compose exec db psql -U labelrep -d postgres -c "ALTER DATABASE labelrep RENAME TO labelrep_en"`
+   `docker compose exec db psql -U labelrep -d postgres -c "CREATE DATABASE labelrep TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER icu ICU_LOCALE 'ko' LOCALE 'C.UTF-8'"`
+3. 옮기고 통계를 모읍니다:
+   `docker compose exec db sh -c "pg_dump -U labelrep -Fc labelrep_en | pg_restore -U labelrep -d labelrep --no-owner --exit-on-error"`
+   `docker compose exec db psql -U labelrep -d labelrep -c ANALYZE`
+4. `docker compose up -d app` → `/api/health?deep=1`, `docker compose logs app | grep 정렬` 에 경고가 없는지.
+5. 문제가 있으면 되돌리기: 앱을 멈추고 `DROP DATABASE labelrep`, `ALTER DATABASE labelrep_en RENAME TO labelrep`. 며칠 이상 없으면 `DROP DATABASE labelrep_en`.
+
+백업 검증의 임시 DB 는 원래 DB 와 같은 정렬 규칙으로 만들어집니다(클러스터 기본값이 옛 로캘이어도).
+
+### 리허설 (분기마다)
+`docker compose --profile ops run --rm restore verify <최근 백업>`을 돌려 "검증 통과"를 확인하고, 1년에 한 번은 새 서버에 실제로 복구해 봅니다. 리허설 기록(1차 Sprint 24 새 배포, 2차 Sprint 34 운영 규모 업데이트): [REHEARSAL.md](REHEARSAL.md).
+
+## 4. 업데이트·롤백
+
+업데이트 (사용자가 적은 시간에):
+```sh
+docker compose exec backup /backup.sh                 # 1. 배포 직전 백업 ("[backup] … 완료" 확인)
+docker tag labelrep-app:current labelrep-app:prev     # 2. 지금 이미지를 롤백용으로 보관
+git pull                                              # 3. 새 코드
+docker compose --profile https up -d --build app      # 4. 빌드·교체 (시작할 때 마이그레이션 적용)
+curl -fsS https://도메인/api/health                    # 5. migrations.latest 가 새 번호인지
+```
+- `backup` 컨테이너는 `scripts/` 디렉터리를 그대로 붙여 쓰므로 3단계의 새 백업 스크립트가 다음 백업부터 바로 쓰입니다. Sprint 34 이전 설정으로 떠 있던 서버는 이 변경을 받은 첫 업데이트 때 한 번 `docker compose up -d backup`(설정이 바뀌어 다시 만들어지며 곧바로 백업을 한 번 더 뜹니다)이 필요합니다.
+- 앱 로그에 마이그레이션 파일마다 `applied 0xx_….sql (0.0s)`가 찍힙니다 — 오래 멈춰 있으면 어느 파일인지 여기서 봅니다. 리허설(글 20만 건)에서 024~032 는 모두 합쳐 1초 미만이었습니다.
+- 업데이트 뒤 첫 정리 배치(리뉴얼 전체 계산)는 제품 4만 개에서 약 16초 걸립니다. 0번 워커에서 돌아 요청 처리엔 영향이 없습니다.
+- 교체 중에는 프록시가 최대 15초까지 요청을 붙잡고 기다렸다가 새 앱으로 넘깁니다. 리허설(동시 요청 계속 보내며 교체)에서 **300건 중 실패 0건, 가장 긴 대기 6초**였습니다. 서버는 SIGTERM을 받으면 요청을 마무리하고 10초 안에 종료합니다.
+- 롤백: `docker tag labelrep-app:prev labelrep-app:current && docker compose up -d --no-build app`. **마이그레이션은 앞으로만** 갑니다 — 추가된 컬럼·테이블은 이전 코드가 무시하므로 그대로 둡니다(리허설: Sprint 22 이미지를 023 스키마 위에, Sprint 24 이미지를 031 스키마 위에 되돌려 읽기·쓰기 정상 확인, 교체 1.5초).
+- 마이그레이션 자체가 데이터를 망가뜨렸다면: 1단계에서 만든 백업으로 [복구](#복구-docker).
+- 서비스 워커(Sprint 19)는 빌드마다 바뀌어, 배포 후 이용자 화면에 "새 버전이 있어요 [새로고침]"이 뜹니다. 누르기 전까지는 옛 화면이 계속 동작하므로 API 를 바꾸는 배포는 한동안 옛 화면의 요청도 받아야 합니다(지금까지의 API 는 모두 추가만 했습니다).
+- 아이콘을 바꾸려면 `assets/icon.svg` 수정 → `npx tsx scripts/make-icons.ts` → 커밋.
+- 커뮤니티 규칙 값(`community_rules`)은 운영 데이터입니다. **DB 에서 직접 바꾸지 마세요** — 운영 원칙상 투표로만 바뀌고, 바뀐 이력(`rule_changes`)이 공개됩니다. `BOARD_PROMOTION_THRESHOLD` 는 투표로 한 번도 바뀌지 않았을 때의 기본값입니다.
+- 큰 인덱스를 만드는 마이그레이션(예: `010`)은 적용 중 쓰기가 잠시 멈춥니다. 사용자가 적은 시간에 배포하세요.
+
+## 5. 장애 대응
+
+| 상황 | 먼저 할 일 | 그다음 |
+|---|---|---|
+| `/api/health` 503 | DB 연결 확인(`docker compose ps`, `pg_isready`) | DB 로그, 디스크(아래), 커넥션 수(`DB_POOL_MAX × 워커 × 인스턴스` ≤ DB `max_connections`) |
+| DB 재시작·일시 중단 | 앱은 그대로 둡니다 — **읽기 전용 모드**(Sprint 27): 공개 페이지는 저장본을 "⚠️ 지금은 서버 점검 중이라 읽기만 할 수 있어요 · ○시 ○분 기준 화면" 띠와 함께 보여주고, 저장본이 없는 페이지(검색·글쓰기)는 점검 안내(503), 추천·댓글·글쓰기 API 는 503 `db_unavailable`("잠시 뒤 다시 시도"), health 는 503 + `readOnly.snapshots`(저장본 수) | DB가 돌아오면 2초 안에 알아채 정상 화면으로(띠는 "돌아왔어요"로 바뀌고 다음 이동에서 사라짐). 실시간 댓글(LISTEN)도 다시 붙습니다. 앱을 재시작할 필요 없음 |
+| 읽기 전용 모드인데 "잠시 점검 중이에요"(503)만 나옴 | 그 페이지의 저장본이 없음 — `/api/health` 의 `readOnly.snapshots` 확인 | 저장본은 0번 워커가 `SNAPSHOT_INTERVAL_SEC`(기본 10분)마다 홈·보드·추천 많은/최근 글 `SNAPSHOT_POSTS`개·제품 `SNAPSHOT_PRODUCTS`개를 받아 만들고, 이용자가 연 글·제품도 곧 받아 둡니다. 저장본은 컨테이너 안에 있어 **업데이트·롤백으로 컨테이너가 새로 뜨면 비어 있고**, 첫 수집(시작 15초 뒤)부터 약 45초 안에 90개가량 다시 모입니다(리허설). DB 작업은 배포 직후 1분은 피하세요 |
+| 앱 컨테이너가 죽음 (`Exited`) | 프로세스가 스스로 죽은 경우 Docker 가 몇 초 안에 다시 띄웁니다(리허설 5초). 워커 하나가 죽으면 1초 뒤 다시 띄우고 요청은 다른 워커가 받습니다 | `docker kill`·`docker compose stop` 으로 멈춘 것은 사람이 멈춘 것으로 보고 다시 띄우지 않습니다 → `docker compose up -d app`. 반복해서 죽으면 `docker compose logs app --tail 200` |
+| DB 로그에 `could not resize shared memory segment … No space left on device` | 디스크가 아니라 DB 컨테이너의 공유 메모리(`/dev/shm`) 부족 — 큰 조회가 실패합니다 | `docker-compose.yml` 의 db `shm_size`(기본 256mb)를 늘리고 `docker compose up -d db`. Docker 기본값 64MB 로는 글 20만 건 규모에서 실패했습니다(Sprint 34) |
+| 디스크 가득 | 백업 볼륨 정리(원격 복사 확인 후), 로그 정리 | DB 볼륨 확장. 첨부 사진이 원인이면 S3로 이전 검토 |
+| 응답이 느림 | `/admin` 배치 상태·서버 오류, DB의 오래 걸리는 쿼리(`pg_stat_activity`) | 검색은 3초가 넘으면 스스로 끊습니다(503 "검색이 너무 오래"). 캐시가 비어 있는 직후(재시작)에는 잠시 느릴 수 있습니다 |
+| 🚨 "새 오류" 알림 | `/admin` 서버 오류 패널에서 경로·스택 확인 | 고친 뒤 배포 → "해결 표시". 같은 오류가 다시 나면 자동으로 다시 열리고 알림이 옵니다 |
+| 🚨 "급증" 알림 (1시간 50회+) | 특정 경로에 몰렸는지, 배포 직후인지 확인 | 배포 직후면 롤백. 외부 요인(공격·봇)이면 프록시에서 차단 |
+| 배치 실패 (`degraded`) | `/admin` 배치 상태의 오류 내용(마우스를 올리면 표시) | 신뢰도·정리 배치는 다음 주기에 자동 재시도. 계속 실패하면 원인 수정 |
+| 스팸·도배 | 자동 규칙(광고 의심 하향, 신고 5건 블라인드)이 처리하는지 지켜봄 | 운영자가 글을 직접 숨기지 않습니다. 규칙이 못 잡는 패턴이면 규칙(`src/lib/moderation.ts`)을 고쳐 배포 |
+| 조직적 신고·투표 알림 | `/admin/moderation`의 알림 → 무효화 대상 미리보기 | 무효화하면 자동 규칙이 다시 판단 (공개 기록) |
+| 권리침해 신고 (명예훼손·개인정보 등) | 신고 내용 확인 → `/admin/moderation`의 법적 임시조치(최대 30일) | 수정으로 뺀 내용이 **수정 이력**에 남아 있으면 같은 곳의 "이전 판 지우기"(사유 기록, 공개) |
+| 작성자 본인의 삭제 요청 | 비밀번호로 직접 삭제 가능 안내 | 비밀번호를 잊었으면 작성 시각·내용으로 본인 확인 후 DB에서 삭제 (개인정보처리방침 5항) |
+| 관리자 비밀번호 유출 | `ADMIN_PASSWORD` 변경 후 재시작 | `/transparency`에서 그 사이 조치가 있었는지 확인 |
+| `APP_SECRET` 유출 | 새 값으로 교체 후 재시작 | 교체하면: 추천·신고 중복 방지 식별값이 바뀌어 한 번씩 다시 누를 수 있게 되고, 요약 미리보기 토큰·**푸시 구독 토큰이 무효**(사용자가 알림을 다시 켜야 함), 방문자 통계가 새로 시작됩니다 |
+| VAPID 키 유출·교체 | 새 키로 교체 후 재시작 | 기존 구독은 모두 무효 — 사용자가 `/me`에서 다시 켜야 합니다. `DELETE FROM push_subscriptions;`로 정리 |
+| 출처 링크가 전부 "판단 보류" | 서버의 외부 요청이 막혔는지 확인 | 막는 정책이면 `SOURCE_CHECK_INTERVAL_SEC=0` |
+| 배포 후 일부 이용자만 화면이 깨짐·옛 화면이 계속 보임 | 서비스 워커 문제일 수 있음 — 그 이용자에게 `/offline` → "저장한 글 모두 지우기" 또는 브라우저 사이트 데이터 삭제 안내 | 여러 명이면 `SW_DISABLED=1` 로 재시작 → 각 브라우저가 다음 접속 때 서비스 워커·저장본을 지움(푸시 알림도 꺼져 다시 켜야 함). 원인을 고쳐 배포한 뒤 값을 비우고 재시작 |
+| "같은 요청을 처리하고 있어요"(409 `in_progress`) | 처리 중인 같은 글·댓글이 있음 (보통 몇 초) | 처리 중에 서버가 재시작된 요청은 2분 뒤 다시 누르면 이어서 처리됩니다 |
+| "라벨 읽기가 잠시 쉬고 있어요"(503 `label_read_quota`) | 하루 한도 도달 — 정상 동작(비용 상한) | 사용량이 꾸준히 많으면 `LABEL_READ_DAILY_MAX` 상향. 수치는 직접 입력으로 계속 쓸 수 있음 |
+| 라벨 읽기 결과가 자주 틀린다는 제보 | 해당 글의 근거 사진과 수치 대조, 정정 제안으로 고쳐지는지 | AI 판독 수치는 글·제품 화면에 "AI 판독"으로 표시되고 작성자 확인을 거칩니다. 특정 보드에서 반복되면 `src/lib/label-read.ts` 의 보드별 안내를 고쳐 배포 |
+| "같은 곳(접속 망)에서 이미 3표가 들어온 투표예요"(409 `network_limit`) 문의 (Sprint 29) | 첫 활동 90일 미만 계정은 한 제안에 같은 망에서 3표까지 — UA 를 바꿔 만든 계정으로 몰표하는 것을 막는 규칙입니다 | 회사·기숙사처럼 같은 망의 신규 회원이 많다면 정상일 수 있습니다. 오래된 회원(90일 이상)은 제한이 없습니다. 운영자가 풀 수 없습니다 |
+| 라벨 읽기·업로드·댓글이 "요청이 너무 많아요"(429) (Sprint 29) | 식별값별 한도 외에 **망 단위 한도**가 있습니다: 라벨 읽기 하루 40·업로드 시간당 120·댓글 10분 60·글 10분 30·규칙 투표 시간당 60 | 행사장·학교처럼 한 망에 이용자가 몰리면 걸릴 수 있습니다. 반복되면 코드의 한도 조정(`src/app/api/**`) |
+| 🗳 "규칙 투표 조작 의심" 알림 (`/admin/moderation`) | 요약 확인: 의심 표 수, 자격을 갓 채운 계정 수, 같은 망의 새 계정 수, "이 표들을 빼면 결과가 바뀜" 여부. 알림이 열려 있는 동안 그 투표는 **마감이 최대 3일 미뤄집니다** | "무효화 대상 보기" → 공개 메모 → 무효화 (투명성 기록). 실제 모임(예: 같은 동호회 신규 회원)으로 보이면 "오탐으로 닫기". 운영자는 대상 표를 고를 수 없고 규칙 값도 바꿀 수 없습니다. 3일 안에 처리하지 않으면 그대로 마감됩니다 |
+| "리뉴얼이 아닌데 리뉴얼로 표시됨" 제보 (Sprint 25) | 제품 페이지 "라벨이 바뀐 것으로 보여요"의 새 값 글들을 확인 — 규칙(서로 다른 작성자 N명·시간 순)대로 판단한 결과입니다 | 운영자는 리뉴얼을 지우지 않습니다. 새 값이 틀렸다면 그 글들에 정정 제안 → 동의되면 값이 빠지고 다음 정리 배치(5분)에서 리뉴얼도 풀립니다. 조직적으로 같은 틀린 값을 올린 정황이면 기존 어뷰징 절차. 기준 수 자체가 낮다면 규칙 투표(`renewal_min_reports`) |
+| 라벨 날짜가 이상하게 읽힘·적힘 (Sprint 26) | 글의 "📅 제조 …" 와 근거 사진 대조 | 작성자가 수정으로 고침(운영자는 고치지 않음). 한 글의 날짜가 틀려도 리뉴얼 판단은 여러 글의 순서로 하므로 영향이 작고, 서버는 미래 제조일·순서가 바뀐 날짜를 받지 않습니다. 특정 보드에서 날짜 판독이 자주 틀리면 `src/lib/label-read.ts` 안내 문구 수정 |
+| 리뉴얼이 제품 페이지엔 보이는데 성분 순위엔 아직 옛 값 | 제품 페이지는 즉시 계산, 순위는 정리 배치 기록(최대 5분) + 순위 캐시(1분) | 블라인드·광고 의심 전환은 하루 한 번 전체 계산 때 반영됩니다. `/admin` 배치 상태에서 정리 배치가 정상인지 확인 |
+| 규칙 값이 바뀌었는데 화면·동작이 옛 값 | 인스턴스별 30초 캐시 — 30초 뒤 다시 확인 | DB 트리거(블라인드)는 즉시 반영. `SELECT * FROM community_rules` 로 실제 값 확인 |
+| "다른 성분인데 한 순위에 묶였어요" 제보 (Sprint 35) | `/admin/moderation` 의 "확정된 별칭·기본 사전"에서 그 묶음 확인 | 잘못 묶였으면 해제(사유 공개) — 그 이름으로 적힌 수치는 원래 항목으로 되돌아갑니다(병합이 아니라 키만 바꾸므로 전부 되돌릴 수 있음). 기본 사전도 같은 방법으로 해제합니다. 운영자가 새 묶음을 직접 만들지는 않습니다(이용자 제안·동의만) |
+| 제보 도배·광고 (Sprint 36) | `/admin/feedback` 에서 "가림"(사유 공개) | 식별값 시간당 5건·망 하루 20건·광고 규칙으로 대부분 막힙니다. 같은 문제가 여러 건이면 "같은 제보 있음"으로 원래 제보에 묶으면 "나도" 수가 합쳐집니다. 고장 제보 알림이 시간당 10건 한도를 채워 오류 알림이 밀리면 대시보드의 서버 오류 패널을 직접 확인하세요 |
+| S3 장애 | 사진이 안 보이고 업로드가 실패 | 글쓰기는 사진 없이 계속 가능. 복구 후 자동 정상화 |
+
+## 6. 감시 설정 권장
+
+- 외부 가용성 감시: `GET /api/health` (1분, 연속 2회 실패 시 알림).
+- 상태 감시: `GET /api/health?deep=1`의 `status`가 `degraded`면 알림 — 배치 실패 또는 최근 1시간 안의 열린 서버 오류. 응답에 오류 원문은 없습니다.
+- 알림 웹훅(`ALERT_WEBHOOK_URL`): 새 오류, 해결 표시 후 재발, 1시간 50회 이상 급증. 한 시간에 10건까지만 보냅니다.
+- 서버 오류 기록은 해결 표시 후 30일, 마지막 발생 후 90일이 지나면 자동 삭제됩니다. 요청 본문·쿼리 문자열은 저장하지 않습니다.
+
+## 7. 성능 기준 (Sprint 18 측정, 글 20만 건·워커 4개·동시 20)
+
+| 화면 | 처리량 | p50 | p95 |
+|---|---|---|---|
+| 홈 | 141 req/s | 130ms | 202ms |
+| 글 상세 | 231 req/s | 85ms | 123ms |
+| 검색 | 105 req/s | 180ms | 296ms |
+| 제품 페이지 | 172 req/s | 113ms | 160ms |
+| 수치 조건 검색 | 165 req/s | 119ms | 167ms |
+| 성분 순위 | 86 req/s | 163ms | 593ms (캐시가 차기 전) |
+| 리포트 API (관심 제품 10·글 20) | 630 req/s | 30ms | 56ms |
+
+재시작 직후 DB 파일이 운영체제 캐시에 없으면 글 상세가 수 초까지 느려질 수 있습니다(측정 중 실제로 겪음 — 캐시가 차면 정상). DB 서버 메모리는 DB 크기 이상을 권장합니다.
+
+### 모바일 체감 속도 (Sprint 22 측정)
+
+조건: Lighthouse 모바일과 같은 느린 4G(지연 150ms, 1.6Mbps) + CPU 4배 느리게, 412×915 화면, 글 20만 건 DB, 3회 중앙값. 기준(Google "좋음"): LCP ≤ 2.5초, CLS ≤ 0.1, TBT ≤ 200~300ms.
+
+| 화면 | LCP | CLS | TBT | JS | HTML |
+|---|---|---|---|---|---|
+| 홈 | 0.90초 | 0 | 166ms | 144KB | 22KB |
+| 보드 | 1.00초 | 0 | 216ms | 144KB | 21KB |
+| 글 (사진) | 0.76초 | 0 | 227ms | 156KB | 16KB |
+| 제품 | 1.00초 | 0 | 233ms | 144KB | 29KB |
+| 검색 | 1.10초 | 0 | 200ms | 143KB | 30KB |
+| 글쓰기 | 0.68초 | 0 | 250ms | 158KB | 8KB |
+| 커뮤니티 규칙 | 0.77초 | 0 | 199ms | 148KB | 14KB |
+| 내 리포트 | 1.67초 | 0.046 | 198ms | 153KB | 14KB |
+
+- JS 약 144KB(gzip) 중 대부분(약 117KB)은 React·Next 런타임이고 사이트 코드는 약 20KB입니다. TBT 200ms 안팎은 이 런타임을 실행하는 비용이라 더 줄이려면 구조를 바꿔야 합니다.
+- **새 화면을 만들거나 목록을 늘린 뒤에는** 운영 빌드에 대고 `npm run perf:mobile` 을 돌려 예산(LCP 2.5초, CLS 0.1, TBT 300ms, JS 170KB, HTML 60KB, DOM 1,500)을 넘지 않는지 확인하세요. playwright 가 필요합니다(`PLAYWRIGHT_MODULE` 로 전역 설치본 지정 가능).
+- 흔한 실수: ① 브라우저에 저장된 값(관심 보드 등)을 읽기 전 `return null` 했다가 나타나는 버튼 — 줄이 밀려 CLS 가 생깁니다. 같은 크기의 비활성 버튼을 먼저 그리세요. ② 서버 컴포넌트에서 끝없는 목록 렌더링 — 제품 페이지가 글별 값 2,000줄(HTML 744KB)을 그리던 문제가 있었습니다.
