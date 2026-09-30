@@ -568,6 +568,8 @@ Sprint 25~26 의 리뉴얼 감지를 제품 페이지 밖에서도 한눈에 볼
 
 ## 시작하기
 
+> 운영 서버에 처음 올리는 순서는 [docs/DEPLOY.md](docs/DEPLOY.md) (도메인 `nobangjang.com`).
+
 ```bash
 # 1) PostgreSQL 준비 (예: 로컬)
 createuser labelrep -P          # 비밀번호: labelrep

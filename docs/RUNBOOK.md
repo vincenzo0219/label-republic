@@ -8,6 +8,8 @@
 
 ## 1. 첫 배포 체크리스트
 
+> 처음 올릴 때는 [DEPLOY.md](DEPLOY.md)(nobangjang.com 기준 서버·Cloudflare DNS·`.env`·확인 순서)를 먼저 따라 하고, 아래 표로 빠진 것을 확인하세요.
+
 | # | 할 일 | 확인 방법 |
 |---|---|---|
 | 1 | `.env`: `DATABASE_URL`, `APP_SECRET`(32자 이상 무작위, `openssl rand -base64 48`), `SITE_URL`(https 실도메인), `ADMIN_PASSWORD`, `CONTACT_EMAIL`, `OPERATOR_NAME`, `HOSTING_PROVIDER` | 서버가 시작할 때 환경변수 점검 — 문제가 있으면 시작하지 않음 |

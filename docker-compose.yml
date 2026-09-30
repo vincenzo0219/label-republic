@@ -107,7 +107,8 @@ services:
     environment:
       # 실제 도메인 (.env 의 DOMAIN). 비어 있으면 localhost 로 떠서 인증서를 받지 않는다
       DOMAIN: ${DOMAIN:-localhost}
-      ACME_EMAIL: ${ACME_EMAIL:-}
+      # 인증서 만료 안내 주소 — 있을 때만 전역 설정 한 줄로 (deploy/Caddyfile)
+      CADDY_GLOBAL: ${ACME_EMAIL:+email ${ACME_EMAIL}}
       CADDY_TLS: ${CADDY_TLS:-}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
