@@ -3,6 +3,12 @@
 처음 서버에 올리는 순서만 모았습니다. 오픈 뒤의 운영(백업·업데이트·장애)은 [RUNBOOK](RUNBOOK.md)을 보세요.
 도메인 `nobangjang.com`은 Cloudflare Registrar 에 등록되어 있고 DNS 도 Cloudflare 가 관리합니다.
 
+## 빠른 길: Lightsail 시작 스크립트 (3~5단계를 자동으로)
+
+AWS Lightsail 에서 인스턴스를 만들 때 **"시작 스크립트 추가"** 칸에 [`deploy/lightsail-launch.sh`](../deploy/lightsail-launch.sh) 내용을 통째로 붙여 넣으면
+(맨 위 `CONTACT_EMAIL` 등 세 줄만 고쳐서) 서버가 처음 켜질 때 Docker 설치·코드 받기·`.env` 생성·띄우기를 알아서 합니다.
+그 뒤에는 2단계(DNS)와 6단계(확인)만 하면 됩니다. 진행 기록은 서버의 `/var/log/nobangjang-setup.log`, 운영자 비밀번호는 `sudo grep ADMIN_PASSWORD /opt/nobangjang/.env`.
+
 ## 1. 서버
 
 | 항목 | 권장 |
