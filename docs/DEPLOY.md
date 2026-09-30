@@ -9,6 +9,24 @@ AWS Lightsail 에서 인스턴스를 만들 때 **"시작 스크립트 추가"**
 (맨 위 `CONTACT_EMAIL` 등 세 줄만 고쳐서) 서버가 처음 켜질 때 Docker 설치·코드 받기·`.env` 생성·띄우기를 알아서 합니다.
 그 뒤에는 2단계(DNS)와 6단계(확인)만 하면 됩니다. 진행 기록은 서버의 `/var/log/nobangjang-setup.log`, 운영자 비밀번호는 `sudo grep ADMIN_PASSWORD /opt/nobangjang/.env`.
 
+## Claude 에게 맡기기 (서버 생성·고정 IP·방화벽·DNS 까지)
+
+AWS 가입·결제는 본인이 해야 합니다. 그다음 Claude Code(클라우드 세션)가 [`deploy/lightsail-create.sh`](../deploy/lightsail-create.sh) 로 나머지를 합니다.
+
+1. **AWS 가입** 후 IAM → 사용자 만들기(예: `nobangjang-deployer`, 콘솔 접근 없음) → "정책 직접 연결"에서 새 정책을 만들어 붙입니다 (Lightsail 만 다룰 수 있게):
+   ```json
+   { "Version": "2012-10-17",
+     "Statement": [{ "Effect": "Allow", "Action": ["lightsail:*", "sts:GetCallerIdentity"], "Resource": "*" }] }
+   ```
+   그 사용자의 **보안 자격 증명 → 액세스 키 만들기**("AWS 외부에서 실행되는 애플리케이션").
+2. (선택) **Cloudflare API 토큰**: 내 프로필 → API 토큰 → "영역 DNS 편집" 템플릿, 영역은 `nobangjang.com` 하나만.
+3. Claude Code 의 **클라우드 환경 설정**(세션 제목 옆 환경 메뉴 → 편집)에 환경변수로 넣습니다. 대화창에 붙여 넣지 마세요.
+   - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION=ap-northeast-2`
+   - (선택) `CLOUDFLARE_API_TOKEN` — 이때는 같은 화면의 네트워크 허용 도메인에 `api.cloudflare.com` 도 추가
+4. **새 세션**을 열고 "deploy/lightsail-create.sh 로 노방장 서버 만들어줘. 연락처는 ○○@○○" 라고 요청합니다.
+   (환경변수는 새 세션부터 보입니다.) Cloudflare 토큰을 넣지 않았다면 끝에 나오는 고정 IP 로 2단계 DNS 만 직접 추가합니다.
+5. 다 되면 액세스 키는 AWS 에서 **비활성화**해 두는 것을 권합니다 (다시 필요하면 새로 만들면 됩니다).
+
 ## 1. 서버
 
 | 항목 | 권장 |
