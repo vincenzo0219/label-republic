@@ -95,6 +95,10 @@ main { padding: 12px 0 48px; }
   -webkit-overflow-scrolling: touch;
 }
 .tabs::-webkit-scrollbar { display: none; }
+/* 마우스로 쓰는 PC 에서는 가로 스크롤이 보이지도 끌리지도 않아 뒤쪽 탭에 갈 수 없다 — 줄바꿈해서 전부 보여 준다 */
+@media (hover: hover) and (pointer: fine) {
+  .tabs { flex-wrap: wrap; overflow-x: visible; }
+}
 .tab {
   flex: 0 0 auto; padding: 6px 12px; border-radius: 999px; font-size: 14px;
   border: 1px solid var(--line); background: var(--surface); color: var(--muted);

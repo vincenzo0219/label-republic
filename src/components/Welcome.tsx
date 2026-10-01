@@ -31,7 +31,7 @@ export function Welcome({ boards, stats }: { boards: { slug: string; name: strin
       </div>
       <ul className="welcome-points">
         <li>
-          <b>🏷 라벨에 적힌 사실을 모아요</b> — 제품 라벨 사진·수치·출처로 이야기합니다. 광고 문구보다 라벨이 먼저예요.
+          <b>🔎 근거로 이야기해요</b> — 성분표·스펙표 사진, 직접 잰 값, 출처 링크를 붙여 사실을 모읍니다. 광고 문구보다 근거가 먼저예요.
         </li>
         <li>
           <b>🗳 방장이 없어요</b> — 추천·신고·정정 제안, 그리고 <Link href="/rules">이용자가 투표로 정한 규칙</Link>이 글을 정리합니다. 운영자가 한 일은{" "}
