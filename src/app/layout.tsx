@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
   openGraph: { siteName: "노방장", type: "website", locale: "ko_KR" },
   alternates: { canonical: "/", types: { "application/atom+xml": [{ url: "/feed.xml", title: "노방장 새 글" }] } },
+  // 검색엔진 소유 확인 (Sprint 44) — 네이버 서치어드바이저·구글 서치 콘솔의 "HTML 태그" 방식 값만 .env 에 넣으면 된다
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+    ...(process.env.NAVER_SITE_VERIFICATION ? { other: { "naver-site-verification": process.env.NAVER_SITE_VERIFICATION } } : {}),
+  },
 };
 
 export const viewport: Viewport = {
