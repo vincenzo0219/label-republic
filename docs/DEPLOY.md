@@ -13,10 +13,13 @@ AWS Lightsail 에서 인스턴스를 만들 때 **"시작 스크립트 추가"**
 
 AWS 가입·결제는 본인이 해야 합니다. 그다음 Claude Code(클라우드 세션)가 [`deploy/lightsail-create.sh`](../deploy/lightsail-create.sh) 로 나머지를 합니다.
 
-1. **AWS 가입** 후 IAM → 사용자 만들기(예: `nobangjang-deployer`, 콘솔 접근 없음) → "정책 직접 연결"에서 새 정책을 만들어 붙입니다 (Lightsail 만 다룰 수 있게):
+1. **AWS 가입** 후 IAM → 사용자 만들기(예: `nobangjang-deployer`, 콘솔 접근 없음) → "정책 직접 연결"에서 새 정책을 만들어 붙입니다.
+   Lightsail 에서 **조회·생성·고정 IP 연결·방화벽 설정만** 할 수 있고 삭제·중지 권한은 없으므로, 같은 계정에 이미 다른 서버가 있어도 지워질 일이 없습니다:
    ```json
    { "Version": "2012-10-17",
-     "Statement": [{ "Effect": "Allow", "Action": ["lightsail:*", "sts:GetCallerIdentity"], "Resource": "*" }] }
+     "Statement": [{ "Effect": "Allow", "Resource": "*", "Action": [
+       "sts:GetCallerIdentity", "lightsail:Get*", "lightsail:CreateInstances",
+       "lightsail:AllocateStaticIp", "lightsail:AttachStaticIp", "lightsail:PutInstancePublicPorts" ] }] }
    ```
    그 사용자의 **보안 자격 증명 → 액세스 키 만들기**("AWS 외부에서 실행되는 애플리케이션").
 2. (선택) **Cloudflare API 토큰**: 내 프로필 → API 토큰 → "영역 DNS 편집" 템플릿, 영역은 `nobangjang.com` 하나만.
@@ -122,6 +125,10 @@ docker compose logs -f app proxy     # "migrations up to date", Caddy 의 "certi
 ## 문제가 생기면
 
 - **인증서를 못 받음** (`docker compose logs proxy` 에 `challenge failed`): DNS 레코드가 서버 IP 를 가리키는지, 회색 구름인지, 서버 방화벽에 80·443 이 열렸는지 확인합니다. DNS 를 막 바꿨다면 몇 분 기다린 뒤 `docker compose restart proxy`.
+- **시작 스크립트가 중간에 멈춤** (`docker: command not found`, 설치 기록 끝에 "설치 끝" 이 없음): Lightsail "SSH 로 연결" 창에서 아래를 붙여 넣으면 처음부터 다시 돕니다 (`.env` 가 이미 있으면 그대로 둡니다). 연락처는 실제 주소로:
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/vincenzo0219/label-republic/main/deploy/lightsail-launch.sh | sed 's|^CONTACT_EMAIL=.*|CONTACT_EMAIL="contact@nobangjang.com"|' > /tmp/launch.sh && sudo nohup bash /tmp/launch.sh >/dev/null 2>&1 & sleep 3; sudo tail -f /var/log/nobangjang-setup.log
+  ```
 - **빌드 중 멈춤·메모리 부족**: 메모리 2GB 서버라면 스왑을 2GB 만들고 다시 빌드합니다
   (`sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`).
 - **앱이 시작하지 않음** (`docker compose logs app` 에 환경변수 오류): 메시지에 나온 `.env` 값을 고치고 `docker compose up -d app`.

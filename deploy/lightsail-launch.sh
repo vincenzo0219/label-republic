@@ -29,8 +29,16 @@ if [ "$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)" -lt 3800 ] && [ ! -
   echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
-# Docker
-if ! command -v docker >/dev/null; then curl -fsSL https://get.docker.com | sh; fi
+# Docker — 첫 부팅 때는 Ubuntu 자동 업데이트가 apt 를 잡고 있어 설치가 실패할 수 있다: 풀릴 때까지 기다리고 몇 번 다시 시도
+wait_apt() { for _ in $(seq 1 120); do fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock >/dev/null 2>&1 || return 0; sleep 5; done; }
+if ! command -v docker >/dev/null; then
+  for i in 1 2 3; do
+    wait_apt
+    curl -fsSL https://get.docker.com | sh && break
+    echo "Docker 설치 실패 — 다시 시도 ($i/3)"; sleep 20
+  done
+fi
+command -v docker >/dev/null || { echo "✗ Docker 를 설치하지 못했습니다"; exit 1; }
 id ubuntu >/dev/null 2>&1 && usermod -aG docker ubuntu || true
 
 # 코드
