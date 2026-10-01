@@ -14,6 +14,8 @@ export interface ChatMessage {
   channel: Channel;
   author: Who | "AI" | "system";
   text: string;
+  /** precheck = 상대에게 보내기 전에 검사받으려고 붙여넣은 메시지 */
+  kind?: "precheck";
   at: number;
 }
 
@@ -37,6 +39,8 @@ export const STAGES = [
   "insight", // 짧은 이론 설명, 서로 듣기
   "agreement", // 행동 합의
   "roleplay", // 역할극 훈련
+  "practice", // 1:1 연습 모드 (AI가 상대 역할)
+  "precheck", // 보내기 전 코치
   "wrapup", // 마무리
   "safety", // 안전 모드
 ] as const;

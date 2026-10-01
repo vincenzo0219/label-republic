@@ -59,6 +59,10 @@
   .agreements li { margin: 2px 0; }
 
   footer { padding: 8px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
+  .tools { display: flex; gap: 6px; padding: 0 0 8px; }
+  .tools button { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 7px 12px; font-size: 13px; }
+  .tools button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .msg.pre { border: 1px dashed var(--accent); }
   .turn { font-size: 12px; color: var(--muted); padding: 0 4px 6px; }
   .compose { display: flex; gap: 8px; align-items: flex-end; }
   textarea { flex: 1; resize: none; max-height: 140px; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 16px; line-height: 1.4; }
@@ -86,6 +90,7 @@ let state = null;       // 서버가 준 방 상태 (내가 볼 수 있는 것�
 let view = "private";   // "private" | "joint"
 let token = null;
 let es = null;
+let precheckMode = false; // 상대에게 보낼 메시지를 붙여넣는 중
 
 const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -151,6 +156,10 @@ function enterRoom(roomId, tok) {
     <main id="msgs"></main>
     <div id="cards"></div>
     <footer>
+      <div class="tools" id="tools">
+        <button id="practice">🎭 연습하기</button>
+        <button id="precheckBtn">✉️ 보내기 전 코치</button>
+      </div>
       <div class="turn" id="turn"></div>
       <div class="compose">
         <textarea id="input" rows="1" placeholder="무슨 일이 있었어요?"></textarea>
@@ -166,6 +175,11 @@ function enterRoom(roomId, tok) {
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing && window.matchMedia("(pointer: fine)").matches) { e.preventDefault(); send(); }
   });
   document.getElementById("send").onclick = send;
+  document.getElementById("precheckBtn").onclick = () => { precheckMode = !precheckMode; render(); document.getElementById("input").focus(); };
+  document.getElementById("practice").onclick = async () => {
+    precheckMode = false;
+    try { await api(`/api/rooms/${state.roomId}/practice`, { token }); setErr(""); } catch (e) { setErr(e.message); }
+  };
 
   es?.close();
   es = new EventSource(`/api/rooms/${roomId}/events?token=${encodeURIComponent(tok)}`);
@@ -191,7 +205,12 @@ async function send() {
   const channel = view === "joint" ? "joint" : (state.me.who === "A" ? "privA" : "privB");
   document.getElementById("send").disabled = true;
   try {
-    await api(`/api/rooms/${state.roomId}/messages`, { token, channel, text });
+    if (precheckMode && view === "private") {
+      await api(`/api/rooms/${state.roomId}/precheck`, { token, text });
+      precheckMode = false;
+    } else {
+      await api(`/api/rooms/${state.roomId}/messages`, { token, channel, text });
+    }
     input.value = ""; input.style.height = "auto"; setErr("");
   } catch (e) { setErr(e.message); }
   finally { document.getElementById("send").disabled = false; }
@@ -218,6 +237,7 @@ function render() {
   const html = s.messages.filter((m) => m.channel === channel).map((m) => {
     if (m.author === "system") return `<div class="sys">${esc(m.text)}</div>`;
     if (m.author === "AI") return `<div class="msg ai"><div class="by">상담사</div>${esc(m.text)}</div>`;
+    if (m.author === s.me.who && m.kind === "precheck") return `<div class="msg me pre"><div class="by">✉️ 보내기 전 검사</div>${esc(m.text)}</div>`;
     if (m.author === s.me.who) return `<div class="msg me">${view === "joint" ? `<div class="by">${esc(s.me.name)}</div>` : ""}${esc(m.text)}</div>`;
     return `<div class="msg partner"><div class="by">${esc(partner || "상대")}</div>${esc(m.text)}</div>`;
   }).join("");
@@ -236,11 +256,15 @@ function render() {
     turn.textContent = thinking ? "" : s.nextSpeaker === "both" ? "두 분 모두 말할 수 있어요." : mine ? "지금은 내 차례예요." : `지금은 ${partner}님 차례예요. 잠시 들어주세요.`;
     input.placeholder = mine ? "말해보세요" : "상대 차례예요";
   } else {
-    turn.textContent = "";
-    input.placeholder = s.jointStarted ? "상담사에게만 하고 싶은 말" : "무슨 일이 있었어요?";
+    turn.textContent = precheckMode ? "상대에게 보내려는 메시지를 그대로 붙여넣으세요. 상대에겐 가지 않아요." : "";
+    input.placeholder = precheckMode ? "보내려는 메시지 붙여넣기" : s.jointStarted ? "상담사에게만 하고 싶은 말" : "무슨 일이 있었어요?";
   }
+  document.getElementById("tools").classList.toggle("hidden", view !== "private");
+  document.getElementById("precheckBtn").classList.toggle("on", precheckMode);
+  document.getElementById("practice").disabled = thinking;
   input.disabled = !canSend && view === "joint";
   sendBtn.disabled = !canSend;
+  sendBtn.textContent = precheckMode && view === "private" ? "검사" : "보내기";
 
   renderCards();
 }

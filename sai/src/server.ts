@@ -63,7 +63,7 @@ async function route(req: IncomingMessage, res: ServerResponse) {
     return json(res, 200, engine.createRoom(str(b.name)));
   }
 
-  const m = path.match(/^\/api\/rooms\/([\w-]+)\/(join|state|events|messages|joint|report)$/);
+  const m = path.match(/^\/api\/rooms\/([\w-]+)\/(join|state|events|messages|joint|report|practice|precheck)$/);
   if (!m) return json(res, 404, { error: "없는 주소예요." });
   const [, roomId, action] = m;
 
@@ -117,6 +117,14 @@ async function route(req: IncomingMessage, res: ServerResponse) {
       await Promise.race([pending, new Promise((r) => setTimeout(r, 50))]);
       pending.catch(() => {});
       return json(res, 200, engine.view(roomId, tok));
+    }
+    case "practice":
+    case "precheck": {
+      const pending =
+        action === "practice" ? engine.practice(roomId, tok) : engine.precheck(roomId, tok, str(b.text));
+      await Promise.race([pending, new Promise((r) => setTimeout(r, 50))]);
+      pending.catch(() => {});
+      return json(res, 200, { ok: true });
     }
     case "report":
       return json(res, 200, { report: await engine.makeReport(roomId, tok) });

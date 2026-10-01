@@ -26,6 +26,12 @@ export class DemoBrain implements Brain {
             : `[데모] 잘 들었어요. 이번에는 ${next === "A" ? "A" : "B"}님 차례예요.`,
       };
     }
+    if (context.includes("'🎭 연습하기'를 눌렀습니다")) {
+      return this.privateTurn("practice", "[데모] 좋아요, 연습해볼게요. 오늘은 나-전달법 하나만 해요. 틀: 그때 + 나는 ~했어 + ~해줄 수 있어?\n지금부터 제가 상대 역할을 할게요.\n「또 그 얘기야? 나 지금 피곤해.」\n자, 실제로 답해보세요.");
+    }
+    if (context.includes("보내기 전 코치를 따른다")) {
+      return this.privateTurn("precheck", "[데모] 이건 상대에게 비난으로 들릴 가능성이 커요. '맨날'이 걸려요.\n이렇게 보내보세요.\n「오늘 연락이 없어서 좀 서운했어. 늦을 땐 한 줄만 보내줄 수 있어?」");
+    }
     const opening = n === 1;
     return {
       plan: {
@@ -46,6 +52,15 @@ export class DemoBrain implements Brain {
         : key === "A" && n >= 3
           ? "[데모] 이제 상대방 이야기도 들어볼 때가 됐어요. 아래 버튼으로 초대해 볼까요?"
           : "[데모] 그랬군요. 그때 정확히 어떤 말을 들었어요?",
+    };
+  }
+
+  private privateTurn(stage: "practice" | "precheck", message: string): CounselorTurn {
+    return {
+      plan: { stage, goal: "", technique: "", next_speaker: "none", safety: "none", suggest_invite: false, ready_for_joint: false },
+      notes: null,
+      agreements: [],
+      message,
     };
   }
 

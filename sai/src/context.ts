@@ -3,7 +3,9 @@ import type { CaseNotes, Channel, ChatMessage, Room, Who } from "./types.js";
 export type TurnEvent =
   | { kind: "opening"; who: Who } // 이 사람이 방에 처음 들어옴. 상담사가 먼저 말을 건다.
   | { kind: "message"; who: Who } // 이 사람이 방금 말함
-  | { kind: "joint_open" }; // 둘 다 '함께 상담'을 눌러 공동방이 열림
+  | { kind: "joint_open" } // 둘 다 '함께 상담'을 눌러 공동방이 열림
+  | { kind: "practice_start"; who: Who } // 🎭 연습하기를 누름
+  | { kind: "precheck"; who: Who }; // ✉️ 상대에게 보내기 전 메시지를 붙여넣음
 
 const nameOf = (room: Room, who: Who) => room.participants[who]?.name ?? (who === "A" ? "A" : "B");
 
@@ -17,6 +19,7 @@ function transcript(room: Room, channel: Channel): string {
 function speakerLabel(room: Room, m: ChatMessage): string {
   if (m.author === "AI") return "상담사";
   if (m.author === "system") return "[알림]";
+  if (m.kind === "precheck") return `${nameOf(room, m.author)}(${m.author}) [보내기 전 검사 요청: 상대에게 보내려는 메시지]`;
   return `${nameOf(room, m.author)}(${m.author})`;
 }
 
@@ -43,6 +46,10 @@ function eventLine(room: Room, event: TurnEvent): string {
       return `${nameOf(room, event.who)}(${event.who})님이 방금 말했습니다. 다음 발화를 정한다.`;
     case "joint_open":
       return "두 사람 모두 '함께 상담'을 눌러 공동 상담방이 방금 열렸습니다. 진행자로서 여는 말을 하고, 첫 번째로 말할 사람을 지정한다.";
+    case "practice_start":
+      return `${nameOf(room, event.who)}님이 '🎭 연습하기'를 눌렀습니다. 프로토콜 7장 연습 모드로 들어간다: 장면 하나와 기술 하나를 고르고, 틀 한 줄을 준 뒤, 상대 역할로 들어가 첫 대사를 하거나 이 사람이 먼저 말하게 한다. stage는 practice.`;
+    case "precheck":
+      return `${nameOf(room, event.who)}님이 상대에게 실제로 보내려는 메시지를 붙여넣었습니다(대화의 마지막 [보내기 전 검사 요청]). 프로토콜 8장 보내기 전 코치를 따른다. stage는 precheck. 답한 뒤에는 원래 하던 상담 흐름으로 돌아갈 수 있게 짧게 끝낸다.`;
   }
 }
 

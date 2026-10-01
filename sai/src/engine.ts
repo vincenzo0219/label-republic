@@ -121,6 +121,28 @@ export class Engine {
     await this.enqueue(room, () => this.aiTurn(room, channel, { kind: "message", who }));
   }
 
+  /** 🎭 연습하기: 상담사가 상대 역할을 맡아 말하기 기술을 연습시킨다. 상대가 없어도 된다. */
+  async practice(roomId: string, tok: string): Promise<void> {
+    const room = this.get(roomId);
+    const who = this.auth(room, tok);
+    const channel = privateChannelOf(who);
+    if (room.thinking.includes(channel)) throw new SaiError(409, "상담사가 말하는 중이에요. 잠시만요.");
+    this.system(room, channel, "🎭 연습을 시작해요. 상담사가 상대 역할을 맡아요.");
+    await this.enqueue(room, () => this.aiTurn(room, channel, { kind: "practice_start", who }));
+  }
+
+  /** ✉️ 보내기 전 코치: 상대에게 실제로 보낼 메시지를 붙여넣으면 어떻게 들릴지와 고친 문장을 준다. */
+  async precheck(roomId: string, tok: string, text: string): Promise<void> {
+    const room = this.get(roomId);
+    const who = this.auth(room, tok);
+    const channel = privateChannelOf(who);
+    const body = text.trim().slice(0, 2000);
+    if (!body) throw new SaiError(400, "보내려는 메시지를 붙여넣어 주세요.");
+    if (room.thinking.includes(channel)) throw new SaiError(409, "상담사가 말하는 중이에요. 잠시만요.");
+    this.push(room, { channel, author: who, text: body, kind: "precheck" });
+    await this.enqueue(room, () => this.aiTurn(room, channel, { kind: "precheck", who }));
+  }
+
   /** '함께 상담' 버튼. 두 사람 모두 누르면 공동방이 열린다. */
   async requestJoint(roomId: string, tok: string): Promise<void> {
     const room = this.get(roomId);

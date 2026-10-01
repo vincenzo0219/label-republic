@@ -190,3 +190,24 @@ describe("안전", () => {
     await expect(engine.requestJoint(roomId, a)).rejects.toThrow("안전");
   });
 });
+
+describe("연습 모드와 보내기 전 코치", () => {
+  it("상대가 없어도 🎭 연습하기를 누르면 상담사가 비공개방에서 연습을 시작한다", async () => {
+    const { engine, roomId, a, brain } = await setup();
+    await engine.practice(roomId, a);
+    await engine.idle(roomId);
+    expect(brain.contexts.at(-1)).toContain("연습하기");
+    const msgs = engine.view(roomId, a).messages;
+    expect(msgs.at(-2)).toMatchObject({ channel: "privA", author: "system" });
+    expect(msgs.at(-1)).toMatchObject({ channel: "privA", author: "AI" });
+  });
+
+  it("보내기 전 검사 메시지는 내 비공개방에만 남고 상대에게 보이지 않는다", async () => {
+    const { engine, roomId, a, b, brain } = await withPartner();
+    await engine.precheck(roomId, a, "너는 맨날 늦어");
+    await engine.idle(roomId);
+    expect(engine.view(roomId, a).messages.some((m) => m.kind === "precheck" && m.text === "너는 맨날 늦어")).toBe(true);
+    expect(engine.view(roomId, b).messages.some((m) => m.text.includes("맨날 늦어"))).toBe(false);
+    expect(brain.contexts.at(-1)).toContain("[보내기 전 검사 요청");
+  });
+});
