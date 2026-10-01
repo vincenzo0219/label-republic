@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { listCategories } from "@/lib/repo/categories";
 import { listPosts } from "@/lib/repo/posts";
@@ -11,6 +12,7 @@ import { CategoryTabs } from "./CategoryTabs";
 import { InterestToggle } from "./InterestToggle";
 import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
+import { MarkSeen, NewDivider } from "./NewMarks";
 import { SortBar } from "./SortBar";
 
 const TYPE_FILTERS: { value?: PostType; label: string }[] = [
@@ -52,6 +54,7 @@ export async function FeedView({
     return qs ? `${basePath}?${qs}` : basePath;
   };
   const typeHref = (t?: PostType) => href(t, sourced);
+  const seenRoom = category?.slug ?? "all";
   return (
     <>
       <h1 className="sr-only">{category ? `${category.name} 방` : "노방장 — 방장 없는 덕후 커뮤니티"}</h1>
@@ -125,8 +128,18 @@ export async function FeedView({
           </div>
         </div>
       ) : (
-        feed.items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} />)
+        feed.items.map((post, i) => {
+          const prev = feed.items[i - 1];
+          return (
+            <Fragment key={post.id}>
+              {/* 최신순에서는 지난번에 본 곳까지 선을 긋는다 (Sprint 41) */}
+              {sort === "latest" && prev && <NewDivider room={seenRoom} newer={prev.created_at} older={post.created_at} />}
+              <PostCard post={post} showCategory={!category} seenRoom={seenRoom} />
+            </Fragment>
+          );
+        })
       )}
+      {page === 1 && !type && !sourced && <MarkSeen room={seenRoom} />}
       <Pagination basePath={basePath} params={params} page={feed.page} pageSize={feed.pageSize} total={feed.total} />
     </>
   );

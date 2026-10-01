@@ -54,15 +54,15 @@ export function curatorIntervalHours({ humanPosts7d: h, aiPosts7d: ai }: Retreat
 // 게시
 // ---------------------------------------------------------------------------
 
-export type SeedContent = Pick<SeedPost, "key" | "title" | "body" | "summary" | "comments"> & { reviewed?: boolean };
+export type SeedContent = Pick<SeedPost, "key" | "title" | "body" | "summary" | "comments"> & { reviewed?: boolean; postType?: "info" | "chat" };
 
 /** 시드 한 건을 게시한다. 같은 key 가 이미 게시돼 있으면 null. 트랜잭션 안에서 호출할 것. */
 export async function publishSeed(client: PoolClient, categoryId: number, seed: SeedContent): Promise<string | null> {
   const ins = await client.query<{ id: string }>(
-    `INSERT INTO posts (category_id, nickname, pw_hash, title, body, is_ai_curated, seed_key, moderated_by, ai_reviewed)
-     VALUES ($1, $2, $3, $4, $5, true, $6, 'ai-curator', $7)
+    `INSERT INTO posts (category_id, nickname, pw_hash, title, body, is_ai_curated, seed_key, moderated_by, ai_reviewed, post_type)
+     VALUES ($1, $2, $3, $4, $5, true, $6, 'ai-curator', $7, $8::post_type)
      ON CONFLICT (seed_key) DO NOTHING RETURNING id`,
-    [categoryId, CURATOR_NICKNAME, CURATOR_PW_HASH, seed.title, seed.body, seed.key, Boolean(seed.reviewed)],
+    [categoryId, CURATOR_NICKNAME, CURATOR_PW_HASH, seed.title, seed.body, seed.key, Boolean(seed.reviewed), seed.postType ?? "info"],
   );
   const postId = ins.rows[0]?.id;
   if (!postId) return null;

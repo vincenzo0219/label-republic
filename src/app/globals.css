@@ -767,3 +767,9 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .pmf-card .chips { margin: 12px 0; }
 .pmf-card textarea { width: 100%; }
 .pmf-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+
+/* 새 글 표시 (Sprint 41) */
+.badge-new { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); font-weight: 800; letter-spacing: 0.02em; }
+.new-divider { display: flex; align-items: center; gap: 10px; margin: 6px 0 18px; color: var(--muted); font-size: 12.5px; }
+.new-divider::before, .new-divider::after { content: ""; flex: 1; border-top: 1px dashed color-mix(in srgb, var(--brand) 55%, var(--line)); }
+.tab-count { display: inline-block; margin-left: 6px; min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--brand); color: var(--brand-ink); font-size: 11.5px; font-weight: 800; line-height: 18px; text-align: center; }

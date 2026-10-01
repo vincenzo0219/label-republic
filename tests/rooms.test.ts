@@ -74,4 +74,22 @@ d("room creation threshold (database)", async () => {
     expect(third).toMatchObject({ promoted: true, threshold: 3 });
     expect((await query("SELECT 1 FROM categories WHERE name = '커피 원두 로스팅'")).length).toBe(1);
   });
+
+  it("counts visible new posts per room since the given time (Sprint 41)", async () => {
+    const { newPostCounts } = await import("@/lib/repo/categories");
+    const cat = async (slug: string) => (await query<{ id: number }>("SELECT id FROM categories WHERE slug = $1", [slug]))[0]!.id;
+    const kb = await cat("keyboards");
+    const insert = (hoursAgo: number, blinded = false) =>
+      query(
+        `INSERT INTO posts (category_id, nickname, pw_hash, title, body, created_at, is_blinded)
+         VALUES ($1, '사람', 'x', '글', '본문', now() - make_interval(hours => $2), $3)`,
+        [kb, hoursAgo, blinded],
+      );
+    await insert(48);
+    await insert(2);
+    await insert(1);
+    await insert(1, true); // 블라인드 글은 세지 않음
+    const since = new Date(Date.now() - 24 * 3600_000);
+    expect(await newPostCounts([{ slug: "keyboards", since }, { slug: "supplements", since }, { slug: "없는방", since }])).toEqual({ keyboards: 2 });
+  });
 });
