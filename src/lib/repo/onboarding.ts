@@ -1,5 +1,5 @@
 /**
- * 첫 방문·빈 보드 온보딩에 쓰는 조회 (Sprint 32).
+ * 첫 방문·빈 방 온보딩에 쓰는 조회 (Sprint 32).
  */
 import { query } from "../db";
 import { THIN_BOARD_POSTS } from "../onboarding";
@@ -18,8 +18,8 @@ export type BoardNeeds = {
 };
 
 /**
- * 글이 적은 보드의 안내에 쓸 것. 모든 보드 첫 화면에서 불리므로 먼저 정보 글이 THIN 개 이상인지만 세고(최대 THIN 행만 읽음),
- * 적을 때만 나머지를 조회한다 (Sprint 33: 글 많은 보드에서 제품 전체를 훑던 문제).
+ * 글이 적은 방의 안내에 쓸 것. 모든 방 첫 화면에서 불리므로 먼저 정보 글이 THIN 개 이상인지만 세고(최대 THIN 행만 읽음),
+ * 적을 때만 나머지를 조회한다 (Sprint 33: 글 많은 방에서 제품 전체를 훑던 문제).
  */
 export async function boardNeeds(categoryId: number, limit = 5): Promise<BoardNeeds> {
   const count = await query<{ n: number }>(
@@ -33,7 +33,7 @@ export async function boardNeeds(categoryId: number, limit = 5): Promise<BoardNe
   const [pending, lonely] = await Promise.all([
     listRenewals({ status: "pending", categoryId, pageSize: limit }),
     // 최근 정보 글(올린 지 1시간이 지난 것 — 자동 검사가 끝난 뒤) 200개의 제품 중 보이는 글이 하나뿐인 것.
-    // 방금 올린 글의 제품 이름이 곧바로 보드 안내 맨 위에 걸리지 않게, 잡담·정모에만 붙은 제품은 빼고
+    // 방금 올린 글의 제품 이름이 곧바로 방 안내 맨 위에 걸리지 않게, 잡담·정모에만 붙은 제품은 빼고
     query<LonelyProduct>(
       `WITH recent AS MATERIALIZED (
          SELECT p.id, p.created_at FROM posts p

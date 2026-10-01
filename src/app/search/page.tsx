@@ -58,7 +58,7 @@ export default async function SearchPage({ searchParams }: Props) {
       </form>
       {q && <FactSearchPanel q={q} categories={category ? [category] : categories} />}
       {timedOut ? (
-        <div className="empty" role="status">검색이 너무 오래 걸렸습니다. 검색어를 더 구체적으로 입력하거나 보드를 골라 다시 검색해주세요.</div>
+        <div className="empty" role="status">검색이 너무 오래 걸렸습니다. 검색어를 더 구체적으로 입력하거나 방을 골라 다시 검색해주세요.</div>
       ) : results?.tooShort ? (
         <div className="empty" role="status">두 글자 이상 입력해주세요.</div>
       ) : !results ? (

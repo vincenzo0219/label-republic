@@ -14,7 +14,7 @@ const MIN_LEAD_MS = 60 * 60 * 1000; // 최소 1시간 뒤
 const MAX_LEAD_MS = 90 * 24 * 60 * 60 * 1000; // 최대 90일 뒤
 
 /**
- * 비공식 방장화 방지: 같은 보드의 최근 정모 제안 N건이 모두 같은 사람(닉네임 또는 fingerprint)이면 새 제안을 막는다.
+ * 비공식 방장화 방지: 같은 방의 최근 정모 제안 N건이 모두 같은 사람(닉네임 또는 fingerprint)이면 새 제안을 막는다.
  * 닉네임은 누구나 바꿀 수 있으므로 fingerprint 도 함께 본다.
  */
 export async function assertCanPropose(
@@ -24,7 +24,7 @@ export async function assertCanPropose(
   fingerprint: string | undefined,
   limit = config.meetupConsecutiveLimit,
 ): Promise<void> {
-  // 같은 보드의 정모 제안은 직렬화 — 동시 제안으로 상한을 우회하지 못하게
+  // 같은 방의 정모 제안은 직렬화 — 동시 제안으로 상한을 우회하지 못하게
   await client.query("SELECT pg_advisory_xact_lock(4823100, $1)", [categoryId]);
   const recent = await client.query<{ nickname: string; proposer_fingerprint: string | null }>(
     `SELECT p.nickname, m.proposer_fingerprint FROM meetups m JOIN posts p ON p.id = m.post_id
@@ -39,7 +39,7 @@ export async function assertCanPropose(
     throw new HttpError(
       409,
       "meetup_consecutive_limit",
-      `이 보드의 최근 정모 ${limit}건을 모두 같은 분이 제안했어요. 한 사람이 모임을 계속 주도하지 않도록, 다른 분의 제안이 올라온 뒤에 다시 제안할 수 있습니다.`,
+      `이 방의 최근 정모 ${limit}건을 모두 같은 분이 제안했어요. 한 사람이 모임을 계속 주도하지 않도록, 다른 분의 제안이 올라온 뒤에 다시 제안할 수 있습니다.`,
     );
   }
 }

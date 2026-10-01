@@ -155,7 +155,7 @@ const REJECT_REASONS: [string, string][] = [
   ["personal", "특정인 대상·개인정보"],
 ];
 
-/** 보드 개설 요청 거절·병합 */
+/** 방 개설 요청 거절·병합 */
 export function BoardRequestActions({ requestId, others }: { requestId: string; others: { id: string; name: string }[] }) {
   const { msg, busy, run } = useAction();
   const [reason, setReason] = useState("illegal");
@@ -176,7 +176,7 @@ export function BoardRequestActions({ requestId, others }: { requestId: string; 
         className="btn btn-sm btn-danger"
         disabled={busy}
         onClick={() =>
-          run(`보드 요청 #${requestId}을(를) 거절합니다. 투명성 기록에 공개됩니다. 계속할까요?`, { action: "reject_board_request", requestId, reason, note }, () => "거절 완료")
+          run(`방 요청 #${requestId}을(를) 거절합니다. 투명성 기록에 공개됩니다. 계속할까요?`, { action: "reject_board_request", requestId, reason, note }, () => "거절 완료")
         }
       >
         거절

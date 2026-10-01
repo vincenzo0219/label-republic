@@ -5,7 +5,7 @@
  *  - 탐지 배치가 찾아낸 조작(어뷰징 알림)의 신고·투표를 무효로 돌리고 자동 규칙이 다시 판단하게 하기
  *  - AI "광고 의심" 오탐 해제
  *  - 작성자 재검토 요청 기각 (수용은 위 조치로 글이 다시 보이면 자동 처리)
- *  - 불법·스팸 이름의 보드 개설 요청 거절, 중복 요청 병합
+ *  - 불법·스팸 이름의 방 개설 요청 거절, 중복 요청 병합
  * 이며, 모두 moderation_log 에 남아 /transparency 에 공개된다. 알림을 오탐으로 닫는 것만 내부 기록이다.
  *
  * /api/admin/* 와 /admin 은 server.ts 의 ADMIN_PASSWORD Basic 인증 뒤에 있다.
@@ -27,11 +27,11 @@ export const MOD_ACTIONS = {
   legal_release: "임시조치 해제",
   reports_voided: "조직적 신고 무효화",
   votes_voided: "조직적 투표 무효화",
-  board_votes_voided: "보드 투표 무효화",
+  board_votes_voided: "방 투표 무효화",
   suppression_released: "광고 의심 해제",
   appeal_rejected: "재검토 요청 기각",
-  board_request_rejected: "보드 개설 요청 거절",
-  board_request_merged: "중복 보드 요청 병합",
+  board_request_rejected: "방 개설 요청 거절",
+  board_request_merged: "중복 방 요청 병합",
   product_merged: "중복 제품 병합",
   revision_redacted: "수정 이력 삭제 (법적 요청)",
   rule_reason_hidden: "규칙 제안 사유 가림 (권리침해)",
@@ -227,7 +227,7 @@ export async function voidAlert(alertId: string, note: string): Promise<VoidResu
           WHERE id = $1 RETURNING vote_count, status`,
         [a.subject_id],
       );
-      // 이미 승격된 보드는 되돌리지 않는다 (보드를 닫는 것은 운영자 권한 밖) — 기록에만 남긴다
+      // 이미 승격된 방은 되돌리지 않는다 (방을 닫는 것은 운영자 권한 밖) — 기록에만 남긴다
       result.boardRequest = { id: a.subject_id, voteCount: rows[0]?.vote_count ?? 0, status: rows[0]?.status ?? "unknown" };
       await writeLog(client, {
         action: "board_votes_voided",
@@ -326,7 +326,7 @@ export async function rejectAppeal(postId: string, note: string): Promise<void> 
 }
 
 // ---------------------------------------------------------------------------
-// 보드 개설 요청 거절·병합
+// 방 개설 요청 거절·병합
 // ---------------------------------------------------------------------------
 
 export const BOARD_REJECT_REASONS = {
@@ -337,10 +337,10 @@ export const BOARD_REJECT_REASONS = {
 export type BoardRejectReason = keyof typeof BOARD_REJECT_REASONS;
 
 export async function rejectBoardRequest(requestId: string, reason: BoardRejectReason, note: string): Promise<void> {
-  assertId(requestId, "보드 요청");
+  assertId(requestId, "방 요청");
   await tx(async (client) => {
     const { rows } = await client.query<{ status: string }>("SELECT status FROM board_requests WHERE id = $1 FOR UPDATE", [requestId]);
-    if (!rows[0]) throw notFound("보드 요청");
+    if (!rows[0]) throw notFound("방 요청");
     if (rows[0].status !== "open") throw new HttpError(409, "request_closed", "진행 중인 요청만 거절할 수 있습니다.");
     await client.query("UPDATE board_requests SET status = 'rejected' WHERE id = $1", [requestId]);
     await writeLog(client, { action: "board_request_rejected", subjectType: "board_request", subjectId: requestId, reason, note });
@@ -349,8 +349,8 @@ export async function rejectBoardRequest(requestId: string, reason: BoardRejectR
 
 /** 같은 주제의 요청을 합친다: 표를 옮기고(중복 투표자는 한 표) 원래 요청은 'duplicate' 로 닫는다. 승격 조건은 자동 규칙이 판단한다. */
 export async function mergeBoardRequest(requestId: string, intoId: string, note: string): Promise<{ voteCount: number }> {
-  assertId(requestId, "보드 요청");
-  assertId(intoId, "보드 요청");
+  assertId(requestId, "방 요청");
+  assertId(intoId, "방 요청");
   if (requestId === intoId) throw new HttpError(400, "same_request", "같은 요청끼리는 병합할 수 없습니다.");
   return tx(async (client) => {
     // 교착을 피하려고 id 순서로 잠근다
@@ -360,7 +360,7 @@ export async function mergeBoardRequest(requestId: string, intoId: string, note:
     );
     const from = rows.find((r) => r.id === requestId);
     const into = rows.find((r) => r.id === intoId);
-    if (!from || !into) throw notFound("보드 요청");
+    if (!from || !into) throw notFound("방 요청");
     if (from.status !== "open" || into.status !== "open") throw new HttpError(409, "request_closed", "진행 중인 요청끼리만 병합할 수 있습니다.");
     await client.query(
       `INSERT INTO board_request_votes (request_id, voter_fingerprint, created_at)
@@ -399,7 +399,7 @@ export async function mergeProductIn(client: PoolClient, productId: string, into
   const into = rows.find((r) => r.id === intoId);
   if (!from || !into) throw notFound("제품");
   if (from.merged_into || into.merged_into) throw new HttpError(409, "product_merged", "이미 병합된 제품입니다.");
-  if (from.category_id !== into.category_id) throw new HttpError(400, "different_board", "같은 보드의 제품끼리만 병합할 수 있습니다.");
+  if (from.category_id !== into.category_id) throw new HttpError(400, "different_board", "같은 방의 제품끼리만 병합할 수 있습니다.");
   // 두 제품을 모두 태그한 글은 한 번만 남는다
   const moved = await client.query(
     `INSERT INTO post_products (post_id, product_id, position)
@@ -437,9 +437,9 @@ export type DuplicateProductPair = {
 };
 
 /**
- * 같은 보드에서 이름이 비슷한 제품 쌍 (pg_trgm) — 병합 후보. 판단은 운영자가, 기록은 공개.
+ * 같은 방에서 이름이 비슷한 제품 쌍 (pg_trgm) — 병합 후보. 판단은 운영자가, 기록은 공개.
  * 중복은 새 제품이 생길 때 생기므로 최근 제품 100개만 기준으로, 각각 이름이 가장 가까운 제품 3개를
- * GiST 인덱스 거리순(<->)으로 찾는다. 모든 쌍을 비교하면 이름이 비슷한 제품이 많은 보드에서 끝나지 않는다.
+ * GiST 인덱스 거리순(<->)으로 찾는다. 모든 쌍을 비교하면 이름이 비슷한 제품이 많은 방에서 끝나지 않는다.
  */
 export async function listDuplicateProductCandidates(limit = 30): Promise<DuplicateProductPair[]> {
   return query<DuplicateProductPair>(

@@ -20,7 +20,7 @@ export type LabelReadResult = {
   expires_on?: string;
 };
 
-/** 보드마다 사진에 흔히 나오는 표와 적는 법 — 모르는 보드(새로 승격된 보드)는 공통 안내만 */
+/** 방마다 사진에 흔히 나오는 표와 적는 법 — 모르는 방(새로 승격된 방)은 공통 안내만 */
 const BOARD_HINTS: Record<string, string> = {
   supplements: `영양제 "영양·기능정보" 또는 Supplement Facts 표입니다.
 - 항목은 성분 이름(예: 마그네슘, 비타민 D3, 아연). 괄호 속 원료 형태는 항목 이름에 넣지 않습니다 (예: "마그네슘(산화마그네슘)" → 마그네슘).
@@ -39,7 +39,7 @@ const BOARD_HINTS: Record<string, string> = {
 - 항목 예: 최대 하중(kg), 높이(mm, cm), 폭, 깊이, 소비전력(W), 밝기(lm), 색온도(K).`,
 };
 
-const SYSTEM_PROMPT = `당신은 덕후 팩트체크 커뮤니티 "노방장"의 라벨 판독 도우미입니다.
+const SYSTEM_PROMPT = `당신은 덕후 커뮤니티 "노방장"의 라벨 판독 도우미입니다.
 사진 속 제품 라벨·성분표·스펙표에 인쇄된 숫자를 그대로 옮겨 적습니다. 작성자가 결과를 확인한 뒤 글에 넣습니다.
 
 규칙:

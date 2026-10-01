@@ -61,7 +61,7 @@ export const config = {
   get curatorAutogen(): boolean {
     return process.env.CURATOR_AUTOGEN !== "0" && Boolean(this.anthropicApiKey);
   },
-  /** 자동 작성 시도 하루 한도 (전체 보드 합, 안전 검사 탈락 포함) */
+  /** 자동 작성 시도 하루 한도 (전체 방 합, 안전 검사 탈락 포함) */
   get curatorAutogenDailyMax(): number {
     const n = Number(process.env.CURATOR_AUTOGEN_DAILY_MAX ?? 10);
     return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 10;
@@ -72,7 +72,7 @@ export const config = {
     const d = new Date(v);
     return Number.isNaN(d.getTime()) ? null : d;
   },
-  /** 보드 요청이 올라온 뒤 자동 승격까지 최소 대기 시간 */
+  /** 방 요청이 올라온 뒤 자동 승격까지 최소 대기 시간 */
   get boardPromotionMinAgeHours() {
     const n = Number(process.env.BOARD_PROMOTION_MIN_AGE_HOURS ?? 24);
     return Number.isFinite(n) && n >= 0 ? n : 24;
@@ -85,7 +85,7 @@ export const config = {
     const n = Number(process.env.MAINTENANCE_INTERVAL_SEC ?? 300);
     return Number.isFinite(n) && n >= 0 ? n : 300;
   },
-  /** 한 보드에서 같은 사람이 연속으로 제안할 수 있는 정모 수 */
+  /** 한 방에서 같은 사람이 연속으로 제안할 수 있는 정모 수 */
   get meetupConsecutiveLimit() {
     const n = Number(process.env.MEETUP_CONSECUTIVE_LIMIT ?? 2);
     return Number.isInteger(n) && n >= 1 ? n : 2;
@@ -161,7 +161,7 @@ export const config = {
     if (v === "memory" || v === "postgres") return v;
     return isProd ? "postgres" : "memory";
   },
-  /** 보드 주간 다이제스트 배치 주기(초). 0이면 끔 */
+  /** 방 주간 다이제스트 배치 주기(초). 0이면 끔 */
   /** 출처 링크 확인 배치 주기(초). 0이면 끔 */
   get sourceCheckIntervalSec() {
     const n = Number(process.env.SOURCE_CHECK_INTERVAL_SEC ?? 900);

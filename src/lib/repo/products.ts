@@ -1,7 +1,7 @@
 /**
  * 제품 태그·수치 (Sprint 14).
  *
- * - 제품은 글에 태그하면서 만든다. 같은 보드에서 브랜드·제품명 정규화 값이 같으면 같은 제품이다.
+ * - 제품은 글에 태그하면서 만든다. 같은 방에서 브랜드·제품명 정규화 값이 같으면 같은 제품이다.
  * - 목록이 곧 최종 상태: 작성·수정 시 받은 제품·수치 목록으로 바꾼다.
  * - 제품 페이지·검색·비교에는 "보이는 글"(블라인드·광고 의심이 아닌 글)의 내용만 모인다.
  *   보이는 글이 하나도 없는 제품은 없는 것으로 취급한다 (광고용 제품 페이지 방지).
@@ -97,7 +97,7 @@ export async function setPostProducts(client: PoolClient, postId: string, catego
     if ("id" in ref) {
       const p = ID.test(ref.id) ? await resolveMerged(client, ref.id) : null;
       if (!p) throw badProduct("존재하지 않는 제품입니다.");
-      if (p.category_id !== categoryId) throw badProduct("다른 보드의 제품은 태그할 수 없습니다.");
+      if (p.category_id !== categoryId) throw badProduct("다른 방의 제품은 태그할 수 없습니다.");
       id = p.id;
     } else {
       id = await findOrCreate(client, categoryId, ref.brand, ref.name, fp);
@@ -152,7 +152,7 @@ export async function setPostFacts(client: PoolClient, postId: string, productId
   });
   // 근거 사진·출처 (Sprint 20) — 사진은 먼저 글에 붙어 있어야 한다
   const evidence = await resolveEvidence(client, postId, facts);
-  // 성분명 별칭 (Sprint 35): 보드에서 합쳐진 이름이면 대표 이름의 키로 넣는다 (표시 이름은 쓴 그대로).
+  // 성분명 별칭 (Sprint 35): 방에서 합쳐진 이름이면 대표 이름의 키로 넣는다 (표시 이름은 쓴 그대로).
   // 별칭 확정·해제(배타 잠금)와 겹치지 않게 공유 잠금을 잡는다
   const canonical = await canonicalAttrKeys(client, postId, [...new Set(rows.map((r) => r.key))]);
   await client.query("DELETE FROM product_facts WHERE post_id = $1", [postId]);
@@ -168,7 +168,7 @@ export async function setPostFacts(client: PoolClient, postId: string, productId
   }
 }
 
-/** 글의 보드에서 별칭으로 합쳐진 항목 키 → 대표 키 (Sprint 35) */
+/** 글의 방에서 별칭으로 합쳐진 항목 키 → 대표 키 (Sprint 35) */
 async function canonicalAttrKeys(client: PoolClient, postId: string, keys: string[]): Promise<Map<string, string>> {
   if (!keys.length) return new Map();
   await client.query("SELECT pg_advisory_xact_lock_shared($1)", [ATTR_ALIAS_LOCK]);
@@ -282,7 +282,7 @@ type FactRow = {
   /** 글이 올라온 시각(ms)·작성자 식별값 — 리뉴얼 감지용 (Sprint 25) */
   at?: number;
   author?: string | null;
-  /** 라벨 날짜(ms, Sprint 26)·보드 — 추정 제조 시각 계산용 */
+  /** 라벨 날짜(ms, Sprint 26)·방 — 추정 제조 시각 계산용 */
   made?: number | null;
   expires?: number | null;
   board?: string;
@@ -482,12 +482,12 @@ export async function searchProducts(q: string, categoryId?: number, limit = 10)
   );
 }
 
-// 보드 제품 목록은 보드의 모든 태그를 세므로(태그 2만 개에 ~100ms) 인스턴스별로 잠깐 캐시한다.
+// 방 제품 목록은 방의 모든 태그를 세므로(태그 2만 개에 ~100ms) 인스턴스별로 잠깐 캐시한다.
 // 새 글의 태그가 목록 순서에 1분 늦게 반영될 수 있지만 제품 페이지·글에는 바로 보인다.
 const BOARD_LIST_TTL_MS = 60_000;
 const boardListCache = new Map<string, { at: number; value: { items: ProductListItem[]; hasMore: boolean } }>();
 
-/** 보드의 제품 목록 (글 많은 순) */
+/** 방의 제품 목록 (글 많은 순) */
 export async function listBoardProducts(categoryId: number, page = 1, pageSize = 30): Promise<{ items: ProductListItem[]; hasMore: boolean }> {
   const key = `${categoryId}:${page}:${pageSize}`;
   const hitC = boardListCache.get(key);

@@ -1,5 +1,5 @@
 /**
- * 성분·수치 검색 (Sprint 17). 보드 안에서 "항목 · 기준 · 단위 묶음"이 같은 수치끼리 제품별로 모아
+ * 성분·수치 검색 (Sprint 17). 방 안에서 "항목 · 기준 · 단위 묶음"이 같은 수치끼리 제품별로 모아
  * 순위와 범위 조건으로 찾는다. 제품 페이지(Sprint 14)와 같은 규칙: 보이는 글만, 동의된 정정 제안이 걸린 값은 제외, 중앙값.
  */
 import { query } from "../db";
@@ -22,7 +22,7 @@ const CURRENT_LABEL_ERA = `NOT EXISTS (
    WHERE r.product_id = f.product_id AND r.attr_key = f.attr_key AND r.basis_key = f.basis_key AND r.unit_group = f.unit_group
      AND r.status = 'confirmed' AND f.post_id = ANY(r.old_posts))`;
 
-// 보드 전체 수치를 훑는 조회라 인스턴스별로 잠깐 캐시한다 (새 수치는 1분 안에 반영)
+// 방 전체 수치를 훑는 조회라 인스턴스별로 잠깐 캐시한다 (새 수치는 1분 안에 반영)
 const TTL_MS = 60_000;
 // 라우트 핸들러(운영자 확정 뒤 비우기)와 페이지 번들이 이 모듈을 따로 불러오므로 globalThis 에 하나만 둔다 (Sprint 35 E2E 에서 발견:
 // 확정 뒤에도 페이지는 1분 동안 옛 항목 목록을 봤다)
@@ -50,7 +50,7 @@ export type AttributeSummary = {
   aliases: string[];
 };
 
-/** 보드에 있는 수치 항목 (제품 많은 순) */
+/** 방에 있는 수치 항목 (제품 많은 순) */
 export async function listBoardAttributes(categoryId: number): Promise<AttributeSummary[]> {
   return cached(`attrs:${categoryId}`, async () => {
     const rows = await query<{ attr_key: string; attribute: string; basis_key: string; basis: string; products: number }>(
@@ -91,7 +91,7 @@ export async function listBoardAttributes(categoryId: number): Promise<Attribute
 }
 
 /**
- * 검색어 속 항목 이름을 보드의 항목 키로: 정확히 같으면 그것, 아니면 검색어에 들어 있는 가장 긴 항목
+ * 검색어 속 항목 이름을 방의 항목 키로: 정확히 같으면 그것, 아니면 검색어에 들어 있는 가장 긴 항목
  * ("마그네슘 1정" → "마그네슘"), 그다음 검색어로 시작하는 항목 ("비타민" → "비타민d").
  */
 export function resolveAttribute(attrs: AttributeSummary[], text: string): AttributeSummary | null {
@@ -238,13 +238,13 @@ export async function rankProducts(p: RankParams): Promise<RankResult | null> {
   };
 }
 
-/** 이 항목 키가 있는 보드 번호 (검색어가 항목 이름일 때 모든 보드를 훑지 않으려고) */
+/** 이 항목 키가 있는 방 번호 (검색어가 항목 이름일 때 모든 방을 훑지 않으려고) */
 export async function boardsWithAttribute(key: string): Promise<Set<number>> {
   const byBoard = await attrKeysByBoard();
   return new Set([...byBoard.entries()].filter(([, keys]) => keys.has(key)).map(([id]) => id));
 }
 
-/** 보드별 수치 항목 키와 합쳐진 다른 이름의 키 (보이는 글 여부는 보지 않는 가벼운 1차 필터) */
+/** 방별 수치 항목 키와 합쳐진 다른 이름의 키 (보이는 글 여부는 보지 않는 가벼운 1차 필터) */
 async function attrKeysByBoard(): Promise<Map<number, Set<string>>> {
   return cached("attrkeys", async () => {
     const rows = await query<{ category_id: number; attr_key: string }>(
@@ -259,17 +259,17 @@ async function attrKeysByBoard(): Promise<Map<number, Set<string>>> {
 
 export type BoardFactMatch = { category: { id: number; slug: string; name: string }; result: RankResult };
 
-/** 검색어 조건으로 모든 보드에서 찾기 (검색 결과 상단 패널) */
+/** 검색어 조건으로 모든 방에서 찾기 (검색 결과 상단 패널) */
 export async function searchFacts(
   categories: { id: number; slug: string; name: string }[],
   q: { attribute: string; min?: number; max?: number; unit?: string },
   perBoard = 5,
 ): Promise<BoardFactMatch[]> {
-  // 항목 이름이 어느 보드에 있는지 먼저 한 번에 거른다 (모든 보드의 항목 목록을 매번 모으면 보드 수만큼 느려진다)
+  // 항목 이름이 어느 방에 있는지 먼저 한 번에 거른다 (모든 방의 항목 목록을 매번 모으면 방 수만큼 느려진다)
   const byBoard = await attrKeysByBoard();
   const key = attrKey(q.attribute);
   const candidates = categories.filter((c) => [...(byBoard.get(c.id) ?? [])].some((k) => k === key || (key.includes(k) && k.length >= 2) || k.startsWith(key)));
-  // 보드마다 독립적인 조회라 동시에
+  // 방마다 독립적인 조회라 동시에
   const found = await Promise.all(
     candidates.map(async (c): Promise<BoardFactMatch | null> => {
       const attr = resolveAttribute(await listBoardAttributes(c.id), q.attribute);

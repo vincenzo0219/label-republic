@@ -22,8 +22,8 @@ function fmtDate(iso: string) {
 }
 
 /**
- * 내 리포트: 관심 보드의 지난 확인 이후 새 글·다가오는 정모·주간 다이제스트.
- * 관심 보드와 확인 시각은 브라우저에만 저장되며, 리포트를 연 시각이 다음 번의 기준 시각이 된다.
+ * 내 리포트: 관심 방의 지난 확인 이후 새 글·다가오는 정모·주간 다이제스트.
+ * 관심 방과 확인 시각은 브라우저에만 저장되며, 리포트를 연 시각이 다음 번의 기준 시각이 된다.
  */
 export function MyReport({ allBoards }: { allBoards: Board[] }) {
   const [interests, setLocal] = useState<string[] | null>(null);
@@ -69,8 +69,8 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
         r.watch.gone,
         r.watch.gone_comments,
       );
-      // 관심 보드가 있는 리포트를 실제로 보여준 뒤에만 "확인함"으로 기록 → 다음 방문은 이 페이지를 연 시각 이후 새 글만.
-      // (관심 보드를 고르기 전 온보딩 화면만 본 경우에는 기록하지 않아 첫 리포트가 최근 7일로 나온다)
+      // 관심 방이 있는 리포트를 실제로 보여준 뒤에만 "확인함"으로 기록 → 다음 방문은 이 페이지를 연 시각 이후 새 글만.
+      // (관심 방을 고르기 전 온보딩 화면만 본 경우에는 기록하지 않아 첫 리포트가 최근 7일로 나온다)
       if (!marked.current) {
         marked.current = true;
         setSeenAt(openedAt.current);
@@ -84,12 +84,12 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
     if (interests) void load(interests, watched, since);
   }, [interests, watched, since, load]);
 
-  // 관심 보드는 브라우저에만 있어 서버가 미리 그릴 수 없다 — 자리를 넉넉히 잡아 두어 내용이 들어올 때 아래(푸터)가 밀려 올라오지 않게
+  // 관심 방은 브라우저에만 있어 서버가 미리 그릴 수 없다 — 자리를 넉넉히 잡아 두어 내용이 들어올 때 아래(푸터)가 밀려 올라오지 않게
   if (interests === null) return <div className="report-root" aria-busy="true"><p className="hint">불러오는 중…</p></div>;
 
   const picker = (
     <div className="field">
-      <div className="chips" role="group" aria-label="관심 보드 선택">
+      <div className="chips" role="group" aria-label="관심 방 선택">
         {allBoards.map((b) => (
           <button
             key={b.slug}
@@ -102,7 +102,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
           </button>
         ))}
       </div>
-      <p className="hint">관심 보드는 이 브라우저에만 저장되고 서버에는 기록되지 않아요. 기기마다 따로 설정됩니다.</p>
+      <p className="hint">관심 방은 이 브라우저에만 저장되고 서버에는 기록되지 않아요. 기기마다 따로 설정됩니다.</p>
     </div>
   );
 
@@ -111,8 +111,8 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
     return (
       <div className="report-root">
         <section className="card">
-          <h2 className="card-title">관심 보드를 골라주세요</h2>
-          <p className="hint" style={{ marginTop: 0 }}>고른 보드의 새 글과 주간 요약을 여기에 모아 드려요.</p>
+          <h2 className="card-title">관심 방을 골라주세요</h2>
+          <p className="hint" style={{ marginTop: 0 }}>고른 방의 새 글과 주간 요약을 여기에 모아 드려요.</p>
           {picker}
           <p className="hint">
             제품 페이지의 <b>☆ 관심 제품</b>, 글의 <b>🔕 이 글 소식 받기</b>로 제품 새 글·댓글·정정 제안도 모을 수 있어요. 내가 쓴 글과 댓글·정정 제안을 단 글은 자동으로
@@ -130,7 +130,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
     <div className="report-root" aria-busy={!report && !error}>
       <div className="report-head">
         <p className="hint" style={{ margin: 0 }}>
-          {since ? `${fmtDate(since)} 이후` : "최근 7일"} · 관심 보드 {interests.length}개
+          {since ? `${fmtDate(since)} 이후` : "최근 7일"} · 관심 방 {interests.length}개
           {watched.products.length > 0 && ` · 관심 제품 ${watched.products.length}개`}
           {watched.posts.length > 0 && ` · 지켜보는 글 ${watched.posts.length}개`}
           {watched.comments.length > 0 && ` · 내 댓글 ${watched.comments.length}개`}
@@ -142,7 +142,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
             </button>
           )}
           <button type="button" className="btn btn-sm" aria-expanded={editing} onClick={() => setEditing((v) => !v)}>
-            보드 편집
+            방 편집
           </button>
         </div>
       </div>
@@ -199,7 +199,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
 
       {interests.length > 0 && (
       <section aria-label="새 글">
-        <h2 className="section-title">🆕 관심 보드 새 글 {report ? report.total : ""}</h2>
+        <h2 className="section-title">🆕 관심 방 새 글 {report ? report.total : ""}</h2>
         {report && report.boards.length > 1 && (
           <p className="hint" style={{ marginTop: -4 }}>
             {report.boards.map((b) => `${b.name} ${b.newCount}`).join(" · ")}
@@ -208,7 +208,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
         {report && report.posts.length === 0 && <div className="empty">새 글이 없어요. 모두 확인했습니다 👏</div>}
         {report?.posts.map((p) => <PostCard key={p.id} post={p} />)}
         {report && report.total > report.posts.length && (
-          <p className="hint">신뢰도 상위 {report.posts.length}개만 보여드려요. 나머지는 각 보드에서 확인하세요.</p>
+          <p className="hint">신뢰도 상위 {report.posts.length}개만 보여드려요. 나머지는 각 방에서 확인하세요.</p>
         )}
       </section>
       )}

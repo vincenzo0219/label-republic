@@ -45,7 +45,7 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("hide_brand_alias_reason"), proposalId: id, note: z.string().trim().min(1, "가리는 이유를 적어주세요.").max(300) }),
   z.object({ action: z.literal("reject_brand_alias"), proposalId: id, note: z.string().trim().min(1, "기각 사유를 적어주세요.").max(300) }),
   z.object({ action: z.literal("remove_brand_alias"), aliasKey: z.string().min(1).max(60), note: z.string().trim().min(1, "해제 사유를 적어주세요.").max(300) }),
-  // 성분명 별칭 (Sprint 35): 브랜드 별칭과 같은 기준. 해제는 기본 사전도 가능 (보드 번호 + 별칭 키)
+  // 성분명 별칭 (Sprint 35): 브랜드 별칭과 같은 기준. 해제는 기본 사전도 가능 (방 번호 + 별칭 키)
   z.object({ action: z.literal("accept_attr_alias"), proposalId: id, note, canonical: z.string().min(1).max(40).optional() }),
   z.object({ action: z.literal("hide_attr_alias_reason"), proposalId: id, note: z.string().trim().min(1, "가리는 이유를 적어주세요.").max(300) }),
   z.object({ action: z.literal("reject_attr_alias"), proposalId: id, note: z.string().trim().min(1, "기각 사유를 적어주세요.").max(300) }),

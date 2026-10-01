@@ -15,7 +15,7 @@ const MAX_COMPARE = 3;
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-/** ?ids=1,2 또는 ?ids=1&ids=2 (보드 제품 목록의 체크박스 폼) */
+/** ?ids=1,2 또는 ?ids=1&ids=2 (방 제품 목록의 체크박스 폼) */
 function parseIds(raw: string | string[] | undefined): string[] {
   const list = (Array.isArray(raw) ? raw : [raw ?? ""]).flatMap((v) => v.split(","));
   return [...new Set(list.map((s) => s.trim()).filter((s) => /^\d{1,18}$/.test(s)))].slice(0, MAX_COMPARE);
@@ -40,11 +40,11 @@ export default async function ComparePage({ searchParams }: Props) {
       <h1 style={{ fontSize: 20, margin: "4px 0 12px" }}>⚖ 제품 비교</h1>
       {products.length === 0 ? (
         <div className="empty">
-          <p>비교할 제품을 고르세요. 보드의 &ldquo;제품 목록&rdquo;이나 제품 페이지에서 시작할 수 있어요.</p>
+          <p>비교할 제품을 고르세요. 방의 &ldquo;제품 목록&rdquo;이나 제품 페이지에서 시작할 수 있어요.</p>
         </div>
       ) : (
         <>
-          {!sameBoard && <p className="notice">서로 다른 보드의 제품입니다. 같은 이름의 항목이라도 기준이 다를 수 있어요.</p>}
+          {!sameBoard && <p className="notice">서로 다른 방의 제품입니다. 같은 이름의 항목이라도 기준이 다를 수 있어요.</p>}
           <div className="table-scroll" role="region" aria-label="제품 비교 표" tabIndex={0}>
             <table className="data-table compare-table">
               <thead>

@@ -1,7 +1,7 @@
 import { TIER_LABEL } from "@/lib/format";
 import type { TrustTier } from "@/lib/types";
 
-/** 카테고리별 신뢰도 배지 — 전체 등급이 아니라 해당 보드 안에서의 상위 % */
+/** 카테고리별 신뢰도 배지 — 전체 등급이 아니라 해당 방 안에서의 상위 % */
 export function TrustBadge({ tier, categoryName }: { tier: TrustTier; categoryName?: string }) {
   const label = TIER_LABEL[tier];
   if (!label) return null;
@@ -13,7 +13,7 @@ export function TrustBadge({ tier, categoryName }: { tier: TrustTier; categoryNa
     );
   }
   return (
-    <span className={`badge badge-${tier}`} title="최근 30일 이 보드 글 중 순추천 기준 구간">
+    <span className={`badge badge-${tier}`} title="최근 30일 이 방 글 중 순추천 기준 구간">
       ✔ {categoryName ? `${categoryName} 신뢰도 ` : "신뢰도 "}
       {label}
     </span>

@@ -12,9 +12,9 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(config.siteUrl),
-  title: { default: "노방장 — 방장 없는 덕후 팩트체크 커뮤니티", template: "%s | 노방장" },
+  title: { default: "노방장 — 방장 없는 덕후 커뮤니티", template: "%s | 노방장" },
   description:
-    "노방장 — 방장 없는 덕후 팩트체크 커뮤니티. 영양제·사료 성분표부터 키보드 스위치, 데스크테리어, 향수·오디오까지 — 완장질 없이 집단지성으로 검증하는 덕후 정보 아카이브.",
+    "노방장 — 방장 없는 덕후 커뮤니티. 가입 없이 쓰고, 누구나 방을 만들고, 규칙은 이용자 투표로 정합니다. 영양제·키보드·데스크테리어·반려동물·향수·오디오 등 관심사별 방에서 완장질 없이 이야기해요.",
   applicationName: "노방장",
   // iPhone 홈 화면에 추가했을 때 앱처럼 (푸시 알림도 이 경우에만 받을 수 있다)
   appleWebApp: { capable: true, title: "노방장", statusBarStyle: "default" },
@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               노방장
             </Link>
             <form action="/search" method="get" role="search" aria-label="사이트 검색" className="header-search">
-              <input type="search" name="q" placeholder="성분, 제품, 스위치 검색" aria-label="검색어" maxLength={100} />
+              <input type="search" name="q" placeholder="글·방·제품 검색" aria-label="검색어" maxLength={100} />
             </form>
             <ReportLink />
             <Link href="/write" className="btn btn-primary">
@@ -65,7 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <p>
               노방장에는 방장이 없습니다. 추천/비추천과 신고 자동 블라인드로 모두가 함께 정화하고, 그 기준도 <Link href="/rules">이용자 투표</Link>로 정합니다.
               <br />
-              원하는 보드가 없나요? <Link href="/boards">보드 개설 요청</Link> · 사이트가 이상하거나 불편하면 <FeedbackLink />
+              원하는 방이 없나요? <Link href="/boards">방 만들기</Link> · 사이트가 이상하거나 불편하면 <FeedbackLink />
             </p>
             <p>성분·스펙 정보는 사용자 제보이며 의학적 조언이 아닙니다.</p>
             <nav className="footer-links" aria-label="정책">

@@ -5,7 +5,7 @@ import { listRenewals } from "@/lib/repo/renewal-feed";
 
 export const dynamic = "force-dynamic";
 
-/** GET /c/:slug/renewals.xml — 보드별 라벨 변경 (Sprint 28) */
+/** GET /c/:slug/renewals.xml — 방별 라벨 변경 (Sprint 28) */
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   let slug = (await ctx.params).slug;
   try {

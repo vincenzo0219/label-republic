@@ -28,7 +28,7 @@ export type RuleDef = {
   higher: string;
   lower: string;
   unit: string;
-  /** 코드 기본값 (보드 개설 표 수는 서버가 환경변수로 덮어쓴다) */
+  /** 코드 기본값 (방 개설 표 수는 서버가 환경변수로 덮어쓴다) */
   defaultValue: number;
   min: number;
   max: number;
@@ -112,11 +112,11 @@ export const RULES: Record<RuleKey, RuleDef> = {
   },
   board_promotion_votes: {
     key: "board_promotion_votes",
-    label: "새 보드 개설에 필요한 표",
-    sentence: "보드 개설 요청이 {v}표를 모으면 (올라온 지 하루가 지난 뒤) 자동으로 보드가 생깁니다.",
-    higher: "보드가 늘어나기 어려워집니다.",
-    lower: "보드가 쉽게 생깁니다 (비슷한 보드가 흩어질 수 있음).",
-    unit: "표",
+    label: "새 방 개설에 필요한 동의 (상한)",
+    sentence: "방 만들기 요청은 최근 30일 활동 인원의 5%(최소 3명, 최대 {v}명)가 동의하면 올라온 지 하루가 지난 뒤 자동으로 열립니다.",
+    higher: "커뮤니티가 커졌을 때 방이 늘어나기 어려워집니다.",
+    lower: "커뮤니티가 커져도 방이 쉽게 생깁니다 (비슷한 방이 흩어질 수 있음).",
+    unit: "명",
     defaultValue: 50,
     min: 10,
     max: 500,

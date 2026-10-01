@@ -7,7 +7,7 @@
  *  3. 동의된 제안만 운영자가 확정 (기각은 언제든) — 확정·기각·해제 모두 /transparency 에 공개
  *
  * 확정하면 제품이 많은 쪽이 대표 브랜드가 되고, 다른 쪽 제품의 정규화 키 앞부분을 대표 키로 바꾼다.
- * 같은 보드에 같은 이름의 제품이 이미 있으면 병합(제품 병합 기록도 따로 공개). 표시 이름(브랜드 표기)은 글쓴이가 쓴 그대로 둔다.
+ * 같은 방에 같은 이름의 제품이 이미 있으면 병합(제품 병합 기록도 따로 공개). 표시 이름(브랜드 표기)은 글쓴이가 쓴 그대로 둔다.
  */
 import type { PoolClient } from "pg";
 import { query, tx } from "../db";
@@ -239,7 +239,7 @@ export type AliasPlan = {
   aliasLabel: string;
   /** 대표 키로 바꿀 제품 수 */
   rekey: number;
-  /** 같은 보드의 같은 이름 제품 — 병합되며 되돌릴 수 없다 */
+  /** 같은 방의 같은 이름 제품 — 병합되며 되돌릴 수 없다 */
   merges: { from: { id: string; name: string }; into: { id: string; name: string }; category: string }[];
 };
 
@@ -304,7 +304,7 @@ export type AcceptResult = { canonical: string; alias: string; merged: number; r
 
 /**
  * 운영자 확정 (동의된 제안만). 제품이 많은 쪽이 대표(같으면 먼저 생긴 쪽).
- * 별칭 쪽 제품 키를 대표 키로 바꾸고, 같은 보드에 같은 이름 제품이 있으면 병합한다.
+ * 별칭 쪽 제품 키를 대표 키로 바꾸고, 같은 방에 같은 이름 제품이 있으면 병합한다.
  */
 export async function acceptProposal(id: string, note: string, prefer?: string): Promise<AcceptResult> {
   if (!ID.test(id)) throw notFound("브랜드 제안");

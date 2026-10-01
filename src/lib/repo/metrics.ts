@@ -163,7 +163,7 @@ export type BoardRow = {
 };
 
 export async function boardStats(): Promise<BoardRow[]> {
-  // 보드별 상관 서브쿼리(보드 수 × 전체 스캔) 대신 최근 7일 범위를 한 번씩만 집계해 붙인다
+  // 방별 상관 서브쿼리(방 수 × 전체 스캔) 대신 최근 7일 범위를 한 번씩만 집계해 붙인다
   const rows = await query<Omit<BoardRow, "curator_interval_hours">>(
     `WITH p7 AS (
        SELECT category_id,

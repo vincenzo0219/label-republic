@@ -1,5 +1,5 @@
 /**
- * 관심 제품·지켜보는 글 (Sprint 16)·내 댓글 (Sprint 30) — 관심 보드처럼 브라우저(localStorage)에만 저장한다.
+ * 관심 제품·지켜보는 글 (Sprint 16)·내 댓글 (Sprint 30) — 관심 방처럼 브라우저(localStorage)에만 저장한다.
  * 푸시 알림을 켠 경우에만 목록이 바뀔 때 서버의 구독 정보도 함께 갱신한다.
  */
 import { EVENT, read, write } from "./interests";

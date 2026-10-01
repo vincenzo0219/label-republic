@@ -1,7 +1,7 @@
 /**
  * AI 큐레이터 자동 작성 (Sprint 37).
  *
- * 준비된 시드가 떨어지면 AI가 보드마다 새 정보 글을 써서 사람 검수 없이 🤖 표시와 함께 올린다.
+ * 준비된 시드가 떨어지면 AI가 방마다 새 정보 글을 써서 사람 검수 없이 🤖 표시와 함께 올린다.
  * 사람 검수가 없으므로 게시 전에 코드로 안전 검사(curatorSafetyProblems)를 하고, 하나라도 걸리면 올리지 않는다:
  *  - 표시광고법·건강기능식품법상 문제가 되는 단정 표현(치료·완치·효능 보장 …)
  *  - 링크·연락처·판촉 문구 (광고 규칙 점수)
@@ -16,8 +16,8 @@ import { config } from "./config";
 import { heuristicSpam } from "./moderation";
 import { SITE_NAME } from "./site";
 
-export const CURATOR_SYSTEM_PROMPT = `당신은 덕후 팩트체크 커뮤니티 "${SITE_NAME}"의 AI 큐레이터입니다.
-보드에 올릴 정보 글을 씁니다. 이 글은 🤖 AI 큐레이터 배지와 "사람이 검수하지 않은 AI 글" 안내와 함께 게시됩니다.
+export const CURATOR_SYSTEM_PROMPT = `당신은 덕후 커뮤니티 "${SITE_NAME}"의 AI 큐레이터입니다.
+방에 올릴 정보 글을 씁니다. 이 글은 🤖 AI 큐레이터 배지와 "사람이 검수하지 않은 AI 글" 안내와 함께 게시됩니다.
 
 원칙:
 - 라벨·스펙을 "읽는 법"과 널리 확립된 사실 위주로 씁니다. 불확실하거나 논쟁 중인 내용은 그렇다고 밝힙니다.
@@ -70,7 +70,7 @@ export function curatorSafetyProblems(d: CuratorDraft, recentTitles: string[] = 
 
 export type CuratorGenerator = (board: { slug: string; name: string; description: string }, recentTitles: string[]) => Promise<CuratorDraft | null>;
 
-/** Claude 로 보드에 맞는 새 글 한 건 (거절·형식 오류면 null) */
+/** Claude 로 방에 맞는 새 글 한 건 (거절·형식 오류면 null) */
 export const generateWithClaude: CuratorGenerator = async (board, recentTitles) => {
   if (!config.anthropicApiKey) return null;
   const client = new Anthropic({ apiKey: config.anthropicApiKey, timeout: 120_000, maxRetries: 1 });
@@ -82,7 +82,7 @@ export const generateWithClaude: CuratorGenerator = async (board, recentTitles) 
     messages: [
       {
         role: "user",
-        content: `보드: ${board.name}\n보드 설명: ${board.description}\n<recent>\n${recentTitles.slice(0, 40).join("\n")}\n</recent>\n이 보드 덕후에게 쓸모 있는 새 정보 글 한 편을 써 주세요.`,
+        content: `방: ${board.name}\n방 설명: ${board.description}\n<recent>\n${recentTitles.slice(0, 40).join("\n")}\n</recent>\n이 방 덕후에게 쓸모 있는 새 정보 글 한 편을 써 주세요.`,
       },
     ],
   });

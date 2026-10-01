@@ -6,7 +6,7 @@ import { formatRule, isRuleKey, RULES } from "@/lib/rules";
 export const ALERT_LABEL: Record<string, string> = {
   report_burst: "신고 집중",
   vote_burst: "투표 집중",
-  board_vote_burst: "보드 투표 집중",
+  board_vote_burst: "방 투표 집중",
   mass_reporter: "대량 신고자",
   rule_vote_ring: "규칙 투표 조작 의심",
 };
@@ -18,7 +18,7 @@ export function alertSubject(a: Pick<AlertRow, "subject_type" | "subject_id" | "
     const label = d.rule && isRuleKey(d.rule) ? `${RULES[d.rule].label} ${formatRule(d.rule, d.from ?? 0)} → ${formatRule(d.rule, d.to ?? 0)}` : "";
     return <Link href={`/rules#proposal-${a.subject_id}`}>규칙 제안 #{a.subject_id} {label && `· ${label}`}</Link>;
   }
-  if (a.subject_type === "board_request") return <Link href="/boards">보드 요청 #{a.subject_id} {typeof a.detail.name === "string" ? `· ${a.detail.name}` : ""}</Link>;
+  if (a.subject_type === "board_request") return <Link href="/boards">방 요청 #{a.subject_id} {typeof a.detail.name === "string" ? `· ${a.detail.name}` : ""}</Link>;
   return <code>{a.subject_id}…</code>;
 }
 

@@ -3,7 +3,7 @@ import { boardGuide } from "@/lib/onboarding";
 import type { BoardNeeds } from "@/lib/repo/onboarding";
 
 /**
- * 글이 적은 보드의 안내 (Sprint 32): 이 보드에 쓰기 좋은 글(누르면 글쓰기 틀로),
+ * 글이 적은 방의 안내 (Sprint 32): 이 방에 쓰기 좋은 글(누르면 글쓰기 틀로),
  * 제보가 더 필요한 리뉴얼 후보·글이 하나뿐인 제품 (같은 제품 라벨을 올리면 교차 확인).
  */
 export function BoardGuide({ slug, name, needs }: { slug: string; name: string; needs: BoardNeeds }) {
@@ -14,7 +14,7 @@ export function BoardGuide({ slug, name, needs }: { slug: string; name: string; 
       <h2 id="board-guide-h">✍️ {name}에 이런 글을 써 주세요</h2>
       <p className="hint" style={{ marginTop: 0 }}>
         {guide.lead}
-        {needs.infoPosts === 0 ? " 아직 정보 글이 없어요 — 첫 글이 이 보드의 기준이 됩니다." : ` 지금 정보 글 ${needs.infoPosts}개.`}
+        {needs.infoPosts === 0 ? " 아직 정보 글이 없어요 — 첫 글이 이 방의 기준이 됩니다." : ` 지금 정보 글 ${needs.infoPosts}개.`}
       </p>
       <ul className="guide-templates">
         {guide.templates.map((t) => (

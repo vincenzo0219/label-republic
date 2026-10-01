@@ -1,0 +1,77 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { BOARD_THRESHOLD_FLOOR, effectiveBoardThreshold } from "@/lib/repo/board-requests";
+import { boardGuide } from "@/lib/onboarding";
+
+describe("room creation threshold (Sprint 39)", () => {
+  it("starts at 3 while the community is small, grows with 5% of 30-day actives and never passes the voted cap", () => {
+    expect(BOARD_THRESHOLD_FLOOR).toBe(3);
+    expect(effectiveBoardThreshold(50, 0)).toBe(3);
+    expect(effectiveBoardThreshold(50, 60)).toBe(3);
+    expect(effectiveBoardThreshold(50, 61)).toBe(4);
+    expect(effectiveBoardThreshold(50, 200)).toBe(10);
+    expect(effectiveBoardThreshold(50, 1000)).toBe(50);
+    expect(effectiveBoardThreshold(50, 100_000)).toBe(50);
+    // 상한이 바닥보다 낮게 설정돼 있으면 상한을 따른다 (운영 설정이 우선)
+    expect(effectiveBoardThreshold(2, 0)).toBe(2);
+  });
+
+  it("new rooms get a free-talk template, not only fact templates", () => {
+    const keys = boardGuide("brand-new-room").templates.map((t) => t.key);
+    expect(keys[0]).toBe("generic-chat");
+    expect(boardGuide("brand-new-room").templates[0]!.postType).toBe("chat");
+  });
+});
+
+const url = process.env.TEST_DATABASE_URL;
+const d = url ? describe : describe.skip;
+
+d("room creation threshold (database)", async () => {
+  process.env.DATABASE_URL = url;
+  const { pool, query } = await import("@/lib/db");
+  const { resetRateLimits } = await import("@/lib/rate-limit");
+  const boards = await import("@/lib/repo/board-requests");
+  const fp = (n: number) => `room${n}`.padStart(64, "0");
+
+  beforeAll(async () => {
+    await query("DROP SCHEMA public CASCADE");
+    await query("CREATE SCHEMA public");
+    const dir = path.join(process.cwd(), "db", "migrations");
+    for (const f of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) await query(readFileSync(path.join(dir, f), "utf8"));
+    await resetRateLimits();
+  });
+  afterAll(async () => {
+    await pool().end();
+  });
+
+  it("counts only people active in the last 30 days", async () => {
+    boards.resetBoardThresholdCache();
+    expect(await boards.getBoardThreshold()).toMatchObject({ needed: 3, active30d: 0 });
+
+    // 최근 활동 200명 + 40일 전에만 활동한 500명
+    await query(
+      `INSERT INTO fingerprints (fingerprint, first_seen, last_seen)
+       SELECT lpad('a' || g, 64, '0'), now() - interval '1 day', now() - interval '1 day' FROM generate_series(1, 200) g
+       UNION ALL
+       SELECT lpad('b' || g, 64, '0'), now() - interval '40 days', now() - interval '40 days' FROM generate_series(1, 500) g`,
+    );
+    // 5분 캐시 — 비우기 전에는 그대로
+    expect((await boards.getBoardThreshold()).needed).toBe(3);
+    boards.resetBoardThresholdCache();
+    const t = await boards.getBoardThreshold();
+    expect(t).toMatchObject({ needed: 10, active30d: 200 });
+    expect(t.cap).toBeGreaterThanOrEqual(10);
+  });
+
+  it("opens a room with the adaptive threshold once the waiting time has passed", async () => {
+    await query("DELETE FROM fingerprints");
+    boards.resetBoardThresholdCache();
+    const req = await boards.createBoardRequest("커피 원두 로스팅", "원두 이야기");
+    for (const n of [1, 2]) expect((await boards.voteBoardRequest(req.id, fp(n), undefined, 0)).promoted).toBe(false);
+    // 동의 3명째 — 활동 인원이 적으니 3명이면 열린다
+    const third = await boards.voteBoardRequest(req.id, fp(3), undefined, 0);
+    expect(third).toMatchObject({ promoted: true, threshold: 3 });
+    expect((await query("SELECT 1 FROM categories WHERE name = '커피 원두 로스팅'")).length).toBe(1);
+  });
+});

@@ -35,7 +35,7 @@ export async function FeedView({
   /** 출처가 달린 글만 */
   sourced?: boolean;
 }) {
-  // 글이 적은 보드의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
+  // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced;
   const [categories, feed, digest, needs] = await Promise.all([
     listCategories(),
@@ -54,13 +54,13 @@ export async function FeedView({
   const typeHref = (t?: PostType) => href(t, sourced);
   return (
     <>
-      <h1 className="sr-only">{category ? `${category.name} 보드` : "노방장 — 방장 없는 덕후 팩트체크 커뮤니티"}</h1>
+      <h1 className="sr-only">{category ? `${category.name} 방` : "노방장 — 방장 없는 덕후 커뮤니티"}</h1>
       <CategoryTabs categories={categories} active={category?.slug} />
       {category && (
         <div className="board-head">
           <p className="hint" style={{ margin: 0 }}>
             {category.description}
-            {category.auto_promoted_at && " · 커뮤니티 투표로 개설된 보드"}
+            {category.auto_promoted_at && " · 커뮤니티 투표로 개설된 방"}
           </p>
           <div className="board-actions">
             <Link className="btn btn-sm" href={`${basePath}/products`}>
@@ -103,8 +103,26 @@ export async function FeedView({
       {feed.items.length === 0 ? (
         <div className="empty">
           <p>
-            {type === "meetup" ? "아직 제안된 정모가 없습니다." : type === "chat" ? "아직 잡담이 없습니다." : showGuide ? "아직 글이 없습니다. 위의 예시로 첫 글을 시작해 보세요." : "아직 글이 없습니다. 첫 번째 팩트를 남겨주세요."}
+            {type === "meetup"
+              ? "아직 제안된 정모가 없습니다."
+              : type === "chat"
+                ? "아직 잡담이 없습니다. 가볍게 첫 인사를 남겨 보세요."
+                : showGuide
+                  ? "아직 글이 없습니다. 위의 예시로 첫 글을 시작해 보세요."
+                  : category
+                    ? "아직 글이 없습니다. 이 방의 첫 글을 남겨 주세요."
+                    : "아직 글이 없어요. 첫 글을 남기거나, 이야기하고 싶은 주제의 방을 만들어 보세요."}
           </p>
+          <div className="empty-actions">
+            <Link className="btn btn-primary btn-sm" href={category ? `/write?category=${encodeURIComponent(category.slug)}` : "/write"}>
+              ✍️ 글쓰기
+            </Link>
+            {!category && (
+              <Link className="btn btn-sm" href="/boards">
+                🏠 방 만들기
+              </Link>
+            )}
+          </div>
         </div>
       ) : (
         feed.items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} />)

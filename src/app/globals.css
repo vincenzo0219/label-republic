@@ -87,11 +87,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn-danger { color: var(--danger); }
 .btn-sm { height: 30px; padding: 0 10px; font-size: 13px; }
 
-main { padding: 12px 0 48px; }
+main { padding: 20px 0 64px; }
 
 /* Tabs */
 .tabs {
-  display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 10px; scrollbar-width: none;
+  display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 16px; scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
 .tabs::-webkit-scrollbar { display: none; }
@@ -100,19 +100,22 @@ main { padding: 12px 0 48px; }
   .tabs { flex-wrap: wrap; overflow-x: visible; }
 }
 .tab {
-  flex: 0 0 auto; padding: 6px 12px; border-radius: 999px; font-size: 14px;
+  flex: 0 0 auto; padding: 7px 14px; border-radius: 999px; font-size: 14px;
   border: 1px solid var(--line); background: var(--surface); color: var(--muted);
 }
+.tab-add { border-style: dashed; color: var(--brand); font-weight: 600; }
+.page-title { font-size: 22px; margin: 4px 0 10px; }
+.lead { margin: 0 0 10px; line-height: 1.65; }
 .tab[aria-current="page"], .tab[aria-current="true"] { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 700; }
 
-.sortbar { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 10px; font-size: 13px; color: var(--muted); }
+.sortbar { display: flex; align-items: center; justify-content: space-between; margin: 0 0 16px; font-size: 13px; color: var(--muted); }
 .sortbar nav { display: flex; gap: 12px; }
 .sortbar a[aria-current="true"] { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 
 /* Cards */
 .card {
   display: block; background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+  border-radius: var(--radius); padding: 16px 18px; margin-bottom: 12px;
 }
 a.card:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
 .card-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
@@ -190,7 +193,7 @@ mark { background: var(--mark); color: var(--text); border-radius: 3px; padding:
 .row { display: grid; grid-template-columns: 1fr 110px; gap: 8px; }
 .error { color: var(--danger); font-size: 14px; }
 .hint { color: var(--muted); font-size: 12.5px; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 14px; }
 .chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); font-weight: 700; }
 .steps { display: flex; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
@@ -198,10 +201,12 @@ mark { background: var(--mark); color: var(--text); border-radius: 3px; padding:
 .sticky-submit { position: sticky; bottom: 0; padding: 12px 0; background: linear-gradient(transparent, var(--bg) 30%); }
 .sticky-submit .btn { width: 100%; height: 48px; font-size: 16px; }
 
-.empty { text-align: center; color: var(--muted); padding: 48px 0; }
+.empty { text-align: center; color: var(--muted); padding: 56px 0 40px; }
+.empty p { margin: 0 0 16px; }
+.empty-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
 .notice { padding: 12px 14px; border-radius: 10px; background: var(--pending-bg); color: var(--muted); font-size: 14px; }
 .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
-.site-footer { border-top: 1px solid var(--line); padding: 20px 0 32px; font-size: 13px; color: var(--muted); }
+.site-footer { border-top: 1px solid var(--line); padding: 28px 0 44px; font-size: 13px; color: var(--muted); }
 .site-footer a { text-decoration: underline; }
 
 .progress { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 8px; }
@@ -311,7 +316,7 @@ mark { background: var(--mark); color: var(--text); border-radius: 3px; padding:
 .status-critical .status-dot { background: var(--status-critical); }
 
 /* Sprint 5: 글 유형 · 정모 */
-.type-filter { display: flex; gap: 14px; font-size: 14px; margin: 0 0 6px; color: var(--muted); }
+.type-filter { display: flex; gap: 14px; font-size: 14px; margin: 0 0 10px; color: var(--muted); }
 .type-filter a[aria-current="true"] { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 .badge-type { color: var(--muted); background: var(--pending-bg); }
 .badge-meetup { background: color-mix(in srgb, var(--brand) 10%, transparent); color: var(--brand); }
@@ -349,7 +354,7 @@ mark { background: var(--mark); color: var(--text); border-radius: 3px; padding:
 .report-link { position: relative; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 17px; flex: 0 0 auto; }
 .report-badge { position: absolute; top: -4px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
 .report-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.board-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 8px; }
+.board-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 14px; }
 .digest-inline { margin: 0 0 10px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--brand) 6%, var(--surface)); font-size: 14px; }
 .digest-inline summary { cursor: pointer; font-weight: 600; }
 .digest-inline .summary-lines { margin-top: 8px; }
@@ -713,12 +718,13 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .brand-aliases { margin: -4px 0 8px; }
 
 /* 첫 방문·빈 보드 온보딩 (Sprint 32) */
-.welcome { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 14px 16px; margin: 4px 0 16px; }
+.welcome { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 20px 22px; margin: 0 0 24px; }
 .welcome-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .welcome-head h2 { font-size: 17px; margin: 0; }
-.welcome-points { margin: 10px 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
-.welcome .chips { margin: 8px 0 12px; }
-.welcome-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.welcome-points { margin: 14px 0 18px; padding-left: 18px; display: grid; gap: 10px; font-size: 14px; line-height: 1.65; }
+.welcome-sub { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.welcome .chips { margin: 0 0 18px; }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .board-guide { border: 1px dashed var(--line); border-radius: var(--radius); padding: 12px 14px; margin: 8px 0 14px; background: var(--surface); }
 .board-guide h2 { font-size: 16px; margin: 0 0 6px; }
 .board-guide h3 { font-size: 14px; margin: 14px 0 4px; }

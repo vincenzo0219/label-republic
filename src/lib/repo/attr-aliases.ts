@@ -2,13 +2,13 @@
  * 성분명 별칭 (Sprint 35) — "비타민 D3"·"Vitamin D"·"콜레칼시페롤"처럼 이름만 다른 같은 성분을 합친다.
  *
  * 브랜드 별칭(Sprint 31)과 같은 흐름이다:
- *  1. 이용자가 보드의 성분 순위 화면에서 "같은 성분" 제안 (이유 필수, 두 항목 모두 보이는 수치가 있어야 함)
+ *  1. 이용자가 방의 성분 순위 화면에서 "같은 성분" 제안 (이유 필수, 두 항목 모두 보이는 수치가 있어야 함)
  *  2. 이용자 동의·반대 — 정정 제안과 같은 "커뮤니티 동의" 기준, 같은 망의 표는 한 사람으로, 제안자 망의 표는 세지 않음
  *  3. 동의된 제안만 운영자가 확정 (기각은 언제든) — 확정·기각·해제 모두 /transparency 에 공개
  *
- * 이름의 뜻은 보드마다 다를 수 있어(예: "무게") 별칭은 보드 단위다. 확정하면 별칭 쪽 수치의 항목 키를 대표 키로 바꾼다
+ * 이름의 뜻은 방마다 다를 수 있어(예: "무게") 별칭은 방 단위다. 확정하면 별칭 쪽 수치의 항목 키를 대표 키로 바꾼다
  * (표시 이름은 쓴 그대로). 정정 제안·리뉴얼 기록도 같은 수치를 가리키게 함께 바꾼다.
- * 영양제 보드에는 기본 사전(proposal_id 없음, db/migrations/033)이 있고 운영자가 해제할 수 있다.
+ * 영양제 방에는 기본 사전(proposal_id 없음, db/migrations/033)이 있고 운영자가 해제할 수 있다.
  */
 import type { PoolClient } from "pg";
 import { query, tx } from "../db";
@@ -31,7 +31,7 @@ export function isAttrKey(key: string): boolean {
   return key.length > 0 && key.length <= 40 && attrKey(key) === key;
 }
 
-/** 이 보드에서 별칭이면 대표 항목 키, 아니면 그대로 */
+/** 이 방에서 별칭이면 대표 항목 키, 아니면 그대로 */
 export async function canonicalAttrKey(categoryId: number, key: string, client: Q | null = null): Promise<string> {
   const rows = await run<{ canonical_key: string }>(client, "SELECT canonical_key FROM attr_aliases WHERE category_id = $1 AND alias_key = $2", [categoryId, key]);
   return rows[0]?.canonical_key ?? key;
@@ -140,7 +140,7 @@ export async function createProposal(input: {
     const [a0, b0] = [await canonicalAttrKey(c, input.attrKey, client), await canonicalAttrKey(c, otherKey, client)];
     if (a0 === b0) throw new HttpError(409, "already_same", "이미 같은 성분으로 묶여 있습니다.");
     const [ia, ib] = [await attrInfo(c, a0, client), await attrInfo(c, b0, client)];
-    if (!ia || !ib) throw new HttpError(404, "attribute_not_found", "이 보드에서 보이는 수치가 있는 항목끼리만 제안할 수 있습니다.");
+    if (!ia || !ib) throw new HttpError(404, "attribute_not_found", "이 방에서 보이는 수치가 있는 항목끼리만 제안할 수 있습니다.");
     // 순서 없는 쌍은 UTF-8 바이트 순서로 (DB 의 CHECK ... COLLATE "C" 와 같게)
     const [x, y] = Buffer.compare(Buffer.from(a0), Buffer.from(b0)) < 0 ? [ia, ib] : [ib, ia];
     // 제안 도배 방지: 한 사람·한 망이 하루에 여러 건

@@ -36,7 +36,7 @@ export function ProductFacts({ groups, boardPath }: { groups: FactGroup[]; board
               <tr key={g.key}>
                 <th scope="row">
                   {boardPath ? (
-                    <Link href={`${boardPath}/facts?attr=${encodeURIComponent(g.key.split("|")[0]!)}&basis=${encodeURIComponent(g.key.split("|")[1]!)}`} title="이 항목의 보드 순위 보기">
+                    <Link href={`${boardPath}/facts?attr=${encodeURIComponent(g.key.split("|")[0]!)}&basis=${encodeURIComponent(g.key.split("|")[1]!)}`} title="이 항목의 방 순위 보기">
                       {g.attribute}
                     </Link>
                   ) : (

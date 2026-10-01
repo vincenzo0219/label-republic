@@ -161,7 +161,7 @@ export const regenerateSummarySchema = z.object({
 });
 
 export const boardRequestSchema = z.object({
-  name: trimmed(2, 40, "보드 이름"),
+  name: trimmed(2, 40, "방 이름"),
   description: z.string().trim().max(300).default(""),
 });
 
@@ -204,7 +204,7 @@ export const brandAliasSchema = z.object({
   nickname,
 });
 
-/** 성분명 별칭 제안 (Sprint 35) — board: 보드 slug, attrKey: 순위 화면의 항목 키, other: 같은 성분의 다른 이름 */
+/** 성분명 별칭 제안 (Sprint 35) — board: 방 slug, attrKey: 순위 화면의 항목 키, other: 같은 성분의 다른 이름 */
 export const attrAliasSchema = z.object({
   board: z.string().min(1).max(60),
   attrKey: z.string().min(1).max(40),

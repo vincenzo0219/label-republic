@@ -9,7 +9,7 @@ import { MAX_MY_COMMENTS, MAX_WATCH_POSTS, MAX_WATCH_PRODUCTS, parseIds } from "
 
 /**
  * GET /api/report?boards=a,b&products=1,2&posts=3,4&comments=5.증표,6.증표&since=ISO[&count=1]
- * 관심 보드·제품·지켜보는 글은 클라이언트가 보내고 서버는 저장하지 않는다.
+ * 관심 방·제품·지켜보는 글은 클라이언트가 보내고 서버는 저장하지 않는다.
  * 제품·글이 있으면 본인 활동을 빼고 세므로(fingerprint) 응답이 사람마다 다르고, 새 소식 배지가 바로 맞아야 해서 캐시하지 않는다.
  */
 export const GET = route(async (req) => {

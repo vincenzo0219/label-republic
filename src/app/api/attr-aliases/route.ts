@@ -12,7 +12,7 @@ export const POST = route(async (req) => {
   if (!(await hit(`attr-alias:create:${fp}`, 10, 60 * 60 * 1000))) throw tooMany();
   const { board, ...input } = await parseBody(req, attrAliasSchema);
   const category = await getCategoryBySlug(board);
-  if (!category) throw notFound("보드");
+  if (!category) throw notFound("방");
   const proposal = await createProposal({ ...input, categoryId: category.id, fingerprint: fp, net: networkHash(req.headers) });
   return json({ proposal }, 201);
 });
