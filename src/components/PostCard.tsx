@@ -7,13 +7,26 @@ import { Highlight } from "./Highlight";
 import { SummaryLines } from "./SummaryLines";
 import { MeetupBadge } from "./Meetup";
 import { AiBadge, TrustBadge } from "./TrustBadge";
+import { NewBadge } from "./NewMarks";
 
-export function PostCard({ post, terms, showCategory = true }: { post: PostCardData; terms?: string[]; showCategory?: boolean }) {
+export function PostCard({
+  post,
+  terms,
+  showCategory = true,
+  seenRoom,
+}: {
+  post: PostCardData;
+  terms?: string[];
+  showCategory?: boolean;
+  /** 방·홈 목록에서만: 지난번 이후 새 글이면 NEW (Sprint 41) */
+  seenRoom?: string;
+}) {
   const net = post.upvotes - post.downvotes;
   return (
     <Link href={`/posts/${post.id}`} className="card">
       <article>
         <div className="card-top">
+          {seenRoom && <NewBadge room={seenRoom} createdAt={post.created_at} />}
           {showCategory && <span className="badge badge-cat">{post.category.name}</span>}
           <TrustBadge tier={post.trust_tier} />
           {post.post_type === "chat" && <span className="badge badge-type">💬 잡담</span>}

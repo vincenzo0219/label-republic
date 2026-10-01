@@ -129,9 +129,15 @@ async function autogenerate(
     [s.id],
   );
   const recentTitles = recent.rows.map((r) => r.title);
+  // 정보 글과 대화 시작 글을 번갈아 (Sprint 41) — 이 방의 마지막 AI 글이 정보 글이면 이번엔 대화
+  const lastAi = await client.query<{ post_type: string }>(
+    "SELECT post_type FROM posts WHERE category_id = $1 AND is_ai_curated ORDER BY id DESC LIMIT 1",
+    [s.id],
+  );
+  const kind = lastAi.rows[0]?.post_type === "chat" ? "info" : lastAi.rows[0] ? "chat" : "info";
   let draft;
   try {
-    draft = await generate({ slug: s.slug, name: s.name, description: s.description }, recentTitles);
+    draft = await generate({ slug: s.slug, name: s.name, description: s.description }, recentTitles, kind);
   } catch (err) {
     await client.query("INSERT INTO curator_generations (category_id, status, reasons) VALUES ($1, 'failed', $2)", [s.id, String(err).slice(0, 1000)]);
     return { published: null, reason: "autogen failed" };
@@ -140,6 +146,7 @@ async function autogenerate(
     await client.query("INSERT INTO curator_generations (category_id, status, reasons) VALUES ($1, 'failed', 'no draft (refusal or invalid output)')", [s.id]);
     return { published: null, reason: "autogen failed" };
   }
+  draft = { ...draft, kind: draft.kind ?? kind };
   const problems = curatorSafetyProblems(draft, recentTitles);
   if (problems.length) {
     await client.query("INSERT INTO curator_generations (category_id, status, title, reasons) VALUES ($1, 'rejected', $2, $3)", [
@@ -158,6 +165,7 @@ async function autogenerate(
       summary: draft.summary,
       comments: draft.comments,
       reviewed: false,
+      postType: draft.kind === "chat" ? "chat" : "info",
     });
     await client.query("INSERT INTO curator_generations (category_id, status, title, post_id) VALUES ($1, 'published', $2, $3)", [
       s.id,
