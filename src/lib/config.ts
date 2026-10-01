@@ -94,6 +94,26 @@ export const config = {
   get contactEmail() {
     return process.env.CONTACT_EMAIL || "contact@example.com";
   },
+  /** 사업 지표 (Sprint 40): 월 서버·도메인 비용(달러) — 활동 인원 1명당 비용 계산용 */
+  get monthlyCostUsd() {
+    const n = Number(process.env.MONTHLY_COST_USD ?? 12);
+    return Number.isFinite(n) && n >= 0 ? n : 12;
+  },
+  /** 주간 사업 리포트 메일 (Resend). 키가 없으면 ALERT_WEBHOOK_URL 로, 그것도 없으면 /admin/business 에만 남는다 */
+  get resendApiKey() {
+    return process.env.RESEND_API_KEY ?? "";
+  },
+  get reportEmailTo() {
+    return process.env.REPORT_EMAIL_TO || process.env.CONTACT_EMAIL || "";
+  },
+  get reportEmailFrom() {
+    return process.env.REPORT_EMAIL_FROM || `노방장 리포트 <report@${process.env.DOMAIN || "localhost"}>`;
+  },
+  /** 0 이면 주간 리포트 끔 */
+  get businessReportIntervalSec() {
+    const n = Number(process.env.BUSINESS_REPORT_INTERVAL_SEC ?? 3600);
+    return Number.isFinite(n) && n >= 0 ? n : 3600;
+  },
   /** 서비스 운영 주체 표기 (개인정보처리방침) */
   get operatorName() {
     return process.env.OPERATOR_NAME || "노방장 운영팀";

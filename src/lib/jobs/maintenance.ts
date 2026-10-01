@@ -243,6 +243,9 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       // fingerprint 활동 이력도 조회 기록과 같은 400일 보관 (개인정보처리방침과 일치)
       await client.query("DELETE FROM fingerprints WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM visitors WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
+      // 설문 응답·주간 리포트도 400일 (Sprint 40, 개인정보처리방침과 일치)
+      await client.query("DELETE FROM pmf_survey WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
+      await client.query("DELETE FROM biz_reports WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM rate_limits WHERE expires_at < now()");
       await client.query("DELETE FROM idempotency_keys WHERE created_at < $1::timestamptz - interval '24 hours'", [now.toISOString()]);
       // 서버 오류 기록: 해결 표시한 것은 30일, 나머지는 마지막 발생 후 90일

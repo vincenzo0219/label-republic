@@ -13,6 +13,8 @@ import { activeLegalHolds, LEGAL_REASONS } from "@/lib/repo/legal";
 import { pendingCounts } from "@/lib/repo/operator";
 import { countNew as countNewFeedback } from "@/lib/repo/feedback";
 import { getBoardThreshold } from "@/lib/repo/board-requests";
+import { getBusinessMetrics } from "@/lib/repo/business";
+import { SignalStrip } from "@/components/admin/SignalStrip";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
 
 export const dynamic = "force-dynamic";
@@ -70,13 +72,17 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openBoardRequests(),
       m.openErrors(),
     ]);
-  const [holds, pending, rules, ruleVotes, feedback, boardT] = await Promise.all([
+  const [holds, pending, rules, ruleVotes, feedback, boardT, biz] = await Promise.all([
     activeLegalHolds(),
     pendingCounts(),
     getRules(),
     listProposals({ status: "open" }),
     countNewFeedback(),
     getBoardThreshold(),
+    getBusinessMetrics().catch((e) => {
+      console.error("[business] 지표 계산 실패:", (e as Error).message);
+      return null;
+    }),
   ]);
 
   const last7 = daily.slice(-range);
@@ -111,6 +117,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           ))}
         </nav>
       </header>
+
+      {biz && <SignalStrip m={biz} />}
 
       <section className="stat-row" aria-label="핵심 지표">
         <StatTile label="검색 유입" value={sum(last7, (r) => r.search_landings)} previous={sum(prev7, (r) => r.search_landings)} periodLabel={periodLabel} currentPoints={range} trend={last14.map((r) => r.search_landings)} hint="검색엔진에서 들어온 첫 페이지 수" />
