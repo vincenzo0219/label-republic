@@ -87,7 +87,12 @@ PostgreSQL 공식 이미지의 기본 정렬 규칙 `en_US.utf8`(glibc)은 **한
 
 ## 4. 업데이트·롤백
 
-업데이트 (사용자가 적은 시간에):
+**자동 업데이트 (Sprint 43, 권장)**: `sudo bash deploy/install-auto-update.sh` 를 한 번 실행하면 systemd 타이머가 5분마다 `main` 을 확인해, 새 커밋이 있으면 아래 수동 절차(백업 → 롤백용 이미지 보관 → 코드 받기 → 빌드·교체 → 상태 확인)를 그대로 합니다. 3분 안에 `/api/health` 가 `ok` 가 아니면 이전 이미지·코드로 되돌리고 그 커밋은 다시 시도하지 않습니다(다음 커밋이 오면 다시 시도). 서버로 들어오는 접속·비밀값은 필요 없습니다.
+- 기록: `sudo tail -f /var/log/nobangjang-update.log` · 지금 바로 한 번: `sudo systemctl start nobangjang-update.service` · 끄기: `sudo systemctl disable --now nobangjang-update.timer`
+- 서버에서 추적 중인 파일을 손으로 고쳐 두면 덮어쓰지 않고 멈춥니다(`.env` 는 추적하지 않으므로 상관없음).
+- `main` 에 머지하는 것이 곧 배포입니다 — 머지 전 테스트를 통과시키세요.
+
+수동 업데이트 (사용자가 적은 시간에):
 ```sh
 docker compose exec backup /backup.sh                 # 1. 배포 직전 백업 ("[backup] … 완료" 확인)
 docker tag labelrep-app:current labelrep-app:prev     # 2. 지금 이미지를 롤백용으로 보관
