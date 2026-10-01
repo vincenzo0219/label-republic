@@ -10,8 +10,8 @@ import { listBoardAttributes, rankProducts, resolveAttribute, searchFacts } from
 
 /**
  * GET /api/facts?category=&attr=&basis=&kind=label|measured&unit=&min=&max=&order=desc|asc
- *   → 보드의 항목별 제품 순위 (attr 없으면 보드의 항목 목록)
- * GET /api/facts?q=마그네슘 200mg 이상 → 모든 보드에서 조건 검색
+ *   → 방의 항목별 제품 순위 (attr 없으면 방의 항목 목록)
+ * GET /api/facts?q=마그네슘 200mg 이상 → 모든 방에서 조건 검색
  */
 export const GET = route(async (req) => {
   if (!(await hit(`facts:${fingerprint(req.headers)}`, 120, 60_000))) throw tooMany();
@@ -25,7 +25,7 @@ export const GET = route(async (req) => {
   }
   const slug = sp.get("category");
   const cat = slug ? await getCategoryBySlug(slug) : null;
-  if (!cat) throw new HttpError(400, "invalid_category", "보드를 골라주세요.");
+  if (!cat) throw new HttpError(400, "invalid_category", "방을 골라주세요.");
   const attrs = await listBoardAttributes(cat.id);
   const attrRaw = sp.get("attr");
   if (!attrRaw) return json({ attributes: attrs });

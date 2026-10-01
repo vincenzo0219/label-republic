@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "노방장",
     short_name: "노방장",
-    description: "방장 없는 성분·취미 팩트체크 커뮤니티",
+    description: "방장 없는 덕후 커뮤니티",
     lang: "ko",
     dir: "ltr",
     start_url: "/?source=pwa",

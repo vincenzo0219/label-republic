@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ProductSearchBox } from "./ProductSearchBox";
 
-/** 비교 표에 제품 추가 — 같은 보드 제품만 찾는다 */
+/** 비교 표에 제품 추가 — 같은 방 제품만 찾는다 */
 export function CompareAdd({ ids, category }: { ids: string[]; category: string }) {
   const router = useRouter();
   return (

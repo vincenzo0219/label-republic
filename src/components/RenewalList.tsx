@@ -6,7 +6,7 @@ import type { RenewalItem } from "@/lib/repo/renewal-feed";
 const DATE = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric" });
 
 /**
- * 리뉴얼 목록 (Sprint 28). showBoard: 전체 목록에서 보드 이름도 보여줄지, showBrand: 브랜드 페이지 링크
+ * 리뉴얼 목록 (Sprint 28). showBoard: 전체 목록에서 방 이름도 보여줄지, showBrand: 브랜드 페이지 링크
  * minReports: "확인 중" 항목에 몇 명이 더 필요한지 알려 줄 때
  */
 export function RenewalList({ items, showBoard = true, showBrand = true, minReports }: { items: RenewalItem[]; showBoard?: boolean; showBrand?: boolean; minReports?: number }) {

@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!category) return {};
   return {
     title: `${category.name} 제품 목록`,
-    description: `${category.name} 보드 글에 태그된 제품과 성분·스펙 수치 모음`,
+    description: `${category.name} 방 글에 태그된 제품과 성분·스펙 수치 모음`,
     alternates: { canonical: `/c/${encodeURIComponent(category.slug)}/products` },
   };
 }

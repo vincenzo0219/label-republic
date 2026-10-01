@@ -38,7 +38,7 @@ type Props =
       initialCategory?: string;
       initialProduct?: ProductTag;
       labelRead?: boolean;
-      /** 보드 안내의 글쓰기 틀 (Sprint 32) */
+      /** 방 안내의 글쓰기 틀 (Sprint 32) */
       initialTemplate?: { title: string; body: string; postType: PostType };
     }
   | {
@@ -166,7 +166,7 @@ export function PostEditor(props: Props) {
   const pending = useRef<Draft["pending"]>(undefined);
   const posted = useRef(false);
 
-  // 보드를 바꾸면 다른 보드의 기존 제품 태그는 뺀다 (새로 적은 제품 이름은 새 보드에서 다시 찾는다)
+  // 방을 바꾸면 다른 방의 기존 제품 태그는 뺀다 (새로 적은 제품 이름은 새 방에서 다시 찾는다)
   useEffect(() => {
     if (prevCategory.current === category) return;
     prevCategory.current = category;
@@ -216,7 +216,7 @@ export function PostEditor(props: Props) {
   }, [editing, draftReady, category, postType, title, body, meetAt, location, minParticipants, capacity, sources, tagged]);
 
   function restoreDraft(d: Draft) {
-    prevCategory.current = d.category; // 불러온 제품 태그가 보드 변경 처리로 지워지지 않게
+    prevCategory.current = d.category; // 불러온 제품 태그가 방 변경 처리로 지워지지 않게
     setCategory(d.category);
     setPostType(d.postType);
     setTitle(d.title);
@@ -250,7 +250,7 @@ export function PostEditor(props: Props) {
     setLabelMsg(null);
     setAppliedMsg(null);
     if (!boardSlug) {
-      setLabelMsg("카테고리를 먼저 선택해주세요. 보드마다 읽는 항목이 달라요.");
+      setLabelMsg("카테고리를 먼저 선택해주세요. 방마다 읽는 항목이 달라요.");
       return;
     }
     setReading(img.key);
@@ -447,7 +447,7 @@ export function PostEditor(props: Props) {
               <input className="input" type="number" min={2} max={200} value={capacity} required onChange={(e) => setCapacity(Number(e.target.value))} />
             </label>
           </div>
-          <span className="hint">제안자는 첫 참가자로 등록됩니다. 한 사람이 같은 보드의 정모를 연속으로 제안할 수 있는 횟수에는 상한이 있어요.</span>
+          <span className="hint">제안자는 첫 참가자로 등록됩니다. 한 사람이 같은 방의 정모를 연속으로 제안할 수 있는 횟수에는 상한이 있어요.</span>
         </div>
       )}
 

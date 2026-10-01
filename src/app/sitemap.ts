@@ -8,7 +8,7 @@ import { topRenewalBrands } from "@/lib/repo/renewal-feed";
 
 export const dynamic = "force-dynamic";
 
-// 검색 로봇이 자주 받아 가는데 보드마다 성분 목록까지 모으느라 무겁다 (Sprint 34 리허설: 글 20만 건에서 1.3초) — 10분 재사용
+// 검색 로봇이 자주 받아 가는데 방마다 성분 목록까지 모으느라 무겁다 (Sprint 34 리허설: 글 20만 건에서 1.3초) — 10분 재사용
 const TTL_MS = 10 * 60_000;
 const g = globalThis as unknown as { __lrSitemap?: { at: number; value: Promise<MetadataRoute.Sitemap> } };
 
@@ -51,7 +51,7 @@ async function build(): Promise<MetadataRoute.Sitemap> {
     // 제품 페이지: 보이는 [정보]·[정모] 글이 있는 제품만
     ...products.map((p) => ({ url: `${config.siteUrl}/p/${p.id}`, lastModified: p.updated_at, priority: 0.7 })),
     ...ranks.map((url) => ({ url, changeFrequency: "daily" as const, priority: 0.6 })),
-    // 라벨 변경 이력 (Sprint 28): 전체·보드별, 변경이 확인된 브랜드
+    // 라벨 변경 이력 (Sprint 28): 전체·방별, 변경이 확인된 브랜드
     { url: `${config.siteUrl}/renewals`, changeFrequency: "daily" as const, priority: 0.6 },
     ...categories.map((c) => ({ url: `${config.siteUrl}/c/${encodeURIComponent(c.slug)}/renewals`, changeFrequency: "daily" as const, priority: 0.5 })),
     ...brands.map((b) => ({ url: `${config.siteUrl}/brand/${encodeURIComponent(b.key)}`, changeFrequency: "weekly" as const, priority: 0.5 })),

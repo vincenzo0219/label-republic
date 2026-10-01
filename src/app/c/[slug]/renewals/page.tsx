@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const base = `/c/${encodeURIComponent(category.slug)}/renewals`;
   return {
     title: `${category.name} 라벨 변경 이력`,
-    description: `${category.name} 보드에서 라벨 표시값이 바뀐 것으로 보이는 제품 기록`,
+    description: `${category.name} 방에서 라벨 표시값이 바뀐 것으로 보이는 제품 기록`,
     alternates: { canonical: base, types: { "application/atom+xml": [{ url: `${base}.xml`, title: `${category.name} 라벨 변경 이력` }] } },
   };
 }

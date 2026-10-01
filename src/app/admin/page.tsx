@@ -12,6 +12,7 @@ import { LegalHoldPanel } from "@/components/admin/LegalHoldPanel";
 import { activeLegalHolds, LEGAL_REASONS } from "@/lib/repo/legal";
 import { pendingCounts } from "@/lib/repo/operator";
 import { countNew as countNewFeedback } from "@/lib/repo/feedback";
+import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
 
 export const dynamic = "force-dynamic";
@@ -69,12 +70,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openBoardRequests(),
       m.openErrors(),
     ]);
-  const [holds, pending, rules, ruleVotes, feedback] = await Promise.all([
+  const [holds, pending, rules, ruleVotes, feedback, boardT] = await Promise.all([
     activeLegalHolds(),
     pendingCounts(),
     getRules(),
     listProposals({ status: "open" }),
     countNewFeedback(),
+    getBoardThreshold(),
   ]);
 
   const last7 = daily.slice(-range);
@@ -162,12 +164,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </section>
 
       <section className="panel">
-        <h2>보드별 현황 (최근 7일)</h2>
+        <h2>방별 현황 (최근 7일)</h2>
         <div className="table-scroll">
           <table className="data-table">
             <thead>
               <tr>
-                <th>보드</th>
+                <th>방</th>
                 <th className="num">사람 글</th>
                 <th className="num">AI 글</th>
                 <th className="num">댓글</th>
@@ -306,9 +308,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <section className="panel-grid">
         <div className="panel">
-          <h2>보드 개설 요청</h2>
+          <h2>방 개설 요청</h2>
           <p className="hint">
-            찬성 {rules.board_promotion_votes}표 + 요청 후 {config.boardPromotionMinAgeHours}시간이 지나면 자동 개설
+            동의 {boardT.needed}명 (최근 30일 활동 {boardT.active30d.toLocaleString("ko-KR")}명의 5%, 최소 3·최대 {boardT.cap}) + 요청 후{" "}
+            {config.boardPromotionMinAgeHours}시간이 지나면 자동 개설
           </p>
           {boardReqs.length === 0 ? (
             <p className="hint">진행 중인 요청이 없습니다.</p>
@@ -319,7 +322,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                   <tr key={r.id}>
                     <td>{r.requested_name}</td>
                     <td className="num">
-                      {r.vote_count}/{rules.board_promotion_votes}
+                      {r.vote_count}/{boardT.needed}
                     </td>
                     <td className="hint">{fmtTime(r.promotable_at)} 이후</td>
                   </tr>

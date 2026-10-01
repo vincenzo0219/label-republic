@@ -5,7 +5,7 @@ import { listFeedPosts } from "@/lib/repo/posts";
 
 export const dynamic = "force-dynamic";
 
-/** GET /c/:slug/feed.xml — 보드별 최신 정보·정모 글 */
+/** GET /c/:slug/feed.xml — 방별 최신 정보·정모 글 */
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   let slug = (await ctx.params).slug;
   try {

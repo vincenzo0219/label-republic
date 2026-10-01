@@ -74,7 +74,7 @@ const AbuseSchema = z.object({
   reason: z.string(),
 });
 
-const SYSTEM_PROMPT = `당신은 덕후 팩트체크 커뮤니티 "${SITE_NAME}"의 자동 운영 도우미입니다.
+const SYSTEM_PROMPT = `당신은 덕후 커뮤니티 "${SITE_NAME}"의 자동 운영 도우미입니다.
 글이나 댓글이 다음 중 하나에 해당해 가려야 하는지 판단합니다.
 - profanity: 상대나 집단을 향한 욕설 (감탄사 수준의 가벼운 비속어, 제품에 대한 거친 평가는 해당하지 않음)
 - hate: 성별·지역·국적·장애·나이 등 집단을 비하하는 표현

@@ -38,7 +38,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const base = `/c/${encodeURIComponent(category.slug)}/facts`;
   const attr = sp.attr ? resolveAttribute(await getAttributes(category.id), sp.attr) : null;
   if (!attr) {
-    return { title: `${category.name} 성분·수치 순위`, description: `${category.name} 보드 글에 모인 제품 성분·스펙 수치를 항목별로 비교합니다.`, alternates: { canonical: base } };
+    return { title: `${category.name} 성분·수치 순위`, description: `${category.name} 방 글에 모인 제품 성분·스펙 수치를 항목별로 비교합니다.`, alternates: { canonical: base } };
   }
   // 조건을 건 결과는 색인하지 않고, 항목별 기본 순위만 색인
   const filtered = FILTER_KEYS.some((k) => sp[k]);

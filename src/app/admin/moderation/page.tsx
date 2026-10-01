@@ -49,7 +49,7 @@ export default async function ModerationPage() {
         <h1>모더레이션</h1>
         <p className="hint">
           <Link href="/admin">← 운영 대시보드</Link> · 운영자는 글을 골라 숨기거나 되살리지 않습니다. 탐지된 조작의 무효화, AI 오탐 해제, 재검토 요청 처리,
-          보드 요청·중복 제품 정리만 하며 <b>모든 조치는 <Link href="/transparency">투명성 기록</Link>에 공개</b>됩니다 (알림을 오탐으로 닫는 것만 내부 기록).
+          방 요청·중복 제품 정리만 하며 <b>모든 조치는 <Link href="/transparency">투명성 기록</Link>에 공개</b>됩니다 (알림을 오탐으로 닫는 것만 내부 기록).
         </p>
       </header>
 
@@ -126,7 +126,7 @@ export default async function ModerationPage() {
         </h2>
         <p className="hint">
           무효화 대상은 탐지 기준과 같습니다: 알림 대상에 대해 첫 활동 후 1시간 이내의 fingerprint가 한 신고·투표 (대량 신고자는 그 사람의 신고 전부). 무효화 후
-          신고 수·블라인드·추천 수는 자동 규칙으로 다시 계산됩니다. 이미 개설된 보드는 되돌리지 않습니다. 규칙 투표 조작 의심은 자격을 갓 채운 계정의 몰림·같은 망의 새 계정 표가
+          신고 수·블라인드·추천 수는 자동 규칙으로 다시 계산됩니다. 이미 개설된 방은 되돌리지 않습니다. 규칙 투표 조작 의심은 자격을 갓 채운 계정의 몰림·같은 망의 새 계정 표가
           대상이고, 알림이 열려 있는 동안 그 투표의 마감이 최대 3일 미뤄집니다.
         </p>
         {alerts.open.length === 0 ? (
@@ -241,7 +241,7 @@ export default async function ModerationPage() {
       </section>
 
       <section className="panel" aria-labelledby="boards-h">
-        <h2 id="boards-h">보드 개설 요청 ({boardReqs.length})</h2>
+        <h2 id="boards-h">방 개설 요청 ({boardReqs.length})</h2>
         <p className="hint">개설은 투표로 자동 결정됩니다. 불법·스팸·특정인 대상 요청만 거절하고, 같은 주제의 요청은 병합해 표를 모읍니다.</p>
         {boardReqs.length === 0 ? (
           <p className="hint">진행 중인 요청이 없습니다.</p>
@@ -268,7 +268,7 @@ export default async function ModerationPage() {
       <section className="panel" aria-labelledby="products-h">
         <h2 id="products-h">중복 의심 제품 ({dupes.length})</h2>
         <p className="hint">
-          같은 보드에서 이름이 비슷한 제품입니다. 같은 제품의 다른 표기(영문·한글 브랜드, 용량 표기)일 때만 병합하세요. 용량·맛이 다른 제품은 다른 제품입니다.
+          같은 방에서 이름이 비슷한 제품입니다. 같은 제품의 다른 표기(영문·한글 브랜드, 용량 표기)일 때만 병합하세요. 용량·맛이 다른 제품은 다른 제품입니다.
         </p>
         {dupes.length > 0 && (
           <ul className="mod-list">
@@ -296,7 +296,7 @@ export default async function ModerationPage() {
         <h2 id="brand-alias-h">브랜드 별칭 제안 ({brandAliases.open.length})</h2>
         <p className="hint">
           이용자가 브랜드 페이지에서 올린 &ldquo;같은 브랜드&rdquo; 제안입니다. <b>커뮤니티 동의를 얻은 제안만 확정</b>할 수 있고, 확정하면 제품이 많은 쪽이 대표가
-          되며 같은 보드의 같은 이름 제품은 병합됩니다. 수입사·판매처·자회사처럼 제조사가 다른 경우는 기각하세요.
+          되며 같은 방의 같은 이름 제품은 병합됩니다. 수입사·판매처·자회사처럼 제조사가 다른 경우는 기각하세요.
         </p>
         {brandAliases.open.length > 0 && (
           <ul className="mod-list">
@@ -348,7 +348,7 @@ export default async function ModerationPage() {
       <section className="panel" aria-labelledby="attr-alias-h">
         <h2 id="attr-alias-h">성분명 별칭 제안 ({attrAliases.open.length})</h2>
         <p className="hint">
-          이용자가 보드의 성분 순위 화면에서 올린 &ldquo;같은 성분&rdquo; 제안입니다. <b>커뮤니티 동의를 얻은 제안만 확정</b>할 수 있고, 확정하면 제품이 많은 쪽 이름이
+          이용자가 방의 성분 순위 화면에서 올린 &ldquo;같은 성분&rdquo; 제안입니다. <b>커뮤니티 동의를 얻은 제안만 확정</b>할 수 있고, 확정하면 제품이 많은 쪽 이름이
           대표가 되어 다른 이름으로 적힌 수치가 한 순위에 모입니다(표시 이름은 그대로, 해제하면 되돌아감). 형태에 따라 함량 기준이 다른 성분(엽산과 DFE, 비타민 A 와
           베타카로틴 등)은 기각하세요.
         </p>

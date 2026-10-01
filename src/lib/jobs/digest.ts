@@ -3,13 +3,13 @@ import { generateDigest, type DigestSource } from "../digest";
 import { reportError } from "../error-tracking";
 
 const DIGEST_LOCK_KEY = 4_823_004;
-/** 같은 보드 다이제스트를 다시 만들기까지 최소 간격 */
+/** 같은 방 다이제스트를 다시 만들기까지 최소 간격 */
 const REFRESH_HOURS = 20;
 
 export type DigestBatchResult = { ran: boolean; generated: string[] };
 
 /**
- * 지난 7일 [정보] 글이 있는 보드마다, 최근 다이제스트가 REFRESH_HOURS 보다 오래됐으면 새로 만든다.
+ * 지난 7일 [정보] 글이 있는 방마다, 최근 다이제스트가 REFRESH_HOURS 보다 오래됐으면 새로 만든다.
  * 블라인드·광고 의심·AI 큐레이터 글은 제외해 사람의 검증을 받은 글만 묶는다.
  */
 export async function runDigestBatch(now = new Date()): Promise<DigestBatchResult> {

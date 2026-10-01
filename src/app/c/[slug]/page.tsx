@@ -7,7 +7,7 @@ import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
-// generateMetadata 와 페이지가 같은 보드를 읽으므로 요청 하나 안에서는 한 번만 조회한다
+// generateMetadata 와 페이지가 같은 방을 읽으므로 요청 하나 안에서는 한 번만 조회한다
 const getCategoryBySlug = cache(getCategoryUncached);
 
 function decodeSlug(raw: string) {
@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) return {};
   return {
-    title: `${category.name} 보드`,
+    title: `${category.name} 방`,
     description: `${category.name} — ${category.description} 방장 없이 검증되는 노방장 정보 아카이브.`,
     alternates: {
       canonical: `/c/${encodeURIComponent(category.slug)}`,

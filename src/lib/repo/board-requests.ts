@@ -11,6 +11,38 @@ const SELECT = `
          c.slug AS promoted_category_slug
     FROM board_requests r LEFT JOIN categories c ON c.id = r.promoted_category_id`;
 
+/**
+ * 방 개설에 필요한 동의 수 (Sprint 39). 사람이 적은 초기에는 3명이면 열리고,
+ * 최근 30일 활동 인원(글·댓글·추천·신고·개설 동의를 한 fingerprint)의 5% 로 늘어나며,
+ * 커뮤니티 규칙 값(board_promotion_votes, 투표로 바뀜)을 넘지 않는다.
+ */
+export const BOARD_THRESHOLD_FLOOR = 3;
+export const BOARD_THRESHOLD_ACTIVE_RATIO = 0.05;
+
+export function effectiveBoardThreshold(cap: number, active30d: number): number {
+  return Math.min(cap, Math.max(BOARD_THRESHOLD_FLOOR, Math.ceil(active30d * BOARD_THRESHOLD_ACTIVE_RATIO)));
+}
+
+export type BoardThreshold = { needed: number; cap: number; active30d: number };
+
+const THRESHOLD_TTL_MS = 5 * 60_000;
+const tg = globalThis as unknown as { __boardThreshold?: { at: number; active: number } };
+
+export async function getBoardThreshold(): Promise<BoardThreshold> {
+  const cap = await getRule("board_promotion_votes");
+  let cached = tg.__boardThreshold;
+  if (!cached || Date.now() - cached.at > THRESHOLD_TTL_MS) {
+    const rows = await query<{ n: string }>("SELECT count(*) AS n FROM fingerprints WHERE last_seen > now() - interval '30 days'");
+    cached = tg.__boardThreshold = { at: Date.now(), active: Number(rows[0]?.n ?? 0) };
+  }
+  return { needed: effectiveBoardThreshold(cap, cached.active), cap, active30d: cached.active };
+}
+
+/** 테스트용: 활동 인원 캐시를 비운다 */
+export function resetBoardThresholdCache() {
+  delete tg.__boardThreshold;
+}
+
 export async function listBoardRequests(): Promise<BoardRequest[]> {
   // 거절된 요청은 이름 자체가 불법·유해할 수 있어 목록에 보이지 않는다 (거절 기록은 /transparency 에 번호로 공개)
   return query<BoardRequest>(`${SELECT} WHERE r.status <> 'rejected' ORDER BY (r.status = 'open') DESC, r.vote_count DESC, r.id DESC LIMIT 100`);
@@ -18,7 +50,7 @@ export async function listBoardRequests(): Promise<BoardRequest[]> {
 
 export async function createBoardRequest(name: string, description: string): Promise<BoardRequest> {
   const exists = await query("SELECT 1 FROM categories WHERE lower(name) = lower($1) OR slug = $2", [name, slugify(name)]);
-  if (exists.length) throw new HttpError(409, "already_exists", "이미 존재하는 보드입니다.");
+  if (exists.length) throw new HttpError(409, "already_exists", "이미 존재하는 방입니다.");
   try {
     const rows = await query<{ id: string }>(
       "INSERT INTO board_requests (requested_name, description) VALUES ($1, $2) RETURNING id",
@@ -45,8 +77,8 @@ export type PromotionOutcome = "promoted" | "duplicate" | "not_enough_votes" | "
 /**
  * 승격 조건을 확인하고 충족하면 categories 로 승격한다. 요청 행이 FOR UPDATE 로 잠긴 트랜잭션 안에서 호출할 것.
  * - vote_count >= threshold
- * - 요청 후 minAgeHours 경과 (갓 올라온 요청에 표를 몰아 즉시 보드를 여는 것 방지)
- * - 같은 이름의 보드가 이미 있으면 'duplicate' 로 닫는다 (그 사이 다른 요청이 먼저 승격된 경우)
+ * - 요청 후 minAgeHours 경과 (갓 올라온 요청에 표를 몰아 즉시 방을 여는 것 방지)
+ * - 같은 이름의 방이 이미 있으면 'duplicate' 로 닫는다 (그 사이 다른 요청이 먼저 승격된 경우)
  */
 export async function promoteIfEligible(
   client: PoolClient,
@@ -85,7 +117,7 @@ export async function promoteIfEligible(
 }
 
 /**
- * 보드 개설 요청 투표. 조건을 모두 채우면 사람 승인 없이 categories 로 자동 승격한다.
+ * 방 개설 요청 투표. 조건을 모두 채우면 사람 승인 없이 categories 로 자동 승격한다.
  * 표가 먼저 차고 최소 대기 시간이 남았으면 보류되고, 유지보수 배치(jobs/maintenance)가 시간이 되면 승격한다.
  */
 export async function voteBoardRequest(
@@ -94,12 +126,12 @@ export async function voteBoardRequest(
   thresholdOverride?: number,
   minAgeHours = config.boardPromotionMinAgeHours,
 ): Promise<BoardVoteResult> {
-  if (!/^\d{1,18}$/.test(id)) throw notFound("보드 요청");
-  // 필요한 표 수는 커뮤니티 규칙 (투표로 바뀔 수 있음, Sprint 21)
-  const threshold = thresholdOverride ?? (await getRule("board_promotion_votes"));
+  if (!/^\d{1,18}$/.test(id)) throw notFound("방 요청");
+  // 필요한 동의 수: 활동 인원에 맞춰 3명부터, 커뮤니티 규칙 값이 상한 (Sprint 21, 39)
+  const threshold = thresholdOverride ?? (await getBoardThreshold()).needed;
   const outcome = await tx(async (client) => {
     const req = await client.query<{ status: string }>("SELECT status FROM board_requests WHERE id = $1 FOR UPDATE", [id]);
-    if (!req.rows[0]) throw notFound("보드 요청");
+    if (!req.rows[0]) throw notFound("방 요청");
     if (req.rows[0].status !== "open") return { alreadyVoted: false, promoted: false, tooEarly: false };
 
     const ins = await client.query(
@@ -124,7 +156,7 @@ export async function promotePendingBoardRequests(
   minAgeHours = config.boardPromotionMinAgeHours,
   now = new Date(),
 ): Promise<{ id: string; outcome: PromotionOutcome }[]> {
-  const threshold = thresholdOverride ?? (await getRule("board_promotion_votes"));
+  const threshold = thresholdOverride ?? (await getBoardThreshold()).needed;
   const pending = await query<{ id: string }>(
     "SELECT id FROM board_requests WHERE status = 'open' AND vote_count >= $1 ORDER BY id",
     [threshold],

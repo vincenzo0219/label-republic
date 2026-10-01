@@ -6,7 +6,7 @@ import type { Category } from "@/lib/types";
 import { Pagination } from "./Pagination";
 import { RenewalList } from "./RenewalList";
 
-/** 리뉴얼 이력 — 전체(/renewals)·보드별(/c/:slug/renewals) 공용 (Sprint 28) */
+/** 리뉴얼 이력 — 전체(/renewals)·방별(/c/:slug/renewals) 공용 (Sprint 28) */
 export async function RenewalsView({ category, status, page }: { category?: Category; status: RenewalStatus; page: number }) {
   const [categories, list, pendingCount, brands, minReports] = await Promise.all([
     listCategories(),
@@ -34,7 +34,7 @@ export async function RenewalsView({ category, status, page }: { category?: Cate
         </a>
       </p>
 
-      <nav className="chips" aria-label="보드" style={{ margin: "10px 0" }}>
+      <nav className="chips" aria-label="방" style={{ margin: "10px 0" }}>
         <Link className="chip chip-sm" href={status === "pending" ? "/renewals?status=pending" : "/renewals"} aria-current={!category ? "page" : undefined}>
           전체
         </Link>

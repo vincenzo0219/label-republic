@@ -14,7 +14,7 @@ function urlBase64ToUint8Array(base64: string) {
 
 /**
  * 푸시 알림 켜기/끄기. 켜면 이 브라우저의 푸시 주소와 관심 제품·지켜보는 글·내 댓글 번호가 서버에 저장되고,
- * 끄면 바로 지워진다. 관심 보드 새 글은 푸시로 보내지 않는다 (너무 잦음).
+ * 끄면 바로 지워진다. 관심 방 새 글은 푸시로 보내지 않는다 (너무 잦음).
  */
 export function PushSettings() {
   const [status, setStatus] = useState<Status>("loading");

@@ -25,7 +25,7 @@ export function AttrAliasPanel({
   attrKey: string;
   attrLabel: string;
   aliases: AttrAlias[];
-  /** 같은 보드의 다른 항목 (제안 칸의 고르기) */
+  /** 같은 방의 다른 항목 (제안 칸의 고르기) */
   others: { key: string; label: string; products: number }[];
   initial: AttrAliasProposal[];
   rule: { score: number; ratio: number };

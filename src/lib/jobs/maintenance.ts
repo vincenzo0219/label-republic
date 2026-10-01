@@ -161,7 +161,7 @@ export type MaintenanceResult = {
 };
 
 /**
- * 5분마다: 어뷰징 탐지 → 보류된 보드 승격 → 오래된 지표·알림 정리.
+ * 5분마다: 어뷰징 탐지 → 보류된 방 승격 → 오래된 지표·알림 정리.
  * advisory lock 으로 여러 인스턴스 중 한 곳에서만 실행된다.
  */
 export async function runMaintenance(now = new Date()): Promise<MaintenanceResult> {

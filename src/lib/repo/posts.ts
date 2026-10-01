@@ -114,7 +114,7 @@ export const SEARCH_TIMEOUT_MS = 3000;
 
 /**
  * 정렬·페이지 자르기는 posts 의 좁은 컬럼만으로 먼저 하고(정렬 인덱스를 그대로 탄다),
- * 본문 발췌·요약·보드·정모 JOIN 은 잘라낸 20건에만 한다.
+ * 본문 발췌·요약·방·정모 JOIN 은 잘라낸 20건에만 한다.
  * 한 번에 하면 모든 후보 글의 본문에 regexp_replace 를 돌린 뒤 정렬해 글이 많을수록 느려진다.
  */
 function pagedCardsSql(whereSql: string, orderSql: string, limitParam: string, offsetParam = "0", extraSelect = "") {
@@ -129,7 +129,7 @@ function pagedCardsSql(whereSql: string, orderSql: string, limitParam: string, o
     ORDER BY page.rn`;
 }
 
-// 목록 개수가 크면 페이지마다 세지 않고 잠깐 캐시한다 (보드 20만 건이면 count 한 번에 수십 ms).
+// 목록 개수가 크면 페이지마다 세지 않고 잠깐 캐시한다 (방 20만 건이면 count 한 번에 수십 ms).
 // 인스턴스별 캐시라 몇 초 늦게 반영될 수 있지만 "N개의 글" 표시에는 충분하다.
 // 작은 개수는 세는 비용이 거의 없고 새 글이 바로 보여야 하므로 캐시하지 않는다.
 const COUNT_TTL_MS = 15_000;
@@ -222,7 +222,7 @@ export async function listPosts(
 }
 
 /**
- * 개인화 리포트용: 선택한 보드들의 since 이후 새 [정보]·[정모] 글 (잡담·블라인드·광고 의심 제외), 신뢰도순.
+ * 개인화 리포트용: 선택한 방들의 since 이후 새 [정보]·[정모] 글 (잡담·블라인드·광고 의심 제외), 신뢰도순.
  * total 은 limit 과 무관한 전체 개수.
  */
 export async function listNewPosts(categoryIds: number[], since: Date, limit = 30): Promise<{ items: PostCard[]; total: number }> {
@@ -242,7 +242,7 @@ export async function listFeedPosts(categoryId?: number, limit = 30): Promise<(P
   return query(pagedCardsSql(where, "p.created_at DESC, p.id DESC", "$1", "0", ", p.updated_at"), categoryId ? [limit, categoryId] : [limit]);
 }
 
-/** 선택한 보드들의 다가오는 정모 (확정·모집 중) */
+/** 선택한 방들의 다가오는 정모 (확정·모집 중) */
 export async function listUpcomingMeetups(categoryIds: number[], now = new Date(), limit = 10): Promise<PostCard[]> {
   if (!categoryIds.length) return [];
   return query<PostCard>(

@@ -5,7 +5,7 @@
  * 오래 묵힌 제품을 늦게 올린 글이 새 라벨 시기에 섞이지 않게 된다.
  *
  *   - 제조일자가 있으면 그것
- *   - 유통기한만 있으면 유통기한 − 이 제품의 유통기한 길이(두 날짜를 다 적은 글들의 중앙값, 없으면 보드 기본값)
+ *   - 유통기한만 있으면 유통기한 − 이 제품의 유통기한 길이(두 날짜를 다 적은 글들의 중앙값, 없으면 방 기본값)
  *   - 날짜가 없으면 글 올린 시각 − 이 제품의 "제조 → 글" 간격(날짜를 적은 글들의 중앙값, 없으면 0)
  */
 
@@ -20,7 +20,7 @@ const MAX_YEARS = 15;
 const MADE_MAX_AGE_YEARS = 10;
 const MIN_YEAR = 2000;
 
-/** 보드별 흔한 유통기한 길이(개월) — 제품에 두 날짜를 다 적은 글이 없을 때만 쓴다 */
+/** 방별 흔한 유통기한 길이(개월) — 제품에 두 날짜를 다 적은 글이 없을 때만 쓴다 */
 export const DEFAULT_SHELF_MONTHS: Record<string, number> = {
   supplements: 24,
   "pet-food": 18,
@@ -106,7 +106,7 @@ export type DatedReport = { post_at: number; made?: number | null; expires?: num
  */
 export function productionTimes(reports: DatedReport[], shelfMonths = FALLBACK_SHELF_MONTHS): { at: number; basis: TimeBasis }[] {
   const both = reports.filter((r) => r.made != null && r.expires != null).map((r) => r.expires! - r.made!);
-  // 제품별 유통기한 길이는 보드 기본값의 절반~두 배 안으로 (몇 글의 이상한 날짜가 다른 글의 추정을 크게 흔들지 않게, Sprint 29)
+  // 제품별 유통기한 길이는 방 기본값의 절반~두 배 안으로 (몇 글의 이상한 날짜가 다른 글의 추정을 크게 흔들지 않게, Sprint 29)
   const base = shelfMonths * 30.44 * DAY;
   const shelf = both.length ? Math.min(base * 2, Math.max(base / 2, median(both))) : base;
   const made = (r: DatedReport): number | null => (r.made != null ? r.made : r.expires != null ? r.expires - shelf : null);

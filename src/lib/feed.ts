@@ -1,4 +1,4 @@
-/** Atom 1.0 피드 생성 — 관심 보드를 RSS 리더로 구독할 수 있게 한다 (개인정보 없이 가능한 "구독") */
+/** Atom 1.0 피드 생성 — 관심 방을 RSS 리더로 구독할 수 있게 한다 (개인정보 없이 가능한 "구독") */
 import { renewalTitle, renewalWhen } from "./renewal-text";
 import type { RenewalItem } from "./repo/renewal-feed";
 import type { PostCard } from "./types";

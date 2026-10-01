@@ -12,6 +12,9 @@ export function CategoryTabs({ categories, active }: { categories: Category[]; a
           {c.name}
         </Link>
       ))}
+      <Link href="/boards" className="tab tab-add">
+        ＋ 방 만들기
+      </Link>
     </nav>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * 보드별 주간 다이제스트 — 지난 7일 신뢰도 상위 [정보] 글들의 3줄 요약을 다시 한 번 묶는다.
+ * 방별 주간 다이제스트 — 지난 7일 신뢰도 상위 [정보] 글들의 3줄 요약을 다시 한 번 묶는다.
  * 입력은 이미 게시된 글의 제목·요약뿐이므로 새로운 사실을 만들어내지 않도록 제한한다.
  */
 import Anthropic from "@anthropic-ai/sdk";
@@ -32,7 +32,7 @@ export function extractiveDigest(boardName: string, posts: DigestSource[]): Dige
 const DigestSchema = z.object({ headline: z.string(), bullets: z.array(z.string()) });
 
 const SYSTEM_PROMPT = `당신은 덕후 정보 커뮤니티 "노방장"의 주간 다이제스트 편집자입니다.
-한 보드의 지난 7일 인기 글 목록(제목과 3줄 요약)을 받아, 이번 주 흐름을 한국어로 정리합니다.
+한 방의 지난 7일 인기 글 목록(제목과 3줄 요약)을 받아, 이번 주 흐름을 한국어로 정리합니다.
 
 규칙:
 - headline: 이번 주를 대표하는 한 문장 (80자 이내).
@@ -54,7 +54,7 @@ async function claudeDigest(boardName: string, posts: DigestSource[]): Promise<D
     max_tokens: 4000,
     output_config: { effort: "low", format: zodOutputFormat(DigestSchema) },
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: `보드: ${boardName}\n<posts>\n${list}\n</posts>` }],
+    messages: [{ role: "user", content: `방: ${boardName}\n<posts>\n${list}\n</posts>` }],
   });
   if (response.stop_reason === "refusal" || !response.parsed_output) return null;
   const bullets = response.parsed_output.bullets.map((b) => clip(b)).filter((b) => b.length >= 2).slice(0, 5);

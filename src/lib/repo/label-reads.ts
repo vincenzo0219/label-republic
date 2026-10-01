@@ -17,7 +17,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export type LabelRead = LabelReadResult & { model: string; cached: boolean };
 
 /**
- * 업로드한 사람(토큰)만, 아직 글에 붙기 전의 사진만 읽는다. 같은 사진·같은 보드면 저장된 결과를 돌려준다.
+ * 업로드한 사람(토큰)만, 아직 글에 붙기 전의 사진만 읽는다. 같은 사진·같은 방면 저장된 결과를 돌려준다.
  */
 export async function readLabel(imageId: string, token: string, categorySlug: string, fp: string): Promise<LabelRead> {
   if (!UUID.test(imageId) || !tokenOk(imageId, token)) throw new HttpError(403, "image_forbidden", "읽을 수 없는 사진입니다.");
@@ -34,7 +34,7 @@ export async function readLabel(imageId: string, token: string, categorySlug: st
   if (cached[0] && cached[0].category_id === cat[0].id) return { ...cached[0].result, model: cached[0].model, cached: true };
 
   // 하루 전체 한도 (비용 상한) — Claude 를 부르기 전에 한 번씩 원자적으로 예약한다 (Sprint 29 보안 재점검).
-  // 예전에는 label_reads 행 수를 셌는데, 같은 사진을 보드만 바꿔 다시 읽으면 행이 덮어써져 한도에 잡히지 않았고,
+  // 예전에는 label_reads 행 수를 셌는데, 같은 사진을 방만 바꿔 다시 읽으면 행이 덮어써져 한도에 잡히지 않았고,
   // 확인과 저장 사이(최대 90초)에 동시 요청이 모두 통과했다.
   if (!(await reserveLabelRead())) {
     throw new HttpError(503, "label_read_quota", "오늘은 라벨 읽기가 많아 잠시 쉬고 있어요. 수치를 직접 입력해주세요.");

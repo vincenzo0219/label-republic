@@ -1,6 +1,6 @@
 /**
- * 개인화 리포트 — 관심 보드는 브라우저(localStorage)에만 저장되고, 서버는 요청마다 받은 보드 목록으로
- * 응답만 만든다. 사용자별 데이터를 저장하지 않으며, 같은 보드 조합·시각이면 누구에게나 같은 응답이다.
+ * 개인화 리포트 — 관심 방은 브라우저(localStorage)에만 저장되고, 서버는 요청마다 받은 방 목록으로
+ * 응답만 만든다. 사용자별 데이터를 저장하지 않으며, 같은 방 조합·시각이면 누구에게나 같은 응답이다.
  */
 import { query } from "../db";
 import type { PostCard } from "../types";
@@ -117,7 +117,7 @@ export async function buildReport(slugs: string[], since: Date, now = new Date()
   };
 }
 
-/** 보드 페이지 상단용: 최근 8일 이내 최신 다이제스트 */
+/** 방 페이지 상단용: 최근 8일 이내 최신 다이제스트 */
 export async function latestDigest(categoryId: number): Promise<BoardDigest | null> {
   const rows = await query<BoardDigest>(
     `SELECT c.slug AS category_slug, c.name AS category_name, d.headline, d.lines, d.post_ids::text[] AS post_ids, d.model_version, d.created_at

@@ -1,14 +1,14 @@
 /**
- * 첫 방문·빈 보드 온보딩 (Sprint 32).
+ * 첫 방문·빈 방 온보딩 (Sprint 32).
  *
- * 오픈 직후에는 글이 적어 "무엇을 쓰면 되는지"가 보이지 않는다. 보드마다 쓰기 좋은 글의 예시(글쓰기 틀)를 두고,
- * 글이 적은 보드와 첫 방문 홈에서 보여 준다. 틀은 제목·본문 뼈대일 뿐 값은 비어 있다 — 사실은 쓰는 사람이 채운다.
+ * 오픈 직후에는 글이 적어 "무엇을 쓰면 되는지"가 보이지 않는다. 방마다 쓰기 좋은 글의 예시(글쓰기 틀)를 두고,
+ * 글이 적은 방과 첫 방문 홈에서 보여 준다. 틀은 제목·본문 뼈대일 뿐 값은 비어 있다 — 사실은 쓰는 사람이 채운다.
  */
 import type { PostType } from "./types";
 
 export type WritingTemplate = {
   key: string;
-  /** 보드 안내에 보이는 한 줄 */
+  /** 방 안내에 보이는 한 줄 */
   label: string;
   hint: string;
   postType: PostType;
@@ -18,7 +18,7 @@ export type WritingTemplate = {
 
 export type BoardGuide = { lead: string; templates: WritingTemplate[] };
 
-/** 보드에 보이는 정보 글이 이보다 적으면 안내를 보여 준다 */
+/** 방에 보이는 정보 글이 이보다 적으면 안내를 보여 준다 */
 export const THIN_BOARD_POSTS = 5;
 export const WELCOME_COOKIE = "lr_welcome";
 
@@ -40,7 +40,7 @@ const LABEL_BODY = `제품: (브랜드 · 제품명 · 용량)
 
 const GUIDES: Record<string, BoardGuide> = {
   supplements: {
-    lead: "영양제 라벨의 성분·함량을 사진과 함께 정리하는 보드예요. 광고 문구보다 라벨에 실제로 적힌 값이 중요해요.",
+    lead: "영양제 라벨의 성분·함량을 사진과 함께 정리하는 방이에요. 광고 문구보다 라벨에 실제로 적힌 값이 중요해요.",
     templates: [
       common.label("supplement-label", "📸 먹고 있는 영양제 라벨 정리", "라벨 사진 + 1회 섭취량 기준 성분표", "[제품명] 라벨 성분 정리", LABEL_BODY),
       common.label(
@@ -73,7 +73,7 @@ const GUIDES: Record<string, BoardGuide> = {
     ],
   },
   keyboards: {
-    lead: "스위치·키보드 스펙을 실측과 제조사 표기로 확인하는 보드예요. 느낌보다 숫자와 조건을 적어 주세요.",
+    lead: "스위치·키보드 스펙을 실측과 제조사 표기로 확인하는 방이에요. 느낌보다 숫자와 조건을 적어 주세요.",
     templates: [
       common.label(
         "keyboard-switch", "🔩 스위치 스펙 실측", "작동압·바닥압·트래블 실측값과 측정 방법",
@@ -93,14 +93,14 @@ const GUIDES: Record<string, BoardGuide> = {
     ],
   },
   deskterior: {
-    lead: "책상 셋업 제품의 규격·실측을 모으는 보드예요. 설치 조건(책상 두께, 모니터 무게)을 함께 적으면 도움이 돼요.",
+    lead: "책상 셋업 제품의 규격·실측을 모으는 방이에요. 설치 조건(책상 두께, 모니터 무게)을 함께 적으면 도움이 돼요.",
     templates: [
       common.label("desk-spec", "📏 제품 규격 실측", "모니터암 하중·조명 밝기·케이블 길이 등 표기와 실측", "[제품명] 규격 실측", `제품:\n표기 규격:\n실측 (측정 방법):\n설치 조건:\n`),
       common.label("desk-setup", "🖥 내 책상 셋업", "쓰는 제품 목록과 선택 이유 (사진 환영)", "내 책상 셋업 정리", `책상·의자:\n모니터·암:\n조명:\n케이블 정리:\n\n고른 이유와 아쉬운 점:\n`),
     ],
   },
   "pet-food": {
-    lead: "사료 원재료 순서와 등록성분량(조단백·조지방 등)을 확인하는 보드예요. 포장지 뒷면 사진이 가장 좋은 근거예요.",
+    lead: "사료 원재료 순서와 등록성분량(조단백·조지방 등)을 확인하는 방이에요. 포장지 뒷면 사진이 가장 좋은 근거예요.",
     templates: [
       common.label(
         "petfood-label", "🐾 사료 등록성분량 정리", "조단백·조지방·조섬유·조회분·수분 + 원재료 앞 5개",
@@ -121,7 +121,7 @@ const GUIDES: Record<string, BoardGuide> = {
     ],
   },
   "perfume-audio": {
-    lead: "향수 노트·농도, 이어폰·헤드폰 측정치를 과장 없이 확인하는 보드예요. 측정 조건과 출처를 꼭 적어 주세요.",
+    lead: "향수 노트·농도, 이어폰·헤드폰 측정치를 과장 없이 확인하는 방이에요. 측정 조건과 출처를 꼭 적어 주세요.",
     templates: [
       common.label("audio-measure", "🎧 측정치 정리", "주파수 응답·임피던스·감도 — 측정 장비·출처", "[제품명] 측정치 정리", `제품:\n제조사 표기: 임피던스  Ω / 감도  dB\n측정치 (출처·장비):\n\n표기와 다른 점:\n`),
       common.label("perfume-notes", "🌸 향수 농도·노트 확인", "EDP/EDT 표기, 제조사 공개 노트, 재조합 여부", "[향수 이름] 농도·노트 확인", `향수:\n농도 표기 (EDP/EDT 등):\n제조사 공개 노트:\n배치 코드·구입 시기:\n\n확인한 사실 (출처):\n`),
@@ -129,10 +129,11 @@ const GUIDES: Record<string, BoardGuide> = {
   },
 };
 
-/** 투표로 새로 열린 보드 등: 어느 보드에나 맞는 틀 */
+/** 투표로 새로 열린 방 등: 어느 방에나 맞는 틀 */
 const GENERIC: BoardGuide = {
-  lead: "라벨·스펙에 적힌 사실을 사진·수치·출처와 함께 모으는 보드예요.",
+  lead: "이 방 주제라면 무엇이든 이야기해요. 정보 글에는 사진·수치·출처를 함께 적으면 더 믿을 수 있어요.",
   templates: [
+    common.label("generic-chat", "💬 자유 이야기", "인사·질문·잡담 무엇이든", "", `하고 싶은 이야기:\n`, "chat"),
     common.label("generic-label", "📸 라벨·스펙 정리", "라벨 사진과 적힌 값 그대로", "[제품명] 라벨·스펙 정리", LABEL_BODY),
     common.label("generic-question", "❓ 확인하고 싶은 것", "근거가 궁금한 주장이나 표기", "[제품명] 이 표기 맞나요?", `확인하고 싶은 주장·표기:\n어디서 봤는지 (링크):\n내가 찾아본 것:\n`),
   ],
@@ -142,7 +143,7 @@ export function boardGuide(slug: string | undefined): BoardGuide {
   return (slug && GUIDES[slug]) || GENERIC;
 }
 
-/** 글쓰기 ?template=키 → 틀 (보드가 맞지 않으면 그 보드 안내를 따르지 않는 틀도 허용 — 키로만 찾는다) */
+/** 글쓰기 ?template=키 → 틀 (방이 맞지 않으면 그 방 안내를 따르지 않는 틀도 허용 — 키로만 찾는다) */
 export function findTemplate(key: string | undefined): WritingTemplate | null {
   if (!key || !/^[a-z-]{1,40}$/.test(key)) return null;
   for (const g of [...Object.values(GUIDES), GENERIC]) {

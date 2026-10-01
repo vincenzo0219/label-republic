@@ -108,7 +108,7 @@ export async function runCuratorBatch(now = new Date(), opts: { generate?: Curat
 }
 
 /**
- * 대기열이 빈 보드: AI 가 새 글을 쓰고 안전 검사를 통과하면 사람 검수 없이 게시한다 (Sprint 37).
+ * 대기열이 빈 방: AI 가 새 글을 쓰고 안전 검사를 통과하면 사람 검수 없이 게시한다 (Sprint 37).
  * 시도(게시·탈락·실패)는 curator_generations 에 남고 하루 한도에 센다 — 탈락이 반복돼도 비용이 새지 않게.
  */
 async function autogenerate(
