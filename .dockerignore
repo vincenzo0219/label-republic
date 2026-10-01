@@ -8,3 +8,4 @@ db/seed/drafts
 tests
 *.log
 backups
+sai
