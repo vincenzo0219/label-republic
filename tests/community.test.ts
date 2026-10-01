@@ -66,6 +66,17 @@ d("chat tag and meetups (database)", async () => {
     await pool().end();
   });
 
+  it("posts chat and meetup without a 3-line summary, info posts still get one (launch review)", async () => {
+    const base = { categorySlug: "keyboards", nickname: "수다", pin: "1234", title: "다들 첫 키보드 뭐였어요?", body: "저는 멤브레인 쓰다가 작년에 처음 기계식 샀어요.", fingerprint: fp("chatty"), summary: null };
+    const chat = await posts.createPost({ ...base, postType: "chat" });
+    expect(chat.summary).toBeNull();
+    const info = await posts.createPost({ ...base, title: "적축 45gf 스펙 정리", postType: "info" });
+    expect(info.summary?.lines).toHaveLength(3);
+    // 작성자가 요약을 직접 붙여 보낸 잡담은 그대로 저장한다
+    const withSummary = await posts.createPost({ ...base, title: "요약 붙인 잡담", postType: "chat", summary: { lines: ["하나", "둘", "셋"], model: "author", isAuthorEdited: true } });
+    expect(withSummary.summary?.lines).toEqual(["하나", "둘", "셋"]);
+  });
+
   it("keeps chat posts out of trust badges and below info posts in trust order only", async () => {
     const info = await create({ title: "정보 글" });
     const chat = await create({ type: "chat", title: "잡담 글" });

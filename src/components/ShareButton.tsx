@@ -17,7 +17,7 @@ export function ShareButton({ postId, title }: { postId: string; title: string }
     try {
       const res = await fetch(imageUrl);
       if (!res.ok) throw new Error("이미지를 만들 수 없는 글입니다.");
-      const file = new File([await res.blob()], `labelrepublic-${postId}.png`, { type: "image/png" });
+      const file = new File([await res.blob()], `nobangjang-${postId}.png`, { type: "image/png" });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title, text: `${title}\n${url}` });
         return;
@@ -70,7 +70,7 @@ export function ShareButton({ postId, title }: { postId: string; title: string }
           <a role="menuitem" href={`https://x.com/intent/post?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer">
             𝕏 X에 공유
           </a>
-          <a role="menuitem" href={imageUrl} download={`labelrepublic-${postId}.png`}>⬇ 카드 이미지 저장</a>
+          <a role="menuitem" href={imageUrl} download={`nobangjang-${postId}.png`}>⬇ 카드 이미지 저장</a>
           {msg && <p className="hint" style={{ margin: "6px 10px" }}>{msg}</p>}
         </div>
       )}

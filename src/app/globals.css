@@ -773,3 +773,11 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .new-divider { display: flex; align-items: center; gap: 10px; margin: 6px 0 18px; color: var(--muted); font-size: 12.5px; }
 .new-divider::before, .new-divider::after { content: ""; flex: 1; border-top: 1px dashed color-mix(in srgb, var(--brand) 55%, var(--line)); }
 .tab-count { display: inline-block; margin-left: 6px; min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--brand); color: var(--brand-ink); font-size: 11.5px; font-weight: 800; line-height: 18px; text-align: center; }
+
+/* 론칭 검수: 방 요청 공유 링크로 들어오면 그 요청을 강조, 방이 열린 알림 */
+.room-request:target { outline: 2px solid var(--brand); outline-offset: 2px; }
+.room-request .card-meta { flex-wrap: wrap; gap: 8px; }
+.room-request > .notice, .room-request > .hint { margin-top: 10px; }
+.room-opened { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 16px; border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--line)); background: color-mix(in srgb, var(--brand) 8%, var(--surface)); color: var(--text); }
+.room-opened p { margin: 0; flex: 1 1 240px; }
+.room-opened a { font-weight: 700; text-decoration: underline; }

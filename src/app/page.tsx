@@ -7,8 +7,9 @@ import { listCategories } from "@/lib/repo/categories";
 import { siteStats } from "@/lib/repo/onboarding";
 import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { PmfSurvey } from "@/components/PmfSurvey";
+import { RoomOpenedNotice } from "@/components/RoomOpenedNotice";
 import { VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
-import { PMF_COOKIE, surveyEligible } from "@/lib/repo/survey";
+import { PMF_COOKIE, visitorHomeState } from "@/lib/repo/survey";
 import { OpenVotesBanner } from "@/components/OpenVotesBanner";
 import { RenewalsBanner } from "@/components/RenewalsBanner";
 import { config } from "@/lib/config";
@@ -22,13 +23,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   // 읽기 전용 모드 저장본(수집기 요청)에는 넣지 않는다 — 장애 중에는 글을 쓸 수 없고, 닫은 사람에게 다시 보이면 안 되므로 (Sprint 33)
   const crawler = (await headers()).get(CRAWLER_HEADER) === "1";
   const jar = await cookies();
-  const firstVisit = !crawler && !jar.has(WELCOME_COOKIE) && !sp.page;
-  // PMF 설문 (Sprint 40): 첫 방문 안내가 끝난 사람 중 3일 이상 온 사람에게만, 답하거나 닫기 전까지
   const vid = jar.get(VISITOR_COOKIE)?.value;
-  const askSurvey =
-    !crawler && !firstVisit && !sp.page && !jar.has(PMF_COOKIE) && !!vid && /^[0-9a-f-]{36}$/.test(vid)
-      ? await surveyEligible(visitorHash(vid)).catch(() => false)
-      : false;
+  const visitor = !crawler && !!vid && /^[0-9a-f-]{36}$/.test(vid) ? await visitorHomeState(visitorHash(vid)).catch(() => null) : null;
+  // 닫지 않았어도 둘째 날부터는 숨긴다 (론칭 검수)
+  const firstVisit = !crawler && !jar.has(WELCOME_COOKIE) && !sp.page && (visitor?.visitDays ?? 0) < 2;
+  // PMF 설문 (Sprint 40): 첫 방문 안내가 끝난 사람 중 3일 이상 온 사람에게만, 답하거나 닫기 전까지
+  const askSurvey = !crawler && !firstVisit && !sp.page && !jar.has(PMF_COOKIE) && !!visitor?.surveyOk;
   const [boards, stats, roomT] = firstVisit ? await Promise.all([listCategories(), siteStats(), getBoardThreshold()]) : [[], null, null];
   // 검색엔진 사이트 이름·사이트 내 검색창(SearchAction)용 구조화 데이터
   const jsonLd = {
@@ -50,6 +50,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {firstVisit && stats && roomT && (
         <Welcome boards={boards.map((b) => ({ slug: b.slug, name: b.name }))} stats={stats} roomVotes={roomT.needed} />
       )}
+      {!crawler && <RoomOpenedNotice />}
       {askSurvey && <PmfSurvey cookieName={PMF_COOKIE} />}
       <OpenVotesBanner />
       <RenewalsBanner />

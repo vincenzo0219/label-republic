@@ -1,16 +1,55 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
+import { myRoomRequests, rememberRoomRequest } from "@/lib/room-requests";
 import type { BoardRequest } from "@/lib/types";
 
-export function BoardRequests({ initial, threshold }: { initial: BoardRequest[]; threshold: number }) {
+/** "10월 2일(금) 오후 10:15" — toLocaleString 은 서버(Node)와 브라우저의 출력이 미묘하게 달라 화면이 어긋나므로 직접 만든다 */
+export function kstTime(ms: number) {
+  const d = new Date(ms + 9 * 3600_000);
+  const h = d.getUTCHours();
+  const ampm = h < 12 ? "오전" : "오후";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const wd = "일월화수목금토"[d.getUTCDay()];
+  return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일(${wd}) ${ampm} ${h12}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+}
+
+/**
+ * 방 만들기 요청 목록. 혼자서는 방을 열 수 없으니(동의 N명), 요청한 사람이 친구를 데려올 수 있게
+ * 요청마다 공유 링크(/boards#req-ID)를 주고, 동의가 다 모이면 언제 열리는지 보여 준다 (론칭 검수).
+ */
+export function BoardRequests({ initial, threshold, minAgeHours }: { initial: BoardRequest[]; threshold: number; minAgeHours: number }) {
   const [requests, setRequests] = useState(initial);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [voted, setVoted] = useState<Set<string>>(new Set());
+  const [justCreated, setJustCreated] = useState<string | null>(null);
+  const [shareMsg, setShareMsg] = useState<{ id: string; text: string } | null>(null);
+
+  // 이 브라우저에서 요청·동의한 것은 다시 와도 "동의함"으로 (서버 기록은 IP·브라우저 지문이라 화면에 못 돌려준다)
+  useEffect(() => {
+    setVoted(new Set(Object.keys(myRoomRequests())));
+  }, []);
+
+  async function share(r: BoardRequest) {
+    const left = Math.max(0, threshold - r.vote_count);
+    const url = `${window.location.origin}/boards#req-${r.id}`;
+    const text = `노방장에 "${r.requested_name}" 방을 만들고 있어요.${left > 0 ? ` ${left}명만 더 동의하면 열려요!` : ""} 링크에서 👍 나도 원해요 를 눌러 주세요 (가입 없음)`;
+    setShareMsg(null);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${r.requested_name} 방 만들기`, text, url });
+      } else {
+        await navigator.clipboard.writeText(`${text}\n${url}`);
+        setShareMsg({ id: r.id, text: "링크를 복사했어요. 카톡·DM에 붙여넣어 보내 주세요." });
+      }
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") setShareMsg({ id: r.id, text: `이 주소를 보내 주세요: ${url}` });
+    }
+  }
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -19,6 +58,8 @@ export function BoardRequests({ initial, threshold }: { initial: BoardRequest[];
       const { request } = await api<{ request: BoardRequest }>("/api/board-requests", "POST", { name, description });
       setRequests((r) => [request, ...r]);
       setVoted((v) => new Set(v).add(request.id)); // 요청한 사람은 첫 동의로 센다 (Sprint 39)
+      rememberRoomRequest(request.id, request.requested_name);
+      setJustCreated(request.id);
       setName("");
       setDescription("");
     } catch (err) {
@@ -31,12 +72,10 @@ export function BoardRequests({ initial, threshold }: { initial: BoardRequest[];
       const res = await api<{ request: BoardRequest; alreadyVoted: boolean; promoted: boolean; promotableAt: string | null }>(`/api/board-requests/${id}/vote`, "POST");
       setRequests((list) => list.map((r) => (r.id === id ? res.request : r)));
       setVoted((s) => new Set(s).add(id));
+      rememberRoomRequest(id, res.request.requested_name);
       if (res.alreadyVoted) window.alert("이미 동의했어요.");
       if (res.promoted) window.alert(`🎉 "${res.request.requested_name}" 방이 열렸어요!`);
-      if (res.promotableAt) {
-        const at = new Date(res.promotableAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
-        window.alert(`동의가 다 모였어요! 급하게 몰아서 방을 여는 것을 막기 위해 ${at} 이후 자동으로 열립니다.`);
-      }
+      // 동의가 다 모였지만 대기 시간이 남은 경우는 카드 아래에 열리는 시각을 보여 준다
     } catch (err) {
       window.alert((err as Error).message);
     }
@@ -53,7 +92,7 @@ export function BoardRequests({ initial, threshold }: { initial: BoardRequest[];
 
       {requests.length === 0 && <div className="empty">아직 요청이 없어요. 첫 방을 제안해 보세요!</div>}
       {requests.map((r) => (
-        <div key={r.id} className="card">
+        <div key={r.id} id={`req-${r.id}`} className="card room-request">
           <div className="card-top">
             {r.status === "promoted" ? (
               <span className="badge badge-top5">개설됨</span>
@@ -83,11 +122,32 @@ export function BoardRequests({ initial, threshold }: { initial: BoardRequest[];
             <span>{r.vote_count} / {threshold}명</span>
             <span className="spacer" />
             {r.status === "open" && (
-              <button className="btn btn-sm" onClick={() => vote(r.id)} disabled={voted.has(r.id)}>
-                {voted.has(r.id) ? "동의함" : "👍 나도 원해요"}
-              </button>
+              <>
+                <button type="button" className="btn btn-sm" onClick={() => share(r)}>
+                  🔗 {r.vote_count < threshold ? "친구에게 동의 부탁" : "공유"}
+                </button>
+                <button className="btn btn-sm" onClick={() => vote(r.id)} disabled={voted.has(r.id)}>
+                  {voted.has(r.id) ? "동의함" : "👍 나도 원해요"}
+                </button>
+              </>
             )}
           </div>
+          {r.status === "open" && r.vote_count >= threshold && (
+            <p className="hint" role="status">
+              ⏳ 동의가 다 모였어요. {kstTime(new Date(r.created_at).getTime() + minAgeHours * 3600_000)} 이후 자동으로 열려요.
+            </p>
+          )}
+          {justCreated === r.id && r.vote_count < threshold && (
+            <p className="notice" role="status">
+              요청했어요! 내 동의가 첫 번째예요. <b>{threshold - r.vote_count}명</b>만 더 동의하면 하루 뒤 열려요 — 위의 🔗 버튼으로 함께할 친구에게 링크를 보내 보세요.
+              방이 열리면 홈에서 알려 드릴게요.
+            </p>
+          )}
+          {shareMsg?.id === r.id && (
+            <p className="hint" role="status">
+              {shareMsg.text}
+            </p>
+          )}
         </div>
       ))}
     </>
