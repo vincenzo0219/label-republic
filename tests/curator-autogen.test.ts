@@ -137,4 +137,26 @@ d("AI curator keeps posting after the seeds run out (database, Sprint 37)", asyn
     const post = (await query<{ post_type: string; comment_count: number }>("SELECT post_type, comment_count FROM posts WHERE id = $1", [kb.published]))[0]!;
     expect(post).toEqual({ post_type: "chat", comment_count: 0 });
   });
+
+  it("imports chat seeds as [잡담] posts, both at launch and from the queue (Sprint 45)", async () => {
+    const { importSeeds } = await import("@/lib/curator");
+    await onlyBoard("keyboards");
+    const body = "기계식 키보드에 입문하는 계기는 정말 다양하다는 이야기가 많습니다.\n- 처음 고른 키보드\n- 고른 이유\n여러분의 첫 기계식 키보드는 무엇이었나요?";
+    const base = { category: "keyboards", priority: 10, postType: "chat" as const, body, summary: ["첫 키보드 이야기", "고른 이유", "지금과 비교"] as [string, string, string], comments: [] };
+    const client = await pool().connect();
+    try {
+      const r = await importSeeds(client, [
+        { ...base, key: "chat-now", phase: "launch", title: "처음 산 기계식 키보드는 뭐였나요?" },
+        { ...base, key: "chat-later", phase: "drip", title: "지금 쓰는 스위치, 하나만 바꾼다면?" },
+      ]);
+      expect(r).toMatchObject({ published: 1, queued: 1, unsafe: [] });
+    } finally {
+      client.release();
+    }
+    expect((await query<{ post_type: string }>("SELECT post_type FROM posts WHERE seed_key = 'chat-now'"))[0]!.post_type).toBe("chat");
+    await query("UPDATE posts SET created_at = now() - interval '13 hours' WHERE seed_key = 'chat-now'");
+    const run = await runCuratorBatch(new Date(), { generate: fake(() => null), dailyMax: 10 });
+    expect(run.categories.find((c) => c.slug === "keyboards")!.reason).toBe("published");
+    expect((await query<{ post_type: string }>("SELECT post_type FROM posts WHERE seed_key = 'chat-later'"))[0]!.post_type).toBe("chat");
+  });
 });

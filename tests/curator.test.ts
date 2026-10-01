@@ -27,21 +27,32 @@ describe("shipped seed content", () => {
     .filter((f) => f.endsWith(".json"))
     .flatMap((f) => seedFileSchema.parse(JSON.parse(readFileSync(path.join(dir, f), "utf8"))));
 
-  it("covers the five launch boards with 5–7 posts each (25–35 total)", () => {
+  const info = seeds.filter((s) => s.postType === "info");
+  const chat = seeds.filter((s) => s.postType === "chat");
+
+  it("covers the five launch boards with 5–7 info posts each (25–35 total)", () => {
     const byBoard = new Map<string, number>();
-    for (const s of seeds) byBoard.set(s.category, (byBoard.get(s.category) ?? 0) + 1);
+    for (const s of info) byBoard.set(s.category, (byBoard.get(s.category) ?? 0) + 1);
     expect([...byBoard.keys()].sort()).toEqual(["deskterior", "keyboards", "perfume-audio", "pet-food", "supplements"]);
     for (const n of byBoard.values()) expect(n).toBeGreaterThanOrEqual(5), expect(n).toBeLessThanOrEqual(7);
-    expect(seeds.length).toBeGreaterThanOrEqual(25);
-    expect(seeds.length).toBeLessThanOrEqual(35);
+    expect(info.length).toBeGreaterThanOrEqual(25);
+    expect(info.length).toBeLessThanOrEqual(35);
   });
 
-  it("has unique keys and 2–3 comments on launch posts", () => {
+  it("has two conversation starters per launch board, one published at launch (Sprint 45)", () => {
+    const byBoard = new Map<string, string[]>();
+    for (const s of chat) byBoard.set(s.category, [...(byBoard.get(s.category) ?? []), s.phase]);
+    expect([...byBoard.keys()].sort()).toEqual(["deskterior", "keyboards", "perfume-audio", "pet-food", "supplements"]);
+    for (const phases of byBoard.values()) expect(phases.sort()).toEqual(["drip", "launch"]);
+  });
+
+  it("has unique keys, 2–3 comments on launch info posts and none on conversation starters", () => {
     expect(new Set(seeds.map((s) => s.key)).size).toBe(seeds.length);
-    for (const s of seeds.filter((x) => x.phase === "launch")) {
+    for (const s of info.filter((x) => x.phase === "launch")) {
       expect(s.comments.length).toBeGreaterThanOrEqual(2);
       expect(s.comments.length).toBeLessThanOrEqual(3);
     }
+    for (const s of chat) expect(s.comments, s.key).toEqual([]);
   });
 
   it("avoids definitive efficacy claims and never trips the spam filter", () => {
@@ -53,7 +64,9 @@ describe("shipped seed content", () => {
   });
 
   it("passes the same safety check as AI-written posts, so all of it can go out without human review (Sprint 37)", () => {
-    for (const s of seeds) expect(curatorSafetyProblems({ title: s.title, body: s.body, summary: s.summary, comments: s.comments }), s.key).toEqual([]);
+    for (const s of seeds) {
+      expect(curatorSafetyProblems({ title: s.title, body: s.body, summary: s.summary, comments: s.comments, kind: s.postType }), s.key).toEqual([]);
+    }
   });
 });
 

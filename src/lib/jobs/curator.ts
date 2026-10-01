@@ -56,8 +56,8 @@ export async function runCuratorBatch(now = new Date(), opts: { generate?: Curat
         }
         await client.query("BEGIN");
         try {
-          const next = await client.query<{ id: string; seed_key: string; title: string; body: string; summary_lines: [string, string, string]; comments: string[]; reviewed: boolean }>(
-            `SELECT id, seed_key, title, body, summary_lines, comments, reviewed FROM curator_queue
+          const next = await client.query<{ id: string; seed_key: string; title: string; body: string; summary_lines: [string, string, string]; comments: string[]; reviewed: boolean; post_type: "info" | "chat" }>(
+            `SELECT id, seed_key, title, body, summary_lines, comments, reviewed, post_type FROM curator_queue
               WHERE category_id = $1 AND status = 'queued' ORDER BY priority, id LIMIT 1 FOR UPDATE SKIP LOCKED`,
             [s.id],
           );
@@ -74,6 +74,7 @@ export async function runCuratorBatch(now = new Date(), opts: { generate?: Curat
             summary: item.summary_lines,
             comments: item.comments,
             reviewed: item.reviewed,
+            postType: item.post_type,
           });
           await client.query(
             `UPDATE curator_queue SET status = $2, published_post_id = $3, published_at = now() WHERE id = $1`,

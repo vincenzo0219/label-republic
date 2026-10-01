@@ -24,6 +24,8 @@ export const seedPostSchema = z.object({
   body: z.string().trim().min(100).max(20000),
   summary: z.tuple([z.string().min(2).max(120), z.string().min(2).max(120), z.string().min(2).max(120)]),
   comments: z.array(z.string().trim().min(2).max(1000)).max(5).default([]),
+  /** Sprint 45: [잡담] 대화 시작 글 — 대화 글 안전 검사(물음표로 끝남·경험담 없음·AI 댓글 없음)를 받는다 */
+  postType: z.enum(["info", "chat"]).default("info"),
   /** 사람이 사실관계를 검수했으면 검수자 이름. 없으면 "사람이 검수하지 않은 AI 글"로 게시한다 (Sprint 37부터, 안전 검사는 통과해야 함) */
   reviewedBy: z.string().trim().min(1).optional(),
 });
@@ -82,10 +84,10 @@ export async function publishSeed(client: PoolClient, categoryId: number, seed: 
 
 export async function enqueueSeed(client: PoolClient, categoryId: number, seed: SeedPost): Promise<boolean> {
   const res = await client.query(
-    `INSERT INTO curator_queue (category_id, seed_key, title, body, summary_lines, comments, priority, reviewed)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO curator_queue (category_id, seed_key, title, body, summary_lines, comments, priority, reviewed, post_type)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::post_type)
      ON CONFLICT (seed_key) DO NOTHING`,
-    [categoryId, seed.key, seed.title, seed.body, seed.summary, JSON.stringify(seed.comments), seed.priority, Boolean(seed.reviewedBy)],
+    [categoryId, seed.key, seed.title, seed.body, seed.summary, JSON.stringify(seed.comments), seed.priority, Boolean(seed.reviewedBy), seed.postType],
   );
   return (res.rowCount ?? 0) > 0;
 }
@@ -113,7 +115,7 @@ export async function importSeeds(client: PoolClient, seeds: SeedPost[], opts: I
     return { published: 0, queued: 0, skipped: seeds.length, unreviewed, unsafe: [] };
   }
   const unsafe = seeds
-    .map((s) => ({ key: s.key, problems: curatorSafetyProblems({ title: s.title, body: s.body, summary: s.summary, comments: s.comments }) }))
+    .map((s) => ({ key: s.key, problems: curatorSafetyProblems({ title: s.title, body: s.body, summary: s.summary, comments: s.comments, kind: s.postType }) }))
     .filter((u) => u.problems.length);
   const unsafeKeys = new Set(unsafe.map((u) => u.key));
   seeds = seeds.filter((s) => !unsafeKeys.has(s.key));
