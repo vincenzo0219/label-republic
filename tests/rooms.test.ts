@@ -92,4 +92,28 @@ d("room creation threshold (database)", async () => {
     const since = new Date(Date.now() - 24 * 3600_000);
     expect(await newPostCounts([{ slug: "keyboards", since }, { slug: "supplements", since }, { slug: "없는방", since }])).toEqual({ keyboards: 2 });
   });
+
+  it("shows room tools only when the room has products, numbers or label changes (Sprint 42)", async () => {
+    const { roomTools } = await import("@/lib/repo/categories");
+    const deskId = (await query<{ id: number }>("SELECT id FROM categories WHERE slug = 'deskterior'"))[0]!.id;
+    expect(await roomTools(deskId)).toEqual({ products: false, facts: false, renewals: false });
+    const post = (await query<{ id: string }>(
+      "INSERT INTO posts (category_id, nickname, pw_hash, title, body) VALUES ($1, '사람', 'x', '모니터암', '본문') RETURNING id",
+      [deskId],
+    ))[0]!.id;
+    const prod = (await query<{ id: string }>(
+      "INSERT INTO products (category_id, brand, name, norm_key) VALUES ($1, '브랜드', '모니터암', '브랜드|모니터암') RETURNING id",
+      [deskId],
+    ))[0]!.id;
+    await query("INSERT INTO post_products (post_id, product_id) VALUES ($1, $2)", [post, prod]);
+    expect(await roomTools(deskId)).toEqual({ products: true, facts: false, renewals: false });
+    await query(
+      "INSERT INTO product_facts (post_id, product_id, attribute, attr_key, value, unit, kind) VALUES ($1, $2, '허용 하중', '허용하중', 9, 'kg', 'label')",
+      [post, prod],
+    );
+    expect(await roomTools(deskId)).toMatchObject({ products: true, facts: true });
+    // 블라인드된 글뿐이면 다시 숨김
+    await query("UPDATE posts SET is_blinded = true WHERE id = $1", [post]);
+    expect(await roomTools(deskId)).toEqual({ products: false, facts: false, renewals: false });
+  });
 });

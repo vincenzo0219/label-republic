@@ -5,13 +5,9 @@ import type { TrustTier } from "@/lib/types";
 export function TrustBadge({ tier, categoryName }: { tier: TrustTier; categoryName?: string }) {
   const label = TIER_LABEL[tier];
   if (!label) return null;
-  if (tier === "pending") {
-    return (
-      <span className="badge badge-pending" title="게시 24시간 미만이거나 투표 수가 부족해 아직 검증 중입니다.">
-        ⏳ {label}
-      </span>
-    );
-  }
+  // "검증 대기"는 표시하지 않는다 (Sprint 42) — 커뮤니티 글 대부분이 여기에 머물러 모든 글에 붙어 보였다.
+  // 추천이 쌓여 상위 구간에 들면 그때 신뢰도 배지가 붙는다.
+  if (tier === "pending") return null;
   return (
     <span className={`badge badge-${tier}`} title="최근 30일 이 방 글 중 순추천 기준 구간">
       ✔ {categoryName ? `${categoryName} 신뢰도 ` : "신뢰도 "}

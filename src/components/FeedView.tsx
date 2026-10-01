@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
-import { listCategories } from "@/lib/repo/categories";
 import { listPosts } from "@/lib/repo/posts";
+import { INGREDIENT_ROOMS, listCategories, roomTools } from "@/lib/repo/categories";
 import type { Category, PostType } from "@/lib/types";
 import type { SortKey } from "@/lib/validation";
 import { latestDigest } from "@/lib/repo/report";
@@ -39,11 +39,12 @@ export async function FeedView({
 }) {
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced;
-  const [categories, feed, digest, needs] = await Promise.all([
+  const [categories, feed, digest, needs, tools] = await Promise.all([
     listCategories(),
     listPosts({ categoryId: category?.id, sort, page, type, sourced }),
     category ? latestDigest(category.id) : Promise.resolve(null),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
+    category ? roomTools(category.id) : Promise.resolve(null),
   ]);
   const showGuide = category && needs && needs.infoPosts < THIN_BOARD_POSTS;
   const basePath = category ? `/c/${encodeURIComponent(category.slug)}` : "/";
@@ -66,15 +67,22 @@ export async function FeedView({
             {category.auto_promoted_at && " · 커뮤니티 투표로 개설된 방"}
           </p>
           <div className="board-actions">
-            <Link className="btn btn-sm" href={`${basePath}/products`}>
-              🏷 제품별
-            </Link>
-            <Link className="btn btn-sm" href={`${basePath}/facts`}>
-              🧪 성분별
-            </Link>
-            <Link className="btn btn-sm" href={`${basePath}/renewals`}>
-              🔄 라벨 변경
-            </Link>
+            {/* 데이터가 있을 때만 (Sprint 42) */}
+            {tools?.products && (
+              <Link className="btn btn-sm" href={`${basePath}/products`}>
+                🏷 제품별
+              </Link>
+            )}
+            {tools?.facts && (
+              <Link className="btn btn-sm" href={`${basePath}/facts`}>
+                {INGREDIENT_ROOMS.has(category.slug) ? "🧪 성분별" : "📏 스펙별"}
+              </Link>
+            )}
+            {tools?.renewals && (
+              <Link className="btn btn-sm" href={`${basePath}/renewals`}>
+                🔄 라벨 변경
+              </Link>
+            )}
             <InterestToggle slug={category.slug} name={category.name} />
           </div>
         </div>
