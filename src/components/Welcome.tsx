@@ -53,7 +53,8 @@ export function Welcome({
       </ul>
       {stats.posts > 0 && (
         <p className="hint" style={{ margin: "0 0 8px" }}>
-          지금까지 글 {stats.posts.toLocaleString("ko-KR")}개 · 제품 {stats.products.toLocaleString("ko-KR")}개가 모였어요.
+          {/* 0인 숫자는 보여 주지 않는다 — 비어 보이는 말은 사람을 돌려보낸다 (Sprint 46) */}
+          지금까지 글 {stats.posts.toLocaleString("ko-KR")}개{stats.products > 0 ? ` · 제품 ${stats.products.toLocaleString("ko-KR")}개` : ""}가 모였어요.
         </p>
       )}
       <p className="welcome-sub">지금 열린 방</p>
