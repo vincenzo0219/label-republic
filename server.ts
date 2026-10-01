@@ -32,6 +32,7 @@ import { startSourceCheckScheduler } from "./src/lib/jobs/sources";
 import { startPushScheduler } from "./src/lib/jobs/push";
 import { startMaintenanceScheduler } from "./src/lib/jobs/maintenance";
 import { startTrustScheduler } from "./src/lib/jobs/trust";
+import { startBusinessReportScheduler } from "./src/lib/jobs/business-report";
 import { requestSnapshot, startSnapshotScheduler } from "./src/lib/jobs/snapshots";
 import { captureSnapshot, isHtmlNavigation, isRscRequest, onServerError, sendSnapshot } from "./src/lib/snapshot-http";
 import { isSnapshotRequest, SNAPSHOT_HEADER, snapshotKey, snapshotSavedAt } from "./src/lib/snapshots";
@@ -314,6 +315,7 @@ function startWorker() {
       if (config.curatorIntervalSec > 0) startCuratorScheduler(config.curatorIntervalSec * 1000);
       // 어뷰징 탐지 · 보류된 보드 승격 · 오래된 지표 정리
       if (config.maintenanceIntervalSec > 0) startMaintenanceScheduler(config.maintenanceIntervalSec * 1000);
+      if (config.businessReportIntervalSec > 0) startBusinessReportScheduler(config.businessReportIntervalSec * 1000);
       // 보드별 주간 다이제스트 (개인화 리포트용, 보드 단위 공유 캐시)
       if (config.digestIntervalSec > 0) startDigestScheduler(config.digestIntervalSec * 1000);
       // 출처 링크 생존 확인 (외부 사이트에 요청 — 사설 주소는 차단)

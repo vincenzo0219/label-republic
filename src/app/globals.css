@@ -741,3 +741,29 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .fb-env { margin: 0; padding-left: 18px; }
 .fb-note { margin: 4px 0; padding: 6px 10px; border-left: 3px solid var(--brand); background: var(--surface); font-size: 14px; }
 .fb-metoo { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; }
+
+/* 사업 지표 (Sprint 40) */
+.signal-strip { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.signal-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.signal-head h2 { margin: 0; }
+.signal-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+.verdict { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--surface); }
+.verdict h2 { font-size: 17px; }
+.verdict p { margin: 4px 0; }
+.verdict-red { border-color: var(--danger); }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin: 8px 0 4px; }
+.metric-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--surface); display: grid; gap: 4px; }
+.metric-card.sig-red { border-color: var(--danger); }
+.metric-label { font-size: 13px; font-weight: 700; }
+.metric-value { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.metric-what { font-size: 13px; margin: 2px 0 0; }
+.metric-card .hint { margin: 0; font-size: 12px; }
+.report-text { white-space: pre-wrap; font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }
+.survey-comments li { font-size: 14px; }
+
+/* PMF 설문 카드 (홈) */
+.pmf-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 18px 20px; margin: 0 0 24px; }
+.pmf-card h2 { font-size: 16px; margin: 0 0 6px; }
+.pmf-card .chips { margin: 12px 0; }
+.pmf-card textarea { width: 100%; }
+.pmf-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }

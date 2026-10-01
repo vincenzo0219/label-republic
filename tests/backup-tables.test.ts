@@ -25,6 +25,8 @@ const NOT_CHECKED: Record<string, string> = {
   source_check_runs: "배치 실행 기록",
   trust_batch_runs: "배치 실행 기록",
   visitors: "방문 통계",
+  pmf_survey: "설문 응답 (사업 지표)",
+  biz_reports: "주간 리포트 (지표에서 다시 만들 수 있음)",
   // 핵심 데이터에 딸린 작은 테이블 — 덤프·복원 자체가 실패하지 않으면 함께 복원된다
   appeals: "재검토 요청",
   board_request_votes: "보드 개설 투표",

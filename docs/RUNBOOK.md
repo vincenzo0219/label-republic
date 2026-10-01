@@ -37,6 +37,11 @@
 4. `./backups`에 오늘 날짜 백업과 `.json`이 있는지, 원격 복사가 됐는지.
 5. 디스크 사용량(DB·업로드·백업 볼륨) 80% 미만인지.
 
+**매주 (월요일)**: `/admin/business` (Sprint 40) — 사업 건강 신호등과 주간 리포트. 지표 정의·기준은 페이지에 같이 적혀 있습니다.
+- 🔴 가 있으면 그 지표부터: 4주 잔존·고착도·"매우 아쉽다"는 **PMF**, 참여 전환·살아 있는 방은 **방향**, 핵심 작성자 유지·24시간 응답은 **존폐**, 주간 성장·입소문은 **성장** 신호입니다.
+- ⚪ 는 표본이 적어 판단을 미룬 것입니다. 오픈 초기에는 대부분 ⚪ — 숫자보다 그래프가 오르는지를 보세요.
+- 주간 리포트 메일을 받으려면 [Resend](https://resend.com) 가입 → Domains 에서 `nobangjang.com` 추가(Cloudflare 자동 설정) → API Keys 에서 키 발급 → 서버 `.env` 에 `RESEND_API_KEY=…` 와 `REPORT_EMAIL_FROM=노방장 리포트 <report@nobangjang.com>` 를 넣고 `docker compose up -d app`. 받는 주소는 `REPORT_EMAIL_TO`(없으면 `CONTACT_EMAIL`). 키가 없으면 `ALERT_WEBHOOK_URL` 로, 둘 다 없으면 `/admin/business` 에만 남습니다.
+
 ## 3. 백업·복구
 
 ### 백업
