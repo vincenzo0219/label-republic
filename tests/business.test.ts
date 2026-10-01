@@ -194,6 +194,26 @@ d("business metrics (database)", async () => {
     expect(m.contributors28d).toBe(6); // a b c d e y
   });
 
+  it("counts recent visitors over the same window as contributors, including today (launch review)", async () => {
+    await query("DELETE FROM page_views; DELETE FROM visitors");
+    // 론칭 첫날: 오늘만 온 방문자 2명 — 참여자와 같은 기간으로 세야 "방문자 0명 중 참여자 N명"이 되지 않는다
+    await visit("t1", [today]);
+    await visit("t2", [today]);
+    const m = await biz.getBusinessMetrics({ fresh: true });
+    expect(m.visitors28d).toBe(2);
+    expect(m.values.participation.sample).toBe(2);
+    // 고착도는 여전히 어제까지 28일로 (오늘은 덜 찼으므로)
+    expect(m.values.stickiness.sample).toBe(0);
+  });
+
+  it("hides the welcome from the second visit day and reports survey eligibility in one query (launch review)", async () => {
+    await visit("w1", [today]);
+    expect(await survey.visitorHomeState(vh("w1"))).toEqual({ visitDays: 1, surveyOk: false });
+    await query("UPDATE visitors SET visit_days = 3 WHERE visitor_hash = $1", [vh("w1")]);
+    expect(await survey.visitorHomeState(vh("w1"))).toEqual({ visitDays: 3, surveyOk: true });
+    expect(await survey.visitorHomeState(vh("nobody"))).toEqual({ visitDays: 0, surveyOk: false });
+  });
+
   it("takes one anonymous survey answer per eligible visitor and masks contact details", async () => {
     await visit("s1", [addDays(today, -3)]);
     expect(await survey.surveyEligible(vh("s1"))).toBe(false);

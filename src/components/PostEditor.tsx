@@ -266,6 +266,10 @@ export function PostEditor(props: Props) {
   }
 
   const stale = summary !== null && summaryFor !== body;
+  // 3줄 요약은 정보 글에만 — 잡담·정모는 요약 단계 없이 바로 올린다 (론칭 검수)
+  const needsSummary = editing ? props.initial.summary !== null : postType === "info";
+  // 출처·제품 태그도 정보 글 도구. 잡담·정모에서는 이미 채운 값이 있을 때만 보인다
+  const factTools = editing || postType === "info" || sources.length > 0 || tagged.products.length > 0;
   const summaryChanged = editing && JSON.stringify(summary) !== JSON.stringify(props.initial.summary);
 
   async function generate() {
@@ -293,14 +297,14 @@ export function PostEditor(props: Props) {
     e.preventDefault();
     setError(null);
     if (!editing && !category) {
-      setError("카테고리를 선택해주세요.");
+      setError("방을 선택해주세요.");
       return;
     }
     if (!editing && !postType) {
-      setError("글 유형([정보]/[잡담]/[정모 제안])을 선택해주세요.");
+      setError("글 유형(정보·잡담·정모 제안)을 골라주세요.");
       return;
     }
-    if (!editing && !summary) {
+    if (!editing && needsSummary && !summary) {
       // 등록 전 반드시 AI 요약을 검수하도록 먼저 미리보기를 만든다.
       await generate();
       return;
@@ -339,7 +343,8 @@ export function PostEditor(props: Props) {
     try {
       if (props.mode === "create") {
         const payload = {
-          category, postType, nickname, pw, title, body, summary, summaryToken: token,
+          category, postType, nickname, pw, title, body,
+          ...(needsSummary && summary ? { summary, summaryToken: token } : {}),
           ...(imageRefs.length ? { images: imageRefs } : {}),
           ...(sourceRefs.length ? { sources: sourceRefs } : {}),
           ...(tagRefs.products.length ? tagRefs : {}),
@@ -400,8 +405,8 @@ export function PostEditor(props: Props) {
       )}
       {props.mode === "create" ? (
         <div className="field">
-          <div className="steps"><b>1</b> 카테고리 선택</div>
-          <div className="chips" role="radiogroup" aria-label="카테고리">
+          <div className="steps"><b>1</b> 방 선택</div>
+          <div className="chips" role="radiogroup" aria-label="방">
             {props.categories.map((c) => (
               <button type="button" key={c.slug} className="chip" aria-pressed={category === c.slug} onClick={() => setCategory(c.slug)}>
                 {c.name}
@@ -410,7 +415,7 @@ export function PostEditor(props: Props) {
           </div>
         </div>
       ) : (
-        <p className="hint">카테고리: {props.categoryName}</p>
+        <p className="hint">방: {props.categoryName}</p>
       )}
 
       {!editing && (
@@ -453,10 +458,14 @@ export function PostEditor(props: Props) {
 
       <div className="field">
         <div className="steps"><b>2</b> 본문 작성</div>
-        <input className="input" placeholder="제목 (예: 마그네슘 비스글리시네이트 3종 원소 함량 비교)" value={title} maxLength={120} required
+        <input className="input" placeholder={postType === "info" ? "제목 (예: 마그네슘 비스글리시네이트 3종 원소 함량 비교)" : "제목 (예: 다들 입문 키보드 뭐였어요?)"} value={title} maxLength={120} required
           onChange={(e) => setTitle(e.target.value)} />
         <textarea className="textarea" value={body} maxLength={20000} required
-          placeholder={"성분표, 함량, 측정값 등 사실 위주로 적어주세요.\n출처(라벨 사진 설명, 제조사 스펙 링크)를 남기면 신뢰도가 올라갑니다.\n'치료', '효능 보장' 같은 단정 표현은 피해주세요."}
+          placeholder={
+            postType === "info"
+              ? "성분표, 함량, 측정값 등 사실 위주로 적어주세요.\n출처(라벨 사진 설명, 제조사 스펙 링크)를 남기면 신뢰도가 올라갑니다.\n'치료', '효능 보장' 같은 단정 표현은 피해주세요."
+              : "질문·경험·추천·사진 무엇이든 편하게 적어주세요.\n전화번호·주소 같은 개인 연락처는 적지 말아 주세요."
+          }
           onChange={(e) => setBody(e.target.value)} />
         <span className="hint">{body.length.toLocaleString()} / 20,000</span>
       </div>
@@ -491,6 +500,8 @@ export function PostEditor(props: Props) {
         )}
       </div>
 
+      {factTools && (
+      <>
       <div className="field">
         <div className="steps"><b>2-3</b> 출처 (선택)</div>
         <SourceEditor value={sources} onChange={setSources} body={body} />
@@ -511,7 +522,10 @@ export function PostEditor(props: Props) {
           onChange={(products, facts) => setTagged({ products, facts })}
         />
       </div>
+      </>
+      )}
 
+      {needsSummary && (
       <div className="field" ref={summaryRef}>
         <div className="steps"><b>3</b> AI 3줄 요약 미리보기 · 직접 수정 가능</div>
         {summary ? (
@@ -541,6 +555,7 @@ export function PostEditor(props: Props) {
           </button>
         )}
       </div>
+      )}
 
       <div className="row">
         {!editing && (
@@ -555,7 +570,7 @@ export function PostEditor(props: Props) {
       {error && <p className="error">{error}</p>}
       <div className="sticky-submit">
         <button className="btn btn-primary" disabled={saving || summarizing || images.some((i) => i.status === "uploading")}>
-          {saving ? "저장 중…" : editing ? "수정 완료" : summary ? "등록하기" : "요약 확인 후 등록"}
+          {saving ? "저장 중…" : editing ? "수정 완료" : summary || !needsSummary ? "등록하기" : "요약 확인 후 등록"}
         </button>
       </div>
     </form>

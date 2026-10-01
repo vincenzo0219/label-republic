@@ -178,7 +178,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             <thead>
               <tr>
                 <th>방</th>
-                <th className="num">사람 글</th>
+                <th className="num" title="AI 큐레이터가 물러나는 기준 — 사람이 쓴 정보 글">사람 정보글</th>
                 <th className="num">AI 글</th>
                 <th className="num">댓글</th>
                 <th className="num">글 조회</th>

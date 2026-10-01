@@ -194,7 +194,12 @@ export default async function PostPage({ params }: Props) {
         </div>
       )}
 
-      {post.is_ai_curated && (
+      {post.is_ai_curated && post.post_type === "chat" && (
+        <div className="notice" style={{ marginTop: 12 }}>
+          🤖 AI 큐레이터가 이야기를 열려고 올린 질문이에요. AI는 댓글을 달지 않아요 — 여러분의 경험을 편하게 들려주세요.
+        </div>
+      )}
+      {post.is_ai_curated && post.post_type !== "chat" && (
         <div className="notice" style={{ marginTop: 12 }}>
           🤖 AI 큐레이터가 작성한 정보 글입니다.{" "}
           {post.ai_reviewed ? "사람이 사실관계를 확인했습니다." : <b>사람이 검수하지 않았습니다.</b>} 수치는 제품·시기에 따라 다를 수 있으니 실제 라벨·스펙을 확인하세요.
@@ -237,6 +242,8 @@ export default async function PostPage({ params }: Props) {
         <ReportButton postId={post.id} blindAt={rules.post_blind_reports} />
       </div>
 
+      {/* 잡담에는 고칠 "사실"이 없으니 정정 제안 대신 댓글로 (이미 달린 정정은 보인다) */}
+      {(post.post_type !== "chat" || corrections.items.length > 0 || corrections.hidden > 0) && (
       <CorrectionsPanel
         postId={post.id}
         facts={factLabels}
@@ -244,8 +251,9 @@ export default async function PostPage({ params }: Props) {
         hasAuthor={!post.is_ai_curated}
         rules={{ supportScore: rules.correction_support_score, supportRatio: rules.correction_support_ratio, hideReports: rules.correction_hide_reports }}
       />
+      )}
 
-      <LiveComments postId={post.id} initial={comments} />
+      <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} />
     </article>
   );
 }

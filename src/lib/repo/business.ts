@@ -87,16 +87,22 @@ async function weeksSeries(currentWeek: string, weeks = 8): Promise<WeekRow[]> {
   );
 }
 
-async function stickiness(today: string): Promise<{ dau: number; mau: number }> {
+/**
+ * mau: 고착도(DAU/MAU)용 — 오늘은 아직 덜 찼으므로 어제까지 28일.
+ * recent: 참여 전환율·"최근 28일 방문자"용 — 참여자(오늘 포함 28일)와 같은 기간으로 센다.
+ * 같은 기간이 아니면 론칭 첫날 "방문자 0명 중 참여자 3명"처럼 보인다 (론칭 검수).
+ */
+async function stickiness(today: string): Promise<{ dau: number; mau: number; recent: number }> {
   const from = addDays(today, -28);
-  const to = addDays(today, -1); // 오늘은 아직 덜 찼으므로 어제까지 28일
-  const rows = await query<{ total: number; mau: number }>(
+  const to = addDays(today, -1);
+  const rows = await query<{ total: number; mau: number; recent: number }>(
     `SELECT coalesce(sum(n), 0)::int AS total,
-            (SELECT count(DISTINCT visitor_hash)::int FROM page_views WHERE day BETWEEN $1::date AND $2::date) AS mau
+            (SELECT count(DISTINCT visitor_hash)::int FROM page_views WHERE day BETWEEN $1::date AND $2::date) AS mau,
+            (SELECT count(DISTINCT visitor_hash)::int FROM page_views WHERE day BETWEEN $3::date AND $4::date) AS recent
        FROM (SELECT count(DISTINCT visitor_hash) AS n FROM page_views WHERE day BETWEEN $1::date AND $2::date GROUP BY day) d`,
-    [from, to],
+    [from, to, addDays(today, -27), today],
   );
-  return { dau: rows[0]!.total / 28, mau: rows[0]!.mau };
+  return { dau: rows[0]!.total / 28, mau: rows[0]!.mau, recent: rows[0]!.recent };
 }
 
 async function contributors(): Promise<{ c28: number; new7: number }> {
@@ -245,7 +251,7 @@ async function computeBusinessMetrics(nowArg?: Date): Promise<BusinessMetrics> {
     retention: ret,
     stickiness: { value: ratio(st.dau, st.mau), sample: st.mau },
     pmf: { value: ratio(sv.very, sv.total), sample: sv.total },
-    participation: { value: ratio(ct.c28, st.mau), sample: st.mau },
+    participation: { value: ratio(ct.c28, st.recent), sample: st.recent },
     aliveRooms: { value: ratio(alive, rm.length), sample: rm.length },
     coreRetention: { value: ratio(cr.retained, cr.prevCore), sample: cr.prevCore },
     responsiveness: { value: ratio(rs.answered, rs.total), sample: rs.total },
@@ -266,7 +272,7 @@ async function computeBusinessMetrics(nowArg?: Date): Promise<BusinessMetrics> {
     cohorts: co,
     weeks: wk,
     rooms: rm,
-    visitors28d: st.mau,
+    visitors28d: st.recent,
     contributors28d: ct.c28,
     newContributors7d: ct.new7,
     coreThisWeek: cr.thisWeek,
@@ -274,7 +280,7 @@ async function computeBusinessMetrics(nowArg?: Date): Promise<BusinessMetrics> {
     roomRequests: rr,
     sources28d: src,
     survey: sv,
-    cost: { monthlyUsd: monthly, mau: st.mau, perMauUsd: ratio(monthly, st.mau), perContributorUsd: ratio(monthly, ct.c28) },
+    cost: { monthlyUsd: monthly, mau: st.recent, perMauUsd: ratio(monthly, st.recent), perContributorUsd: ratio(monthly, ct.c28) },
   };
   g.__bizMetrics = { at: Date.now(), value };
   return value;

@@ -19,7 +19,7 @@ export default async function BoardsPage() {
         필요한 인원은 최근 30일 동안 활동한 사람 수의 {Math.round(BOARD_THRESHOLD_ACTIVE_RATIO * 100)}%예요 (최소 {BOARD_THRESHOLD_FLOOR}명, 최대{" "}
         {t.cap}명 — 상한은 <a href="/rules">커뮤니티 규칙</a> 투표로 정합니다). 사람이 적을 때는 쉽게 열리고, 커지면 비슷한 방이 흩어지지 않게 조금씩 늘어납니다.
       </p>
-      <BoardRequests initial={requests} threshold={t.needed} />
+      <BoardRequests initial={requests} threshold={t.needed} minAgeHours={config.boardPromotionMinAgeHours} />
     </>
   );
 }

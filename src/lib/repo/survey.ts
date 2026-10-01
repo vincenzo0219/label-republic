@@ -8,12 +8,20 @@ export const PMF_MIN_VISIT_DAYS = 3;
 export const PMF_COOKIE = "lr_pmf";
 
 export async function surveyEligible(visitorHash: string): Promise<boolean> {
-  const rows = await query<{ ok: boolean }>(
-    `SELECT v.visit_days >= $2 AND NOT EXISTS (SELECT 1 FROM pmf_survey s WHERE s.visitor_hash = v.visitor_hash) AS ok
+  return (await visitorHomeState(visitorHash)).surveyOk;
+}
+
+/**
+ * 홈에 무엇을 보여 줄지: 방문한 날 수와 설문 대상 여부를 한 번에 (론칭 검수).
+ * 첫 방문 안내는 "닫기"를 누르지 않아도 둘째 날부터 숨긴다 — 안 닫는 사람에게는 매일 같은 안내가 뜨고 설문도 영영 안 보였다.
+ */
+export async function visitorHomeState(visitorHash: string): Promise<{ visitDays: number; surveyOk: boolean }> {
+  const rows = await query<{ visit_days: number; ok: boolean }>(
+    `SELECT v.visit_days, v.visit_days >= $2 AND NOT EXISTS (SELECT 1 FROM pmf_survey s WHERE s.visitor_hash = v.visitor_hash) AS ok
        FROM visitors v WHERE v.visitor_hash = $1`,
     [visitorHash, PMF_MIN_VISIT_DAYS],
   );
-  return rows[0]?.ok ?? false;
+  return { visitDays: rows[0]?.visit_days ?? 0, surveyOk: rows[0]?.ok ?? false };
 }
 
 export async function submitSurvey(visitorHash: string, answer: 1 | 2 | 3, comment: string | undefined): Promise<{ saved: boolean }> {

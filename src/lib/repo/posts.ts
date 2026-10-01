@@ -332,8 +332,9 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
   if (input.summary) input.summary = { ...input.summary, lines: input.summary.lines.map((l) => maskPersonalInfo(l).text) as typeof input.summary.lines };
   const postType: PostType = input.postType ?? "info";
   if (postType === "meetup" && !input.meetup) throw new HttpError(400, "invalid_input", "정모 일시·장소·인원을 입력해주세요.");
-  const summary: ResolvedSummary =
-    input.summary ?? { ...(await generateSummary(input.title, input.body)), isAuthorEdited: false };
+  // 잡담·정모 글은 3줄 요약 없이 바로 올린다 — 짧은 이야기를 요약하면 오히려 어색하고 글쓰기만 번거로워진다 (론칭 검수)
+  const summary: ResolvedSummary | null =
+    input.summary ?? (postType === "info" ? { ...(await generateSummary(input.title, input.body)), isAuthorEdited: false } : null);
   const pwHash = await hashPin(input.pin);
   const spamCut = await getRule("spam_suppress_score");
   // 분명한 욕설·혐오·개인정보는 처음부터 가려진 채 올라간다 (AI 자동 운영, Sprint 37)
@@ -365,7 +366,7 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
         ...hideParams(abuse),
       ],
     );
-    await insertSummary(client, rows[0]!.id, summary);
+    if (summary) await insertSummary(client, rows[0]!.id, summary);
     if (input.images?.length) await setPostImages(client, rows[0]!.id, input.images);
     if (input.sources?.length) await setPostSources(client, rows[0]!.id, input.sources);
     if (input.products?.length) {
