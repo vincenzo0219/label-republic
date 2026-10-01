@@ -125,6 +125,10 @@ docker compose logs -f app proxy     # "migrations up to date", Caddy 의 "certi
 ## 문제가 생기면
 
 - **인증서를 못 받음** (`docker compose logs proxy` 에 `challenge failed`): DNS 레코드가 서버 IP 를 가리키는지, 회색 구름인지, 서버 방화벽에 80·443 이 열렸는지 확인합니다. DNS 를 막 바꿨다면 몇 분 기다린 뒤 `docker compose restart proxy`.
+- **시작 스크립트가 중간에 멈춤** (`docker: command not found`, 설치 기록 끝에 "설치 끝" 이 없음): Lightsail "SSH 로 연결" 창에서 아래를 붙여 넣으면 처음부터 다시 돕니다 (`.env` 가 이미 있으면 그대로 둡니다). 연락처는 실제 주소로:
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/vincenzo0219/label-republic/main/deploy/lightsail-launch.sh | sed 's|^CONTACT_EMAIL=.*|CONTACT_EMAIL="contact@nobangjang.com"|' > /tmp/launch.sh && sudo nohup bash /tmp/launch.sh >/dev/null 2>&1 & sleep 3; sudo tail -f /var/log/nobangjang-setup.log
+  ```
 - **빌드 중 멈춤·메모리 부족**: 메모리 2GB 서버라면 스왑을 2GB 만들고 다시 빌드합니다
   (`sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`).
 - **앱이 시작하지 않음** (`docker compose logs app` 에 환경변수 오류): 메시지에 나온 `.env` 값을 고치고 `docker compose up -d app`.
