@@ -6,6 +6,7 @@ import { WELCOME_COOKIE } from "@/lib/onboarding";
 import { listCategories } from "@/lib/repo/categories";
 import { siteStats } from "@/lib/repo/onboarding";
 import { getBoardThreshold } from "@/lib/repo/board-requests";
+import { ChatStarters } from "@/components/ChatStarters";
 import { PmfSurvey } from "@/components/PmfSurvey";
 import { RoomOpenedNotice } from "@/components/RoomOpenedNotice";
 import { VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
@@ -54,6 +55,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {askSurvey && <PmfSurvey cookieName={PMF_COOKIE} />}
       <OpenVotesBanner />
       <RenewalsBanner />
+      {!sp.page && !sp.type && sp.sourced !== "1" && <ChatStarters />}
       <FeedView sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />
     </>
   );
