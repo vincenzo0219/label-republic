@@ -781,3 +781,19 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .room-opened { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 16px; border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--line)); background: color-mix(in srgb, var(--brand) 8%, var(--surface)); color: var(--text); }
 .room-opened p { margin: 0; flex: 1 1 240px; }
 .room-opened a { font-weight: 700; text-decoration: underline; }
+
+/* Sprint 47: 첫 화면에 글이 보이게 — 짧은 환영 + 잡담 질문 */
+.welcome-compact { padding: 14px 16px; margin-bottom: 14px; }
+.welcome-line { margin: 6px 0 0; font-size: 14px; line-height: 1.55; }
+.welcome-more { margin-top: 8px; font-size: 13px; }
+.welcome-more > summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.welcome-more[open] > summary { margin-bottom: 4px; }
+.chat-starters { border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line)); border-radius: var(--radius); background: var(--surface); padding: 12px 14px; margin: 0 0 18px; }
+.chat-starters h2 { font-size: 15px; margin: 0 0 6px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.chat-starters h2 span { font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.chat-starters ul { list-style: none; margin: 0; padding: 0; }
+.chat-starters li + li { border-top: 1px solid var(--line); }
+.chat-starters a { display: grid; gap: 2px; padding: 10px 0; color: inherit; text-decoration: none; }
+.chat-starter-title { font-weight: 700; font-size: 15px; line-height: 1.4; }
+.chat-starter-meta { font-size: 12.5px; color: var(--muted); }
+.chat-starter-meta b { color: var(--brand); margin-left: 4px; }

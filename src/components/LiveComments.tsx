@@ -185,7 +185,7 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
   }
 
   return (
-    <section aria-label="댓글">
+    <section id="comments" aria-label="댓글">
       <h2 className="section-title">
         댓글 {comments.length}
         <span className={`live-dot${live ? " on" : ""}`} title={live ? "실시간 연결됨" : "연결 중…"} />
