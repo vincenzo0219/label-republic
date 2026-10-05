@@ -45,8 +45,8 @@ describe("shipped seed content", () => {
     expect([...byBoard.keys()].sort()).toEqual(["deskterior", "keyboards", "perfume-audio", "pet-food", "supplements"]);
     for (const phases of byBoard.values()) expect(phases).toEqual(expect.arrayContaining(["drip", "launch"]));
     // 광고 랜딩용 질문 글 (Sprint 47): 광고 문구와 같은 질문이어야 들어온 사람이 바로 답한다
-    const adHooks = ["chat-audio-blind-price", "chat-petfood-read-label", "chat-desk-cable-photo"];
-    expect(chat.filter((s) => adHooks.includes(s.key)).map((s) => [s.category, s.phase])).toEqual([["perfume-audio", "launch"], ["pet-food", "launch"], ["deskterior", "launch"]]);
+    const adHooks = ["chat-audio-blind-price", "chat-petfood-read-label", "chat-desk-cable-photo", "chat-audio-codec"];
+    expect(chat.filter((s) => adHooks.includes(s.key)).map((s) => [s.category, s.phase])).toEqual([["perfume-audio", "launch"], ["pet-food", "launch"], ["deskterior", "launch"], ["perfume-audio", "launch"]]);
   });
 
   it("has unique keys, 2–3 comments on launch info posts and none on conversation starters", () => {
