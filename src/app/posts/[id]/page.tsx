@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { abuseLabel } from "@/lib/abuse-labels";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AppealBox } from "@/components/AppealBox";
 import { CorrectionsPanel } from "@/components/CorrectionsPanel";
+import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { Gallery } from "@/components/Gallery";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
@@ -22,7 +23,10 @@ import { VoteButtons } from "@/components/VoteButtons";
 import { WatchToggle } from "@/components/WatchToggle";
 import { config } from "@/lib/config";
 import { imageUrl } from "@/lib/media-url";
-import { fingerprint } from "@/lib/fingerprint";
+import { CRAWLER_HEADER, fingerprint } from "@/lib/fingerprint";
+import { VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
+import { WELCOME_COOKIE } from "@/lib/onboarding";
+import { visitorHomeState } from "@/lib/repo/survey";
 import { timeAgo } from "@/lib/format";
 import { listComments } from "@/lib/repo/comments";
 import { listCorrections } from "@/lib/repo/corrections";
@@ -163,8 +167,17 @@ export default async function PostPage({ params }: Props) {
     })),
   };
 
+  // 첫 방문(홈 안내를 닫지 않았고 둘째 날 전)이면 글 위에 한 줄 소개 — 홈과 같은 기준 (Sprint 48)
+  const [hdrs, jar] = await Promise.all([headers(), cookies()]);
+  const vid = jar.get(VISITOR_COOKIE)?.value;
+  const firstVisit =
+    hdrs.get(CRAWLER_HEADER) !== "1" &&
+    !jar.has(WELCOME_COOKIE) &&
+    (!vid || !/^[0-9a-f-]{36}$/.test(vid) || ((await visitorHomeState(visitorHash(vid)).catch(() => null))?.visitDays ?? 0) < 2);
+
   return (
     <article>
+      {firstVisit && <FirstVisitIntro roomSlug={post.category.slug} roomName={post.category.name} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <header className="post-head">
         <div className="card-top">
@@ -217,7 +230,8 @@ export default async function PostPage({ params }: Props) {
 
       {post.meetup && <RsvpPanel postId={post.id} initial={post.meetup} participants={participants} attending={attending} />}
 
-      {post.summary && (
+      {/* 잡담은 짧은 질문이라 요약이 본문을 밀어내기만 한다 (Sprint 48) */}
+      {post.summary && post.post_type !== "chat" && (
         <section className="ai-card" aria-label="3줄 요약">
           <h2>
             📌 3줄 요약
