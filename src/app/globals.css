@@ -104,6 +104,8 @@ main { padding: 20px 0 64px; }
   border: 1px solid var(--line); background: var(--surface); color: var(--muted);
 }
 .tab-add { border-style: dashed; color: var(--brand); font-weight: 600; }
+/* 사람 이야기가 한동안 없는 방 — 뒤로 보내고 한 단계 약하게 */
+.tab-quiet { background: transparent; border-style: dashed; font-size: 13px; }
 .page-title { font-size: 22px; margin: 4px 0 10px; }
 .lead { margin: 0 0 10px; line-height: 1.65; }
 .tab[aria-current="page"], .tab[aria-current="true"] { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 700; }
@@ -436,6 +438,8 @@ select.input-sm { flex: 0 0 auto; }
 /* Sprint 14: 제품 태그·수치·비교 */
 .chip[aria-checked="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); font-weight: 700; }
 .chip-sm { padding: 4px 10px; font-size: 13px; }
+/* 사람 이야기가 한동안 없는 방 — 뒤로, 작게 (색은 --muted 로 대비 유지) */
+.chip-quiet { color: var(--muted); border-style: dashed; }
 .card-products { font-size: 13px; color: var(--muted); margin: -2px 0 8px; overflow-wrap: anywhere; }
 .product-chips { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .product-chip {
