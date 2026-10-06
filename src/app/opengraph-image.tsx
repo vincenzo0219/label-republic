@@ -5,7 +5,7 @@ export const alt = "노방장 — 방장 없는 덕후 커뮤니티";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const BOARDS = ["영양제 성분분석", "기계식 키보드&스위치", "데스크테리어", "반려동물 사료 성분분석", "향수·오디오 팩트체크"];
+const BOARDS = ["이어폰·오디오 덕후방", "영양제 성분분석", "기계식 키보드&스위치", "데스크테리어", "반려동물 사료 성분분석"];
 
 export default async function Image() {
   return new ImageResponse(

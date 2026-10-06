@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { getBoardThreshold } from "@/lib/repo/board-requests";
+import { activeRoomsFirst, quietRoomSlugs } from "@/lib/repo/categories";
 import { listPosts } from "@/lib/repo/posts";
 
 /**
  * 홈 맨 위 "💬 지금 이야기해요" (Sprint 47). 광고로 처음 온 사람 85명 중 글을 연 사람이 2명뿐이었다 —
  * 첫 화면이 안내 글로 꽉 차 글이 하나도 안 보였다. 답하기 쉬운 잡담 질문 몇 개를 신뢰도순 피드보다 먼저 보여 준다.
+ * 사람이 모인 방의 질문을 먼저 (론칭 후: 빈 방 질문은 답이 안 달려 첫인상이 썰렁했다).
  */
 export async function ChatStarters() {
-  const [{ items }, threshold] = await Promise.all([
-    listPosts({ sort: "latest", type: "chat", page: 1, pageSize: 3 }).catch(() => ({ items: [] })),
+  const [{ items: recent }, threshold, quiet] = await Promise.all([
+    listPosts({ sort: "latest", type: "chat", page: 1, pageSize: 12 }).catch(() => ({ items: [] })),
     getBoardThreshold().catch(() => null),
+    quietRoomSlugs().catch(() => new Set<string>()),
   ]);
+  const items = activeRoomsFirst(recent.map((p) => ({ ...p, slug: p.category.slug })), quiet).slice(0, 3);
   if (items.length === 0) return null;
   return (
     <section className="chat-starters" aria-labelledby="chat-starters-h">

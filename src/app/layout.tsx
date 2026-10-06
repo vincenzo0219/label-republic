@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(config.siteUrl),
   title: { default: "노방장 — 방장 없는 덕후 커뮤니티", template: "%s | 노방장" },
   description:
-    "노방장 — 방장 없는 덕후 커뮤니티. 가입 없이 쓰고, 누구나 방을 만들고, 규칙은 이용자 투표로 정합니다. 영양제·키보드·데스크테리어·반려동물·향수·오디오 등 관심사별 방에서 완장질 없이 이야기해요.",
+    "노방장 — 방장 없는 덕후 커뮤니티. 가입 없이 쓰고, 누구나 방을 만들고, 규칙은 이용자 투표로 정합니다. 이어폰·오디오·영양제·키보드·데스크테리어·반려동물 등 관심사별 방에서 완장질 없이 이야기해요.",
   applicationName: "노방장",
   // iPhone 홈 화면에 추가했을 때 앱처럼 (푸시 알림도 이 경우에만 받을 수 있다)
   appleWebApp: { capable: true, title: "노방장", statusBarStyle: "default" },

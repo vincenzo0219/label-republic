@@ -3,7 +3,7 @@ import { FeedView } from "@/components/FeedView";
 import { Welcome } from "@/components/Welcome";
 import { CRAWLER_HEADER } from "@/lib/fingerprint";
 import { WELCOME_COOKIE } from "@/lib/onboarding";
-import { listCategories } from "@/lib/repo/categories";
+import { activeRoomsFirst, listCategories, quietRoomSlugs } from "@/lib/repo/categories";
 import { siteStats } from "@/lib/repo/onboarding";
 import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { ChatStarters } from "@/components/ChatStarters";
@@ -30,7 +30,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const firstVisit = !crawler && !jar.has(WELCOME_COOKIE) && !sp.page && (visitor?.visitDays ?? 0) < 2;
   // PMF 설문 (Sprint 40): 첫 방문 안내가 끝난 사람 중 3일 이상 온 사람에게만, 답하거나 닫기 전까지
   const askSurvey = !crawler && !firstVisit && !sp.page && !jar.has(PMF_COOKIE) && !!visitor?.surveyOk;
-  const [boards, stats, roomT] = firstVisit ? await Promise.all([listCategories(), siteStats(), getBoardThreshold()]) : [[], null, null];
+  // 이야기가 오가는 방을 먼저, 조용한 방은 뒤에 작게 (론칭 후)
+  const [boards, stats, roomT, quiet] = firstVisit
+    ? await Promise.all([listCategories(), siteStats(), getBoardThreshold(), quietRoomSlugs().catch(() => new Set<string>())])
+    : [[], null, null, new Set<string>()];
   // 검색엔진 사이트 이름·사이트 내 검색창(SearchAction)용 구조화 데이터
   const jsonLd = {
     "@context": "https://schema.org",
@@ -49,7 +52,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       {firstVisit && stats && roomT && (
-        <Welcome boards={boards.map((b) => ({ slug: b.slug, name: b.name }))} stats={stats} roomVotes={roomT.needed} />
+        <Welcome boards={activeRoomsFirst(boards, quiet).map((b) => ({ slug: b.slug, name: b.name, quiet: quiet.has(b.slug) }))} stats={stats} roomVotes={roomT.needed} />
       )}
       {!crawler && <RoomOpenedNotice />}
       {askSurvey && <PmfSurvey cookieName={PMF_COOKIE} />}

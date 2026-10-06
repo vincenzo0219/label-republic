@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { listPosts } from "@/lib/repo/posts";
-import { INGREDIENT_ROOMS, listCategories, roomTools } from "@/lib/repo/categories";
+import { INGREDIENT_ROOMS, listCategories, quietRoomSlugs, roomTools } from "@/lib/repo/categories";
 import type { Category, PostType } from "@/lib/types";
 import type { SortKey } from "@/lib/validation";
 import { latestDigest } from "@/lib/repo/report";
@@ -39,12 +39,13 @@ export async function FeedView({
 }) {
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced;
-  const [categories, feed, digest, needs, tools] = await Promise.all([
+  const [categories, feed, digest, needs, tools, quiet] = await Promise.all([
     listCategories(),
     listPosts({ categoryId: category?.id, sort, page, type, sourced }),
     category ? latestDigest(category.id) : Promise.resolve(null),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? roomTools(category.id) : Promise.resolve(null),
+    quietRoomSlugs().catch(() => new Set<string>()),
   ]);
   const showGuide = category && needs && needs.infoPosts < THIN_BOARD_POSTS;
   const basePath = category ? `/c/${encodeURIComponent(category.slug)}` : "/";
@@ -59,7 +60,7 @@ export async function FeedView({
   return (
     <>
       <h1 className="sr-only">{category ? `${category.name} 방` : "노방장 — 방장 없는 덕후 커뮤니티"}</h1>
-      <CategoryTabs categories={categories} active={category?.slug} />
+      <CategoryTabs categories={categories} active={category?.slug} quiet={[...quiet]} />
       {category && (
         <div className="board-head">
           <p className="hint" style={{ margin: 0 }}>

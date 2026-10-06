@@ -13,7 +13,8 @@ export function Welcome({
   stats,
   roomVotes,
 }: {
-  boards: { slug: string; name: string }[];
+  /** quiet: 사람 이야기가 한동안 없는 방 — 뒤에 작게 */
+  boards: { slug: string; name: string; quiet?: boolean }[];
   stats: { posts: number; products: number };
   /** 지금 새 방을 여는 데 필요한 동의 수 (Sprint 39) */
   roomVotes: number;
@@ -69,8 +70,9 @@ export function Welcome({
         <p className="welcome-sub">지금 열린 방</p>
         <nav className="chips" aria-label="방 둘러보기">
           {boards.map((b) => (
-            <Link key={b.slug} className="chip" href={`/c/${encodeURIComponent(b.slug)}`}>
+            <Link key={b.slug} className={b.quiet ? "chip chip-sm chip-quiet" : "chip"} href={`/c/${encodeURIComponent(b.slug)}`}>
               {b.name}
+              {b.quiet && <span className="sr-only"> (아직 조용한 방)</span>}
             </Link>
           ))}
         </nav>

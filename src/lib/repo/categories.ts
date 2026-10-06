@@ -7,6 +7,36 @@ export async function listCategories(): Promise<Category[]> {
   return query<Category>(`SELECT ${COLS} FROM categories ORDER BY sort_order, id`);
 }
 
+/** 사람(🤖 아닌) 글·댓글이 이 기간 동안 없으면 "조용한 방" — 홈 탭·첫 방문 안내에서 뒤로 보낸다 */
+export const QUIET_ROOM_DAYS = 14;
+
+/**
+ * 조용한 방의 slug. 투표로 막 열린 방(7일 이내)은 사람을 기다리는 중이라 빼 준다.
+ * 방이 몇 개 안 되고 방마다 EXISTS 두 번이라 가볍다.
+ */
+export async function quietRoomSlugs(): Promise<Set<string>> {
+  const rows = await query<{ slug: string; quiet: boolean }>(
+    `SELECT c.slug,
+            (c.auto_promoted_at IS NULL OR c.auto_promoted_at < now() - interval '7 days')
+            AND NOT EXISTS (SELECT 1 FROM posts p
+                             WHERE p.category_id = c.id AND NOT p.is_ai_curated AND NOT p.is_blinded
+                               AND p.created_at > now() - make_interval(days => $1))
+            AND NOT EXISTS (SELECT 1 FROM comments m JOIN posts p ON p.id = m.post_id
+                             WHERE p.category_id = c.id AND NOT m.is_ai_curated
+                               AND m.created_at > now() - make_interval(days => $1)) AS quiet
+       FROM categories c`,
+    [QUIET_ROOM_DAYS],
+  );
+  const quiet = rows.filter((r) => r.quiet).map((r) => r.slug);
+  // 전부 조용하면 (갓 연 사이트) 가릴 근거가 없다
+  return new Set(quiet.length === rows.length ? [] : quiet);
+}
+
+/** 이야기가 오가는 방을 앞에, 조용한 방을 뒤에 (각각 원래 순서 유지) */
+export function activeRoomsFirst<T extends { slug: string }>(rooms: T[], quiet: Set<string>): T[] {
+  return [...rooms.filter((r) => !quiet.has(r.slug)), ...rooms.filter((r) => quiet.has(r.slug))];
+}
+
 export async function getCategoryBySlug(slug: string): Promise<Category | null> {
   const rows = await query<Category>(`SELECT ${COLS} FROM categories WHERE slug = $1`, [slug]);
   return rows[0] ?? null;

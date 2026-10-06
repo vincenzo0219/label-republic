@@ -16,7 +16,7 @@ d("database rules", async () => {
   const posts = await import("@/lib/repo/posts");
   const comments = await import("@/lib/repo/comments");
   const boards = await import("@/lib/repo/board-requests");
-  const { listCategories } = await import("@/lib/repo/categories");
+  const { activeRoomsFirst, listCategories, quietRoomSlugs } = await import("@/lib/repo/categories");
   const { runTrustBatch } = await import("@/lib/jobs/trust");
   const { runCuratorBatch } = await import("@/lib/jobs/curator");
   const curator = await import("@/lib/curator");
@@ -64,16 +64,35 @@ d("database rules", async () => {
 
   it("seeds the five initial boards", async () => {
     const cats = await listCategories();
-    expect(cats.map((c) => c.slug)).toEqual(["supplements", "keyboards", "deskterior", "pet-food", "perfume-audio"]);
+    // 이어폰·오디오 방이 맨 앞 (042)
+    expect(cats.map((c) => c.slug)).toEqual(["perfume-audio", "supplements", "keyboards", "deskterior", "pet-food"]);
+    expect(cats[0]!.name).toBe("이어폰·오디오 덕후방");
+  });
+
+  it("puts rooms without recent human posts or comments last (quiet rooms)", async () => {
+    // 아무도 없으면 가릴 근거가 없다
+    expect([...(await quietRoomSlugs())]).toEqual([]);
+    const post = await newPost();
+    const cats = await listCategories();
+    const quiet = await quietRoomSlugs();
+    expect(quiet.has("supplements")).toBe(false);
+    expect(quiet.size).toBe(cats.length - 1);
+    expect(activeRoomsFirst(cats, quiet)[0]!.slug).toBe("supplements");
+    // 🤖 글만 있는 방은 여전히 조용하다 → 전부 조용하니 가리지 않는다
+    await query("UPDATE posts SET is_ai_curated = true WHERE id = $1", [post.id]);
+    expect((await quietRoomSlugs()).size).toBe(0);
+    await query("DELETE FROM posts WHERE id = $1", [post.id]);
+    await query("UPDATE categories SET post_count = 0");
   });
 
   it("creates a post with its summary and keeps post_count in sync", async () => {
     const post = await newPost();
     expect(post.summary?.lines).toEqual(["하나", "둘", "셋"]);
     expect(post.trust_tier).toBe("pending");
-    expect((await listCategories())[0]!.post_count).toBe(1);
+    const supp = async () => (await listCategories()).find((c) => c.slug === "supplements")!.post_count;
+    expect(await supp()).toBe(1);
     await posts.deletePost(post.id, fp(1), "1234");
-    expect((await listCategories())[0]!.post_count).toBe(0);
+    expect(await supp()).toBe(0);
   });
 
   it("rejects a wrong pin and rate-limits brute force", async () => {
