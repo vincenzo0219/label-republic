@@ -803,3 +803,7 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .first-visit-intro p { margin: 0; }
 .first-visit-links { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px !important; font-weight: 700; }
 .first-visit-links a { color: var(--brand); text-decoration: none; }
+
+/* Sprint 49: 방 만들기 유도 */
+.chat-starters-room { margin: 8px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.chat-starters-room a { font-weight: 700; color: var(--brand); }

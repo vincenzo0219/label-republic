@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { listPosts } from "@/lib/repo/posts";
 
 /**
@@ -6,7 +7,10 @@ import { listPosts } from "@/lib/repo/posts";
  * 첫 화면이 안내 글로 꽉 차 글이 하나도 안 보였다. 답하기 쉬운 잡담 질문 몇 개를 신뢰도순 피드보다 먼저 보여 준다.
  */
 export async function ChatStarters() {
-  const { items } = await listPosts({ sort: "latest", type: "chat", page: 1, pageSize: 3 }).catch(() => ({ items: [] }));
+  const [{ items }, threshold] = await Promise.all([
+    listPosts({ sort: "latest", type: "chat", page: 1, pageSize: 3 }).catch(() => ({ items: [] })),
+    getBoardThreshold().catch(() => null),
+  ]);
   if (items.length === 0) return null;
   return (
     <section className="chat-starters" aria-labelledby="chat-starters-h">
@@ -23,6 +27,11 @@ export async function ChatStarters() {
           </li>
         ))}
       </ul>
+      {/* 방 만들기 유도 (Sprint 49) */}
+      <p className="chat-starters-room">
+        원하는 주제가 없나요? <Link href="/boards">🏠 내 덕질 방 만들기</Link>
+        {threshold && threshold.needed <= 1 ? " — 지금은 요청하면 바로 열려요" : ""}
+      </p>
     </section>
   );
 }

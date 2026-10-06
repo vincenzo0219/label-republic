@@ -1,20 +1,26 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { BOARD_THRESHOLD_FLOOR, effectiveBoardThreshold } from "@/lib/repo/board-requests";
+import { BOARD_EARLY_STAGE_ACTIVE, BOARD_THRESHOLD_FLOOR, effectiveBoardThreshold, promotionWaitHours } from "@/lib/repo/board-requests";
 import { boardGuide } from "@/lib/onboarding";
 
 describe("room creation threshold (Sprint 39)", () => {
-  it("starts at 3 while the community is small, grows with 5% of 30-day actives and never passes the voted cap", () => {
+  it("1 person opens a room early on, then 3+ growing with 5% of 30-day actives, never past the voted cap (Sprint 39, 49)", () => {
     expect(BOARD_THRESHOLD_FLOOR).toBe(3);
-    expect(effectiveBoardThreshold(50, 0)).toBe(3);
+    expect(BOARD_EARLY_STAGE_ACTIVE).toBe(50);
+    expect(effectiveBoardThreshold(50, 0)).toBe(1);
+    expect(effectiveBoardThreshold(50, 49)).toBe(1);
+    expect(effectiveBoardThreshold(50, 50)).toBe(3);
     expect(effectiveBoardThreshold(50, 60)).toBe(3);
     expect(effectiveBoardThreshold(50, 61)).toBe(4);
     expect(effectiveBoardThreshold(50, 200)).toBe(10);
     expect(effectiveBoardThreshold(50, 1000)).toBe(50);
     expect(effectiveBoardThreshold(50, 100_000)).toBe(50);
     // 상한이 바닥보다 낮게 설정돼 있으면 상한을 따른다 (운영 설정이 우선)
-    expect(effectiveBoardThreshold(2, 0)).toBe(2);
+    expect(effectiveBoardThreshold(2, 100)).toBe(2);
+    // 혼자서 여는 방은 기다리지 않는다
+    expect(promotionWaitHours(1, 24)).toBe(0);
+    expect(promotionWaitHours(3, 24)).toBe(24);
   });
 
   it("new rooms get a free-talk template, not only fact templates", () => {
@@ -47,7 +53,7 @@ d("room creation threshold (database)", async () => {
 
   it("counts only people active in the last 30 days", async () => {
     boards.resetBoardThresholdCache();
-    expect(await boards.getBoardThreshold()).toMatchObject({ needed: 3, active30d: 0 });
+    expect(await boards.getBoardThreshold()).toMatchObject({ needed: 1, active30d: 0 });
 
     // 최근 활동 200명 + 40일 전에만 활동한 500명
     await query(
@@ -57,22 +63,40 @@ d("room creation threshold (database)", async () => {
        SELECT lpad('b' || g, 64, '0'), now() - interval '40 days', now() - interval '40 days' FROM generate_series(1, 500) g`,
     );
     // 5분 캐시 — 비우기 전에는 그대로
-    expect((await boards.getBoardThreshold()).needed).toBe(3);
+    expect((await boards.getBoardThreshold()).needed).toBe(1);
     boards.resetBoardThresholdCache();
     const t = await boards.getBoardThreshold();
     expect(t).toMatchObject({ needed: 10, active30d: 200 });
     expect(t.cap).toBeGreaterThanOrEqual(10);
   });
 
-  it("opens a room with the adaptive threshold once the waiting time has passed", async () => {
+  it("early on, the requester alone opens the room immediately — no 24h wait (Sprint 49)", async () => {
     await query("DELETE FROM fingerprints");
     boards.resetBoardThresholdCache();
     const req = await boards.createBoardRequest("커피 원두 로스팅", "원두 이야기");
-    for (const n of [1, 2]) expect((await boards.voteBoardRequest(req.id, fp(n), undefined, 0)).promoted).toBe(false);
-    // 동의 3명째 — 활동 인원이 적으니 3명이면 열린다
-    const third = await boards.voteBoardRequest(req.id, fp(3), undefined, 0);
-    expect(third).toMatchObject({ promoted: true, threshold: 3 });
-    expect((await query("SELECT 1 FROM categories WHERE name = '커피 원두 로스팅'")).length).toBe(1);
+    const first = await boards.voteBoardRequest(req.id, fp(1), undefined, 24);
+    expect(first).toMatchObject({ promoted: true, threshold: 1, promotableAt: null });
+    expect((await query("SELECT 1 FROM categories WHERE name = '커피 원두 로스팅' AND auto_promoted_at IS NOT NULL")).length).toBe(1);
+  });
+
+  it("once the community grows, several agreements and the waiting time are needed again", async () => {
+    await query(
+      `INSERT INTO fingerprints (fingerprint, first_seen, last_seen)
+       SELECT lpad('g' || g, 64, '0'), now(), now() FROM generate_series(1, 80) g`,
+    );
+    boards.resetBoardThresholdCache();
+    const req = await boards.createBoardRequest("필름 카메라", "필름 이야기");
+    for (const n of [11, 12, 13, 14]) expect((await boards.voteBoardRequest(req.id, fp(n), undefined, 24)).promoted).toBe(false);
+    const fifth = await boards.voteBoardRequest(req.id, fp(15), undefined, 24);
+    expect(fifth.promoted).toBe(false);
+    expect(fifth.threshold).toBe(5);
+    expect(fifth.promotableAt).not.toBeNull();
+    await query("DELETE FROM fingerprints WHERE fingerprint LIKE '%g%'");
+    boards.resetBoardThresholdCache();
+  });
+
+  it("rejects room names with abusive or contact text at request time (Sprint 49)", async () => {
+    await expect(boards.createBoardRequest("연락주세요 010-1234-5678", "")).rejects.toThrow();
   });
 
   it("counts visible new posts per room since the given time (Sprint 41)", async () => {
