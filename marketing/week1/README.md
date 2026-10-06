@@ -7,10 +7,10 @@
 | 10/7 (수) 21:00 | 피드 | feed1-codec-debate-1080x1350.png | 프로필 링크 (본문에 안내) |
 | 10/8 (목) 12:30 | 스토리 투표 | story1-codec-1080x1920.png | nobangjang.com/posts/223#comments |
 | 10/9 (금) 21:00 | 피드 | feed2-dongle-1080x1350.png | 프로필 링크 |
-| 10/10 (토) 13:00 | 스토리 투표 | story2-wired-or-wireless-1080x1920.png | 정착템 글 (아래) |
+| 10/10 (토) 13:00 | 스토리 투표 | story2-wired-or-wireless-1080x1920.png | nobangjang.com/posts/296#comments |
 | 10/11 (일) 20:00 | 피드 | feed3-daily-iem-1080x1350.png | 프로필 링크 |
 
-정착템 글: "지금 매일 쓰는 이어폰, 딱 하나만 꼽는다면 뭔가요?" (배포 후 번호 확인)
+정착템 글: "지금 매일 쓰는 이어폰, 딱 하나만 꼽는다면 뭔가요?" → nobangjang.com/posts/296#comments
 
 ## 피드 문구
 
