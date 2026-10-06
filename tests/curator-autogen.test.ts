@@ -74,6 +74,39 @@ d("AI curator keeps posting after the seeds run out (database, Sprint 37)", asyn
     expect(calls).toEqual([]);
   });
 
+  it("opens a freshly created room with two starter posts (question first), before older rooms and past the daily cap (Sprint 49)", async () => {
+    await query(
+      `INSERT INTO categories (name, slug, description, sort_order, auto_promoted_at) VALUES ('필름 카메라', 'film-camera', '필름 이야기', 1000, now())
+       ON CONFLICT (slug) DO NOTHING`,
+    );
+    await onlyBoard("film-camera");
+    const chatBody = "필름 카메라를 처음 산 계기와 지금 쓰는 기종이 궁금합니다. 자동 카메라로 시작한 분도, 수동 기종부터 들인 분도 있다는 이야기가 많습니다.\n\n- 지금 쓰는 기종\n- 즐겨 쓰는 필름\n\n여러분은 어떤 카메라로 시작하셨나요?";
+    const gen: CuratorGenerator = async (board, recent, kind) => {
+      calls.push({ slug: board.slug, recent });
+      kinds.push(kind);
+      return kind === "chat"
+        ? { title: "필름 카메라, 첫 기종은 무엇이었나요?", body: chatBody, summary: ["첫 기종을 모아요.", "즐겨 쓰는 필름도 궁금해요.", "시작 계기를 나눠요."], comments: [], kind: "chat" }
+        : draft("필름 ISO 표기 읽는 법");
+    };
+    // 하루 자동 작성 한도 0 이어도 새 방은 연다
+    const first = await runCuratorBatch(new Date(), { generate: gen, dailyMax: 0 });
+    expect(first.categories[0]).toMatchObject({ slug: "film-camera", reason: "autogen published" });
+    const second = await runCuratorBatch(new Date(), { generate: gen, dailyMax: 0 });
+    expect(second.categories.find((c) => c.slug === "film-camera")).toMatchObject({ reason: "autogen published" });
+    expect(kinds).toEqual(["chat", "info"]);
+    const posts = await query<{ post_type: string; is_ai_curated: boolean }>(
+      "SELECT p.post_type, p.is_ai_curated FROM posts p JOIN categories c ON c.id = p.category_id WHERE c.slug = 'film-camera' ORDER BY p.id",
+    );
+    expect(posts).toEqual([{ post_type: "chat", is_ai_curated: true }, { post_type: "info", is_ai_curated: true }]);
+    // 두 개를 연 뒤에는 다른 방처럼 간격·한도를 따른다
+    calls = [];
+    await runCuratorBatch(new Date(), { generate: gen, dailyMax: 0 });
+    expect(calls).toEqual([]);
+    // 다른 테스트에 새 방이 남지 않게
+    await query("TRUNCATE posts, curator_generations RESTART IDENTITY CASCADE");
+    await query("DELETE FROM categories WHERE slug = 'film-camera'");
+  });
+
   it("does not publish drafts that fail the safety check, and records why", async () => {
     await onlyBoard("supplements");
     const r = await runCuratorBatch(new Date(), { generate: fake(() => draft("마그네슘이 불면증을 완치", { body: draft("x").body + " 불면증을 완치합니다." })), dailyMax: 10 });

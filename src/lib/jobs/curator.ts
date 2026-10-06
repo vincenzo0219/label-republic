@@ -6,7 +6,15 @@ import { reportError } from "../error-tracking";
 
 const CURATOR_LOCK_KEY = 4_823_002;
 
-type CategoryState = { id: number; slug: string; name: string; description: string; human: number; ai: number; last_ai_at: string | null };
+type CategoryState = { id: number; slug: string; name: string; description: string; human: number; ai: number; last_ai_at: string | null; ai_total: number; auto_promoted: boolean };
+
+/**
+ * 이용자가 만든 새 방은 AI 큐레이터가 글 2개(대화 질문 → 정보)로 먼저 열어 준다 (Sprint 49).
+ * 빈 방에 처음 온 사람은 아무것도 안 쓰고 나가기 때문. 하루 자동 작성 한도와 게시 간격을 기다리지 않고,
+ * 기존 방보다 먼저 처리한다. 글은 모두 🤖 AI 큐레이터로 표시되고 댓글은 달지 않는다.
+ */
+export const NEW_ROOM_STARTER_POSTS = 2;
+const isStarterRoom = (s: CategoryState) => s.auto_promoted && s.ai_total < NEW_ROOM_STARTER_POSTS;
 export type CuratorCategoryResult = { slug: string; human: number; ai: number; intervalHours: number | null; published: string | null; reason: string };
 export type CuratorBatchResult = { ran: boolean; published: number; categories: CuratorCategoryResult[] };
 
@@ -33,24 +41,29 @@ export async function runCuratorBatch(now = new Date(), opts: { generate?: Curat
                 -- 물러남 판단은 사람이 쓴 [정보] 글 기준 (잡담·정모는 정보 공백을 메우지 않음)
                 count(p.id) FILTER (WHERE NOT p.is_ai_curated AND p.post_type = 'info')::int AS human,
                 count(p.id) FILTER (WHERE p.is_ai_curated)::int     AS ai,
-                (SELECT max(created_at) FROM posts x WHERE x.category_id = c.id AND x.is_ai_curated) AS last_ai_at
+                (SELECT max(created_at) FROM posts x WHERE x.category_id = c.id AND x.is_ai_curated) AS last_ai_at,
+                (SELECT count(*) FROM posts x WHERE x.category_id = c.id AND x.is_ai_curated)::int AS ai_total,
+                c.auto_promoted_at IS NOT NULL AS auto_promoted
            FROM categories c
            LEFT JOIN posts p ON p.category_id = c.id AND p.created_at > $1::timestamptz - interval '7 days'
           GROUP BY c.id ORDER BY c.id`,
         [now.toISOString()],
       );
-      for (const s of states.rows) {
+      // 새 방 먼저 — 하루 한도를 기존 방이 다 쓰기 전에
+      const ordered = [...states.rows].sort((a, b) => Number(isStarterRoom(b)) - Number(isStarterRoom(a)));
+      for (const s of ordered) {
+        const starter = isStarterRoom(s);
         const intervalHours = curatorIntervalHours({ humanPosts7d: s.human, aiPosts7d: s.ai });
         const base = { slug: s.slug, human: s.human, ai: s.ai, intervalHours, published: null as string | null };
         if (until && now > until) {
           results.push({ ...base, reason: "active period ended" });
           continue;
         }
-        if (intervalHours === null) {
+        if (intervalHours === null && !starter) {
           results.push({ ...base, reason: "retreated: enough human posts" });
           continue;
         }
-        if (s.last_ai_at && now.getTime() - new Date(s.last_ai_at).getTime() < intervalHours * 3600_000) {
+        if (!starter && s.last_ai_at && now.getTime() - new Date(s.last_ai_at).getTime() < (intervalHours ?? 0) * 3600_000) {
           results.push({ ...base, reason: "not due" });
           continue;
         }
@@ -120,11 +133,12 @@ async function autogenerate(
   dailyMax: number,
 ): Promise<{ published: string | null; reason: string }> {
   if (!generate) return { published: null, reason: "queue empty (autogen off)" };
+  const starter = isStarterRoom(s);
   const used = await client.query<{ n: number }>(
     "SELECT count(*)::int AS n FROM curator_generations WHERE created_at > $1::timestamptz - interval '1 day'",
     [now.toISOString()],
   );
-  if (used.rows[0]!.n >= dailyMax) return { published: null, reason: "queue empty (autogen daily limit)" };
+  if (!starter && used.rows[0]!.n >= dailyMax) return { published: null, reason: "queue empty (autogen daily limit)" };
   const recent = await client.query<{ title: string }>(
     "SELECT title FROM posts WHERE category_id = $1 ORDER BY id DESC LIMIT 40",
     [s.id],
@@ -135,7 +149,8 @@ async function autogenerate(
     "SELECT post_type FROM posts WHERE category_id = $1 AND is_ai_curated ORDER BY id DESC LIMIT 1",
     [s.id],
   );
-  const kind = lastAi.rows[0]?.post_type === "chat" ? "info" : lastAi.rows[0] ? "chat" : "info";
+  // 새 방의 첫 글은 대화 질문 — 빈 방에서는 정보 글보다 답하기 쉬운 질문이 먼저다
+  const kind = lastAi.rows[0]?.post_type === "chat" ? "info" : lastAi.rows[0] ? "chat" : starter ? "chat" : "info";
   let draft;
   try {
     draft = await generate({ slug: s.slug, name: s.name, description: s.description }, recentTitles, kind);
@@ -179,6 +194,14 @@ async function autogenerate(
     await client.query("ROLLBACK");
     throw err;
   }
+}
+
+/** 방이 막 열렸을 때 다음 정기 실행(최대 30분)을 기다리지 않고 바로 한 번 돌린다 */
+export function kickCuratorSoon(delayMs = 1000) {
+  const t = setTimeout(() => {
+    runCuratorBatch().catch((err) => reportError(err, { kind: "job", where: "curator-kick" }));
+  }, delayMs);
+  t.unref?.();
 }
 
 export function startCuratorScheduler(intervalMs: number): () => void {

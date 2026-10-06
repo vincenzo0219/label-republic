@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
 import { splitMentions } from "@/lib/mentions";
@@ -59,6 +60,7 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [posted, setPosted] = useState(false);
   const retry = useRef(0);
   const sending = useRef<{ key: string; sent: string } | undefined>(undefined);
 
@@ -165,6 +167,7 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
       // 댓글을 단 글은 자동으로 소식 받기 + 이 댓글에 답글·멘션이 오면 알림
       watchPost(postId);
       if (notifyRef) addMyComment(notifyRef);
+      setPosted(true);
     } catch (err) {
       setError(isNetworkError(err) ? "연결이 끊겨 등록 결과를 받지 못했어요. 연결되면 다시 눌러주세요. (두 번 달리지 않아요)" : (err as Error).message);
     } finally {
@@ -254,6 +257,12 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
           </div>
         )}
         {error && <p className="error">{error}</p>}
+        {posted && !error && (
+          <p className="hint" role="status">
+            {/* 댓글을 단 사람에게 방 만들기 권유 (Sprint 49) */}
+            💬 고마워요! 답글이 달리면 📬에서 알려 드려요. 이 주제로 더 이야기하고 싶다면 <Link href="/boards">🏠 내 덕질 방 만들기</Link>
+          </p>
+        )}
         <button className="btn btn-primary" disabled={busy}>{busy ? "등록 중…" : replyTo ? "답글 등록" : "댓글 등록"}</button>
       </form>
     </section>

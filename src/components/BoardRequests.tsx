@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
-import { myRoomRequests, rememberRoomRequest } from "@/lib/room-requests";
+import { markRoomRequestTold, myRoomRequests, rememberRoomRequest } from "@/lib/room-requests";
 import type { BoardRequest } from "@/lib/types";
 
 /** "10월 2일(금) 오후 10:15" — toLocaleString 은 서버(Node)와 브라우저의 출력이 미묘하게 달라 화면이 어긋나므로 직접 만든다 */
@@ -27,6 +27,7 @@ export function BoardRequests({ initial, threshold, minAgeHours }: { initial: Bo
   const [error, setError] = useState<string | null>(null);
   const [voted, setVoted] = useState<Set<string>>(new Set());
   const [justCreated, setJustCreated] = useState<string | null>(null);
+  const [opened, setOpened] = useState<{ name: string; slug: string } | null>(null);
   const [shareMsg, setShareMsg] = useState<{ id: string; text: string } | null>(null);
 
   // 이 브라우저에서 요청·동의한 것은 다시 와도 "동의함"으로 (서버 기록은 IP·브라우저 지문이라 화면에 못 돌려준다)
@@ -55,10 +56,13 @@ export function BoardRequests({ initial, threshold, minAgeHours }: { initial: Bo
     e.preventDefault();
     setError(null);
     try {
-      const { request } = await api<{ request: BoardRequest }>("/api/board-requests", "POST", { name, description });
+      const { request, promoted } = await api<{ request: BoardRequest; promoted?: boolean }>("/api/board-requests", "POST", { name, description });
+      // 혼자서 바로 열린 방 (Sprint 49) — 열렸다는 알림은 홈 대신 여기서 바로
+      if (promoted && request.promoted_category_slug) setOpened({ name: request.requested_name, slug: request.promoted_category_slug });
       setRequests((r) => [request, ...r]);
       setVoted((v) => new Set(v).add(request.id)); // 요청한 사람은 첫 동의로 센다 (Sprint 39)
       rememberRoomRequest(request.id, request.requested_name);
+      if (promoted) markRoomRequestTold([request.id]); // 여기서 이미 알렸으니 홈에서 또 알리지 않는다
       setJustCreated(request.id);
       setName("");
       setDescription("");
@@ -83,6 +87,15 @@ export function BoardRequests({ initial, threshold, minAgeHours }: { initial: Bo
 
   return (
     <>
+      {opened && (
+        <div className="notice room-opened" role="status">
+          <p>
+            🎉 <b>{opened.name}</b> 방이 열렸어요! 🤖 AI 큐레이터가 곧 첫 질문 글을 올려요.{" "}
+            <Link href={`/c/${encodeURIComponent(opened.slug)}`}>방 가기</Link> ·{" "}
+            <Link href={`/write?category=${encodeURIComponent(opened.slug)}`}>✍️ 첫 글 쓰기</Link>
+          </p>
+        </div>
+      )}
       <form className="form card" onSubmit={create}>
         <input className="input" placeholder="방 이름 (예: 커피 원두 로스팅)" value={name} maxLength={40} required onChange={(e) => setName(e.target.value)} />
         <input className="input" placeholder="한 줄 설명 (선택)" value={description} maxLength={300} onChange={(e) => setDescription(e.target.value)} />

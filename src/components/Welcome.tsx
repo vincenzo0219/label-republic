@@ -48,8 +48,13 @@ export function Welcome({
             정리합니다. 운영자가 한 일은 <Link href="/transparency">모두 공개</Link>돼요.
           </li>
           <li>
-            <b>✨ 방은 누구나 만들어요</b> — 원하는 방이 없으면 <Link href="/boards">방 만들기</Link>를 요청하세요. 지금은 <b>{roomVotes}명</b>만
-            동의하면 하루 뒤 자동으로 열려요.
+            <b>✨ 방은 누구나 만들어요</b> — 원하는 방이 없으면 <Link href="/boards">방 만들기</Link>를 요청하세요. {roomVotes <= 1 ? (
+              <>지금은 요청하면 <b>바로</b> 열려요.</>
+            ) : (
+              <>
+                지금은 <b>{roomVotes}명</b>만 동의하면 하루 뒤 자동으로 열려요.
+              </>
+            )}
           </li>
           <li>
             <b>🔑 가입 없이</b> — 닉네임과 비밀번호 4자리로 쓰고 고칩니다. 관심 방·알림은 이 브라우저에만 저장돼요.

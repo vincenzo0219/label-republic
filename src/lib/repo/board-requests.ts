@@ -4,6 +4,7 @@ import { config } from "../config";
 import { HttpError, notFound } from "../errors";
 import { slugify } from "../slug";
 import type { BoardRequest } from "../types";
+import { heuristicAbuse } from "../abuse";
 import { getRule } from "./rules";
 
 const SELECT = `
@@ -12,15 +13,24 @@ const SELECT = `
     FROM board_requests r LEFT JOIN categories c ON c.id = r.promoted_category_id`;
 
 /**
- * 방 개설에 필요한 동의 수 (Sprint 39). 사람이 적은 초기에는 3명이면 열리고,
- * 최근 30일 활동 인원(글·댓글·추천·신고·개설 동의를 한 fingerprint)의 5% 로 늘어나며,
- * 커뮤니티 규칙 값(board_promotion_votes, 투표로 바뀜)을 넘지 않는다.
+ * 방 개설에 필요한 동의 수 (Sprint 39, 49).
+ * - 초반(최근 30일 활동 인원이 BOARD_EARLY_STAGE_ACTIVE 명 미만): 요청한 1명이면 바로 열린다 — 사람이 적을 때
+ *   친구를 데려오라고 하면 방이 영영 안 열린다. 대신 이름·소개 표현 검사와 하루 요청 횟수 제한을 둔다.
+ * - 그 뒤: 3명부터 활동 인원의 5% 로 늘어나며, 커뮤니티 규칙 값(board_promotion_votes, 투표로 바뀜)을 넘지 않는다.
+ * 활동 인원 = 글·댓글·추천·신고·개설 동의를 한 fingerprint.
  */
+export const BOARD_EARLY_STAGE_ACTIVE = 50;
 export const BOARD_THRESHOLD_FLOOR = 3;
 export const BOARD_THRESHOLD_ACTIVE_RATIO = 0.05;
 
 export function effectiveBoardThreshold(cap: number, active30d: number): number {
+  if (active30d < BOARD_EARLY_STAGE_ACTIVE) return Math.min(cap, 1);
   return Math.min(cap, Math.max(BOARD_THRESHOLD_FLOOR, Math.ceil(active30d * BOARD_THRESHOLD_ACTIVE_RATIO)));
+}
+
+/** 혼자서 여는 방(필요 동의 1명)은 기다릴 이유가 없다 — 몰아서 여는 걸 막는 대기 시간은 여러 명이 필요할 때만 */
+export function promotionWaitHours(threshold: number, minAgeHours: number): number {
+  return threshold <= 1 ? 0 : minAgeHours;
 }
 
 export type BoardThreshold = { needed: number; cap: number; active30d: number };
@@ -49,6 +59,8 @@ export async function listBoardRequests(): Promise<BoardRequest[]> {
 }
 
 export async function createBoardRequest(name: string, description: string): Promise<BoardRequest> {
+  // 1명이면 바로 열리므로 이름·소개의 욕설·혐오·연락처는 요청 단계에서 막는다 (Sprint 49)
+  if (heuristicAbuse(name, description)) throw new HttpError(400, "invalid_input", "방 이름이나 소개에 쓸 수 없는 표현이 있어요.");
   const exists = await query("SELECT 1 FROM categories WHERE lower(name) = lower($1) OR slug = $2", [name, slugify(name)]);
   if (exists.length) throw new HttpError(409, "already_exists", "이미 존재하는 방입니다.");
   try {
@@ -129,6 +141,7 @@ export async function voteBoardRequest(
   if (!/^\d{1,18}$/.test(id)) throw notFound("방 요청");
   // 필요한 동의 수: 활동 인원에 맞춰 3명부터, 커뮤니티 규칙 값이 상한 (Sprint 21, 39)
   const threshold = thresholdOverride ?? (await getBoardThreshold()).needed;
+  minAgeHours = promotionWaitHours(threshold, minAgeHours);
   const outcome = await tx(async (client) => {
     const req = await client.query<{ status: string }>("SELECT status FROM board_requests WHERE id = $1 FOR UPDATE", [id]);
     if (!req.rows[0]) throw notFound("방 요청");
@@ -157,6 +170,7 @@ export async function promotePendingBoardRequests(
   now = new Date(),
 ): Promise<{ id: string; outcome: PromotionOutcome }[]> {
   const threshold = thresholdOverride ?? (await getBoardThreshold()).needed;
+  minAgeHours = promotionWaitHours(threshold, minAgeHours);
   const pending = await query<{ id: string }>(
     "SELECT id FROM board_requests WHERE status = 'open' AND vote_count >= $1 ORDER BY id",
     [threshold],
