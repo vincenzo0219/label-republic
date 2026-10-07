@@ -824,3 +824,5 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .social-connect-form .input { flex: 1 1 200px; min-width: 0; }
 .guide-chips { align-items: center; }
 .board-guide:has(.guide-chips) { padding: 10px 12px; }
+.card-top:empty { display: none; }
+.card-author-ai { color: var(--brand); font-weight: 600; }

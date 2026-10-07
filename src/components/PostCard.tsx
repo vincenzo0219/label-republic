@@ -6,7 +6,7 @@ import type { PostCard as PostCardData } from "@/lib/types";
 import { Highlight } from "./Highlight";
 import { SummaryLines } from "./SummaryLines";
 import { MeetupBadge } from "./Meetup";
-import { AiBadge, TrustBadge } from "./TrustBadge";
+import { TrustBadge } from "./TrustBadge";
 import { NewBadge } from "./NewMarks";
 
 export function PostCard({
@@ -31,7 +31,6 @@ export function PostCard({
           <TrustBadge tier={post.trust_tier} />
           {post.post_type === "chat" && <span className="badge badge-type">💬 잡담</span>}
           {post.meetup && <MeetupBadge meetup={post.meetup} />}
-          {post.is_ai_curated && <AiBadge />}
           {post.source_kinds.includes("paper") ? (
             <span className="badge badge-src badge-src-paper">🎓 논문 출처</span>
           ) : post.source_kinds.includes("gov") ? (
@@ -67,7 +66,14 @@ export function PostCard({
           <p className="excerpt">{post.excerpt}</p>
         ) : null}
         <div className="card-meta">
-          <span>{post.nickname}</span>
+          {/* AI 글 표시는 아래 작성자 자리 한 곳에만 (위아래 중복이라는 운영자 피드백) — 🤖 표시는 그대로 */}
+          {post.is_ai_curated ? (
+            <span className="card-author-ai" title="AI 큐레이터가 작성한 글입니다.">
+              🤖 AI 큐레이터
+            </span>
+          ) : (
+            <span>{post.nickname}</span>
+          )}
           <span>{timeAgo(post.created_at)}</span>
           <span className="spacer" />
           <span aria-label="순추천">▲ {net}</span>
