@@ -18,7 +18,7 @@ import { SaveOffline } from "@/components/SaveOffline";
 import { ShareButton } from "@/components/ShareButton";
 import { SourceList } from "@/components/SourceList";
 import { SummaryLines } from "@/components/SummaryLines";
-import { AiBadge, TrustBadge } from "@/components/TrustBadge";
+import { TrustBadge } from "@/components/TrustBadge";
 import { VoteButtons } from "@/components/VoteButtons";
 import { WatchToggle } from "@/components/WatchToggle";
 import { config } from "@/lib/config";
@@ -177,18 +177,18 @@ export default async function PostPage({ params }: Props) {
 
   return (
     <article>
-      {firstVisit && <FirstVisitIntro roomSlug={post.category.slug} roomName={post.category.name} />}
+      {firstVisit && <FirstVisitIntro />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <header className="post-head">
         <div className="card-top">
           <Link href={`/c/${encodeURIComponent(post.category.slug)}`} className="badge badge-cat">{post.category.name}</Link>
           <TrustBadge tier={post.trust_tier} categoryName={post.category.name} />
           {post.post_type === "chat" && <span className="badge badge-type">💬 잡담</span>}
-          {post.is_ai_curated && <AiBadge />}
         </div>
         <h1>{post.title}</h1>
         <div className="post-meta">
-          <span>{post.nickname}</span>
+          {/* AI 글 표시는 작성자 자리 한 곳에 (배지·작성자·안내에 세 번 나오던 것을 줄임) */}
+          {post.is_ai_curated ? <span className="card-author-ai">🤖 AI 큐레이터</span> : <span>{post.nickname}</span>}
           <time dateTime={post.created_at}>{timeAgo(post.created_at)}</time>
           {post.revision_count > 0 ? (
             <Link href={`/posts/${post.id}/history`}>수정 이력 {post.revision_count}</Link>
@@ -207,17 +207,12 @@ export default async function PostPage({ params }: Props) {
         </div>
       )}
 
-      {post.is_ai_curated && post.post_type === "chat" && (
-        <div className="notice" style={{ marginTop: 12 }}>
-          🤖 AI 큐레이터가 이야기를 열려고 올린 질문이에요. AI는 댓글을 달지 않아요 — 여러분의 경험을 편하게 들려주세요.
-        </div>
-      )}
+      {/* AI 글 안내는 한 줄로 (작성자 자리에 이미 🤖 AI 큐레이터) */}
+      {post.is_ai_curated && post.post_type === "chat" && <p className="hint ai-note">AI는 댓글을 달지 않아요 — 경험을 편하게 들려주세요.</p>}
       {post.is_ai_curated && post.post_type !== "chat" && (
-        <div className="notice" style={{ marginTop: 12 }}>
-          🤖 AI 큐레이터가 작성한 정보 글입니다.{" "}
-          {post.ai_reviewed ? "사람이 사실관계를 확인했습니다." : <b>사람이 검수하지 않았습니다.</b>} 수치는 제품·시기에 따라 다를 수 있으니 실제 라벨·스펙을 확인하세요.
-          사실과 다른 부분은 <a href="#corrections">정정 제안</a>과 비추천·신고로 바로잡아 주세요.
-        </div>
+        <p className="hint ai-note">
+          {post.ai_reviewed ? "사람이 사실관계를 확인한 글이에요." : "사람이 검수하지 않은 글이에요."} 틀린 곳은 <a href="#corrections">정정 제안</a>으로 알려 주세요.
+        </p>
       )}
 
       {post.is_suppressed && (
@@ -235,7 +230,7 @@ export default async function PostPage({ params }: Props) {
         <section className="ai-card" aria-label="3줄 요약">
           <h2>
             📌 3줄 요약
-            <span>{summarySource(post.summary)}</span>
+            {!post.is_ai_curated && <span>{summarySource(post.summary)}</span>}
           </h2>
           <SummaryLines lines={post.summary.lines} />
         </section>
