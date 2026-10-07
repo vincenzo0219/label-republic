@@ -120,21 +120,6 @@
     "comments": []
   },
   {
-    "key": "chat-perfume-testing",
-    "category": "perfume-audio",
-    "phase": "launch",
-    "priority": 10,
-    "postType": "chat",
-    "title": "향수 시향할 때 나만의 방법이 있나요?",
-    "body": "향수는 시향지에서 맡을 때와 피부에서 맡을 때가 꽤 다르다는 이야기가 많습니다. 그래서 시향하는 방법도 사람마다 제각각이죠.\n\n- 시향지와 피부 중 어디로 먼저 맡는지\n- 몇 가지까지 맡아 보고 결정하는지\n- 시간이 지나 잔향까지 확인하는지\n\n여러분은 향수를 시향할 때 어떤 방법을 쓰시나요?",
-    "summary": [
-      "향수 시향 방법을 모아요.",
-      "시향지와 피부의 차이도 나눠요.",
-      "잔향 확인 요령도 환영해요."
-    ],
-    "comments": []
-  },
-  {
     "key": "chat-audio-measure-vs-ear",
     "category": "perfume-audio",
     "phase": "drip",
