@@ -42,10 +42,15 @@ export function CorrectionsPanel({ postId, facts, initial, hasAuthor, rules }: P
           </button>
         )}
       </div>
-      <p className="hint">
+      {/* 평소엔 한 줄, 제안 쓰기를 열면 규칙 설명 (안내가 길다는 운영자 피드백) */}
+      {open ? (
+        <p className="hint">
         틀린 수치·문장을 근거와 함께 제안해 주세요. 동의가 모이면(동의 {formatRule("correction_support_score", rules.supportScore)}점 이상, 반대의 {formatRule("correction_support_ratio", rules.supportRatio)}배 이상 — <a href="/rules">커뮤니티 규칙</a>) 글 위에 표시되고, 그 수치는 제품 페이지 집계에서
         빠지며, 신뢰도 상위 배지를 받지 못합니다. 작성자가 글을 고치고 &ldquo;반영함&rdquo;을 누르면 닫힙니다.
       </p>
+      ) : (
+        <p className="hint">틀린 수치·문장이 있으면 근거와 함께 알려 주세요.</p>
+      )}
       {open && (
         <CorrectionForm
           postId={postId}
