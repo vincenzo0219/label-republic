@@ -9,7 +9,7 @@
 import { query } from "../db";
 import { config } from "../config";
 import { HttpError, notFound } from "../errors";
-import { postToInstagram, postToThreads } from "../social";
+import { postToInstagram, postToThreads, socialStatus } from "../social";
 import { createComment } from "./comments";
 import { createPost } from "./posts";
 
@@ -148,7 +148,7 @@ export async function approveDraft(id: string, edit: { title?: string; body?: st
       const c = await createComment(d.post_id!, { nickname: d.nickname, pin: d.pin!, body, parentId: d.parent_id ?? undefined });
       postId = d.post_id;
       commentId = c.id;
-    } else if (edit.manual || !socialAuto(d.kind)) {
+    } else if (edit.manual || !(await socialAuto(d.kind))) {
       status = "copied";
     } else if (d.kind === "threads") {
       url = (await postToThreads(body, d.extra)).url;
@@ -169,11 +169,10 @@ export async function approveDraft(id: string, edit: { title?: string; body?: st
   return (await getDraft(id))!;
 }
 
-/** 이 종류를 승인하면 서버가 바로 올리나 (스레드·인스타는 토큰이 있을 때만) */
-export function socialAuto(kind: DraftKind): boolean {
-  if (kind === "threads") return Boolean(config.threadsAccessToken);
-  if (kind === "instagram") return Boolean(config.instagramAccessToken);
-  return true;
+/** 이 종류를 승인하면 서버가 바로 올리나 (스레드·인스타는 연결돼 있을 때만) */
+export async function socialAuto(kind: DraftKind): Promise<boolean> {
+  if (kind !== "threads" && kind !== "instagram") return true;
+  return (await socialStatus())[kind].ready;
 }
 
 export async function discardDraft(id: string): Promise<void> {

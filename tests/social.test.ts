@@ -27,6 +27,7 @@ d("승인 대기함 → 스레드·인스타 자동 게시 (Sprint 52)", async (
       }
       if (u.pathname.endsWith("/refresh_access_token")) return res.end(JSON.stringify({ access_token: `refreshed-${params.grant_type}`, expires_in: 5184000 }));
       if (u.searchParams.get("fields") === "permalink") return res.end(JSON.stringify({ permalink: `https://example.test/p/${u.pathname.split("/").pop()}` }));
+      if (u.searchParams.get("fields") === "username") return res.end(JSON.stringify({ id: "me", username: "nobangjang" }));
       if (u.searchParams.get("fields") === "status_code") return res.end(JSON.stringify({ status_code: "FINISHED" }));
       return res.end(JSON.stringify({ id: String(++n) }));
     });
@@ -102,5 +103,23 @@ d("승인 대기함 → 스레드·인스타 자동 게시 (Sprint 52)", async (
     process.env.THREADS_ACCESS_TOKEN = "new-env-token";
     await social.postToThreads("새 토큰 글");
     expect(hits.filter((h) => h.path === "/v1.0/me/threads").at(-1)!.params.access_token).toBe("new-env-token");
+  });
+
+  it("checks a token pasted in the admin screen, then prefers it over the env token (Sprint 53)", async () => {
+    failNext = true;
+    await expect(social.saveSocialToken("threads", "x".repeat(40))).rejects.toMatchObject({ status: 400 });
+    await expect(social.saveSocialToken("threads", "짧음")).rejects.toMatchObject({ status: 400 });
+    expect(await social.saveSocialToken("threads", "pasted-token-0123456789abcdef")).toEqual({ account: "nobangjang" });
+    await social.postToThreads("붙여넣은 토큰 글");
+    expect(hits.filter((h) => h.path === "/v1.0/me/threads").at(-1)!.params.access_token).toBe("pasted-token-0123456789abcdef");
+    const status = await social.socialStatus();
+    expect(status.threads).toMatchObject({ ready: true, account: "nobangjang" });
+    // 환경 변수 없이도 붙여넣은 토큰만으로 연결된다
+    delete process.env.IG_ACCESS_TOKEN;
+    await query("DELETE FROM social_tokens WHERE platform = 'instagram'");
+    expect((await social.socialStatus()).instagram.ready).toBe(false);
+    await social.saveSocialToken("instagram", "ig-pasted-token-0123456789");
+    expect((await social.socialStatus()).instagram.ready).toBe(true);
+    expect(await drafts.socialAuto("instagram")).toBe(true);
   });
 });

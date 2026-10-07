@@ -1,8 +1,9 @@
 /**
  * 스레드·인스타 게시 (Sprint 52). 승인 대기함에서 운영자가 [승인]을 눌렀을 때만 부른다.
  *
- * 토큰: 서버 환경 변수(THREADS_ACCESS_TOKEN, IG_ACCESS_TOKEN)의 장기 토큰으로 시작하고, 60일 만료 전에
- * 갱신한 새 토큰은 social_tokens 에 둔다. 운영자가 .env 의 토큰을 바꾸면(지문이 달라지면) 그걸 다시 쓴다.
+ * 토큰: 운영자가 관리자 화면(/admin/drafts)에 붙여넣은 장기 토큰(Sprint 53)이 우선이고, 없으면 서버 환경 변수
+ * (THREADS_ACCESS_TOKEN, IG_ACCESS_TOKEN)에서 시작한다. 60일 만료 전에 갱신한 새 토큰은 social_tokens 에 둔다.
+ * 환경 변수 토큰을 바꾸면(지문이 달라지면) 그걸 다시 쓴다.
  * 토큰이 들어간 주소·본문은 로그나 오류 메시지에 남기지 않는다.
  */
 import { createHash } from "node:crypto";
@@ -22,23 +23,64 @@ function base(p: Platform) {
 }
 const fingerprint = (t: string) => createHash("sha256").update(t).digest("hex");
 
-/** 이 플랫폼에 자동으로 올릴 수 있나 (토큰이 설정돼 있나) */
-export function socialReady(p: Platform): boolean {
-  return Boolean(envToken(p));
+type TokenRow = { access_token: string; source_hash: string; source: "env" | "manual"; account: string; expires_at: Date | null; refreshed_at: Date };
+
+async function tokenRow(p: Platform): Promise<TokenRow | undefined> {
+  return (await query<TokenRow>("SELECT access_token, source_hash, source, account, expires_at, refreshed_at FROM social_tokens WHERE platform = $1", [p]))[0];
+}
+
+export type SocialStatus = Record<Platform, { ready: boolean; account: string; expiresAt: string | null }>;
+
+/** 플랫폼마다 자동으로 올릴 수 있는지(토큰이 있는지)와 연결된 계정 */
+export async function socialStatus(): Promise<SocialStatus> {
+  const out = {} as SocialStatus;
+  for (const p of ["threads", "instagram"] as Platform[]) {
+    const row = await tokenRow(p).catch(() => undefined);
+    out[p] = { ready: Boolean(row || envToken(p)), account: row?.account ?? "", expiresAt: row?.expires_at ? new Date(row.expires_at).toISOString() : null };
+  }
+  return out;
 }
 
 async function token(p: Platform): Promise<string> {
+  const row = await tokenRow(p);
+  if (row?.source === "manual") return row.access_token;
   const env = envToken(p);
-  if (!env) throw new HttpError(400, "social_not_configured", `${LABEL[p]} 토큰이 서버에 없어요. 직접 올린 뒤 [올렸음]을 눌러 주세요.`);
+  if (!env) {
+    if (row) return row.access_token;
+    throw new HttpError(400, "social_not_configured", `${LABEL[p]}가 아직 연결되지 않았어요. 대기함 위쪽에서 토큰을 붙여넣거나, 직접 올린 뒤 [올렸음]을 눌러 주세요.`);
+  }
   const fp = fingerprint(env);
-  const rows = await query<{ access_token: string; source_hash: string }>("SELECT access_token, source_hash FROM social_tokens WHERE platform = $1", [p]);
-  if (rows[0]?.source_hash === fp) return rows[0].access_token;
+  if (row?.source_hash === fp) return row.access_token;
   await query(
-    `INSERT INTO social_tokens (platform, access_token, source_hash, refreshed_at) VALUES ($1, $2, $3, now())
-     ON CONFLICT (platform) DO UPDATE SET access_token = EXCLUDED.access_token, source_hash = EXCLUDED.source_hash, expires_at = NULL, refreshed_at = now()`,
+    `INSERT INTO social_tokens (platform, access_token, source_hash, refreshed_at, source) VALUES ($1, $2, $3, now(), 'env')
+     ON CONFLICT (platform) DO UPDATE SET access_token = EXCLUDED.access_token, source_hash = EXCLUDED.source_hash, expires_at = NULL, refreshed_at = now(), source = 'env'`,
     [p, env, fp],
   );
   return env;
+}
+
+/**
+ * 관리자 화면에서 붙여넣은 토큰을 확인하고 저장한다 — 그 토큰으로 내 계정 이름을 읽어 보고, 되면 저장.
+ * 토큰 생성기가 주는 것은 60일짜리 장기 토큰이다. 이후 갱신은 정비 배치가 한다.
+ */
+export async function saveSocialToken(p: Platform, raw: string): Promise<{ account: string }> {
+  const tok = raw.trim();
+  if (!/^[A-Za-z0-9_\-|.]{20,1000}$/.test(tok)) throw new HttpError(400, "invalid_input", "토큰 모양이 아니에요. 생성기에서 복사한 긴 글자를 그대로 붙여넣어 주세요.");
+  let me: GraphResult;
+  try {
+    me = await call(p, "GET", `/${GRAPH_VERSION[p]}/me`, { fields: "username" }, tok);
+  } catch (err) {
+    throw new HttpError(400, "invalid_token", `${LABEL[p]} 토큰이 맞지 않아요: ${(err as Error).message}`);
+  }
+  const account = typeof me.username === "string" ? me.username : "";
+  await query(
+    `INSERT INTO social_tokens (platform, access_token, source_hash, refreshed_at, source, account, expires_at)
+     VALUES ($1, $2, $3, now(), 'manual', $4, now() + interval '60 days')
+     ON CONFLICT (platform) DO UPDATE SET access_token = EXCLUDED.access_token, source_hash = EXCLUDED.source_hash, refreshed_at = now(),
+       source = 'manual', account = EXCLUDED.account, expires_at = EXCLUDED.expires_at`,
+    [p, tok, fingerprint(tok), account],
+  );
+  return { account };
 }
 
 type GraphResult = Record<string, unknown> & { id?: string };
@@ -131,9 +173,9 @@ export async function postToInstagram(imageUrl: string, caption: string): Promis
 export async function refreshSocialTokens(now = new Date()): Promise<Platform[]> {
   const done: Platform[] = [];
   for (const p of ["threads", "instagram"] as Platform[]) {
-    if (!socialReady(p)) continue;
+    if (!envToken(p) && !(await tokenRow(p))) continue;
     const tok = await token(p);
-    const row = (await query<{ refreshed_at: Date }>("SELECT refreshed_at FROM social_tokens WHERE platform = $1", [p]))[0];
+    const row = await tokenRow(p);
     if (row && now.getTime() - new Date(row.refreshed_at).getTime() < 7 * 24 * 3600_000) continue;
     try {
       const grant = p === "threads" ? "th_refresh_token" : "ig_refresh_token";
