@@ -17,8 +17,16 @@ const schema = z.discriminatedUnion("action", [
     body: z.string().trim().min(2).max(20000),
     extra: z.string().trim().max(2000).optional(),
     note: z.string().trim().max(1000).optional(),
+    imageUrl: z.string().trim().max(500).optional(),
   }),
-  z.object({ action: z.literal("approve"), id, title: z.string().trim().max(120).optional(), body: z.string().trim().max(20000).optional() }),
+  z.object({
+    action: z.literal("approve"),
+    id,
+    title: z.string().trim().max(120).optional(),
+    body: z.string().trim().max(20000).optional(),
+    /** 스레드·인스타를 직접 올렸을 때 — 서버는 올리지 않고 표시만 */
+    manual: z.boolean().optional(),
+  }),
   z.object({ action: z.literal("discard"), id }),
 ]);
 
@@ -29,7 +37,7 @@ export const POST = route(async (req) => {
     const { action: _a, ...rest } = input;
     return json({ draft: await createDraft(rest) });
   }
-  if (input.action === "approve") return json({ draft: await approveDraft(input.id, { title: input.title, body: input.body }) });
+  if (input.action === "approve") return json({ draft: await approveDraft(input.id, { title: input.title, body: input.body, manual: input.manual }) });
   await discardDraft(input.id);
   return json({ ok: true });
 });

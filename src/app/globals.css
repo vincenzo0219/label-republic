@@ -816,4 +816,5 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .draft-card { display: grid; gap: 8px; margin-top: 6px; }
 .draft-body { width: 100%; font: inherit; line-height: 1.6; resize: vertical; }
 .draft-extra { margin: 0; word-break: break-all; }
+.draft-image { width: 160px; max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); }
 .draft-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
