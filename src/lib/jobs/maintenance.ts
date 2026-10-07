@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { refreshSocialTokens } from "../social";
 import { pool } from "../db";
 import { promotePendingBoardRequests } from "../repo/board-requests";
 import { sweepOrphanImages } from "../repo/images";
@@ -287,6 +288,9 @@ export function startMaintenanceScheduler(intervalMs: number): () => void {
     try {
       const r = await runMaintenance();
       if (r.promoted.length) console.log(`[maintenance] promoted board requests: ${r.promoted.join(", ")}`);
+      // 스레드·인스타 장기 토큰 갱신 (Sprint 52) — 7일에 한 번, 실패해도 다음에 다시
+      const refreshed = await refreshSocialTokens().catch((e) => (console.error("[social] 갱신 실패:", (e as Error).message), []));
+      if (refreshed.length) console.log(`[social] 토큰 갱신: ${refreshed.join(", ")}`);
     } catch (err) {
       console.error("[maintenance] failed:", (err as Error).message);
       reportError(err, { kind: "job", where: "maintenance" });

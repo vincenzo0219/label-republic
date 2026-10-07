@@ -31,6 +31,21 @@ export const config = {
   get siteUrl() {
     return (process.env.SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
   },
+  /** 승인 대기함 → 스레드 자동 게시 (Sprint 52). 장기 토큰, 서버가 만료 전에 갱신한다 */
+  get threadsAccessToken() {
+    return process.env.THREADS_ACCESS_TOKEN || undefined;
+  },
+  /** 테스트에서 가짜 서버로 바꿀 수 있게 */
+  get threadsApiBase() {
+    return (process.env.THREADS_API_BASE || "https://graph.threads.net").replace(/\/$/, "");
+  },
+  get instagramApiBase() {
+    return (process.env.IG_API_BASE || "https://graph.instagram.com").replace(/\/$/, "");
+  },
+  /** 승인 대기함 → 인스타 자동 게시 (Instagram 로그인 API 장기 토큰) */
+  get instagramAccessToken() {
+    return process.env.IG_ACCESS_TOKEN || undefined;
+  },
   get anthropicApiKey() {
     return process.env.ANTHROPIC_API_KEY || undefined;
   },
