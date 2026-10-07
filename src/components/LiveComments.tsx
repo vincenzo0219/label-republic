@@ -201,8 +201,8 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
             return (
               <div key={c.id} id={`c${c.id}`} className={`comment${c.id !== root.id ? " is-reply" : ""}${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
                 <div className="comment-head">
-                  <b>{c.nickname}</b>
-                  {c.is_ai_curated && <span className="badge badge-ai">🤖 AI</span>}
+                  {/* AI 표시는 이름 한 곳에 (이름 + 배지로 두 번 나오던 것) */}
+                  {c.is_ai_curated ? <b className="card-author-ai">🤖 {c.nickname}</b> : <b>{c.nickname}</b>}
                   <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
                   <span className="spacer" />
                   <button className="linkish" onClick={() => startReply(c)} aria-label={`${c.nickname}님 댓글에 답글`}>답글</button>
