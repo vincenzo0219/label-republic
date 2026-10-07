@@ -11,21 +11,16 @@ export function BoardGuide({ slug, name, needs }: { slug: string; name: string; 
   const write = (qs: Record<string, string>) => `/write?${new URLSearchParams({ category: slug, ...qs })}`;
   return (
     <section className="board-guide" aria-labelledby="board-guide-h">
-      <h2 id="board-guide-h">✍️ {name}에 이런 글을 써 주세요</h2>
-      <p className="hint" style={{ marginTop: 0 }}>
-        {guide.lead}
-        {needs.infoPosts === 0 ? " 아직 정보 글이 없어요 — 첫 글이 이 방의 기준이 됩니다." : ` 지금 정보 글 ${needs.infoPosts}개.`}
-      </p>
-      <ul className="guide-templates">
+      {/* 방 설명이 바로 위에 있으므로 설명을 되풀이하지 않고 예시만 (론칭 2주차) */}
+      <h2 id="board-guide-h" className="sr-only">{name} 글쓰기 예시</h2>
+      <nav className="chips guide-chips" aria-label={`${name} 글쓰기 예시`}>
+        <span className="hint">✍️ 이렇게 시작해 보세요</span>
         {guide.templates.map((t) => (
-          <li key={t.key}>
-            <Link href={write({ template: t.key })}>
-              <b>{t.label}</b>
-              <span className="hint">{t.hint}</span>
-            </Link>
-          </li>
+          <Link key={t.key} className="chip chip-sm" href={write({ template: t.key })} title={t.hint}>
+            {t.label}
+          </Link>
         ))}
-      </ul>
+      </nav>
       {needs.pending.length > 0 && (
         <>
           <h3>🔍 확인이 필요한 제품</h3>

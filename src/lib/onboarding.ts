@@ -125,7 +125,6 @@ const GUIDES: Record<string, BoardGuide> = {
     templates: [
       common.label("audio-daily", "🎧 내 정착템 이야기", "매일 쓰는 이어폰·헤드폰과 쓰는 환경", "", `매일 쓰는 이어폰·헤드폰:\n주로 듣는 환경 (폰 직결 / 동글 / DAC):\n좋은 점 · 아쉬운 점:\n`, "chat"),
       common.label("audio-measure", "🎧 측정치 정리", "주파수 응답·임피던스·감도 — 측정 장비·출처", "[제품명] 측정치 정리", `제품:\n제조사 표기: 임피던스  Ω / 감도  dB\n측정치 (출처·장비):\n\n표기와 다른 점:\n`),
-      common.label("perfume-notes", "🌸 향수 농도·노트 확인", "EDP/EDT 표기, 제조사 공개 노트, 재조합 여부", "[향수 이름] 농도·노트 확인", `향수:\n농도 표기 (EDP/EDT 등):\n제조사 공개 노트:\n배치 코드·구입 시기:\n\n확인한 사실 (출처):\n`),
     ],
   },
 };

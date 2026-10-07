@@ -16,16 +16,19 @@ export async function ChatStarters() {
   ]);
   const items = activeRoomsFirst(recent.map((p) => ({ ...p, slug: p.category.slug })), quiet).slice(0, 3);
   if (items.length === 0) return null;
+  // 질문이 모두 한 방이면 방 이름을 반복하지 않는다 (론칭 2주차: "첫 댓글을 기다려요"가 줄마다 반복돼 썰렁해 보였다)
+  const oneRoom = new Set(items.map((p) => p.category.slug)).size === 1;
   return (
     <section className="chat-starters" aria-labelledby="chat-starters-h">
-      <h2 id="chat-starters-h">💬 지금 이야기해요 <span>가입 없이 바로 댓글 달 수 있어요</span></h2>
+      <h2 id="chat-starters-h">💬 지금 이야기해요</h2>
       <ul>
         {items.map((p) => (
           <li key={p.id}>
             <Link href={`/posts/${p.id}#comments`}>
               <span className="chat-starter-title">{p.title}</span>
               <span className="chat-starter-meta">
-                {p.category.name} · {p.comment_count > 0 ? `댓글 ${p.comment_count}` : "첫 댓글을 기다려요"} <b aria-hidden>답하기 →</b>
+                {[oneRoom ? "" : p.category.name, p.comment_count > 0 ? `댓글 ${p.comment_count}` : ""].filter(Boolean).join(" · ")}
+                <b aria-hidden>답하기 →</b>
               </span>
             </Link>
           </li>
@@ -33,8 +36,8 @@ export async function ChatStarters() {
       </ul>
       {/* 방 만들기 유도 (Sprint 49) */}
       <p className="chat-starters-room">
-        원하는 주제가 없나요? <Link href="/boards">🏠 내 덕질 방 만들기</Link>
-        {threshold && threshold.needed <= 1 ? " — 지금은 요청하면 바로 열려요" : ""}
+        원하는 주제가 없나요? <Link href="/boards">🏠 방 만들기</Link>
+        {threshold && threshold.needed <= 1 ? " · 요청하면 바로 열려요" : ""}
       </p>
     </section>
   );
