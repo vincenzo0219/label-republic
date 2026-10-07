@@ -803,10 +803,10 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .chat-starter-meta b { color: var(--brand); margin-left: 4px; }
 
 /* Sprint 48: 글에 바로 들어온 첫 방문자용 한 줄 소개 */
-.first-visit-intro { border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line)); background: color-mix(in srgb, var(--brand) 7%, var(--surface)); border-radius: var(--radius); padding: 12px 14px; margin: 0 0 16px; font-size: 14px; line-height: 1.55; }
+.first-visit-intro { border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line)); background: color-mix(in srgb, var(--brand) 7%, var(--surface)); border-radius: var(--radius); padding: 8px 12px; margin: 0 0 12px; font-size: 14px; line-height: 1.5; }
+.first-visit-intro a { font-weight: 700; color: var(--brand); text-decoration: none; margin-left: 4px; white-space: nowrap; }
+.ai-note { margin: 8px 0 0; font-size: 13px; }
 .first-visit-intro p { margin: 0; }
-.first-visit-links { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px !important; font-weight: 700; }
-.first-visit-links a { color: var(--brand); text-decoration: none; }
 
 /* Sprint 49: 방 만들기 유도 */
 .chat-starters-room { margin: 8px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
