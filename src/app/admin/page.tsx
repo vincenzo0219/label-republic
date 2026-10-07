@@ -12,6 +12,7 @@ import { LegalHoldPanel } from "@/components/admin/LegalHoldPanel";
 import { activeLegalHolds, LEGAL_REASONS } from "@/lib/repo/legal";
 import { pendingCounts } from "@/lib/repo/operator";
 import { countNew as countNewFeedback } from "@/lib/repo/feedback";
+import { pendingDraftCount } from "@/lib/repo/drafts";
 import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { getBusinessMetrics } from "@/lib/repo/business";
 import { SignalStrip } from "@/components/admin/SignalStrip";
@@ -72,7 +73,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openBoardRequests(),
       m.openErrors(),
     ]);
-  const [holds, pending, rules, ruleVotes, feedback, boardT, biz] = await Promise.all([
+  const [holds, pending, rules, ruleVotes, feedback, boardT, biz, drafts] = await Promise.all([
     activeLegalHolds(),
     pendingCounts(),
     getRules(),
@@ -83,6 +84,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       console.error("[business] 지표 계산 실패:", (e as Error).message);
       return null;
     }),
+    pendingDraftCount().catch(() => 0),
   ]);
 
   const last7 = daily.slice(-range);
@@ -104,6 +106,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <p>
           <Link className="btn btn-sm" href="/admin/moderation">
             🛡 모더레이션{pending.appeals + pending.alerts > 0 ? ` · 재검토 요청 ${pending.appeals} · 열린 알림 ${pending.alerts}` : ""}
+          </Link>{" "}
+          <Link className="btn btn-sm" href="/admin/drafts">
+            📝 승인 대기함{drafts > 0 ? ` · ${drafts}` : ""}
           </Link>{" "}
           <Link className="btn btn-sm" href="/admin/feedback">
             🛠 제보{feedback.new + feedback.open > 0 ? ` · 새 제보 ${feedback.new} · 처리 중 ${feedback.open}` : ""}
