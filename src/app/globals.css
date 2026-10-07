@@ -810,7 +810,7 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 
 /* Sprint 49: 방 만들기 유도 */
 .chat-starters-room { margin: 8px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
-.chat-starters-room a { font-weight: 700; color: var(--brand); }
+.chat-starters-room a { display: inline; padding: 0; font-weight: 700; color: var(--brand); }
 
 /* 승인 대기함 (Sprint 51) */
 .draft-card { display: grid; gap: 8px; margin-top: 6px; }
@@ -822,3 +822,5 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .social-connect { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .social-connect-form { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 100%; }
 .social-connect-form .input { flex: 1 1 200px; min-width: 0; }
+.guide-chips { align-items: center; }
+.board-guide:has(.guide-chips) { padding: 10px 12px; }

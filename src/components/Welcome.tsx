@@ -40,7 +40,7 @@ export function Welcome({
           닫기
         </button>
       </div>
-      <p className="welcome-line">가입 없이 닉네임만으로 바로 써요. 아래 질문에 한 줄만 답해 보세요 👇</p>
+      <p className="welcome-line">가입 없이 닉네임만으로 바로 써요.</p>
       <details className="welcome-more">
         <summary>노방장은 어떻게 돌아가요?</summary>
         <ul className="welcome-points">
