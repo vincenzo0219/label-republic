@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { DraftCard } from "@/components/admin/DraftCard";
-import { DRAFT_KINDS, listDrafts, socialAuto, type Draft } from "@/lib/repo/drafts";
+import { SocialConnect } from "@/components/admin/SocialConnect";
+import { DRAFT_KINDS, listDrafts, type Draft } from "@/lib/repo/drafts";
+import { socialStatus } from "@/lib/social";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,7 @@ function where(d: Draft) {
 const DONE_LABEL = { posted: "올림", copied: "올렸음", discarded: "버림", pending: "대기" } as const;
 
 export default async function AdminDraftsPage() {
-  const { pending, done } = await listDrafts();
+  const [{ pending, done }, social] = await Promise.all([listDrafts(), socialStatus()]);
   return (
     <div className="admin">
       <header className="admin-head">
@@ -26,9 +28,10 @@ export default async function AdminDraftsPage() {
           <Link href="/admin">← 운영 대시보드</Link> · AI가 만든 운영자 글·답글과 스레드·인스타 문구입니다. 고쳐서 <b>승인</b>해야만 올라가고, 승인한 글은 운영자 본인의 글로 보입니다.
           써 보지 않은 제품의 후기처럼 보이는 문장은 고치거나 버려 주세요.
         </p>
-        <p className="hint">
-          스레드 자동 게시 {socialAuto("threads") ? "✅ 연결됨" : "— 아직 (복사해서 직접)"} · 인스타 자동 게시 {socialAuto("instagram") ? "✅ 연결됨" : "— 아직 (복사해서 직접)"}
-        </p>
+        <section className="social-connects" aria-label="SNS 자동 게시 연결">
+          <SocialConnect platform="threads" {...social.threads} />
+          <SocialConnect platform="instagram" {...social.instagram} />
+        </section>
       </header>
       {pending.length === 0 ? (
         <p className="empty">대기 중인 초안이 없어요. 매일 15:47 점검 때 새 초안이 들어옵니다.</p>
@@ -48,7 +51,7 @@ export default async function AdminDraftsPage() {
                 <span className="hint">{fmt(d.created_at)}</span>
               </div>
               {d.note && <p className="hint" style={{ margin: "4px 0" }}>💡 {d.note}</p>}
-              <DraftCard id={d.id} kind={d.kind} title={d.title} body={d.body} extra={d.extra} imageUrl={d.image_url} auto={socialAuto(d.kind)} lastError={d.last_error} />
+              <DraftCard id={d.id} kind={d.kind} title={d.title} body={d.body} extra={d.extra} imageUrl={d.image_url} auto={d.kind === "threads" || d.kind === "instagram" ? social[d.kind].ready : true} lastError={d.last_error} />
             </li>
           ))}
         </ul>

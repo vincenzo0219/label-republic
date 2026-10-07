@@ -818,3 +818,7 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .draft-extra { margin: 0; word-break: break-all; }
 .draft-image { width: 160px; max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); }
 .draft-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.social-connects { display: grid; gap: 8px; margin: 8px 0 4px; }
+.social-connect { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.social-connect-form { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 100%; }
+.social-connect-form .input { flex: 1 1 200px; min-width: 0; }
