@@ -30,11 +30,12 @@ describe("shipped seed content", () => {
   const info = seeds.filter((s) => s.postType === "info");
   const chat = seeds.filter((s) => s.postType === "chat");
 
-  it("covers the five launch boards with 5–7 info posts each (25–35 total)", () => {
+  it("covers the five launch boards with 4–7 info posts each (25–35 total)", () => {
     const byBoard = new Map<string, number>();
     for (const s of info) byBoard.set(s.category, (byBoard.get(s.category) ?? 0) + 1);
     expect([...byBoard.keys()].sort()).toEqual(["deskterior", "keyboards", "perfume-audio", "pet-food", "supplements"]);
-    for (const n of byBoard.values()) expect(n).toBeGreaterThanOrEqual(5), expect(n).toBeLessThanOrEqual(7);
+    // 오디오 방은 향수 글 3개를 뺐다 (043)
+    for (const n of byBoard.values()) expect(n).toBeGreaterThanOrEqual(4), expect(n).toBeLessThanOrEqual(7);
     expect(info.length).toBeGreaterThanOrEqual(25);
     expect(info.length).toBeLessThanOrEqual(35);
   });
