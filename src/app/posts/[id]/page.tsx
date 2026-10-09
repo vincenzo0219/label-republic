@@ -8,6 +8,7 @@ import { AppealBox } from "@/components/AppealBox";
 import { CorrectionsPanel } from "@/components/CorrectionsPanel";
 import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { Gallery } from "@/components/Gallery";
+import { FollowCta } from "@/components/FollowLinks";
 import { LiveComments } from "@/components/LiveComments";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
 import { PostFactsTable, PostProductDatesList, ProductChips } from "@/components/PostProducts";
@@ -263,6 +264,7 @@ export default async function PostPage({ params }: Props) {
       )}
 
       <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} />
+      <FollowCta />
     </article>
   );
 }
