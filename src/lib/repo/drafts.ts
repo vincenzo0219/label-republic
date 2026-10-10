@@ -153,7 +153,7 @@ export async function approveDraft(id: string, edit: { title?: string; body?: st
     } else if (d.kind === "threads") {
       url = (await postToThreads(body, d.extra)).url;
     } else {
-      if (!d.image_url) throw new HttpError(400, "invalid_input", "인스타 초안에 이미지가 없어요.");
+      if (!d.image_url) throw new HttpError(400, "invalid_input", "인스타 초안에 이미지나 영상이 없어요.");
       url = (await postToInstagram(d.image_url, body)).url;
     }
   } catch (err) {

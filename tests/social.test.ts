@@ -11,6 +11,7 @@ d("승인 대기함 → 스레드·인스타 자동 게시 (Sprint 52)", async (
   process.env.DATABASE_URL = url;
   const hits: Hit[] = [];
   let failNext = false;
+  const statusQueue: string[] = [];
   let n = 0;
   const server: Server = createServer((req, res) => {
     let raw = "";
@@ -28,7 +29,7 @@ d("승인 대기함 → 스레드·인스타 자동 게시 (Sprint 52)", async (
       if (u.pathname.endsWith("/refresh_access_token")) return res.end(JSON.stringify({ access_token: `refreshed-${params.grant_type}`, expires_in: 5184000 }));
       if (u.searchParams.get("fields") === "permalink") return res.end(JSON.stringify({ permalink: `https://example.test/p/${u.pathname.split("/").pop()}` }));
       if (u.searchParams.get("fields") === "username") return res.end(JSON.stringify({ id: "me", username: "nobangjang" }));
-      if (u.searchParams.get("fields") === "status_code") return res.end(JSON.stringify({ status_code: "FINISHED" }));
+      if (u.searchParams.get("fields") === "status_code") return res.end(JSON.stringify({ status_code: statusQueue.shift() ?? "FINISHED" }));
       return res.end(JSON.stringify({ id: String(++n) }));
     });
   });
@@ -92,6 +93,26 @@ d("승인 대기함 → 스레드·인스타 자동 게시 (Sprint 52)", async (
     const m = await drafts.createDraft({ kind: "threads", body: "직접 올린 글" });
     expect((await drafts.approveDraft(m.id, { manual: true })).status).toBe("copied");
     expect(hits.length).toBe(before);
+  });
+
+  it("posts an .mp4 draft as an Instagram Reel and waits for processing", async () => {
+    statusQueue.push("IN_PROGRESS", "IN_PROGRESS");
+    const r = await drafts.createDraft({ kind: "instagram", body: "릴스 문구", imageUrl: "https://nobangjang.com/marketing/reel-codec.mp4" });
+    const done = await drafts.approveDraft(r.id);
+    expect(done.status).toBe("posted");
+    const media = hits.filter((h) => h.path === "/v21.0/me/media").pop()!;
+    expect(media.params).toMatchObject({ media_type: "REELS", caption: "릴스 문구", share_to_feed: "true" });
+    expect(media.params.video_url).toBe("https://nobangjang.com/marketing/reel-codec.mp4");
+    expect(media.params.image_url).toBeUndefined();
+  });
+
+  it("keeps a Reel pending with a clear message when Instagram reports a processing error", async () => {
+    statusQueue.push("ERROR");
+    const r = await drafts.createDraft({ kind: "instagram", body: "깨진 영상", imageUrl: "https://nobangjang.com/marketing/broken.mp4" });
+    await expect(drafts.approveDraft(r.id)).rejects.toMatchObject({ status: 502 });
+    const after = (await drafts.getDraft(r.id))!;
+    expect(after.status).toBe("pending");
+    expect(after.last_error).toContain("영상");
   });
 
   it("refreshes long-lived tokens weekly and uses the refreshed one; a new .env token wins again", async () => {
