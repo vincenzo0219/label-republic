@@ -61,10 +61,13 @@ export function DraftCard({
         <input className="input" maxLength={120} aria-label={`#${id} 제목`} value={t} onChange={(e) => setT(e.target.value)} />
       )}
       <textarea className="input draft-body" rows={Math.min(14, Math.max(4, b.split("\n").length + 1))} aria-label={`#${id} 본문`} value={b} onChange={(e) => setB(e.target.value)} />
-      {imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element -- 운영자 화면 미리보기, 최적화 불필요
-        <img src={imageUrl} alt="함께 올릴 이미지" className="draft-image" />
-      )}
+      {imageUrl &&
+        (/\.mp4(\?|$)/i.test(imageUrl) ? (
+          <video src={imageUrl} className="draft-image" controls muted playsInline preload="metadata" aria-label="함께 올릴 릴스 영상" />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element -- 운영자 화면 미리보기, 최적화 불필요
+          <img src={imageUrl} alt="함께 올릴 이미지" className="draft-image" />
+        ))}
       {extra && (
         <p className="hint draft-extra">
           {external ? "첫 댓글·함께 쓸 것: " : "참고: "}

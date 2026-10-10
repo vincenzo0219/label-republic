@@ -149,19 +149,37 @@ export async function postToThreads(text: string, firstReply?: string): Promise<
   return { id, url: await permalink("threads", id, tok) };
 }
 
-/** 인스타 피드에 이미지 한 장 + 문구를 올린다. 이미지는 인터넷에서 열리는 https 주소여야 한다 */
-export async function postToInstagram(imageUrl: string, caption: string): Promise<{ id: string; url: string }> {
-  if (!/^https:\/\//.test(imageUrl)) throw new HttpError(400, "invalid_input", "인스타에는 공개된 https 이미지 주소가 필요해요.");
+/** 영상(.mp4) 주소면 릴스로 올린다 (Sprint 56) */
+export function isReelUrl(mediaUrl: string): boolean {
+  return /\.mp4(\?|$)/i.test(mediaUrl);
+}
+
+/**
+ * 인스타에 이미지 한 장(피드) 또는 영상(릴스) + 문구를 올린다. 미디어는 인터넷에서 열리는 https 주소여야 한다.
+ * 릴스는 인스타가 영상을 처리하는 데 시간이 더 걸려 더 오래 기다린다 (요청 하나가 너무 길어지지 않게 약 1분까지).
+ */
+export async function postToInstagram(mediaUrl: string, caption: string): Promise<{ id: string; url: string }> {
+  if (!/^https:\/\//.test(mediaUrl)) throw new HttpError(400, "invalid_input", "인스타에는 공개된 https 이미지·영상 주소가 필요해요.");
+  const reel = isReelUrl(mediaUrl);
   const tok = await token("instagram");
   const v = GRAPH_VERSION.instagram;
-  const c = await call("instagram", "POST", `/${v}/me/media`, { image_url: imageUrl, caption }, tok);
+  const params: Record<string, string> = reel
+    ? { media_type: "REELS", video_url: mediaUrl, caption, share_to_feed: "true" }
+    : { image_url: mediaUrl, caption };
+  const c = await call("instagram", "POST", `/${v}/me/media`, params, tok);
   const creation = String(c.id);
-  for (let i = 0; i < 10; i++) {
+  const what = reel ? "영상" : "이미지";
+  let finished = false;
+  for (let i = 0; i < (reel ? 30 : 10); i++) {
     const s = await call("instagram", "GET", `/${v}/${creation}`, { fields: "status_code" }, tok);
-    if (s.status_code === "FINISHED") break;
-    if (s.status_code === "ERROR" || s.status_code === "EXPIRED") throw new HttpError(502, "social_failed", "인스타가 이미지를 처리하지 못했어요. 이미지 주소를 확인해 주세요.");
+    if (s.status_code === "FINISHED") {
+      finished = true;
+      break;
+    }
+    if (s.status_code === "ERROR" || s.status_code === "EXPIRED") throw new HttpError(502, "social_failed", `인스타가 ${what}을 처리하지 못했어요. ${what} 주소를 확인해 주세요.`);
     await sleep(socialRetryMs);
   }
+  if (reel && !finished) throw new HttpError(502, "social_failed", "인스타가 아직 영상을 처리하는 중이에요. 잠시 뒤 다시 승인해 주세요.");
   const id = await publish("instagram", creation, tok);
   return { id, url: await permalink("instagram", id, tok) };
 }
