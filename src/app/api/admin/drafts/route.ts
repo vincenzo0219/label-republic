@@ -7,7 +7,7 @@ const id = z.string().regex(/^\d{1,18}$/, "번호를 확인하세요.");
 const schema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("create"),
-    kind: z.enum(["post", "comment", "threads", "instagram"]),
+    kind: z.enum(["post", "comment", "threads", "instagram", "instagram_story"]),
     categorySlug: z.string().min(1).max(60).optional(),
     postId: id.optional(),
     parentId: id.optional(),
