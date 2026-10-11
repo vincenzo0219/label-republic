@@ -157,17 +157,20 @@ export function isReelUrl(mediaUrl: string): boolean {
 }
 
 /**
- * 인스타에 이미지 한 장(피드) 또는 영상(릴스) + 문구를 올린다. 미디어는 인터넷에서 열리는 https 주소여야 한다.
+ * 인스타에 이미지 한 장(피드) 또는 영상(릴스) + 문구를 올린다. story 면 스토리로 올린다(문구는 쓰이지 않음, Sprint 58).
+ * 미디어는 인터넷에서 열리는 https 주소여야 한다.
  * 릴스는 인스타가 영상을 처리하는 데 시간이 더 걸려 더 오래 기다린다 (요청 하나가 너무 길어지지 않게 약 1분까지).
  */
-export async function postToInstagram(mediaUrl: string, caption: string): Promise<{ id: string; url: string }> {
+export async function postToInstagram(mediaUrl: string, caption: string, opts: { story?: boolean } = {}): Promise<{ id: string; url: string }> {
   if (!/^https:\/\//.test(mediaUrl)) throw new HttpError(400, "invalid_input", "인스타에는 공개된 https 이미지·영상 주소가 필요해요.");
   const reel = isReelUrl(mediaUrl);
   const tok = await token("instagram");
   const v = GRAPH_VERSION.instagram;
-  const params: Record<string, string> = reel
-    ? { media_type: "REELS", video_url: mediaUrl, caption, share_to_feed: "true" }
-    : { image_url: mediaUrl, caption };
+  const params: Record<string, string> = opts.story
+    ? { media_type: "STORIES", ...(reel ? { video_url: mediaUrl } : { image_url: mediaUrl }) }
+    : reel
+      ? { media_type: "REELS", video_url: mediaUrl, caption, share_to_feed: "true" }
+      : { image_url: mediaUrl, caption };
   const c = await call("instagram", "POST", `/${v}/me/media`, params, tok);
   const creation = String(c.id);
   const what = reel ? "영상" : "이미지";

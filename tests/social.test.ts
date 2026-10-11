@@ -115,6 +115,15 @@ d("승인 대기함 → 스레드·인스타 자동 게시 (Sprint 52)", async (
     expect(media.params.image_url).toBeUndefined();
   });
 
+  it("posts an instagram_story draft as a Story without a caption", async () => {
+    const st = await drafts.createDraft({ kind: "instagram_story", body: "스토리 메모", imageUrl: "https://nobangjang.com/marketing/story.png" });
+    const done = await drafts.approveDraft(st.id);
+    expect(done.status).toBe("posted");
+    const media = hits.filter((h) => h.path === "/v21.0/me/media").pop()!;
+    expect(media.params).toMatchObject({ media_type: "STORIES", image_url: "https://nobangjang.com/marketing/story.png" });
+    expect(media.params.caption).toBeUndefined();
+  });
+
   it("keeps a Reel pending with a clear message when Instagram reports a processing error", async () => {
     statusQueue.push("ERROR");
     const r = await drafts.createDraft({ kind: "instagram", body: "깨진 영상", imageUrl: "https://nobangjang.com/marketing/broken.mp4" });

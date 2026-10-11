@@ -51,7 +51,7 @@ export default async function AdminDraftsPage() {
                 <span className="hint">{fmt(d.created_at)}</span>
               </div>
               {d.note && <p className="hint" style={{ margin: "4px 0" }}>💡 {d.note}</p>}
-              <DraftCard id={d.id} kind={d.kind} title={d.title} body={d.body} extra={d.extra} imageUrl={d.image_url} auto={d.kind === "threads" || d.kind === "instagram" ? social[d.kind].ready : true} lastError={d.last_error} />
+              <DraftCard id={d.id} kind={d.kind} title={d.title} body={d.body} extra={d.extra} imageUrl={d.image_url} auto={d.kind === "threads" ? social.threads.ready : d.kind === "instagram" || d.kind === "instagram_story" ? social.instagram.ready : true} lastError={d.last_error} />
             </li>
           ))}
         </ul>

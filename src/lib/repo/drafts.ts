@@ -13,7 +13,7 @@ import { postToInstagram, postToThreads, socialStatus } from "../social";
 import { createComment } from "./comments";
 import { createPost } from "./posts";
 
-export type DraftKind = "post" | "comment" | "threads" | "instagram";
+export type DraftKind = "post" | "comment" | "threads" | "instagram" | "instagram_story";
 export type DraftStatus = "pending" | "posted" | "copied" | "discarded";
 
 export const DRAFT_KINDS: Record<DraftKind, string> = {
@@ -21,6 +21,7 @@ export const DRAFT_KINDS: Record<DraftKind, string> = {
   comment: "💬 노방장 답글",
   threads: "🧵 스레드",
   instagram: "📷 인스타",
+  instagram_story: "📷 인스타 스토리",
 };
 
 export type Draft = {
@@ -154,7 +155,7 @@ export async function approveDraft(id: string, edit: { title?: string; body?: st
       url = (await postToThreads(body, d.extra, d.image_url || undefined)).url;
     } else {
       if (!d.image_url) throw new HttpError(400, "invalid_input", "인스타 초안에 이미지나 영상이 없어요.");
-      url = (await postToInstagram(d.image_url, body)).url;
+      url = (await postToInstagram(d.image_url, body, { story: d.kind === "instagram_story" })).url;
     }
   } catch (err) {
     await query("UPDATE operator_drafts SET claimed_at = NULL, last_error = $2 WHERE id = $1", [id, (err as Error).message.slice(0, 500)]);
@@ -171,8 +172,8 @@ export async function approveDraft(id: string, edit: { title?: string; body?: st
 
 /** 이 종류를 승인하면 서버가 바로 올리나 (스레드·인스타는 연결돼 있을 때만) */
 export async function socialAuto(kind: DraftKind): Promise<boolean> {
-  if (kind !== "threads" && kind !== "instagram") return true;
-  return (await socialStatus())[kind].ready;
+  if (kind !== "threads" && kind !== "instagram" && kind !== "instagram_story") return true;
+  return (await socialStatus())[kind === "threads" ? "threads" : "instagram"].ready;
 }
 
 export async function discardDraft(id: string): Promise<void> {

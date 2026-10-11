@@ -19,7 +19,7 @@ export function DraftCard({
   lastError = "",
 }: {
   id: string;
-  kind: "post" | "comment" | "threads" | "instagram";
+  kind: "post" | "comment" | "threads" | "instagram" | "instagram_story";
   title: string;
   body: string;
   extra: string;
@@ -32,7 +32,7 @@ export function DraftCard({
   const [b, setB] = useState(body);
   const [msg, setMsg] = useState<string | null>(lastError ? `지난번 실패: ${lastError}` : null);
   const [busy, setBusy] = useState(false);
-  const external = kind === "threads" || kind === "instagram";
+  const external = kind === "threads" || kind === "instagram" || kind === "instagram_story";
 
   async function act(action: "approve" | "discard", manual = false) {
     if (action === "discard" && !confirm("이 초안을 버릴까요?")) return;
