@@ -72,6 +72,15 @@ d("승인 대기함 → 스레드·인스타 자동 게시 (Sprint 52)", async (
     await expect(drafts.approveDraft(t.id)).rejects.toMatchObject({ status: 409 });
   });
 
+  it("posts a Threads draft with an image as an IMAGE post", async () => {
+    const t = await drafts.createDraft({ kind: "threads", body: "이미지 스레드", imageUrl: "https://nobangjang.com/marketing/a.png" });
+    const before = hits.length;
+    const done = await drafts.approveDraft(t.id);
+    expect(done.status).toBe("posted");
+    const create = hits.slice(before).find((h) => h.path === "/v1.0/me/threads")!;
+    expect(create.params).toMatchObject({ media_type: "IMAGE", image_url: "https://nobangjang.com/marketing/a.png", text: "이미지 스레드" });
+  });
+
   it("keeps the draft pending with the error (without the token) when Threads refuses, so it can be retried", async () => {
     const t = await drafts.createDraft({ kind: "threads", body: "실패할 글" });
     failNext = true;

@@ -136,11 +136,13 @@ async function permalink(p: Platform, id: string, tok: string): Promise<string> 
   }
 }
 
-/** 스레드에 글을 올리고, firstReply 가 있으면 그 글에 내 답글(링크 등)을 단다 */
-export async function postToThreads(text: string, firstReply?: string): Promise<{ id: string; url: string }> {
+/** 스레드에 글(이미지가 있으면 이미지 + 글, Sprint 57)을 올리고, firstReply 가 있으면 그 글에 내 답글(링크 등)을 단다 */
+export async function postToThreads(text: string, firstReply?: string, imageUrl?: string): Promise<{ id: string; url: string }> {
+  if (imageUrl && !/^https:\/\//.test(imageUrl)) throw new HttpError(400, "invalid_input", "스레드 이미지는 공개된 https 주소여야 해요.");
   const tok = await token("threads");
   const v = GRAPH_VERSION.threads;
-  const c = await call("threads", "POST", `/${v}/me/threads`, { media_type: "TEXT", text }, tok);
+  const params: Record<string, string> = imageUrl ? { media_type: "IMAGE", image_url: imageUrl, text } : { media_type: "TEXT", text };
+  const c = await call("threads", "POST", `/${v}/me/threads`, params, tok);
   const id = await publish("threads", String(c.id), tok);
   if (firstReply?.trim()) {
     const r = await call("threads", "POST", `/${v}/me/threads`, { media_type: "TEXT", text: firstReply.trim(), reply_to_id: id }, tok);
