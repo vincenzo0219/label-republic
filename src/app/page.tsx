@@ -8,6 +8,7 @@ import { siteStats } from "@/lib/repo/onboarding";
 import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { ChatStarters } from "@/components/ChatStarters";
 import { PmfSurvey } from "@/components/PmfSurvey";
+import { EarTestBanner } from "@/components/EarTestBanner";
 import { RoomOpenedNotice } from "@/components/RoomOpenedNotice";
 import { VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
 import { PMF_COOKIE, visitorHomeState } from "@/lib/repo/survey";
@@ -54,6 +55,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {firstVisit && stats && roomT && (
         <Welcome boards={activeRoomsFirst(boards, quiet).map((b) => ({ slug: b.slug, name: b.name, quiet: quiet.has(b.slug) }))} stats={stats} roomVotes={roomT.needed} />
       )}
+      {!sp.page && <EarTestBanner />}
       {!crawler && <RoomOpenedNotice />}
       {askSurvey && <PmfSurvey cookieName={PMF_COOKIE} />}
       <OpenVotesBanner />

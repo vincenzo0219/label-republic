@@ -246,6 +246,7 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       await client.query("DELETE FROM visitors WHERE last_seen < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       // 설문 응답·주간 리포트도 400일 (Sprint 40, 개인정보처리방침과 일치)
       await client.query("DELETE FROM pmf_survey WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
+      await client.query("DELETE FROM ear_test_results WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM biz_reports WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM rate_limits WHERE expires_at < now()");
       await client.query("DELETE FROM idempotency_keys WHERE created_at < $1::timestamptz - interval '24 hours'", [now.toISOString()]);
