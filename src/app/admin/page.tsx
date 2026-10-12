@@ -55,13 +55,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const prev = [addDays(today, -(2 * range - 1)), addDays(today, -range)] as const;
   const periodLabel = `직전 ${range}일 대비`;
 
-  const [daily, visCur, visPrev, sources, searchRefs, searchPosts, viewedPosts, internalSearches, boards, alerts, blinds, modCounts, jobs, boardReqs, errors] =
+  const [daily, visCur, visPrev, sources, searchRefs, socialRefs, searchPosts, viewedPosts, internalSearches, boards, alerts, blinds, modCounts, jobs, boardReqs, errors] =
     await Promise.all([
       m.dailySeries(Math.max(30, 2 * range)),
       m.periodVisitors(...cur),
       m.periodVisitors(...prev),
       m.sourceBreakdown(...cur),
       m.topReferrers(...cur, "search"),
+      m.topReferrers(...cur, "social"),
       m.topSearchLandingPosts(...cur),
       m.topViewedPosts(...cur),
       m.topInternalSearches(...cur),
@@ -143,6 +144,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <section className="chart-grid two" aria-label="유입 경로">
         <HBarList title={`유입 경로 (최근 ${range}일 랜딩)`} unit="회" empty="아직 수집된 방문이 없습니다." rows={sources.map((s) => ({ label: SOURCE_LABEL[s.source] ?? s.source, value: s.landings }))} />
         <HBarList title="검색엔진별 유입" unit="회" empty="검색 유입이 아직 없습니다." rows={searchRefs.map((r) => ({ label: r.host, value: r.landings }))} />
+        <HBarList title="SNS별 유입" unit="회" empty="SNS 유입이 아직 없습니다." rows={socialRefs.map((r) => ({ label: r.host, value: r.landings }))} />
       </section>
 
       <section className="panel-grid">
