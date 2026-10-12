@@ -18,7 +18,7 @@ const SEARCH_HOSTS = new RegExp(
   `(^|\\.)(google\\.${CC}|naver\\.com|daum\\.net|bing\\.com|yahoo\\.${CC}|duckduckgo\\.com|zum\\.com|ecosia\\.org|baidu\\.com|yandex\\.(?:ru|com))$`,
   "i",
 );
-const SOCIAL_HOSTS = /(^|\.)(kakao\.com|kakaocdn\.net|t\.co|x\.com|twitter\.com|facebook\.com|fb\.me|instagram\.com|threads\.net|reddit\.com|youtube\.com|band\.us|tiktok\.com|linkedin\.com)$/i;
+const SOCIAL_HOSTS = /(^|\.)(kakao\.com|kakaocdn\.net|t\.co|x\.com|twitter\.com|facebook\.com|fb\.me|instagram\.com|threads\.net|threads\.com|reddit\.com|youtube\.com|band\.us|tiktok\.com|linkedin\.com)$/i;
 const BOT_UA = /bot|crawl|spider|slurp|preview|headless|lighthouse|facebookexternalhit|kakaotalk-scrap|yeti|daum/i;
 
 export function referrerHost(referrer: string | undefined | null): string | null {
@@ -30,9 +30,14 @@ export function referrerHost(referrer: string | undefined | null): string | null
   }
 }
 
+/** 우리가 SNS에 단 링크의 ?from= 값 — 앱 안 브라우저가 레퍼러를 지워도 어디서 왔는지 알 수 있게 (정해진 값만) */
+const FROM_TAGS: Record<string, string> = { threads: "threads.com", instagram: "instagram.com" };
+
 /** 첫 페이지 로드(landing)의 레퍼러로 유입 경로를 분류한다. 이후 사이트 내 이동은 internal. */
-export function classifySource(opts: { landing: boolean; referrer?: string | null; siteHost: string }): { source: TrafficSource; host: string | null } {
+export function classifySource(opts: { landing: boolean; referrer?: string | null; siteHost: string; from?: string | null }): { source: TrafficSource; host: string | null } {
   if (!opts.landing) return { source: "internal", host: null };
+  const tagged = opts.from ? FROM_TAGS[opts.from.toLowerCase()] : undefined;
+  if (tagged) return { source: "social", host: tagged };
   const host = referrerHost(opts.referrer);
   if (!host) return { source: "direct", host: null };
   if (host === opts.siteHost.toLowerCase().replace(/:\d+$/, "")) return { source: "internal", host };

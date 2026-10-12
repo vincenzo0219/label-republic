@@ -44,6 +44,7 @@ export async function POST(req: Request) {
       landing: parsed.data.landing,
       referrer: parsed.data.referrer,
       siteHost: new URL(config.siteUrl).hostname, // 레퍼러도 hostname(포트 제외)으로 비교한다
+      from: new URL(parsed.data.path, "http://x").searchParams.get("from"),
     });
     await recordPageView({ visitorHash: vh, path, source, referrerHost: host, landing: parsed.data.landing });
   } catch (err) {
