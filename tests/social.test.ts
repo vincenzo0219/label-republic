@@ -64,12 +64,18 @@ d("승인 대기함 → 스레드·인스타 자동 게시 (Sprint 52)", async (
     expect(done.status).toBe("posted");
     expect(done.result_url).toMatch(/^https:\/\/example\.test\/p\//);
     const creates = hits.filter((h) => h.path === "/v1.0/me/threads");
-    expect(creates.map((h) => h.params.text)).toEqual(["고친 스레드 본문", "nobangjang.com/posts/1"]);
+    expect(creates.map((h) => h.params.text)).toEqual(["고친 스레드 본문", "nobangjang.com/posts/1?from=threads"]);
     expect(creates[1]!.params.reply_to_id).toBeTruthy();
     expect(hits.filter((h) => h.path === "/v1.0/me/threads_publish")).toHaveLength(2);
     // 토큰은 POST 본문으로만, 주소에 남기지 않는다
     expect(creates.every((h) => h.method === "POST" && h.params.access_token === "env-threads-token")).toBe(true);
     await expect(drafts.approveDraft(t.id)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("tags only our own links with ?from=", () => {
+    expect(social.tagSiteLinks("전체: nobangjang.com/posts/223 · https://www.nobangjang.com · nobangjang.com/boards?x=1 · example.com/a", "threads")).toBe(
+      "전체: nobangjang.com/posts/223?from=threads · https://www.nobangjang.com?from=threads · nobangjang.com/boards?x=1 · example.com/a",
+    );
   });
 
   it("posts a Threads draft with an image as an IMAGE post", async () => {

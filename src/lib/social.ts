@@ -136,6 +136,14 @@ async function permalink(p: Platform, id: string, tok: string): Promise<string> 
   }
 }
 
+/**
+ * 글 속 노방장 링크에 ?from=<platform> 을 붙인다 — 앱 안 브라우저가 레퍼러를 지워도 유입을 셀 수 있게.
+ * 이미 쿼리가 있거나 다른 사이트 링크는 그대로 둔다.
+ */
+export function tagSiteLinks(text: string, from: string): string {
+  return text.replace(/((?:https?:\/\/)?(?:www\.)?nobangjang\.com(?:\/[^\s?#]*)?)(?![^\s]*[?#])/g, `$1?from=${from}`);
+}
+
 /** 스레드에 글(이미지가 있으면 이미지 + 글, Sprint 57)을 올리고, firstReply 가 있으면 그 글에 내 답글(링크 등)을 단다 */
 export async function postToThreads(text: string, firstReply?: string, imageUrl?: string): Promise<{ id: string; url: string }> {
   if (imageUrl && !/^https:\/\//.test(imageUrl)) throw new HttpError(400, "invalid_input", "스레드 이미지는 공개된 https 주소여야 해요.");

@@ -9,7 +9,7 @@
 import { query } from "../db";
 import { config } from "../config";
 import { HttpError, notFound } from "../errors";
-import { postToInstagram, postToThreads, socialStatus } from "../social";
+import { postToInstagram, postToThreads, socialStatus, tagSiteLinks } from "../social";
 import { createComment } from "./comments";
 import { createPost } from "./posts";
 
@@ -152,7 +152,7 @@ export async function approveDraft(id: string, edit: { title?: string; body?: st
     } else if (edit.manual || !(await socialAuto(d.kind))) {
       status = "copied";
     } else if (d.kind === "threads") {
-      url = (await postToThreads(body, d.extra, d.image_url || undefined)).url;
+      url = (await postToThreads(tagSiteLinks(body, "threads"), tagSiteLinks(d.extra, "threads"), d.image_url || undefined)).url;
     } else {
       if (!d.image_url) throw new HttpError(400, "invalid_input", "인스타 초안에 이미지나 영상이 없어요.");
       url = (await postToInstagram(d.image_url, body, { story: d.kind === "instagram_story" })).url;
