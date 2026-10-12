@@ -10,6 +10,10 @@ describe("traffic source classification", () => {
     expect(classifySource({ landing: true, referrer: "https://www.google.co.kr/", siteHost: site }).source).toBe("search");
     expect(classifySource({ landing: true, referrer: "https://m.search.naver.com/search.naver?query=x", siteHost: site })).toEqual({ source: "search", host: "m.search.naver.com" });
     expect(classifySource({ landing: true, referrer: "https://t.co/abc", siteHost: site }).source).toBe("social");
+    expect(classifySource({ landing: true, referrer: "https://www.threads.com/@x", siteHost: site })).toEqual({ source: "social", host: "www.threads.com" });
+    // 레퍼러가 지워져도 우리가 단 ?from= 태그로 SNS를 알아본다 (정해진 값만)
+    expect(classifySource({ landing: true, referrer: "", siteHost: site, from: "threads" })).toEqual({ source: "social", host: "threads.com" });
+    expect(classifySource({ landing: true, referrer: "", siteHost: site, from: "evil.example" }).source).toBe("direct");
     expect(classifySource({ landing: true, referrer: "https://blog.example.com/p", siteHost: site }).source).toBe("referral");
     expect(classifySource({ landing: true, referrer: "", siteHost: site }).source).toBe("direct");
     expect(classifySource({ landing: true, referrer: "not a url", siteHost: site }).source).toBe("direct");
