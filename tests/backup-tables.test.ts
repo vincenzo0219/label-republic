@@ -26,6 +26,7 @@ const NOT_CHECKED: Record<string, string> = {
   trust_batch_runs: "배치 실행 기록",
   visitors: "방문 통계",
   pmf_survey: "설문 응답 (사업 지표)",
+  ear_test_results: "황금귀 테스트 결과 (익명 참가 통계)",
   biz_reports: "주간 리포트 (지표에서 다시 만들 수 있음)",
   operator_drafts: "운영자 승인 대기함 초안 (AI가 매일 다시 만든다)",
   social_tokens: "갱신된 SNS 토큰 (없으면 .env 의 토큰으로 다시 시작)",
