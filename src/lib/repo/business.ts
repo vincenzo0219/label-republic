@@ -116,6 +116,8 @@ async function contributors(): Promise<{ c28: number; new7: number }> {
        UNION ALL
        -- 책 카드에 기록을 남긴 것도 참여 (Sprint 62)
        SELECT reader_fingerprint, created_at FROM book_reads WHERE created_at > now() - interval '28 days'
+       UNION ALL
+       SELECT answer_fingerprint, created_at FROM book_ask_answers WHERE created_at > now() - interval '28 days'
      )
      SELECT (SELECT count(DISTINCT fp) FROM c)::int AS c28,
             (SELECT count(DISTINCT c.fp) FROM c JOIN fingerprints f ON f.fingerprint = c.fp

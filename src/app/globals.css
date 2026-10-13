@@ -902,3 +902,11 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .book-bar { height: 5px; border-radius: 3px; background: var(--line); margin: 8px 0 6px; overflow: hidden; }
 .book-bar span { display: block; height: 100%; background: var(--brand); }
 .book-line { margin: 4px 0; white-space: pre-wrap; word-break: break-word; }
+.book-wrap > .ear-banner { margin: 14px 0 0; }
+.book-picks { list-style: none; padding: 0; margin: 14px 0 18px; display: grid; gap: 10px; counter-reset: pick; }
+.book-picks li { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.book-picks li.mine { border-color: var(--brand); }
+.book-pick-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.book-pick-head a { color: var(--text); }
+.book-same { margin-top: 8px; }
+.book-chips { display: flex; flex-wrap: wrap; gap: 6px; }

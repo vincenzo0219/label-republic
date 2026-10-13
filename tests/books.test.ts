@@ -90,4 +90,47 @@ d("book cards (database)", async () => {
     const n = await query<{ n: number }>("SELECT count(*)::int AS n FROM fingerprints WHERE fingerprint = $1", [fp("a")]);
     expect(n[0]!.n).toBe(1);
   });
+
+  it("groups records by edition with a per-edition completion rate (Sprint 63)", async () => {
+    const { id } = await books.createBook("카라마조프가의 형제들", "도스토옙스키", null);
+    const r = (f: string, status: "done" | "dropped", edition: string) =>
+      books.saveBookRead(id, fp(f), { status, progress: status === "done" ? 100 : 30, line: "", nextTitle: "", nickname: `독자${f}`, edition });
+    await r("e1", "done", "민음사");
+    await r("e2", "done", "민음사 ");
+    await r("e3", "dropped", "민음사");
+    await r("e4", "dropped", "열린책들");
+    const b = (await books.getBook(id, null))!;
+    expect(b.editions).toEqual([
+      { edition: expect.stringMatching(/^민음사/), total: 3, done: 2, dropped: 1, rate: 67 },
+      { edition: "열린책들", total: 1, done: 0, dropped: 1, rate: null },
+    ]);
+  });
+
+  it("collects situation asks, ranks books by recommenders, links them to book cards", async () => {
+    const asks = await import("@/lib/repo/bookAsks");
+    const a = await asks.createAsk({ situation: "마음이 불안할 때 읽을 책", detail: "", nickname: "질문자" }, fp("q"));
+    expect(a.created).toBe(true);
+    expect((await asks.createAsk({ situation: "마음이 불안할 때, 읽을 책!", detail: "", nickname: "질문자2" }, fp("q2")))).toEqual({ id: a.id, created: false });
+    await expect(asks.createAsk({ situation: "병신 같은 상황", detail: "", nickname: "질문자" }, fp("q"))).rejects.toThrow();
+    await expect(asks.createAsk({ situation: "선물하기 좋은 책", detail: "", nickname: "AI 큐레이터" }, fp("q"))).rejects.toThrow();
+
+    const x = await asks.answerAsk(a.id, fp("r1"), { title: "데미안", author: "헤르만 헤세", reason: "흔들릴 때 붙잡아 줘요", nickname: "추천1" });
+    expect(x.created).toBe(true);
+    // 같은 사람이 같은 책을 다시 추천하면 이유만 고친다
+    expect((await asks.answerAsk(a.id, fp("r1"), { title: "데미안", author: "헤르만 헤세", reason: "다시 읽어도 좋아요", nickname: "추천1" })).created).toBe(false);
+    await asks.answerAsk(a.id, fp("r2"), { title: "데미안", author: "헤르만헤세", reason: "", nickname: "추천2" });
+    await asks.answerAsk(a.id, fp("r3"), { title: "새로운 책", author: "", reason: "연락 010-1111-2222", nickname: "추천3" });
+    await asks.answerAsk(a.id, fp("r4"), { title: "새로운 책", author: "", reason: "시발 좋음", nickname: "추천4" });
+
+    const d = (await asks.getAsk(a.id, fp("r2")))!;
+    expect(d.picks.map((p) => [p.title, p.count, p.mine])).toEqual([["데미안", 2, true], ["새로운 책", 1, false]]);
+    expect(d.picks[0]!.reasons).toEqual([{ nickname: "추천1", reason: "다시 읽어도 좋아요" }]);
+    expect(d.picks[1]!.reasons[0]!.reason).toBe("연락 [개인정보 가림]");
+    const demian = (await books.listBooks()).find((b) => b.title === "데미안")!;
+    expect(x.bookId).toBe(demian.id);
+    expect((await books.getBook(demian.id, null))!.askedIn).toEqual([{ id: a.id, situation: "마음이 불안할 때 읽을 책", count: 2 }]);
+    const list = await asks.listAsks();
+    expect(list[0]).toMatchObject({ id: a.id, books: 2, answers: 3, top: ["데미안", "새로운 책"] });
+    await expect(asks.answerAsk("99999", fp("r1"), { title: "데미안", author: "", reason: "", nickname: "추천1" })).rejects.toThrow();
+  });
 });

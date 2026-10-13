@@ -61,6 +61,46 @@ export default async function BookPage({ params }: Props) {
         {book.dropAt !== null && <p className="hint">🏳️ 중도 포기한 사람들은 평균 <b>{book.dropAt}%</b> 지점에서 멈췄어요.</p>}
       </div>
 
+      {book.editions.length > 0 && (
+        <div className="book-next">
+          <h2>출판사(번역)별</h2>
+          <table className="ear-table">
+            <thead>
+              <tr>
+                <th>출판사·번역</th>
+                <th>기록</th>
+                <th>완독률</th>
+              </tr>
+            </thead>
+            <tbody>
+              {book.editions.map((e) => (
+                <tr key={e.edition}>
+                  <td>{e.edition}</td>
+                  <td>
+                    {e.total} (완독 {e.done} · 포기 {e.dropped})
+                  </td>
+                  <td>{e.rate !== null ? `${e.rate}%` : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="hint">&ldquo;안 읽히면 번역을 의심해 보라&rdquo;는 말, 여기서 확인해 보세요. 완독률은 출판사마다 기록이 {BOOK_MIN_FOR_RATE}개 모이면 보여요.</p>
+        </div>
+      )}
+
+      {book.askedIn.length > 0 && (
+        <div className="book-next">
+          <h2>이 책이 추천된 상황</h2>
+          <div className="book-chips">
+            {book.askedIn.map((a) => (
+              <Link key={a.id} href={`/books/ask/${a.id}`} className="chip">
+                {a.situation} · {a.count}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {book.nextBooks.length > 0 && (
         <div className="book-next">
           <h2>이 책 다음에 읽은 책</h2>
@@ -95,6 +135,7 @@ export default async function BookPage({ params }: Props) {
                 <span style={{ width: `${r.progress}%` }} />
               </div>
               {r.hidden ? <p className="hint">가려진 한 줄이에요.</p> : r.line && <p className="book-line">{r.line}</p>}
+              {r.edition && <p className="hint">📗 {r.edition}</p>}
               {r.next_title && <p className="hint">→ 다음 책: 『{r.next_title}』</p>}
             </li>
           ))}
