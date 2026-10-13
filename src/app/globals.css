@@ -868,3 +868,37 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .ear-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 .ear-cta { display: block; padding: 14px 16px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); color: var(--text); text-decoration: none; font-weight: 700; }
 .ear-cta:hover { border-color: var(--brand); }
+
+/* 📖 책 카드 (Sprint 62) */
+.book-wrap { max-width: 640px; margin: 8px auto 32px; }
+.book-title { font-size: 28px; line-height: 1.3; margin: 0 0 4px; letter-spacing: -0.5px; }
+.book-author { color: var(--muted); margin: 0 0 14px; font-size: 14.5px; }
+.book-add { display: grid; gap: 10px; margin: 16px 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.book-list { list-style: none; padding: 0; margin: 12px 0 18px; display: grid; gap: 8px; }
+.book-item { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); text-decoration: none; }
+.book-item:hover { border-color: var(--brand); }
+.book-item-stats { font-size: 13.5px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.book-rate-chip { color: var(--brand); }
+.book-stats { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); margin: 8px 0 14px; }
+.book-rate b { font-size: 44px; font-weight: 800; color: var(--brand); line-height: 1; margin-right: 8px; }
+.book-rate span { font-weight: 700; }
+.book-counts { list-style: none; padding: 0; margin: 12px 0 4px; display: flex; gap: 14px; flex-wrap: wrap; font-size: 14.5px; }
+.book-next { margin: 0 0 14px; }
+.book-next h2, .book-h2, .book-form h2 { font-size: 17px; margin: 18px 0 8px; }
+.book-next ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.book-form { display: grid; gap: 10px; padding: 16px; border: 2px solid color-mix(in srgb, var(--brand) 40%, var(--line)); border-radius: var(--radius); background: var(--surface); }
+.book-form h2 { margin: 0; }
+.book-status { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.book-status-btn { height: 48px; padding: 0 4px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); color: var(--text); font-weight: 700; font-size: 14px; white-space: nowrap; cursor: pointer; }
+.book-status-btn.on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, var(--bg)); }
+.book-progress { display: grid; gap: 6px; font-size: 14.5px; }
+.book-progress input { width: 100%; accent-color: var(--brand); }
+.book-reads { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 10px; }
+.book-reads li { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.book-reads li.mine { border-color: var(--brand); }
+.book-read-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.book-chip { padding: 2px 8px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); font-size: 12.5px; font-weight: 700; }
+.book-chip.done { border-color: color-mix(in srgb, var(--brand) 60%, var(--line)); color: var(--brand); }
+.book-bar { height: 5px; border-radius: 3px; background: var(--line); margin: 8px 0 6px; overflow: hidden; }
+.book-bar span { display: block; height: 100%; background: var(--brand); }
+.book-line { margin: 4px 0; white-space: pre-wrap; word-break: break-word; }
