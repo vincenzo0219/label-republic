@@ -42,6 +42,7 @@ async function build(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: `${config.siteUrl}/`, changeFrequency: "hourly", priority: 1 },
     { url: `${config.siteUrl}/ear-test`, changeFrequency: "weekly" as const, priority: 0.7 },
+    { url: `${config.siteUrl}/hearing-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     ...["/policy", "/rules", "/transparency", "/terms", "/privacy"].map((p) => ({ url: `${config.siteUrl}${p}`, changeFrequency: "monthly" as const, priority: 0.3 })),
     ...categories.map((c) => ({
       url: `${config.siteUrl}/c/${encodeURIComponent(c.slug)}`,
