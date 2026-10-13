@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
+import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { getCategoryBySlug as getCategoryUncached } from "@/lib/repo/categories";
 import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
 
@@ -37,5 +39,22 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) notFound();
   const sp = await searchParams;
-  return <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />;
+  const feed = <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />;
+  if (category.slug !== BOOK_ROOM_SLUG) return feed;
+  // 책방에서는 책 카드로 (Sprint 62) — 이야기는 방에서, 기록은 책 카드에 쌓인다
+  return (
+    <>
+      <div className="ear-banners">
+        <Link href="/books" className="ear-banner">
+          <span className="ear-banner-emoji" aria-hidden>
+            📖
+          </span>
+          <span>
+            <b>책 카드</b> — 읽는 중·완독·중도 포기를 한 번에 남기고, 완독률과 다음 책을 확인해요 <span className="ear-banner-go">책 카드 →</span>
+          </span>
+        </Link>
+      </div>
+      {feed}
+    </>
+  );
 }
