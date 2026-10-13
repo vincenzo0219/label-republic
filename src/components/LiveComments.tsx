@@ -8,6 +8,7 @@ import { addMyComment, watchPost } from "@/lib/watchlist";
 import { timeAgo } from "@/lib/format";
 import type { Comment } from "@/lib/types";
 import { abuseLabel } from "@/lib/abuse-labels";
+import { EAR_BRAG_POST_ID, earBragLine } from "@/lib/earTest";
 
 type Event =
   | { type: "created"; comment: Comment }
@@ -58,6 +59,7 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
   // 리포트·알림의 "#c번호" 링크로 온 댓글 — 앱 안 이동(pushState)에서는 :target 이 바뀌지 않아 직접 강조한다
   const [target, setTarget] = useState<string | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const nickRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState(false);
@@ -70,6 +72,23 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
       if (saved) setForm((f) => ({ ...f, nickname: saved }));
     } catch {}
   }, []);
+
+  // 황금귀 테스트 결과에서 "점수 인증하기"로 왔으면 점수 한 줄을 채워 둔다 (Sprint 60). 인증 글에서만, 점수만 받는다.
+  useEffect(() => {
+    if (String(postId) !== EAR_BRAG_POST_ID) return;
+    const line = earBragLine(new URLSearchParams(window.location.search).get("ear"));
+    if (!line) return;
+    setForm((f) => (f.body ? f : { ...f, body: line }));
+    requestAnimationFrame(() => {
+      const el = bodyRef.current;
+      if (!el) return;
+      el.scrollIntoView({ block: "center" });
+      // 닉네임이 비어 있으면 닉네임부터 (점수 줄은 채워져 있으니 장비만 적으면 된다)
+      if (nickRef.current && !nickRef.current.value) return nickRef.current.focus();
+      el.focus();
+      el.setSelectionRange(line.length, line.length);
+    });
+  }, [postId]);
 
   useEffect(() => {
     const read = () => {
@@ -226,9 +245,9 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
         </div>
       ))}
 
-      <form className="form" onSubmit={submit} style={{ marginTop: 16 }}>
+      <form id="write" className="form" onSubmit={submit} style={{ marginTop: 16 }}>
         <div className="row">
-          <input className="input" placeholder="닉네임" value={form.nickname} maxLength={20} required
+          <input ref={nickRef} className="input" placeholder="닉네임" value={form.nickname} maxLength={20} required
             onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
           <input className="input" placeholder="비번 4자리" inputMode="numeric" pattern="\d{4}" maxLength={4} required
             value={form.pw} onChange={(e) => setForm({ ...form, pw: e.target.value.replace(/\D/g, "") })} />

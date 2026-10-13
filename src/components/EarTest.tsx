@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
-import { EAR_MIN_PARTICIPANTS, EAR_ROUNDS, EAR_TOTAL, earTier, type EarStats } from "@/lib/earTest";
+import { EAR_BRAG_POST_ID, EAR_MIN_PARTICIPANTS, EAR_ROUNDS, EAR_TOTAL, earTier, type EarStats } from "@/lib/earTest";
 
 type Side = "A" | "B";
 type Result = { score: number } & EarStats;
@@ -178,6 +178,16 @@ export function EarTest() {
         {result.topPercent !== null && <> · 참가자 중 <b>상위 {result.topPercent}%</b></>}
       </p>
       <p className="hint">{tier.line}. 찍어도 5개 안팎은 맞힐 수 있어요.</p>
+      {/* 테스트 → 커뮤니티 (Sprint 60): 점수 한 줄이 채워진 댓글 칸으로 */}
+      <Link
+        href={`/posts/${EAR_BRAG_POST_ID}?ear=${result.score}#write`}
+        className="btn btn-primary ear-brag"
+        onClick={() => {
+          fetch("/api/ear-test/brag", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", keepalive: true }).catch(() => {});
+        }}
+      >
+        💬 점수 인증하고 다른 덕후들과 비교하기
+      </Link>
 
       <table className="ear-table">
         <thead>
@@ -212,6 +222,7 @@ export function EarTest() {
         </div>
       )}
       {error && <p className="error">{error}</p>}
+
 
       <div className="ear-actions">
         <ShareCard score={result.score} topPercent={result.topPercent} />

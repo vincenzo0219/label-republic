@@ -24,6 +24,29 @@ export const EAR_TOTAL = EAR_ROUNDS.length;
 /** 이 인원보다 적으면 "상위 몇 %"를 보여 주지 않는다 (몇 명으로 순위를 매기면 오해를 준다) */
 export const EAR_MIN_PARTICIPANTS = 20;
 
+/**
+ * 결과 화면의 "점수 인증하기"가 여는 글 (Sprint 60) — 덕후1호의 점수 인증 모음 글.
+ * 이 글 링크에 ?ear=점수 를 붙이면 댓글 칸에 점수 한 줄이 미리 채워진다.
+ */
+export const EAR_BRAG_POST_ID = "1085";
+
+/** 인증 댓글에 미리 채울 문장. 점수가 0~10 정수가 아니면 null (주소로 아무 글이나 채우지 못하게) */
+export function earBragLine(raw: string | null | undefined): string | null {
+  if (raw == null || !/^(10|[0-9])$/.test(raw)) return null;
+  const score = Number(raw);
+  const t = earTier(score);
+  return `🎧 황금귀 테스트 ${score}/${EAR_TOTAL} (${t.emoji} ${t.name}) / 장비: `;
+}
+
+export type EarFunnel = {
+  /** 기간 안에 처음 테스트를 끝낸 사람 */
+  finished: number;
+  /** 그중 "점수 인증하기"를 누른 사람 */
+  bragClicks: number;
+  /** 기간 안에 인증 글에 달린 사람 댓글 수 */
+  bragComments: number;
+};
+
 export type EarTier = { emoji: string; name: string; line: string };
 
 /** 점수별 등급 — 찍어도 5개 안팎은 맞히므로 6개 이하는 "구분 어려움"으로 본다 */

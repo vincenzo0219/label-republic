@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { EAR_MIN_PARTICIPANTS, EAR_ROUNDS, EAR_TOTAL, earTier, popcount } from "@/lib/earTest";
+import { EAR_BRAG_POST_ID, EAR_MIN_PARTICIPANTS, EAR_ROUNDS, EAR_TOTAL, earBragLine, earTier, popcount } from "@/lib/earTest";
 
 describe("ear test — pure (Sprint 59)", () => {
   it("has 10 rounds whose audio files exist and are the same size (size must not reveal the answer)", () => {
@@ -27,6 +27,13 @@ describe("ear test — pure (Sprint 59)", () => {
     expect(earTier(8).name).toBe("덕후 귀");
     expect(earTier(7).name).toBe("예민한 귀");
     expect(earTier(5).name).toBe("평범한 귀");
+  });
+
+  it("prefills the brag comment only for a plain 0..10 score (Sprint 60)", () => {
+    expect(earBragLine("7")).toBe("🎧 황금귀 테스트 7/10 (👂 예민한 귀) / 장비: ");
+    expect(earBragLine("10")).toContain("🏆 황금귀");
+    expect(earBragLine("0")).toContain("0/10");
+    for (const bad of [null, undefined, "", "11", "-1", "7.5", "07", "7 욕설", "<b>7</b>"]) expect(earBragLine(bad)).toBeNull();
   });
 });
 
@@ -72,5 +79,35 @@ d("ear test (database)", async () => {
     const s8 = await ear.earStats(8);
     expect(s8.topPercent).toBe(Math.round(((EAR_MIN_PARTICIPANTS / 2) / 2 / n) * 100));
     await expect(query("INSERT INTO ear_test_results (visitor_hash, correct_mask, score) VALUES ('x', 1024, 1)")).rejects.toThrow();
+  });
+
+  it("measures test → brag click → brag comments (Sprint 60)", async () => {
+    const { kstDay } = await import("@/lib/metrics");
+    const today = kstDay();
+    const before = await ear.earFunnel(today, today);
+    expect(before.finished).toBe(EAR_MIN_PARTICIPANTS + 1);
+    expect(before.bragClicks).toBe(0);
+
+    // 결과가 없는 방문자는 무시, 있는 방문자는 마지막 결과에 한 번만
+    expect(await ear.markEarBrag(vh("nobody"))).toBe(false);
+    expect(await ear.markEarBrag(vh("a"))).toBe(true);
+    expect(await ear.markEarBrag(vh("a"))).toBe(false);
+    await ear.markEarBrag(vh("p1"));
+
+    // 인증 글: 글쓴이(덕후1호)·AI 댓글은 빼고 사람 댓글만
+    await query(
+      `INSERT INTO posts (id, category_id, nickname, pw_hash, title, body, post_type)
+       SELECT $1, id, '덕후1호', 'x', '점수 인증', '본문', 'chat' FROM categories ORDER BY id LIMIT 1`,
+      [EAR_BRAG_POST_ID],
+    );
+    await query(
+      `INSERT INTO comments (post_id, nickname, pw_hash, body, is_ai_curated) VALUES
+         ($1, '사람1', 'x', '7개', false), ($1, '사람2', 'x', '9개', false), ($1, '덕후1호', 'x', '축하해요', false), ($1, 'AI', 'x', '요약', true)`,
+      [EAR_BRAG_POST_ID],
+    );
+    const f = await ear.earFunnel(today, today);
+    expect(f).toEqual({ finished: EAR_MIN_PARTICIPANTS + 1, bragClicks: 2, bragComments: 2 });
+    // 지난 기간에는 0
+    expect(await ear.earFunnel("2020-01-01", "2020-01-07")).toEqual({ finished: 0, bragClicks: 0, bragComments: 0 });
   });
 });
