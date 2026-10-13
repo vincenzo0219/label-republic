@@ -9,6 +9,7 @@ import { timeAgo } from "@/lib/format";
 import type { Comment } from "@/lib/types";
 import { abuseLabel } from "@/lib/abuse-labels";
 import { EAR_BRAG_POST_ID, earBragLine } from "@/lib/earTest";
+import { HEARING_BRAG_POST_ID, hearingBragLine } from "@/lib/hearingTest";
 
 type Event =
   | { type: "created"; comment: Comment }
@@ -73,10 +74,11 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
     } catch {}
   }, []);
 
-  // 황금귀 테스트 결과에서 "점수 인증하기"로 왔으면 점수 한 줄을 채워 둔다 (Sprint 60). 인증 글에서만, 점수만 받는다.
+  // 테스트 결과에서 "인증하기"로 왔으면 결과 한 줄을 채워 둔다 (Sprint 60·61). 각 인증 글에서만, 정해진 값만 받는다.
   useEffect(() => {
-    if (String(postId) !== EAR_BRAG_POST_ID) return;
-    const line = earBragLine(new URLSearchParams(window.location.search).get("ear"));
+    const q = new URLSearchParams(window.location.search);
+    const id = String(postId);
+    const line = id === EAR_BRAG_POST_ID ? earBragLine(q.get("ear")) : id === HEARING_BRAG_POST_ID ? hearingBragLine(q.get("hz")) : null;
     if (!line) return;
     setForm((f) => (f.body ? f : { ...f, body: line }));
     requestAnimationFrame(() => {

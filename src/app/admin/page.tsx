@@ -16,6 +16,7 @@ import { pendingDraftCount } from "@/lib/repo/drafts";
 import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { getBusinessMetrics } from "@/lib/repo/business";
 import { earFunnel } from "@/lib/repo/earTest";
+import { hearingFunnel } from "@/lib/repo/hearingTest";
 import { SignalStrip } from "@/components/admin/SignalStrip";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
 
@@ -75,7 +76,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openBoardRequests(),
       m.openErrors(),
     ]);
-  const ear = await earFunnel(...cur);
+  const [ear, hearing] = await Promise.all([earFunnel(...cur), hearingFunnel(...cur)]);
   const [holds, pending, rules, ruleVotes, feedback, boardT, biz, drafts] = await Promise.all([
     activeLegalHolds(),
     pendingCounts(),
@@ -147,17 +148,23 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <HBarList title={`유입 경로 (최근 ${range}일 랜딩)`} unit="회" empty="아직 수집된 방문이 없습니다." rows={sources.map((s) => ({ label: SOURCE_LABEL[s.source] ?? s.source, value: s.landings }))} />
         <HBarList title="검색엔진별 유입" unit="회" empty="검색 유입이 아직 없습니다." rows={searchRefs.map((r) => ({ label: r.host, value: r.landings }))} />
         <HBarList title="SNS별 유입" unit="회" empty="SNS 유입이 아직 없습니다." rows={socialRefs.map((r) => ({ label: r.host, value: r.landings }))} />
-        <HBarList
-          title={`황금귀 테스트 → 커뮤니티 (최근 ${range}일)`}
-          unit=""
-          funnel
-          empty="테스트를 끝낸 사람이 아직 없습니다."
-          rows={ear.finished ? [
-            { label: "테스트 완료 (첫 응시, 명)", value: ear.finished },
-            { label: "점수 인증 버튼 누름 (명)", value: ear.bragClicks },
-            { label: "인증 글 댓글 (건)", value: ear.bragComments },
-          ] : []}
-        />
+        {[
+          { name: "황금귀 테스트", f: ear },
+          { name: "고음 청력 테스트", f: hearing },
+        ].map(({ name, f }) => (
+          <HBarList
+            key={name}
+            title={`${name} → 커뮤니티 (최근 ${range}일)`}
+            unit=""
+            funnel
+            empty="테스트를 끝낸 사람이 아직 없습니다."
+            rows={f.finished ? [
+              { label: "테스트 완료 (첫 응시, 명)", value: f.finished },
+              { label: "인증 버튼 누름 (명)", value: f.bragClicks },
+              { label: "인증 글 댓글 (건)", value: f.bragComments },
+            ] : []}
+          />
+        ))}
       </section>
 
       <section className="panel-grid">

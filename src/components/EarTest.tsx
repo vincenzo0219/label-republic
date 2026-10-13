@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
+import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
 import { EAR_BRAG_POST_ID, EAR_MIN_PARTICIPANTS, EAR_ROUNDS, EAR_TOTAL, earTier, type EarStats } from "@/lib/earTest";
 
 type Side = "A" | "B";
@@ -233,6 +234,9 @@ export function EarTest() {
           다시 하기
         </button>
       </div>
+      <Link href="/hearing-test" className="ear-cta">
+        🦟 다음 도전: 내 귀는 몇 kHz까지 들릴까? (고음 청력 테스트) →
+      </Link>
       <Link href="/posts/223" className="ear-cta">
         💬 덕후들의 코덱·음질 토론 보러 가기 →
       </Link>
@@ -246,63 +250,17 @@ function ShareCard({ score, topPercent }: { score: number; topPercent: number | 
   const make = async () => {
     setBusy(true);
     try {
-      await document.fonts.ready;
       const tier = earTier(score);
-      const c = document.createElement("canvas");
-      c.width = 1080;
-      c.height = 1920;
-      const g = c.getContext("2d")!;
-      const font = getComputedStyle(document.body).fontFamily;
-      g.fillStyle = "#121211";
-      g.fillRect(0, 0, 1080, 1920);
-      const grad = g.createRadialGradient(860, 260, 0, 860, 260, 760);
-      grad.addColorStop(0, "rgba(79,209,165,0.35)");
-      grad.addColorStop(1, "rgba(79,209,165,0)");
-      g.fillStyle = grad;
-      g.fillRect(0, 0, 1080, 1920);
-      g.fillStyle = "#f4f2ec";
-      g.textAlign = "center";
-      g.font = `700 44px ${font}`;
-      g.fillText("🏠 노방장 황금귀 테스트", 540, 260);
-      g.font = `400 40px ${font}`;
-      g.fillStyle = "#c9c5bb";
-      g.fillText("압축 음질 블라인드 테스트 10문제", 540, 330);
-      g.font = `400 220px ${font}`;
-      g.fillText(tier.emoji, 540, 700);
-      g.fillStyle = "#4fd1a5";
-      g.font = `700 140px ${font}`;
-      g.fillText(tier.name, 540, 900);
-      g.fillStyle = "#f4f2ec";
-      g.font = `700 72px ${font}`;
-      g.fillText(`10문제 중 ${score}개 정답`, 540, 1060);
-      if (topPercent !== null) {
-        g.font = `700 64px ${font}`;
-        g.fillStyle = "#ffb86b";
-        g.fillText(`참가자 중 상위 ${topPercent}%`, 540, 1160);
-      }
-      g.fillStyle = "#4fd1a5";
-      const w = 760;
-      g.beginPath();
-      g.roundRect(540 - w / 2, 1450, w, 130, 65);
-      g.fill();
-      g.fillStyle = "#121211";
-      g.font = `700 52px ${font}`;
-      g.fillText("너도 해 봐 👉 1분이면 끝", 540, 1533);
-      g.fillStyle = "#a9a59c";
-      g.font = `400 40px ${font}`;
-      g.fillText("nobangjang.com/ear-test", 540, 1660);
-      const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/png"));
-      if (!blob) return;
-      const file = new File([blob], "nobangjang-ear-test.png", { type: "image/png" });
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], text: `나는 ${tier.name}! 너도 해 봐 → https://nobangjang.com/ear-test?from=share` }).catch(() => {});
-      } else {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = file.name;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      }
+      const blob = await drawShareCard({
+        title: "🏠 노방장 황금귀 테스트",
+        sub: "압축 음질 블라인드 테스트 10문제",
+        emoji: tier.emoji,
+        name: tier.name,
+        score: `10문제 중 ${score}개 정답`,
+        extra: topPercent !== null ? `참가자 중 상위 ${topPercent}%` : null,
+        url: "nobangjang.com/ear-test",
+      });
+      if (blob) await shareOrDownload(blob, "nobangjang-ear-test.png", `나는 ${tier.name}! 너도 해 봐 → https://nobangjang.com/ear-test?from=share`);
     } finally {
       setBusy(false);
     }
