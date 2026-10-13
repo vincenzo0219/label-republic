@@ -38,6 +38,8 @@ export type BookRead = {
   progress: number;
   line: string;
   next_title: string;
+  /** 어느 출판사(번역)로 읽었는지 (Sprint 63) */
+  edition: string;
   hidden: boolean;
   updated_at: string;
   mine: boolean;
@@ -61,4 +63,17 @@ export type BookDetail = BookSummary & {
   /** 이 책 다음에 읽은 책 (많이 나온 순) — 노방장에 카드가 있으면 id */
   nextBooks: { title: string; count: number; bookId: string | null }[];
   reads: BookRead[];
+  /** 출판사(번역)별 기록 — 같은 표기끼리 묶음 (Sprint 63) */
+  editions: { edition: string; total: number; done: number; dropped: number; rate: number | null }[];
+  /** 이 책이 추천된 상황 (Sprint 63) */
+  askedIn: { id: string; situation: string; count: number }[];
+};
+
+/** 상황별 추천 (Sprint 63) */
+export type BookAskSummary = { id: string; situation: string; detail: string; nickname: string; books: number; answers: number; top: string[]; last_answer_at: string };
+
+export type BookAskDetail = BookAskSummary & {
+  hidden: boolean;
+  /** 추천된 책 — 추천한 사람 수 순 */
+  picks: { bookId: string; title: string; author: string; count: number; mine: boolean; reasons: { nickname: string; reason: string }[] }[];
 };

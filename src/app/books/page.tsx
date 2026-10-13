@@ -28,6 +28,14 @@ export default async function BooksPage() {
       <p className="hint">
         책마다 한 장씩, 읽은 사람들이 <b>읽는 중 · 완독 · 중도 포기</b>와 한 줄을 남겨요. 쌓일수록 완독률과 &ldquo;이 책 다음에 뭐 읽었는지&rdquo;가 보여요. 피드처럼 밀려 사라지지 않아요.
       </p>
+      <Link href="/books/ask" className="ear-banner">
+        <span className="ear-banner-emoji" aria-hidden>
+          📚
+        </span>
+        <span>
+          <b>상황별 추천</b> — &ldquo;불안할 때&rdquo;, &ldquo;선물할 때&rdquo; 읽을 책, 추천이 쌓여요 <span className="ear-banner-go">보러 가기 →</span>
+        </span>
+      </Link>
       <BookAddForm />
       {books.length === 0 ? (
         <p className="hint">아직 책 카드가 없어요. 지금 읽는 책으로 첫 카드를 만들어 주세요!</p>

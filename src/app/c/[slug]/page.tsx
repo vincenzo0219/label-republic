@@ -53,6 +53,14 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             <b>책 카드</b> — 읽는 중·완독·중도 포기를 한 번에 남기고, 완독률과 다음 책을 확인해요 <span className="ear-banner-go">책 카드 →</span>
           </span>
         </Link>
+        <Link href="/books/ask" className="ear-banner">
+          <span className="ear-banner-emoji" aria-hidden>
+            📚
+          </span>
+          <span>
+            <b>상황별 추천</b> — &ldquo;○○할 때 읽을 책&rdquo;, 추천이 밀려 사라지지 않고 쌓여요 <span className="ear-banner-go">추천 →</span>
+          </span>
+        </Link>
       </div>
       {feed}
     </>

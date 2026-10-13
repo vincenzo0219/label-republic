@@ -39,10 +39,11 @@ export async function getBook(id: string, fingerprint: string | null): Promise<B
   if (!/^\d{1,18}$/.test(id)) return null;
   const [summary] = await query<BookSummary>(`SELECT ${SUMMARY} FROM books b LEFT JOIN book_reads r ON r.book_id = b.id WHERE b.id = $1 GROUP BY b.id`, [id]);
   if (!summary) return null;
-  const [reads, drop, next] = await Promise.all([
+  const [reads, drop, next, editions, askedIn] = await Promise.all([
     query<BookRead>(
       `SELECT id::text, nickname, status, progress, CASE WHEN hidden_reason IS NULL THEN line ELSE '' END AS line,
               CASE WHEN hidden_reason IS NULL THEN next_title ELSE '' END AS next_title,
+              CASE WHEN hidden_reason IS NULL THEN edition ELSE '' END AS edition,
               hidden_reason IS NOT NULL AS hidden, updated_at, ($2::text IS NOT NULL AND reader_fingerprint = $2::text) AS mine
          FROM book_reads WHERE book_id = $1 ORDER BY updated_at DESC LIMIT 200`,
       [id, fingerprint],
@@ -56,6 +57,19 @@ export async function getBook(id: string, fingerprint: string | null): Promise<B
         GROUP BY next_norm ORDER BY count DESC, max(updated_at) DESC LIMIT 5`,
       [id],
     ),
+    query<{ edition: string; total: number; done: number; dropped: number }>(
+      `SELECT (array_agg(edition ORDER BY updated_at DESC))[1] AS edition, count(*)::int AS total,
+              count(*) FILTER (WHERE status = 'done')::int AS done, count(*) FILTER (WHERE status = 'dropped')::int AS dropped
+         FROM book_reads WHERE book_id = $1 AND edition_norm <> '' AND hidden_reason IS NULL
+        GROUP BY edition_norm ORDER BY total DESC LIMIT 8`,
+      [id],
+    ),
+    query<{ id: string; situation: string; count: number }>(
+      `SELECT a.id::text, a.situation, count(*)::int AS count FROM book_ask_answers x JOIN book_asks a ON a.id = x.ask_id
+        WHERE x.book_id = $1 AND x.hidden_reason IS NULL AND a.hidden_reason IS NULL
+        GROUP BY a.id ORDER BY count DESC, a.id DESC LIMIT 8`,
+      [id],
+    ),
   ]);
   return {
     ...summary,
@@ -63,10 +77,12 @@ export async function getBook(id: string, fingerprint: string | null): Promise<B
     dropAt: drop[0]?.avg == null ? null : Math.round(drop[0].avg),
     nextBooks: next.map((n) => ({ title: n.title, count: n.count, bookId: n.book_id === id ? null : n.book_id })),
     reads,
+    editions: editions.map((e) => ({ ...e, rate: completionRate(e.done, e.dropped) })),
+    askedIn,
   };
 }
 
-export type BookReadInput = { status: BookStatus; progress: number; line: string; nextTitle: string; nickname: string };
+export type BookReadInput = { status: BookStatus; progress: number; line: string; nextTitle: string; nickname: string; edition?: string };
 
 /** 내 기록 남기기·고치기 — 한 사람이 책 하나에 기록 하나 */
 export async function saveBookRead(bookId: string, fingerprint: string, input: BookReadInput): Promise<{ created: boolean }> {
@@ -75,18 +91,20 @@ export async function saveBookRead(bookId: string, fingerprint: string, input: B
   // 연락처·계좌 같은 개인정보는 가리고, 분명한 욕설·혐오는 한 줄만 가린다 (기록은 통계에 남는다)
   const line = maskPersonalInfo(input.line).text;
   const nextTitle = maskPersonalInfo(input.nextTitle).text;
-  const abuse = heuristicAbuse(line, nextTitle, input.nickname);
+  const edition = maskPersonalInfo(input.edition ?? "").text;
+  const abuse = heuristicAbuse(line, nextTitle, edition, input.nickname);
   return tx(async (client) => {
     const { rows: book } = await client.query("SELECT 1 FROM books WHERE id = $1 FOR UPDATE", [bookId]);
     if (!book[0]) throw notFound("책");
     const { rows } = await client.query<{ created: boolean }>(
-      `INSERT INTO book_reads (book_id, reader_fingerprint, nickname, status, progress, line, next_title, next_norm, hidden_reason)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO book_reads (book_id, reader_fingerprint, nickname, status, progress, line, next_title, next_norm, hidden_reason, edition, edition_norm)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (book_id, reader_fingerprint) DO UPDATE
          SET nickname = EXCLUDED.nickname, status = EXCLUDED.status, progress = EXCLUDED.progress, line = EXCLUDED.line,
-             next_title = EXCLUDED.next_title, next_norm = EXCLUDED.next_norm, hidden_reason = EXCLUDED.hidden_reason, updated_at = now()
+             next_title = EXCLUDED.next_title, next_norm = EXCLUDED.next_norm, hidden_reason = EXCLUDED.hidden_reason,
+             edition = EXCLUDED.edition, edition_norm = EXCLUDED.edition_norm, updated_at = now()
        RETURNING (xmax = 0) AS created`,
-      [bookId, fingerprint, input.nickname, input.status, input.progress, line, nextTitle, normText(nextTitle), abuse?.category ?? null],
+      [bookId, fingerprint, input.nickname, input.status, input.progress, line, nextTitle, normText(nextTitle), abuse?.category ?? null, edition, normText(edition)],
     );
     await client.query("UPDATE books SET last_read_at = now() WHERE id = $1", [bookId]);
     return rows[0]!;

@@ -12,6 +12,7 @@ export function BookRecordForm({ bookId, title, mine }: { bookId: string; title:
   const [progress, setProgress] = useState(mine?.progress ?? 50);
   const [line, setLine] = useState(mine?.line ?? "");
   const [nextTitle, setNextTitle] = useState(mine?.next_title ?? "");
+  const [edition, setEdition] = useState(mine?.edition ?? "");
   const [nickname, setNickname] = useState(mine?.nickname ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export function BookRecordForm({ bookId, title, mine }: { bookId: string; title:
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/books/${bookId}/read`, "POST", { status, progress, line, nextTitle, nickname });
+      await api(`/api/books/${bookId}/read`, "POST", { status, progress, line, nextTitle, nickname, edition });
       try {
         window.localStorage.setItem("lr:nickname", nickname);
       } catch {}
@@ -76,6 +77,7 @@ export function BookRecordForm({ bookId, title, mine }: { bookId: string; title:
       {status && (
         <>
           <textarea className="textarea short" maxLength={200} placeholder={status === "dropped" ? "왜 멈췄는지 한 줄 (선택)" : "한 줄 느낌 (선택)"} value={line} onChange={(e) => setLine(e.target.value)} aria-label="한 줄" />
+          <input className="input" maxLength={40} placeholder="어느 출판사(번역)로 읽었어요? (선택) 예: 민음사" value={edition} onChange={(e) => setEdition(e.target.value)} aria-label="출판사·번역" />
           <input className="input" maxLength={80} placeholder="이 책 다음에 읽은(읽을) 책 (선택)" value={nextTitle} onChange={(e) => setNextTitle(e.target.value)} aria-label="다음 책" />
           <input className="input" maxLength={20} placeholder="닉네임" required value={nickname} onChange={(e) => setNickname(e.target.value)} aria-label="닉네임" />
           {error && <p className="error">{error}</p>}
