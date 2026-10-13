@@ -143,16 +143,16 @@ export function DailyBars({ title, unit, data, description }: { title: string; u
 // 가로 막대 목록 (크기 비교, 단일 색 + 직접 라벨)
 // ---------------------------------------------------------------------------
 
-export function HBarList({ title, rows, unit, empty }: { title: string; rows: { label: string; value: number }[]; unit: string; empty: string }) {
+/** funnel: 단계별 깔때기 — 합계 대신 첫 단계 대비 % 를 보여 준다 */
+export function HBarList({ title, rows, unit, empty, funnel = false }: { title: string; rows: { label: string; value: number }[]; unit: string; empty: string; funnel?: boolean }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
-  const total = rows.reduce((s, r) => s + r.value, 0);
+  const total = funnel ? (rows[0]?.value ?? 0) : rows.reduce((s, r) => s + r.value, 0);
   return (
     <figure className="chart">
       <figcaption>
         <span className="chart-title">{title}</span>
         <span className="chart-sub">
-          합계 {compact(total)}
-          {unit}
+          {funnel ? "첫 단계 대비 %" : <>합계 {compact(total)}{unit}</>}
         </span>
       </figcaption>
       {rows.length === 0 ? (
