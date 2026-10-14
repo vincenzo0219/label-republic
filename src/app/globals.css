@@ -865,6 +865,10 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .hear-safe { margin: 4px 0 14px; padding: 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, #e0a24a 55%, var(--line)); background: color-mix(in srgb, #e0a24a 10%, var(--surface)); font-size: 14px; line-height: 1.5; }
 .hear-safe p { margin: 4px 0 10px; }
 .hear-none { width: 100%; height: 44px; margin-top: 10px; }
+.quick-brag { display: grid; gap: 8px; margin: 16px 0 6px; padding: 14px; border: 2px solid color-mix(in srgb, var(--brand) 45%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--brand) 6%, var(--bg)); }
+.quick-brag-line { margin: 0; font-size: 14px; color: var(--muted); }
+.quick-brag .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.quick-brag.done p { margin: 0 0 4px; }
 .ear-brag-hint { text-align: center; margin: 4px 0 10px; font-size: 13px; }
 .ear-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 .ear-cta { display: block; padding: 14px 16px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); color: var(--text); text-decoration: none; font-weight: 700; }
