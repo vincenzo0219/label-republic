@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { BOOK_ROOM_SLUG } from "./src/lib/books";
 import { securityHeaders } from "./src/lib/security-headers";
 
 // HSTS 는 SITE_URL(런타임 값)에 따라 server.ts 에서 붙인다 — headers() 는 빌드 시점에 고정되기 때문
@@ -7,6 +8,10 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ["pg", "sharp", "web-push"],
+  // 홍보용 짧은 주소 — 책방 주소는 한글이라 길고 SNS에서 링크가 깨진다 (?from= 은 그대로 넘어간다)
+  async redirects() {
+    return [{ source: "/read", destination: `/c/${encodeURIComponent(BOOK_ROOM_SLUG)}`, permanent: false }];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
