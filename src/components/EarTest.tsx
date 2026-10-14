@@ -187,8 +187,9 @@ export function EarTest() {
           fetch("/api/ear-test/brag", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", keepalive: true }).catch(() => {});
         }}
       >
-        💬 점수 인증하고 다른 덕후들과 비교하기
+        👀 다른 덕후들은 몇 개? 점수 비교하기
       </Link>
+      <p className="hint ear-brag-hint">내 점수 자동 입력 · 닉네임만 쓰면 끝 · 가입 없음</p>
 
       <table className="ear-table">
         <thead>
