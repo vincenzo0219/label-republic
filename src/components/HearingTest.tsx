@@ -9,10 +9,12 @@ import {
   HEARING_MIN_PARTICIPANTS,
   HEARING_STEPS,
   HEARING_TONE_SEC,
+  hearingBragLine,
   hearingTier,
   type HearingStats,
 } from "@/lib/hearingTest";
 import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
+import { QuickBrag } from "./QuickBrag";
 
 type Side = "A" | "B";
 type Result = { maxKhz: number } & HearingStats;
@@ -221,16 +223,13 @@ export function HearingTest() {
       </p>
       <p className="hint">{tier.line}. 기기·이어폰에 따라 달라질 수 있는 참고 결과예요.</p>
 
-      <Link
-        href={`/posts/${HEARING_BRAG_POST_ID}?hz=${result.maxKhz}#write`}
-        className="btn btn-primary ear-brag"
-        onClick={() => {
-          fetch("/api/hearing-test/brag", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", keepalive: true }).catch(() => {});
-        }}
-      >
-        👀 다른 사람은 몇 kHz? 결과 비교하기
-      </Link>
-      <p className="hint ear-brag-hint">내 결과 자동 입력 · 닉네임만 쓰면 끝 · 가입 없음</p>
+      <QuickBrag
+        postId={HEARING_BRAG_POST_ID}
+        line={hearingBragLine(String(result.maxKhz))!}
+        bragApi="/api/hearing-test/brag"
+        prompt="👀 다른 사람은 몇 kHz? 내 결과도 한 줄 남기기"
+        placeholder="나이대·이어폰 (예: 30대 / 버즈 프로)"
+      />
 
       {result.participants > 0 && (
         <div className="ear-stats">

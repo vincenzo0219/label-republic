@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
-import { EAR_BRAG_POST_ID, EAR_MIN_PARTICIPANTS, EAR_ROUNDS, EAR_TOTAL, earTier, type EarStats } from "@/lib/earTest";
+import { EAR_BRAG_POST_ID, EAR_MIN_PARTICIPANTS, EAR_ROUNDS, EAR_TOTAL, earBragLine, earTier, type EarStats } from "@/lib/earTest";
+import { QuickBrag } from "./QuickBrag";
 
 type Side = "A" | "B";
 type Result = { score: number } & EarStats;
@@ -179,17 +180,14 @@ export function EarTest() {
         {result.topPercent !== null && <> · 참가자 중 <b>상위 {result.topPercent}%</b></>}
       </p>
       <p className="hint">{tier.line}. 찍어도 5개 안팎은 맞힐 수 있어요.</p>
-      {/* 테스트 → 커뮤니티 (Sprint 60): 점수 한 줄이 채워진 댓글 칸으로 */}
-      <Link
-        href={`/posts/${EAR_BRAG_POST_ID}?ear=${result.score}#write`}
-        className="btn btn-primary ear-brag"
-        onClick={() => {
-          fetch("/api/ear-test/brag", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", keepalive: true }).catch(() => {});
-        }}
-      >
-        👀 다른 덕후들은 몇 개? 점수 비교하기
-      </Link>
-      <p className="hint ear-brag-hint">내 점수 자동 입력 · 닉네임만 쓰면 끝 · 가입 없음</p>
+      {/* 테스트 → 커뮤니티 (Sprint 60·64): 결과 화면에서 바로 인증 댓글 */}
+      <QuickBrag
+        postId={EAR_BRAG_POST_ID}
+        line={earBragLine(String(result.score))!}
+        bragApi="/api/ear-test/brag"
+        prompt="👀 다른 덕후들은 몇 개? 내 점수도 한 줄 남기기"
+        placeholder="장비 (예: 아이폰 + 에어팟 프로)"
+      />
 
       <table className="ear-table">
         <thead>
