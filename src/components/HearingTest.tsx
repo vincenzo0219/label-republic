@@ -228,8 +228,9 @@ export function HearingTest() {
           fetch("/api/hearing-test/brag", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", keepalive: true }).catch(() => {});
         }}
       >
-        💬 결과 인증하고 다른 덕후들과 비교하기
+        👀 다른 사람은 몇 kHz? 결과 비교하기
       </Link>
+      <p className="hint ear-brag-hint">내 결과 자동 입력 · 닉네임만 쓰면 끝 · 가입 없음</p>
 
       {result.participants > 0 && (
         <div className="ear-stats">
