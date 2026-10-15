@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-/** 홈 맨 위 — 귀 테스트 두 개와 책 카드로 (Sprint 59·61·62) */
+/** 홈 맨 위 — 귀 테스트 두 개, 첫 문장 테스트, 책 카드로 (Sprint 59·61·62·65) */
 export function EarTestBanner() {
   return (
     <div className="ear-banners">
@@ -18,6 +18,14 @@ export function EarTestBanner() {
         </span>
         <span>
           <b>고음 청력 테스트</b> — 내 귀는 몇 kHz까지 들릴까? <span className="ear-banner-go">1분 테스트 →</span>
+        </span>
+      </Link>
+      <Link href="/first-line-test" className="ear-banner">
+        <span className="ear-banner-emoji" aria-hidden>
+          📜
+        </span>
+        <span>
+          <b>첫 문장 테스트</b> — 첫 문장만 보고 무슨 책인지 알아요? <span className="ear-banner-go">1분 테스트 →</span>
         </span>
       </Link>
       <Link href="/books" className="ear-banner">

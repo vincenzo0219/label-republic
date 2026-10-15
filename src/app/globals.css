@@ -865,6 +865,17 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .hear-safe { margin: 4px 0 14px; padding: 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, #e0a24a 55%, var(--line)); background: color-mix(in srgb, #e0a24a 10%, var(--surface)); font-size: 14px; line-height: 1.5; }
 .hear-safe p { margin: 4px 0 10px; }
 .hear-none { width: 100%; height: 44px; margin-top: 10px; }
+.fl-line { margin: 0 0 18px; padding: 18px 18px 18px 20px; border-left: 4px solid var(--brand); border-radius: 0 12px 12px 0; background: var(--bg); font-size: 19px; line-height: 1.6; font-weight: 600; word-break: keep-all; }
+.fl-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fl-choice { height: auto; min-height: 52px; padding: 10px 12px; white-space: normal; font-size: 15.5px; font-weight: 700; word-break: keep-all; }
+.fl-choice.right { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 16%, var(--surface)); }
+.fl-choice.wrong { border-color: #d65a5a; background: color-mix(in srgb, #d65a5a 12%, var(--surface)); }
+.fl-choice:disabled { opacity: 1; }
+.fl-reveal { margin-top: 14px; }
+.fl-reveal p { margin: 0 0 4px; font-size: 16px; }
+.fl-review { margin: 8px 0 4px; font-size: 14px; line-height: 1.55; }
+.fl-review summary { cursor: pointer; font-weight: 700; }
+.fl-review ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 6px; }
 .quick-brag { display: grid; gap: 8px; margin: 16px 0 6px; padding: 14px; border: 2px solid color-mix(in srgb, var(--brand) 45%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--brand) 6%, var(--bg)); }
 .quick-brag-line { margin: 0; font-size: 14px; color: var(--muted); }
 .quick-brag .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }

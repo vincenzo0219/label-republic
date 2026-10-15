@@ -1,0 +1,46 @@
+// 황금귀 광고 A/B 2안 (10/15). 숫자는 /api/ear-test 실제 통계(첫 응시 78명).
+import { chromium } from "/opt/node22/lib/node_modules/playwright/index.mjs";
+import fs from "node:fs";
+const S = "/tmp/claude-0/-home-user-label-republic/2f542779-1470-5d32-894d-8d1bf43ecb77/scratchpad/ear/promo2/";
+fs.mkdirSync(S, { recursive: true });
+const font = `@font-face{font-family:P;src:url(file:///home/user/label-republic/assets/fonts/Pretendard-Regular.woff);font-weight:400}
+@font-face{font-family:P;src:url(file:///home/user/label-republic/assets/fonts/Pretendard-Bold.woff);font-weight:700}*{box-sizing:border-box;margin:0}`;
+const a = "#4fd1a5";
+const page = (w, h, inner, pad = "150px 84px") => `<!doctype html><html lang="ko"><head><meta charset="utf-8"><style>${font}
+body{width:${w}px;height:${h}px;font-family:P,"Noto Color Emoji",sans-serif;background:#121211;color:#f4f2ec;overflow:hidden;position:relative;padding:${pad}}
+body:before{content:"";position:absolute;right:-260px;top:-200px;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,${a}44,transparent 65%)}
+.top{display:flex;justify-content:space-between;align-items:center;position:relative}
+.brand{font-size:38px;font-weight:700;display:flex;gap:12px;align-items:center}.brand i{font-style:normal;background:#1f5f4a;border-radius:12px;padding:5px 11px;font-size:30px}
+.tag{font-size:32px;font-weight:700;color:#121211;background:${a};border-radius:999px;padding:12px 26px}
+.k{font-size:44px;font-weight:700;color:${a};position:relative}
+h1{font-size:124px;line-height:1.1;font-weight:700;letter-spacing:-6px;margin-top:22px;position:relative}h1 em{font-style:normal;color:${a}}
+.sub{font-size:46px;line-height:1.5;color:#c9c5bb;margin-top:40px;position:relative}
+.big{font-size:330px;font-weight:700;line-height:1;text-align:center;position:relative;color:${a}}
+.wave{display:flex;gap:14px;justify-content:center;align-items:center;height:260px;margin-top:40px;position:relative}.wave span{width:22px;border-radius:11px;background:${a}}
+.cta{display:inline-block;font-size:50px;font-weight:700;background:${a};color:#121211;border-radius:999px;padding:30px 54px;margin-top:70px;position:relative}
+.hard{display:inline-block;font-size:52px;font-weight:700;color:#f4f2ec;background:#2a2a28;border:3px solid #4fd1a5;border-radius:999px;padding:14px 34px;margin-top:34px;position:relative}
+.note{font-size:34px;color:#a9a59c;margin-top:30px;position:relative}
+.chips{display:flex;gap:16px;flex-wrap:wrap;margin-top:60px;position:relative}.chips span{font-size:40px;font-weight:700;background:#232321;border:2px solid #3a3a37;border-radius:999px;padding:18px 30px}
+</style></head><body>${inner}</body></html>`;
+const top = `<div class="top"><div class="brand"><i>🏠</i>노방장</div><span class="tag">🎧 황금귀 테스트</span></div>`;
+const wave = (n, seed) => `<div class="wave">${Array.from({ length: n }, (_, i) => `<span style="height:${40 + Math.abs(Math.sin(i * 1.7 + seed)) * 200}px"></span>`).join("")}</div>`;
+const frames = {
+  // A안: "(어렵습니다.)" — 도전·자기 확인
+  "ad-ear-hard-1080x1350": [1080, 1350, `${top}<div style="height:90px"></div><div class="k">1분 블라인드 테스트</div><h1>원본 vs MP3,<br><em>구분돼요?</em></h1>
+    <div class="hard">(어렵습니다.)</div>
+    <div class="sub">64kbps는 85%가 맞혔지만<br><b style="color:#f4f2ec">128kbps부터 정답률 52%</b>. 거의 찍기예요.</div>
+    <div class="cta">도전하기 →</div><div class="note">노방장 첫 응시 78명 기준</div>`, "84px 80px"],
+  // B안: "나만 모르는" — 사회적 증거·손실 회피
+  "ad-ear-only-me-1080x1350": [1080, 1350, `${top}<div style="height:90px"></div><div class="k">78명이 이미 해 봤어요</div><h1>나만 모르고 있던<br><em>내 귀 점수.</em></h1>
+    <div class="sub">원본 vs MP3 압축본, 10문제.<br>다들 평균 <b style="color:#f4f2ec">6.5개</b> 맞혔어요. 나는 몇 개?</div>
+    <div class="chips"><span>🎧 평범한 귀</span><span>👂 예민한 귀</span><span>🔥 덕후 귀</span><span>🏆 황금귀</span></div>
+    <div class="cta">내 점수 확인 →</div>`, "84px 80px"],
+};
+const b = await chromium.launch(); const p = await b.newPage();
+for (const [name, [w, h, inner, pad]] of Object.entries(frames)) {
+  await p.setViewportSize({ width: w, height: h });
+  fs.writeFileSync(`${S}${name}.html`, page(w, h, inner, pad));
+  await p.goto(`file://${S}${name}.html`); await p.evaluate(() => document.fonts.ready);
+  await p.screenshot({ path: `${S}${name}.png` });
+}
+await b.close();

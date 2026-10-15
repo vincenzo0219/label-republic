@@ -16,6 +16,7 @@ import { pendingDraftCount } from "@/lib/repo/drafts";
 import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { getBusinessMetrics } from "@/lib/repo/business";
 import { earFunnel } from "@/lib/repo/earTest";
+import { firstLineFunnel } from "@/lib/repo/firstLineTest";
 import { hearingFunnel } from "@/lib/repo/hearingTest";
 import { SignalStrip } from "@/components/admin/SignalStrip";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
@@ -76,7 +77,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openBoardRequests(),
       m.openErrors(),
     ]);
-  const [ear, hearing] = await Promise.all([earFunnel(...cur), hearingFunnel(...cur)]);
+  const [ear, hearing, firstLine] = await Promise.all([earFunnel(...cur), hearingFunnel(...cur), firstLineFunnel(...cur)]);
   const [holds, pending, rules, ruleVotes, feedback, boardT, biz, drafts] = await Promise.all([
     activeLegalHolds(),
     pendingCounts(),
@@ -151,6 +152,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         {[
           { name: "황금귀 테스트", f: ear },
           { name: "고음 청력 테스트", f: hearing },
+          { name: "첫 문장 테스트", f: firstLine },
         ].map(({ name, f }) => (
           <HBarList
             key={name}
