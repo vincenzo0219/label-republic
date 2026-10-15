@@ -873,6 +873,16 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .fl-choice:disabled { opacity: 1; }
 .fl-reveal { margin-top: 14px; }
 .fl-reveal p { margin: 0 0 4px; font-size: 16px; }
+.month-goal { margin: 0 0 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.month-goal p { margin: 0 0 8px; }
+.month-goal-bar { height: 12px; border-radius: 6px; background: var(--line); overflow: hidden; margin-bottom: 8px; }
+.month-goal-bar span { display: block; height: 100%; background: var(--brand); }
+.daily-streak { color: #e0782b; }
+.daily-q { margin: 18px 0 6px; padding-top: 16px; border-top: 1px solid var(--line); }
+.daily-label { margin: 0 0 10px; font-weight: 800; font-size: 15.5px; }
+.fl-reveal-line { margin: 12px 0 0; font-size: 15.5px; }
+.daily-done { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.daily-share { margin: 0 0 6px; padding: 12px 14px; border-radius: 12px; background: var(--bg); font-weight: 800; font-size: 16px; }
 .fl-review { margin: 8px 0 4px; font-size: 14px; line-height: 1.55; }
 .fl-review summary { cursor: pointer; font-weight: 700; }
 .fl-review ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 6px; }

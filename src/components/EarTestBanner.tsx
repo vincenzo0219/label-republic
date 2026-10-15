@@ -1,9 +1,17 @@
 import Link from "next/link";
 
-/** 홈 맨 위 — 귀 테스트 두 개, 첫 문장 테스트, 책 카드로 (Sprint 59·61·62·65) */
+/** 홈 맨 위 — 오늘의 문제, 귀 테스트 두 개, 첫 문장 테스트, 책 카드로 (Sprint 59·61·62·65·66) */
 export function EarTestBanner() {
   return (
     <div className="ear-banners">
+      <Link href="/daily" className="ear-banner">
+        <span className="ear-banner-emoji" aria-hidden>
+          📅
+        </span>
+        <span>
+          <b>오늘의 문제</b> — 매일 0시, 첫 문장 한 문제 + 황금귀 한 문제 <span className="ear-banner-go">오늘 문제 풀기 →</span>
+        </span>
+      </Link>
       <Link href="/ear-test" className="ear-banner">
         <span className="ear-banner-emoji" aria-hidden>
           🎧

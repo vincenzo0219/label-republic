@@ -16,6 +16,7 @@ import { pendingDraftCount } from "@/lib/repo/drafts";
 import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { getBusinessMetrics } from "@/lib/repo/business";
 import { earFunnel } from "@/lib/repo/earTest";
+import { dailyPlayers } from "@/lib/repo/daily";
 import { firstLineFunnel } from "@/lib/repo/firstLineTest";
 import { hearingFunnel } from "@/lib/repo/hearingTest";
 import { SignalStrip } from "@/components/admin/SignalStrip";
@@ -77,7 +78,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openBoardRequests(),
       m.openErrors(),
     ]);
-  const [ear, hearing, firstLine] = await Promise.all([earFunnel(...cur), hearingFunnel(...cur), firstLineFunnel(...cur)]);
+  const monthStart = `${today.slice(0, 8)}01`;
+  const [ear, hearing, firstLine, month, daily7] = await Promise.all([
+    earFunnel(...cur),
+    hearingFunnel(...cur),
+    firstLineFunnel(...cur),
+    m.periodVisitors(monthStart, today),
+    dailyPlayers(...cur),
+  ]);
   const [holds, pending, rules, ruleVotes, feedback, boardT, biz, drafts] = await Promise.all([
     activeLegalHolds(),
     pendingCounts(),
@@ -127,6 +135,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           ))}
         </nav>
       </header>
+
+      <MonthGoal today={today} visitors={month.visitors} returning={month.returning} daily={daily7} range={range} />
 
       {biz && <SignalStrip m={biz} />}
 
@@ -484,5 +494,34 @@ function PostTable({ rows, unit, empty }: { rows: m.TopPost[]; unit: string; emp
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** 이번 달 목표: 재방문자 (Sprint 66, 사용자 10/15 "이번 달 안에 천 명 — 한 번 왔다 가는 사람 말고 재방문자") */
+const MONTH_RETURNING_GOAL = 1000;
+
+function MonthGoal({ today, visitors, returning, daily, range }: { today: string; visitors: number; returning: number; daily: { players: number; repeat: number }; range: number }) {
+  const [y, mo] = today.split("-").map(Number) as [number, number];
+  const lastDay = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  const left = Math.max(1, lastDay - Number(today.slice(8)) + 1);
+  const need = Math.max(0, MONTH_RETURNING_GOAL - returning);
+  const pctDone = Math.min(100, (returning / MONTH_RETURNING_GOAL) * 100);
+  return (
+    <section className="month-goal" aria-label="이번 달 목표">
+      <p>
+        <b>
+          {mo}월 재방문자 {returning.toLocaleString()} / {MONTH_RETURNING_GOAL.toLocaleString()}명
+        </b>{" "}
+        <span className="hint">
+          · 이번 달 방문자 {visitors.toLocaleString()}명 중 다른 날 다시 온 사람 · 남은 {left}일 · 하루 {Math.ceil(need / left)}명 필요
+        </span>
+      </p>
+      <div className="month-goal-bar" role="progressbar" aria-valuemin={0} aria-valuemax={MONTH_RETURNING_GOAL} aria-valuenow={returning}>
+        <span style={{ width: `${pctDone}%` }} />
+      </div>
+      <p className="hint">
+        📅 오늘의 문제 (최근 {range}일): 푼 사람 {daily.players}명 · 그중 2일 이상 {daily.repeat}명
+      </p>
+    </section>
   );
 }
