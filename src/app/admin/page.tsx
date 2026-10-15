@@ -18,6 +18,7 @@ import { getBusinessMetrics } from "@/lib/repo/business";
 import { earFunnel } from "@/lib/repo/earTest";
 import { dailyPlayers } from "@/lib/repo/daily";
 import { firstLineFunnel } from "@/lib/repo/firstLineTest";
+import { typingFunnel } from "@/lib/repo/typingTest";
 import { hearingFunnel } from "@/lib/repo/hearingTest";
 import { SignalStrip } from "@/components/admin/SignalStrip";
 import { ALERT_LABEL, alertSubject, alertSummary } from "@/components/admin/alert-text";
@@ -79,10 +80,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openErrors(),
     ]);
   const monthStart = `${today.slice(0, 8)}01`;
-  const [ear, hearing, firstLine, month, daily7] = await Promise.all([
+  const [ear, hearing, firstLine, typing, month, daily7] = await Promise.all([
     earFunnel(...cur),
     hearingFunnel(...cur),
     firstLineFunnel(...cur),
+    typingFunnel(...cur),
     m.periodVisitors(monthStart, today),
     dailyPlayers(...cur),
   ]);
@@ -163,6 +165,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           { name: "황금귀 테스트", f: ear },
           { name: "고음 청력 테스트", f: hearing },
           { name: "첫 문장 테스트", f: firstLine },
+          { name: "타자 테스트", f: typing },
         ].map(({ name, f }) => (
           <HBarList
             key={name}

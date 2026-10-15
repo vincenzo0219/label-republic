@@ -40,6 +40,23 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   if (!category) notFound();
   const sp = await searchParams;
   const feed = <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />;
+  // 키보드 방에서는 타자 테스트로 (Sprint 67)
+  if (category.slug === "keyboards")
+    return (
+      <>
+        <div className="ear-banners">
+          <Link href="/typing-test" className="ear-banner">
+            <span className="ear-banner-emoji" aria-hidden>
+              ⌨️
+            </span>
+            <span>
+              <b>한글 타자 테스트</b> — 1분에 몇 타? 기록과 쓰는 키보드·축을 남겨요 <span className="ear-banner-go">1분 테스트 →</span>
+            </span>
+          </Link>
+        </div>
+        {feed}
+      </>
+    );
   if (category.slug !== BOOK_ROOM_SLUG) return feed;
   // 책방에서는 책 카드로 (Sprint 62) — 이야기는 방에서, 기록은 책 카드에 쌓인다
   return (
