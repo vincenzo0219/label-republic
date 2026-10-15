@@ -873,6 +873,12 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .fl-choice:disabled { opacity: 1; }
 .fl-reveal { margin-top: 14px; }
 .fl-reveal p { margin: 0 0 4px; font-size: 16px; }
+.ty-target { margin: 4px 0 14px; padding: 16px 18px; border-radius: 12px; background: var(--bg); font-size: 20px; line-height: 1.6; font-weight: 600; word-break: keep-all; letter-spacing: 0.2px; }
+.ty-target span { color: var(--muted); }
+.ty-target span.ok { color: var(--text); }
+.ty-target span.bad { color: #d65a5a; text-decoration: underline; }
+.ty-target span.now { color: var(--brand); }
+.ty-input { width: 100%; height: 54px; font-size: 18px; margin-bottom: 4px; }
 .month-goal { margin: 0 0 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .month-goal p { margin: 0 0 8px; }
 .month-goal-bar { height: 12px; border-radius: 6px; background: var(--line); overflow: hidden; margin-bottom: 8px; }
