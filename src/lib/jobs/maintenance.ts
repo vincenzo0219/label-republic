@@ -248,6 +248,7 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       await client.query("DELETE FROM pmf_survey WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM ear_test_results WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM hearing_test_results WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
+      await client.query("DELETE FROM first_line_test_results WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM biz_reports WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM rate_limits WHERE expires_at < now()");
       await client.query("DELETE FROM idempotency_keys WHERE created_at < $1::timestamptz - interval '24 hours'", [now.toISOString()]);

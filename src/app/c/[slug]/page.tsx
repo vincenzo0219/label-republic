@@ -45,6 +45,14 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   return (
     <>
       <div className="ear-banners">
+        <Link href="/first-line-test" className="ear-banner">
+          <span className="ear-banner-emoji" aria-hidden>
+            📜
+          </span>
+          <span>
+            <b>첫 문장 테스트</b> — 첫 문장만 보고 무슨 책인지 알아요? (어렵습니다) <span className="ear-banner-go">1분 테스트 →</span>
+          </span>
+        </Link>
         <Link href="/books" className="ear-banner">
           <span className="ear-banner-emoji" aria-hidden>
             📖
