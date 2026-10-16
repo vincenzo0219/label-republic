@@ -40,6 +40,23 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   if (!category) notFound();
   const sp = await searchParams;
   const feed = <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />;
+  // AI 덕후방에서는 AI 판별 테스트로 (Sprint 68)
+  if (category.slug === "ai-덕후방")
+    return (
+      <>
+        <div className="ear-banners">
+          <Link href="/ai-test" className="ear-banner">
+            <span className="ear-banner-emoji" aria-hidden>
+              🤖
+            </span>
+            <span>
+              <b>AI 판별 테스트</b> — 진짜 시인 vs AI, 진짜를 골라낼 수 있어요? <span className="ear-banner-go">1분 테스트 →</span>
+            </span>
+          </Link>
+        </div>
+        {feed}
+      </>
+    );
   // 키보드 방에서는 타자 테스트로 (Sprint 67)
   if (category.slug === "keyboards")
     return (

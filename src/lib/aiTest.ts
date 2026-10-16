@@ -22,7 +22,7 @@ export const AI_TEST_TOTAL = AI_PAIRS.length;
 export const AI_TEST_MIN_PARTICIPANTS = 20;
 
 /** 결과 화면의 인증 칸이 댓글을 다는 글 — AI 덕후방이 열린 뒤 정한다 (빈 값이면 인증 칸을 숨김) */
-export const AI_TEST_BRAG_POST_ID = "";
+export const AI_TEST_BRAG_POST_ID = "1554";
 
 export type AiTier = { emoji: string; name: string; line: string };
 
