@@ -2,7 +2,7 @@ import { query } from "../db";
 import type { EarFunnel } from "../earTest";
 
 /** 결과를 남기는 테스트 표 — 둘 다 visitor_hash·created_at·bragged_at 을 가진다 */
-export type TestTable = "ear_test_results" | "hearing_test_results" | "first_line_test_results" | "typing_test_results";
+export type TestTable = "ear_test_results" | "hearing_test_results" | "first_line_test_results" | "typing_test_results" | "ai_test_results";
 
 /** "점수 인증하기"를 누름 — 그 방문자의 마지막 결과에 시각을 남긴다. 결과가 없거나 이미 눌렀으면 false. */
 export async function markBrag(table: TestTable, visitorHash: string): Promise<boolean> {
