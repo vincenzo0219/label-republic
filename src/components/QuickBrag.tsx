@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api, requestKeyFor } from "@/lib/client-api";
 import { addMyComment, watchPost } from "@/lib/watchlist";
+import { PushButton } from "./PushButton";
 
 /**
  * 테스트 결과 화면에서 바로 인증 댓글 남기기 (Sprint 64).
@@ -58,6 +59,7 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
         <Link href={`/posts/${postId}#c${done.id}`} className="btn btn-primary ear-brag">
           👀 다른 사람들 결과 보러 가기
         </Link>
+        <PushButton label="🔔 답글 달리면 알림 받기" onLabel="🔔 답글 오면 알려 드릴게요" />
       </div>
     );
 
