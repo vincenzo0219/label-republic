@@ -27,6 +27,7 @@ import { CLIENT_IP_HEADER, clientIpFrom, CRAWLER_HEADER } from "./src/lib/finger
 import { flushViewCounts } from "./src/lib/metrics";
 import { hit, isLimited } from "./src/lib/rate-limit";
 import { startCuratorScheduler } from "./src/lib/jobs/curator";
+import { startDebateScheduler } from "./src/lib/jobs/debate";
 import { startDigestScheduler } from "./src/lib/jobs/digest";
 import { startSourceCheckScheduler } from "./src/lib/jobs/sources";
 import { startPushScheduler } from "./src/lib/jobs/push";
@@ -313,6 +314,8 @@ function startWorker() {
       if (config.trustRefreshIntervalSec > 0) startTrustScheduler(config.trustRefreshIntervalSec * 1000);
       // AI 큐레이터 "활성화 유지" — 사람 글이 늘면 자동으로 물러난다.
       if (config.curatorIntervalSec > 0) startCuratorScheduler(config.curatorIntervalSec * 1000);
+      // AI 밸런스 토론방 — 하루 한 번 (Sprint 69). DEBATE_ENABLED=0 이면 끈다
+      if (process.env.DEBATE_ENABLED !== "0") startDebateScheduler();
       // 어뷰징 탐지 · 보류된 보드 승격 · 오래된 지표 정리
       if (config.maintenanceIntervalSec > 0) startMaintenanceScheduler(config.maintenanceIntervalSec * 1000);
       if (config.businessReportIntervalSec > 0) startBusinessReportScheduler(config.businessReportIntervalSec * 1000);

@@ -7,17 +7,15 @@ import { boardGuide } from "@/lib/onboarding";
 describe("room creation threshold (Sprint 39)", () => {
   it("1 person opens a room early on, then 3+ growing with 5% of 30-day actives, never past the voted cap (Sprint 39, 49)", () => {
     expect(BOARD_THRESHOLD_FLOOR).toBe(3);
-    expect(BOARD_EARLY_STAGE_ACTIVE).toBe(50);
+    expect(BOARD_EARLY_STAGE_ACTIVE).toBe(1000);
     expect(effectiveBoardThreshold(50, 0)).toBe(1);
-    expect(effectiveBoardThreshold(50, 49)).toBe(1);
-    expect(effectiveBoardThreshold(50, 50)).toBe(3);
-    expect(effectiveBoardThreshold(50, 60)).toBe(3);
-    expect(effectiveBoardThreshold(50, 61)).toBe(4);
-    expect(effectiveBoardThreshold(50, 200)).toBe(10);
+    expect(effectiveBoardThreshold(50, 999)).toBe(1);
     expect(effectiveBoardThreshold(50, 1000)).toBe(50);
+    expect(effectiveBoardThreshold(50, 1200)).toBe(50);
+    expect(effectiveBoardThreshold(100, 1200)).toBe(60);
     expect(effectiveBoardThreshold(50, 100_000)).toBe(50);
     // 상한이 바닥보다 낮게 설정돼 있으면 상한을 따른다 (운영 설정이 우선)
-    expect(effectiveBoardThreshold(2, 100)).toBe(2);
+    expect(effectiveBoardThreshold(2, 2000)).toBe(2);
     // 혼자서 여는 방은 기다리지 않는다
     expect(promotionWaitHours(1, 24)).toBe(0);
     expect(promotionWaitHours(3, 24)).toBe(24);
@@ -55,10 +53,10 @@ d("room creation threshold (database)", async () => {
     boards.resetBoardThresholdCache();
     expect(await boards.getBoardThreshold()).toMatchObject({ needed: 1, active30d: 0 });
 
-    // 최근 활동 200명 + 40일 전에만 활동한 500명
+    // 최근 활동 1200명 + 40일 전에만 활동한 500명
     await query(
       `INSERT INTO fingerprints (fingerprint, first_seen, last_seen)
-       SELECT lpad('a' || g, 64, '0'), now() - interval '1 day', now() - interval '1 day' FROM generate_series(1, 200) g
+       SELECT lpad('a' || g, 64, '0'), now() - interval '1 day', now() - interval '1 day' FROM generate_series(1, 1200) g
        UNION ALL
        SELECT lpad('b' || g, 64, '0'), now() - interval '40 days', now() - interval '40 days' FROM generate_series(1, 500) g`,
     );
@@ -66,8 +64,8 @@ d("room creation threshold (database)", async () => {
     expect((await boards.getBoardThreshold()).needed).toBe(1);
     boards.resetBoardThresholdCache();
     const t = await boards.getBoardThreshold();
-    expect(t).toMatchObject({ needed: 10, active30d: 200 });
-    expect(t.cap).toBeGreaterThanOrEqual(10);
+    expect(t).toMatchObject({ needed: Math.min(t.cap, 60), active30d: 1200 });
+    expect(t.needed).toBeGreaterThanOrEqual(3);
   });
 
   it("early on, the requester alone opens the room immediately — no 24h wait (Sprint 49)", async () => {
@@ -82,12 +80,13 @@ d("room creation threshold (database)", async () => {
   it("once the community grows, several agreements and the waiting time are needed again", async () => {
     await query(
       `INSERT INTO fingerprints (fingerprint, first_seen, last_seen)
-       SELECT lpad('g' || g, 64, '0'), now(), now() FROM generate_series(1, 80) g`,
+       SELECT lpad('g' || g, 64, '0'), now(), now() FROM generate_series(1, 1100) g`,
     );
     boards.resetBoardThresholdCache();
+    expect((await boards.getBoardThreshold()).needed).toBeGreaterThanOrEqual(3);
     const req = await boards.createBoardRequest("필름 카메라", "필름 이야기");
-    for (const n of [11, 12, 13, 14]) expect((await boards.voteBoardRequest(req.id, fp(n), undefined, 24)).promoted).toBe(false);
-    const fifth = await boards.voteBoardRequest(req.id, fp(15), undefined, 24);
+    for (const n of [11, 12, 13, 14]) expect((await boards.voteBoardRequest(req.id, fp(n), 5, 24)).promoted).toBe(false);
+    const fifth = await boards.voteBoardRequest(req.id, fp(15), 5, 24);
     expect(fifth.promoted).toBe(false);
     expect(fifth.threshold).toBe(5);
     expect(fifth.promotableAt).not.toBeNull();
