@@ -10,6 +10,7 @@ import { sendPush, type PushMessage, type SendResult } from "../push";
 import { postUpdateCount, productUpdateCount, watchUpdates, type WatchUpdates } from "../repo/watch";
 import { reportError } from "../error-tracking";
 import { DAILY_START, dailySet } from "../daily";
+import { debateTopic } from "../debate";
 import { kstDay } from "../metrics";
 
 const LOCK_KEY = 4_823_006;
@@ -133,7 +134,8 @@ export const DAILY_PUSH_HOUR = 8;
 
 export function dailyPushMessage(day: string): PushMessage {
   const set = dailySet(day);
-  return { title: `📅 오늘의 문제 #${set.no}`, body: `"${set.line.line.slice(0, 50)}" — 무슨 책일까요?`, url: "/daily?from=push", tag: "lr-daily" };
+  const [a, b] = debateTopic(day);
+  return { title: `📅 오늘의 문제 #${set.no}`, body: `"${set.line.line.slice(0, 40)}" 무슨 책? · ⚖️ 오늘 토론 ${a} vs ${b}`, url: "/daily?from=push", tag: "lr-daily" };
 }
 
 /**
