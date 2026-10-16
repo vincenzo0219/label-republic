@@ -1,65 +1,49 @@
 import Link from "next/link";
+import { dailySet } from "@/lib/daily";
+import { kstDay } from "@/lib/metrics";
+import { latestDebate } from "@/lib/repo/agents";
 
-/** 홈 맨 위 — 오늘의 문제, 귀 테스트 두 개, 첫 문장·AI 판별·타자 테스트, 책 카드로 (Sprint 59·61·62·65·66·67·68) */
-export function EarTestBanner() {
+const TESTS = [
+  { href: "/ear-test", label: "🎧 황금귀" },
+  { href: "/hearing-test", label: "🦟 고음 청력" },
+  { href: "/first-line-test", label: "📜 첫 문장" },
+  { href: "/ai-test", label: "🤖 AI 판별" },
+  { href: "/typing-test", label: "⌨️ 타자" },
+  { href: "/books", label: "📖 책 카드" },
+];
+
+/** 홈 맨 위 (Sprint 72): 오늘의 문제 + 오늘 AI 토론, 그 아래 1분 테스트 칩 */
+export async function EarTestBanner() {
+  const debate = await latestDebate().catch(() => null);
   return (
-    <div className="ear-banners">
-      <Link href="/daily" className="ear-banner">
-        <span className="ear-banner-emoji" aria-hidden>
-          📅
-        </span>
-        <span>
-          <b>오늘의 문제</b> — 매일 0시, 첫 문장 한 문제 + 황금귀 한 문제 <span className="ear-banner-go">오늘 문제 풀기 →</span>
-        </span>
-      </Link>
-      <Link href="/ear-test" className="ear-banner">
-        <span className="ear-banner-emoji" aria-hidden>
-          🎧
-        </span>
-        <span>
-          <b>황금귀 테스트</b> — 원본과 압축 음원, 들으면 구분될까? <span className="ear-banner-go">1분 테스트 →</span>
-        </span>
-      </Link>
-      <Link href="/hearing-test" className="ear-banner">
-        <span className="ear-banner-emoji" aria-hidden>
-          🦟
-        </span>
-        <span>
-          <b>고음 청력 테스트</b> — 내 귀는 몇 kHz까지 들릴까? <span className="ear-banner-go">1분 테스트 →</span>
-        </span>
-      </Link>
-      <Link href="/first-line-test" className="ear-banner">
-        <span className="ear-banner-emoji" aria-hidden>
-          📜
-        </span>
-        <span>
-          <b>첫 문장 테스트</b> — 첫 문장만 보고 무슨 책인지 알아요? <span className="ear-banner-go">1분 테스트 →</span>
-        </span>
-      </Link>
-      <Link href="/ai-test" className="ear-banner">
-        <span className="ear-banner-emoji" aria-hidden>
-          🤖
-        </span>
-        <span>
-          <b>AI 판별 테스트</b> — 진짜 시인 vs AI, 진짜를 골라낼 수 있어요? <span className="ear-banner-go">1분 테스트 →</span>
-        </span>
-      </Link>
-      <Link href="/typing-test" className="ear-banner">
-        <span className="ear-banner-emoji" aria-hidden>
-          ⌨️
-        </span>
-        <span>
-          <b>한글 타자 테스트</b> — 한컴 타자연습 이후 처음 재 보는 내 타수 <span className="ear-banner-go">1분 테스트 →</span>
-        </span>
-      </Link>
-      <Link href="/books" className="ear-banner">
-        <span className="ear-banner-emoji" aria-hidden>
-          📖
-        </span>
-        <span>
-          <b>책 카드</b> — 이 책, 끝까지 읽을 만해요? 실제 독자 완독률 <span className="ear-banner-go">보러 가기 →</span>
-        </span>
-      </Link>
-    </div>
+    <>
+      <div className="ear-banners">
+        <Link href="/daily" className="ear-banner">
+          <span className="ear-banner-emoji" aria-hidden>
+            📅
+          </span>
+          <span>
+            <b>오늘의 문제 #{dailySet(kstDay()).no}</b> <span className="ear-banner-go">풀기 →</span>
+          </span>
+        </Link>
+        {debate && (
+          <Link href={`/posts/${debate.post.id}`} className="ear-banner">
+            <span className="ear-banner-emoji" aria-hidden>
+              ⚖️
+            </span>
+            <span>
+              <b>{debate.post.title.replace(/^⚖️\s*/, "")}</b> — AI 토론 <span className="ear-banner-go">보기 →</span>
+            </span>
+          </Link>
+        )}
+      </div>
+      <nav className="home-tests" aria-label="1분 테스트">
+        {TESTS.map((t) => (
+          <Link key={t.href} href={t.href}>
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+    </>
   );
 }

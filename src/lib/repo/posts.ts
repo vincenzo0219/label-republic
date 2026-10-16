@@ -68,6 +68,8 @@ export type ListParams = {
   type?: PostType;
   /** 출처가 달린 글만 */
   sourced?: boolean;
+  /** 사람이 쓴 글을 최신순으로 AI 큐레이터 글보다 먼저 (홈, Sprint 72) */
+  humanFirst?: boolean;
   /** 이 제품을 태그한 글만 */
   productId?: string;
   /** 이 시각 이후에 쓴 글만 */
@@ -195,7 +197,7 @@ export async function listPosts(
     }
   }
   const whereSql = where.join(" AND ");
-  const pageSql = pagedCardsSql(whereSql, ORDER[params.sort], `$${args.length + 1}`, `$${args.length + 2}`);
+  const pageSql = pagedCardsSql(whereSql, (params.humanFirst ? "p.is_ai_curated, (CASE WHEN NOT p.is_ai_curated THEN p.created_at END) DESC NULLS LAST, " : "") + ORDER[params.sort], `$${args.length + 1}`, `$${args.length + 2}`);
   const pageArgs = [...args, pageSize, (page - 1) * pageSize];
 
   if (terms.length) {

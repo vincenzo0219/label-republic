@@ -837,6 +837,9 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .ear-banner:hover { border-color: var(--brand); }
 .ear-banner-emoji { font-size: 26px; }
 .ear-banner-go { color: var(--brand); font-weight: 800; white-space: nowrap; }
+.home-tests { display: flex; gap: 6px; overflow-x: auto; margin: -8px 0 18px; padding-bottom: 2px; scrollbar-width: none; }
+.home-tests a { flex: none; font-size: 13.5px; font-weight: 700; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); text-decoration: none; }
+.home-tests a:hover { border-color: var(--brand); }
 .ear-card { max-width: 560px; margin: 8px auto 32px; padding: 26px 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .ear-kicker { margin: 0 0 6px; color: var(--brand); font-weight: 800; font-size: 14px; }
 .ear-title { font-size: 28px; line-height: 1.25; margin: 0 0 16px; letter-spacing: -0.5px; }

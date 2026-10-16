@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { activeRoomsFirst, quietRoomSlugs } from "@/lib/repo/categories";
 import { listPosts } from "@/lib/repo/posts";
 
@@ -9,9 +8,8 @@ import { listPosts } from "@/lib/repo/posts";
  * 사람이 모인 방의 질문을 먼저 (론칭 후: 빈 방 질문은 답이 안 달려 첫인상이 썰렁했다).
  */
 export async function ChatStarters() {
-  const [{ items: recent }, threshold, quiet] = await Promise.all([
+  const [{ items: recent }, quiet] = await Promise.all([
     listPosts({ sort: "latest", type: "chat", page: 1, pageSize: 12 }).catch(() => ({ items: [] })),
-    getBoardThreshold().catch(() => null),
     quietRoomSlugs().catch(() => new Set<string>()),
   ]);
   const items = activeRoomsFirst(recent.map((p) => ({ ...p, slug: p.category.slug })), quiet).slice(0, 3);
@@ -34,11 +32,6 @@ export async function ChatStarters() {
           </li>
         ))}
       </ul>
-      {/* 방 만들기 유도 (Sprint 49) */}
-      <p className="chat-starters-room">
-        원하는 주제가 없나요? <Link href="/boards">🏠 방 만들기</Link>
-        {threshold && threshold.needed <= 1 ? " · 요청하면 바로 열려요" : ""}
-      </p>
     </section>
   );
 }

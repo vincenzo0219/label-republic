@@ -29,6 +29,7 @@ export async function FeedView({
   page,
   type,
   sourced = false,
+  humanFirst = false,
 }: {
   category?: Category;
   sort: SortKey;
@@ -36,12 +37,13 @@ export async function FeedView({
   type?: PostType;
   /** 출처가 달린 글만 */
   sourced?: boolean;
+  humanFirst?: boolean;
 }) {
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced;
   const [categories, feed, digest, needs, tools, quiet] = await Promise.all([
     listCategories(),
-    listPosts({ categoryId: category?.id, sort, page, type, sourced }),
+    listPosts({ categoryId: category?.id, sort, page, type, sourced, humanFirst }),
     category ? latestDigest(category.id) : Promise.resolve(null),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? roomTools(category.id) : Promise.resolve(null),
