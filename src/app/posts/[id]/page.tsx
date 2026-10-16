@@ -10,6 +10,8 @@ import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { Gallery } from "@/components/Gallery";
 import { FollowCta } from "@/components/FollowLinks";
 import { LiveComments } from "@/components/LiveComments";
+import { DebateVote } from "@/components/DebateVote";
+import { debateTally } from "@/lib/repo/debateVotes";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
 import { PostFactsTable, PostProductDatesList, ProductChips } from "@/components/PostProducts";
 import { getRules } from "@/lib/repo/rules";
@@ -114,7 +116,7 @@ export default async function PostPage({ params }: Props) {
   }
 
   const fp = fingerprint(await headers());
-  const [comments, myVote, participants, attending, appeal, corrections, rules] = await Promise.all([
+  const [comments, myVote, participants, attending, appeal, corrections, rules, debate] = await Promise.all([
     listComments(id),
     getMyVote(id, fp),
     post.meetup ? listParticipants(id) : Promise.resolve([]),
@@ -122,6 +124,7 @@ export default async function PostPage({ params }: Props) {
     post.is_suppressed && !post.is_ai_curated ? getAppeal(id) : Promise.resolve(null),
     listCorrections(id, fp),
     getRules(),
+    post.is_ai_curated && post.post_type === "chat" ? debateTally(id).catch(() => null) : Promise.resolve(null),
   ]);
   const productName = new Map(post.products.map((p) => [p.id, `${p.brand} ${p.name}`]));
   const factLabels = post.facts.map(
@@ -209,7 +212,7 @@ export default async function PostPage({ params }: Props) {
       )}
 
       {/* AI 글 안내는 한 줄로 (작성자 자리에 이미 🤖 AI 큐레이터) */}
-      {post.is_ai_curated && post.post_type === "chat" && <p className="hint ai-note">AI는 댓글을 달지 않아요 — 경험을 편하게 들려주세요.</p>}
+      {post.is_ai_curated && post.post_type === "chat" && !debate && <p className="hint ai-note">AI는 댓글을 달지 않아요 — 경험을 편하게 들려주세요.</p>}
       {post.is_ai_curated && post.post_type !== "chat" && (
         <p className="hint ai-note">
           {post.ai_reviewed ? "사람이 사실관계를 확인한 글이에요." : "사람이 검수하지 않은 글이에요."} 틀린 곳은 <a href="#corrections">정정 제안</a>으로 알려 주세요.
@@ -263,6 +266,7 @@ export default async function PostPage({ params }: Props) {
       />
       )}
 
+      {debate && <DebateVote postId={post.id} initial={debate} />}
       <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} />
       <FollowCta />
     </article>

@@ -953,3 +953,8 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .book-pick-head a { color: var(--text); }
 .book-same { margin-top: 8px; }
 .book-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.debate-vote { margin: 16px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.debate-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.debate-sides .btn { font-size: 16px; font-weight: 800; padding: 12px; }
+.debate-result { margin-top: 12px; font-size: 14.5px; display: grid; gap: 6px; }
+.debate-result p { margin: 0; }
