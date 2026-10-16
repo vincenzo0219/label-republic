@@ -1,3 +1,4 @@
+import { DEBATE_ROOM_SLUG } from "../debate";
 import { pool } from "../db";
 import { config } from "../config";
 import { curatorIntervalHours, publishSeed } from "../curator";
@@ -46,8 +47,9 @@ export async function runCuratorBatch(now = new Date(), opts: { generate?: Curat
                 c.auto_promoted_at IS NOT NULL AS auto_promoted
            FROM categories c
            LEFT JOIN posts p ON p.category_id = c.id AND p.created_at > $1::timestamptz - interval '7 days'
+          WHERE c.slug <> $2 -- AI 토론방은 토론 배치만 쓴다 (Sprint 69)
           GROUP BY c.id ORDER BY c.id`,
-        [now.toISOString()],
+        [now.toISOString(), DEBATE_ROOM_SLUG],
       );
       // 새 방 먼저 — 하루 한도를 기존 방이 다 쓰기 전에
       const ordered = [...states.rows].sort((a, b) => Number(isStarterRoom(b)) - Number(isStarterRoom(a)));

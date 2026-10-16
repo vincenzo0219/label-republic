@@ -19,7 +19,7 @@ const SELECT = `
  * - 그 뒤: 3명부터 활동 인원의 5% 로 늘어나며, 커뮤니티 규칙 값(board_promotion_votes, 투표로 바뀜)을 넘지 않는다.
  * 활동 인원 = 글·댓글·추천·신고·개설 동의를 한 fingerprint.
  */
-export const BOARD_EARLY_STAGE_ACTIVE = 50;
+export const BOARD_EARLY_STAGE_ACTIVE = 1000;
 export const BOARD_THRESHOLD_FLOOR = 3;
 export const BOARD_THRESHOLD_ACTIVE_RATIO = 0.05;
 
