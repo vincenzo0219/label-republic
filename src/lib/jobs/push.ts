@@ -9,6 +9,8 @@ import { config } from "../config";
 import { sendPush, type PushMessage, type SendResult } from "../push";
 import { postUpdateCount, productUpdateCount, watchUpdates, type WatchUpdates } from "../repo/watch";
 import { reportError } from "../error-tracking";
+import { DAILY_START, dailySet } from "../daily";
+import { kstDay } from "../metrics";
 
 const LOCK_KEY = 4_823_006;
 const BATCH = 500;
@@ -125,6 +127,59 @@ export async function runPushBatch(
   }
 }
 
+const DAILY_LOCK_KEY = 4_823_070;
+/** 오늘의 문제 아침 알림을 보내기 시작하는 시각 (KST) */
+export const DAILY_PUSH_HOUR = 8;
+
+export function dailyPushMessage(day: string): PushMessage {
+  const set = dailySet(day);
+  return { title: `📅 오늘의 문제 #${set.no}`, body: `"${set.line.line.slice(0, 50)}" — 무슨 책일까요?`, url: "/daily?from=push", tag: "lr-daily" };
+}
+
+/**
+ * 📅 오늘의 문제 알림 (Sprint 70). KST 아침 DAILY_PUSH_HOUR 시부터, 알림을 켠 구독마다 하루 한 번.
+ */
+export async function runDailyPush(
+  now = new Date(),
+  opts: { send?: (sub: Sub, msg: PushMessage) => Promise<SendResult> } = {},
+): Promise<{ ran: boolean; sent: number; removed: number }> {
+  const day = kstDay(now);
+  const hour = (now.getUTCHours() + 9) % 24;
+  if (day < DAILY_START || hour < DAILY_PUSH_HOUR) return { ran: false, sent: 0, removed: 0 };
+  const client = await pool().connect();
+  try {
+    const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [DAILY_LOCK_KEY]);
+    if (!lock.rows[0]!.ok) return { ran: false, sent: 0, removed: 0 };
+    let sent = 0;
+    let removed = 0;
+    try {
+      const { rows } = await client.query<Sub>(
+        `SELECT id, endpoint, p256dh, auth FROM push_subscriptions
+          WHERE daily AND (daily_sent_day IS NULL OR daily_sent_day < $1::date) ORDER BY id LIMIT $2`,
+        [day, BATCH],
+      );
+      const msg = dailyPushMessage(day);
+      const send = opts.send ?? ((s: Sub, m: PushMessage) => sendPush(s, m));
+      for (const s of rows) {
+        const r = await send(s, msg);
+        if (r === "gone") {
+          removed++;
+          await client.query("DELETE FROM push_subscriptions WHERE id = $1", [s.id]);
+          continue;
+        }
+        if (r === "sent") sent++;
+        // 실패해도 그날은 다시 보내지 않는다 (아침 알림이 오후에 몰려 가지 않게)
+        await client.query("UPDATE push_subscriptions SET daily_sent_day = $2::date WHERE id = $1", [s.id, day]);
+      }
+      return { ran: true, sent, removed };
+    } finally {
+      await client.query("SELECT pg_advisory_unlock($1)", [DAILY_LOCK_KEY]);
+    }
+  } finally {
+    client.release();
+  }
+}
+
 export function startPushScheduler(intervalMs: number): () => void {
   let running = false;
   const tick = async () => {
@@ -133,6 +188,8 @@ export function startPushScheduler(intervalMs: number): () => void {
     try {
       const r = await runPushBatch();
       if (r.sent || r.removed) console.log(`[push] 알림 ${r.sent}건 발송, 구독 ${r.removed}개 정리 (확인 ${r.checked}개)`);
+      const d = await runDailyPush();
+      if (d.sent || d.removed) console.log(`[push] 오늘의 문제 알림 ${d.sent}건 발송, 구독 ${d.removed}개 정리`);
     } catch (err) {
       console.error("[push] batch failed:", (err as Error).message);
       reportError(err, { kind: "job", where: "push" });

@@ -2,15 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { onInterestsChange } from "@/lib/interests";
-import { getMyComments, getPushState, getWatchedPosts, getWatchedProducts, setPushState, syncPush } from "@/lib/watchlist";
+import { enablePush } from "@/lib/pushClient";
+import { getPushState, setPushState, syncPush } from "@/lib/watchlist";
 
 type Status = "loading" | "unsupported" | "disabled" | "off" | "on" | "blocked";
-
-function urlBase64ToUint8Array(base64: string) {
-  const padded = (base64 + "=".repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(padded);
-  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
-}
 
 /**
  * 푸시 알림 켜기/끄기. 켜면 이 브라우저의 푸시 주소와 관심 제품·지켜보는 글·내 댓글 번호가 서버에 저장되고,
@@ -54,29 +49,11 @@ export function PushSettings() {
     setBusy(true);
     setMsg(null);
     try {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setStatus(permission === "denied" ? "blocked" : "off");
+      const r = await enablePush(key);
+      if (r !== "on") {
+        setStatus(r === "denied" ? "blocked" : "off");
         return;
       }
-      const reg = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-      const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) }));
-      const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-      const res = await fetch("/api/push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscription: { endpoint: json.endpoint, keys: json.keys },
-          products: getWatchedProducts(),
-          posts: getWatchedPosts(),
-          comments: getMyComments(),
-          ...(getPushState()?.endpoint === json.endpoint ? { token: getPushState()!.token } : {}),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message ?? "알림을 켜지 못했어요.");
-      setPushState({ endpoint: json.endpoint, token: data.token });
       setStatus("on");
       setMsg("알림을 켰어요. 관심 제품·지켜보는 글·내 댓글에 새 소식이 모이면 한 시간에 한 번까지 알려 드려요.");
     } catch (e) {
