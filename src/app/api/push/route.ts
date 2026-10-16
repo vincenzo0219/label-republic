@@ -20,8 +20,10 @@ const subscribeSchema = z.object({
   comments: commentIds,
   /** 이미 켠 브라우저가 키를 바꿔 다시 등록할 때 */
   token: token.optional(),
+  /** 📅 오늘의 문제 아침 알림 (Sprint 70). 빼면 그대로 둔다 */
+  daily: z.boolean().optional(),
 });
-const updateSchema = z.object({ endpoint, token, products: ids, posts: ids, comments: commentIds });
+const updateSchema = z.object({ endpoint, token, products: ids, posts: ids, comments: commentIds, daily: z.boolean().optional() });
 const deleteSchema = z.object({ endpoint, token });
 
 /** GET /api/push — 이 서버에서 푸시를 쓸 수 있는지 + VAPID 공개키 */
@@ -37,6 +39,7 @@ export const POST = route(async (req) => {
     { products: input.products, posts: input.posts, comments: input.comments },
     fp,
     input.token,
+    input.daily,
   );
   return json(r, 201);
 });
@@ -46,7 +49,7 @@ export const PUT = route(async (req) => {
   const fp = fingerprint(req.headers);
   if (!(await hit(`push:update:${fp}`, 120, 60 * 60 * 1000))) throw tooMany();
   const input = await parseBody(req, updateSchema);
-  await updateWatch(input.endpoint, input.token, { products: input.products, posts: input.posts, comments: input.comments });
+  await updateWatch(input.endpoint, input.token, { products: input.products, posts: input.posts, comments: input.comments }, input.daily);
   return json({ ok: true });
 });
 

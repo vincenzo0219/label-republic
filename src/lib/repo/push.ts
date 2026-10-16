@@ -37,18 +37,19 @@ function lists(w: WatchLists) {
  * 같은 푸시 주소가 이미 있으면, 같은 브라우저가 다시 켜는 경우(암호화 키가 같음)나 토큰을 가진 경우에만 덮어쓴다.
  * 주소만 알아낸 사람이 키를 바꿔 알림을 가로채거나 토큰을 받아 가지 못하게.
  */
-export async function subscribe(sub: SubscriptionInput, watch: WatchLists, fp: string, token?: string): Promise<{ token: string }> {
+export async function subscribe(sub: SubscriptionInput, watch: WatchLists, fp: string, token?: string, daily?: boolean): Promise<{ token: string }> {
   if (!config.pushEnabled) throw new HttpError(503, "push_disabled", "이 서버에서는 푸시 알림을 쓸 수 없습니다.");
   if (!isAllowedEndpoint(sub.endpoint)) throw new HttpError(400, "invalid_endpoint", "지원하지 않는 푸시 서비스입니다.");
   const [products, posts, comments] = lists(watch);
   await query(
-    `INSERT INTO push_subscriptions (endpoint, p256dh, auth, fingerprint, products, posts, comments)
-     VALUES ($1, $2, $3, $4, $5::bigint[], $6::bigint[], $8::bigint[])
+    `INSERT INTO push_subscriptions (endpoint, p256dh, auth, fingerprint, products, posts, comments, daily)
+     VALUES ($1, $2, $3, $4, $5::bigint[], $6::bigint[], $8::bigint[], COALESCE($9::boolean, false))
      ON CONFLICT (endpoint) DO UPDATE SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, fingerprint = EXCLUDED.fingerprint,
-       products = EXCLUDED.products, posts = EXCLUDED.posts, comments = EXCLUDED.comments, synced_at = now(), fail_count = 0
+       products = EXCLUDED.products, posts = EXCLUDED.posts, comments = EXCLUDED.comments, synced_at = now(), fail_count = 0,
+       daily = COALESCE($9::boolean, push_subscriptions.daily)
        WHERE (push_subscriptions.p256dh = EXCLUDED.p256dh AND push_subscriptions.auth = EXCLUDED.auth) OR $7::boolean
      RETURNING id`,
-    [sub.endpoint, sub.p256dh, sub.auth, fp, products, posts, token ? tokenOk(sub.endpoint, token) : false, comments],
+    [sub.endpoint, sub.p256dh, sub.auth, fp, products, posts, token ? tokenOk(sub.endpoint, token) : false, comments, daily ?? null],
   ).then((rows) => {
     if (!rows[0]) throw new HttpError(409, "endpoint_taken", "이미 다른 설정으로 등록된 알림 주소입니다. 브라우저 알림을 껐다 다시 켜 주세요.");
   });
@@ -56,12 +57,13 @@ export async function subscribe(sub: SubscriptionInput, watch: WatchLists, fp: s
 }
 
 /** 관심 목록이 바뀔 때마다 브라우저가 보낸다 */
-export async function updateWatch(endpoint: string, token: string, watch: WatchLists): Promise<void> {
+export async function updateWatch(endpoint: string, token: string, watch: WatchLists, daily?: boolean): Promise<void> {
   checkToken(endpoint, token);
   const [products, posts, comments] = lists(watch);
   const res = await query<{ id: string }>(
-    "UPDATE push_subscriptions SET products = $2::bigint[], posts = $3::bigint[], comments = $4::bigint[], synced_at = now() WHERE endpoint = $1 RETURNING id",
-    [endpoint, products, posts, comments],
+    `UPDATE push_subscriptions SET products = $2::bigint[], posts = $3::bigint[], comments = $4::bigint[], synced_at = now(),
+       daily = COALESCE($5::boolean, daily) WHERE endpoint = $1 RETURNING id`,
+    [endpoint, products, posts, comments, daily ?? null],
   );
   if (!res[0]) throw notFound("알림 구독");
 }

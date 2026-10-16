@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
+import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { dailyShareLine, streakOf, type DailyKind, type DailySet, type DailyToday } from "@/lib/daily";
 
 type Side = "A" | "B";
@@ -205,9 +206,7 @@ export function DailyChallenge({ set }: { set: DailySet }) {
             <button type="button" className="btn btn-primary" onClick={copy}>
               {copied ? "✅ 복사했어요" : "🔗 결과 한 줄 복사 (정답은 안 보여요)"}
             </button>
-            <a className="btn" href="https://www.instagram.com/nobangjang/" target="_blank" rel="noopener noreferrer">
-              📷 매일 알림: 인스타 팔로우
-            </a>
+            <DailyPush />
           </div>
           <Link href="/first-line-test" className="ear-cta">
             📜 더 풀고 싶다면: 첫 문장 테스트 10문제 →
@@ -218,5 +217,58 @@ export function DailyChallenge({ set }: { set: DailySet }) {
         </div>
       )}
     </section>
+  );
+}
+
+const PUSH_KEY = "lr:dailyPush";
+
+/** 🔔 내일 문제 알림 (Sprint 70). 푸시를 못 쓰는 브라우저·서버면 인스타 팔로우 */
+function DailyPush() {
+  const [key, setKey] = useState<string | null | undefined>(undefined);
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      setOn(window.localStorage.getItem(PUSH_KEY) === "1" && Notification.permission === "granted");
+    } catch {}
+    if (!pushSupported()) return setKey(null);
+    void pushPublicKey().then(setKey);
+  }, []);
+
+  if (key === undefined) return null;
+  if (key === null) {
+    return (
+      <a className="btn" href="https://www.instagram.com/nobangjang/" target="_blank" rel="noopener noreferrer">
+        📷 매일 알림: 인스타 팔로우
+      </a>
+    );
+  }
+  if (on) return <span className="btn" aria-disabled="true">🔔 내일 아침 알려 드릴게요</span>;
+  const enable = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await enablePush(key, true);
+      if (r === "on") {
+        setOn(true);
+        try {
+          window.localStorage.setItem(PUSH_KEY, "1");
+        } catch {}
+      } else if (r === "denied") setMsg("브라우저 설정에서 알림을 허용해 주세요.");
+    } catch {
+      setMsg("알림을 켜지 못했어요.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <button type="button" className="btn" onClick={enable} disabled={busy}>
+        🔔 내일 문제 알림 받기
+      </button>
+      {msg && <p className="hint">{msg}</p>}
+    </>
   );
 }
