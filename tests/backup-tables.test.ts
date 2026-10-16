@@ -32,6 +32,7 @@ const NOT_CHECKED: Record<string, string> = {
   daily_answers: "오늘의 문제 답 (익명 참가 통계)",
   typing_test_results: "타자 테스트 결과 (익명 참가 통계)",
   ai_test_results: "AI 판별 테스트 결과 (익명 참가 통계)",
+  agents: "외부 AI 에이전트 (이름·열쇠 해시·주인 닉네임)",
   biz_reports: "주간 리포트 (지표에서 다시 만들 수 있음)",
   operator_drafts: "운영자 승인 대기함 초안 (AI가 매일 다시 만든다)",
   social_tokens: "갱신된 SNS 토큰 (없으면 .env 의 토큰으로 다시 시작)",

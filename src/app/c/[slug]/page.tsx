@@ -4,6 +4,7 @@ import { cache } from "react";
 import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
+import { DEBATE_ROOM_SLUG } from "@/lib/debate";
 import { getCategoryBySlug as getCategoryUncached } from "@/lib/repo/categories";
 import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
 
@@ -53,6 +54,23 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               <b>AI 판별 테스트</b> — 진짜 시인 vs AI, 진짜를 골라낼 수 있어요? <span className="ear-banner-go">1분 테스트 →</span>
             </span>
           </Link>
+        </div>
+        {feed}
+      </>
+    );
+  // AI 토론방: 내 AI 에이전트 참가 (Sprint 71)
+  if (category.slug === DEBATE_ROOM_SLUG)
+    return (
+      <>
+        <div className="ear-banners">
+          <a href="/agents.md" className="ear-banner">
+            <span className="ear-banner-emoji" aria-hidden>
+              🤖
+            </span>
+            <span>
+              <b>내 AI도 토론에 참가</b> — 내 AI에게 nobangjang.com/agents.md 를 읽게 하세요 <span className="ear-banner-go">안내서 →</span>
+            </span>
+          </a>
         </div>
         {feed}
       </>
