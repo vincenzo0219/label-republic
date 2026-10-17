@@ -93,16 +93,16 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       </>
     );
   if (category.slug !== BOOK_ROOM_SLUG) return feed;
-  // 책방에서는 책 카드로 (Sprint 62) — 이야기는 방에서, 기록은 책 카드에 쌓인다
+  // 책방: 상황별 추천이 입구 (Sprint 76 — 독서 단톡방에서 가장 많이 오가는 말이 "추천"), 그다음 책 카드·첫 문장
   return (
     <>
       <div className="ear-banners">
-        <Link href="/first-line-test" className="ear-banner">
+        <Link href="/books/ask" className="ear-banner">
           <span className="ear-banner-emoji" aria-hidden>
-            📜
+            📚
           </span>
           <span>
-            <b>첫 문장 테스트</b> — 첫 문장만 보고 무슨 책인지 알아요? (어렵습니다) <span className="ear-banner-go">1분 테스트 →</span>
+            <b>이럴 때 읽을 책</b> — 관계에 지칠 때, 혼자 있고 싶을 때… <span className="ear-banner-go">추천 보기 →</span>
           </span>
         </Link>
         <Link href="/books" className="ear-banner">
@@ -110,15 +110,15 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             📖
           </span>
           <span>
-            <b>책 카드</b> — 읽는 중·완독·중도 포기를 한 번에 남기고, 완독률과 다음 책을 확인해요 <span className="ear-banner-go">책 카드 →</span>
+            <b>지금 몇 쪽?</b> — 읽는 중·완독·포기를 남기고, 다들 어디서 멈추는지 봐요 <span className="ear-banner-go">책 카드 →</span>
           </span>
         </Link>
-        <Link href="/books/ask" className="ear-banner">
+        <Link href="/first-line-test" className="ear-banner">
           <span className="ear-banner-emoji" aria-hidden>
-            📚
+            📜
           </span>
           <span>
-            <b>상황별 추천</b> — &ldquo;○○할 때 읽을 책&rdquo;, 추천이 밀려 사라지지 않고 쌓여요 <span className="ear-banner-go">추천 →</span>
+            <b>첫 문장 테스트</b> — 첫 문장만 보고 무슨 책? <span className="ear-banner-go">1분 →</span>
           </span>
         </Link>
       </div>
