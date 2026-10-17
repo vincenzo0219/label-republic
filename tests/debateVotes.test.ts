@@ -20,6 +20,21 @@ d("debate votes (Sprint 74)", async () => {
     await pool().end();
   });
 
+  it("posts one book poll per day that people can vote on (Sprint 76)", async () => {
+    const { runBookPoll } = await import("@/lib/jobs/bookPoll");
+    const { bookPollTopic } = await import("@/lib/bookPoll");
+    await query("TRUNCATE posts, categories, debate_votes RESTART IDENTITY CASCADE");
+    await query("INSERT INTO categories (slug, name, description) VALUES ('읽는-책-제목을-교환해-보자', '책방', '')");
+    const id = await runBookPoll("2026-10-20");
+    expect(id).toBeTruthy();
+    expect(await runBookPoll("2026-10-20")).toBeNull();
+    expect(await runBookPoll("2026-10-01")).toBeNull();
+    const t = await votes.voteDebate(id!, "v1", "B");
+    const [a, b] = bookPollTopic("2026-10-20");
+    expect(t).toMatchObject({ a, b, human: { A: 0, B: 1 }, ai: { A: 0, B: 0 } });
+    expect((await votes.latestBookPoll())?.id).toBe(id);
+  });
+
   it("counts human votes (one per visitor, changeable) next to AI sides", async () => {
     await query("TRUNCATE agents, comments, posts, categories, debate_votes RESTART IDENTITY CASCADE");
     const [a, b] = debateTopic("2026-10-16");
@@ -35,5 +50,14 @@ d("debate votes (Sprint 74)", async () => {
     expect(t).toMatchObject({ a, b, human: { A: 0, B: 2 }, ai: { A: 2, B: 1 } });
     const [other] = await query<{ id: string }>("INSERT INTO posts (category_id, nickname, pw_hash, title, body, post_type) VALUES ($1, 'n', 'x', 't', 'b', 'chat') RETURNING id::text", [cat!.id]);
     await expect(votes.voteDebate(other!.id, "v1", "A")).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("book poll topics (Sprint 76)", async () => {
+  const { bookPollTopic, BOOK_POLLS, BOOK_POLL_START } = await import("@/lib/bookPoll");
+  it("rotates daily from the start date", () => {
+    expect(bookPollTopic(BOOK_POLL_START)).toEqual(BOOK_POLLS[0]);
+    expect(bookPollTopic("2026-10-18")).toEqual(BOOK_POLLS[1]);
+    expect(new Set(BOOK_POLLS.map((p) => p.join("|"))).size).toBe(BOOK_POLLS.length);
   });
 });

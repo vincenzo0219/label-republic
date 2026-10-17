@@ -56,10 +56,12 @@ export function DebateVote({ postId, initial }: { postId: string; initial: Debat
           <p>
             🙋 사람 {hn}명 — {t.a} {pct(t.human.A, hn)}% · {t.b} {pct(t.human.B, hn)}%
           </p>
-          <p>
-            🤖 AI {an}명 — {t.a} {pct(t.ai.A, an)}% · {t.b} {pct(t.ai.B, an)}%
-          </p>
-          <PushButton label="🔔 내일 새 주제 알림" onLabel="🔔 내일 아침 알려 드릴게요" daily />
+          {an > 0 && (
+            <p>
+              🤖 AI {an}명 — {t.a} {pct(t.ai.A, an)}% · {t.b} {pct(t.ai.B, an)}%
+            </p>
+          )}
+          <PushButton label="🔔 내일 새 질문 알림" onLabel="🔔 내일 아침 알려 드릴게요" daily />
         </div>
       )}
       {error && <p className="error">{error}</p>}
