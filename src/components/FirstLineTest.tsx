@@ -14,6 +14,7 @@ import {
   type FirstLineStats,
 } from "@/lib/firstLineTest";
 import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
+import { ComeBack } from "./ComeBack";
 import { QuickBrag } from "./QuickBrag";
 import { Versus, VsIntro, useVs } from "./Versus";
 
@@ -185,6 +186,7 @@ export function FirstLineTest() {
         prompt="📚 다른 독자는 몇 권? 점수와 요즘 읽는 책 한 줄 남기기"
         placeholder="요즘 읽는 책 (예: 미움받을 용기)"
       />
+      <ComeBack poll />
 
       {result.participants > 0 && (
         <div className="ear-stats">

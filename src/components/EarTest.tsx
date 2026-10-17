@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
 import { EAR_BRAG_POST_ID, EAR_MIN_PARTICIPANTS, EAR_ROUNDS, EAR_TOTAL, earBragLine, earTier, type EarStats } from "@/lib/earTest";
+import { ComeBack } from "./ComeBack";
 import { QuickBrag } from "./QuickBrag";
 import { Versus, VsIntro, useVs } from "./Versus";
 
@@ -192,6 +193,7 @@ export function EarTest() {
         prompt="👀 다른 덕후들은 몇 개? 내 점수도 한 줄 남기기"
         placeholder="장비 (예: 아이폰 + 에어팟 프로)"
       />
+      <ComeBack />
 
       <table className="ear-table">
         <thead>

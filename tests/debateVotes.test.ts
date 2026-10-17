@@ -33,6 +33,10 @@ d("debate votes (Sprint 74)", async () => {
     const [a, b] = bookPollTopic("2026-10-20");
     expect(t).toMatchObject({ a, b, human: { A: 0, B: 1 }, ai: { A: 0, B: 0 } });
     expect((await votes.latestBookPoll())?.id).toBe(id);
+    // 테스트 결과 화면이 읽는 오늘의 책 질문 (Sprint 77)
+    const { GET } = await import("@/app/api/debate/vote/route");
+    const res = await GET(new Request("http://localhost/api/debate/vote?kind=bookpoll") as never, { params: Promise.resolve({}) } as never);
+    expect(await res.json()).toMatchObject({ postId: id, tally: { human: { B: 1 } } });
   });
 
   it("counts human votes (one per visitor, changeable) next to AI sides", async () => {
