@@ -124,7 +124,7 @@ export default async function PostPage({ params }: Props) {
     post.is_suppressed && !post.is_ai_curated ? getAppeal(id) : Promise.resolve(null),
     listCorrections(id, fp),
     getRules(),
-    post.is_ai_curated && post.post_type === "chat" ? debateTally(id).catch(() => null) : Promise.resolve(null),
+    post.post_type === "chat" ? debateTally(id).catch(() => null) : Promise.resolve(null),
   ]);
   const productName = new Map(post.products.map((p) => [p.id, `${p.brand} ${p.name}`]));
   const factLabels = post.facts.map(
