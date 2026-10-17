@@ -25,6 +25,17 @@ h1{font-size:124px;line-height:1.1;font-weight:700;letter-spacing:-6px;margin-to
 </style></head><body>${inner}</body></html>`;
 const top = `<div class="top"><div class="brand"><i>🏠</i>노방장</div><span class="tag">📜 첫 문장 테스트</span></div>`;
 const frames = {
+  // "책 덕후들 모여라" + 바로 할 거리 (10/17)
+  "ad-book-otaku-1080x1350": [1080, 1350, `${top}<div style="height:70px"></div><div class="k">1분 테스트 · 10문제</div><h1>📚 책 덕후들<br><em>모여라</em></h1>
+    <div class="sub">첫 문장만 보고 무슨 책인지 알아요?</div>
+    <div class="line">“나를 이슈메일이라고 불러 다오.”</div>
+    <div class="hard">(어렵습니다.)</div><br>
+    <div class="cta">도전하기 →</div>`, "84px 80px"],
+  "ad-book-otaku-story-1080x1920": [1080, 1920, `${top}<div style="height:240px"></div><div class="k">1분 테스트 · 10문제</div><h1>📚 책 덕후들<br><em>모여라</em></h1>
+    <div class="sub">첫 문장만 보고 무슨 책인지 알아요?</div>
+    <div class="line">“나를 이슈메일이라고 불러 다오.”</div>
+    <div class="hard">(어렵습니다.)</div><br>
+    <div class="cta">도전하기 →</div>`, "160px 80px"],
   "ad-first-line-1080x1350": [1080, 1350, `${top}<div style="height:70px"></div><div class="k">1분 테스트 · 10문제</div><h1>첫 문장만 보고<br><em>무슨 책?</em></h1>
     <div class="line">“행복한 가정은 모두 서로 닮았지만, 불행한 가정은 저마다의 방식으로 불행하다.”</div>
     <div class="hard">(어렵습니다.)</div><br>
