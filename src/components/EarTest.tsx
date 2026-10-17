@@ -6,6 +6,7 @@ import { api } from "@/lib/client-api";
 import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
 import { EAR_BRAG_POST_ID, EAR_MIN_PARTICIPANTS, EAR_ROUNDS, EAR_TOTAL, earBragLine, earTier, type EarStats } from "@/lib/earTest";
 import { QuickBrag } from "./QuickBrag";
+import { Versus, VsIntro, useVs } from "./Versus";
 
 type Side = "A" | "B";
 type Result = { score: number } & EarStats;
@@ -15,6 +16,7 @@ type Result = { score: number } & EarStats;
  * 정답은 끝날 때까지 알려 주지 않는다 (중간에 알려 주면 귀가 아니라 요령으로 맞히게 된다).
  */
 export function EarTest() {
+  const vs = useVs(10);
   const [phase, setPhase] = useState<"intro" | "quiz" | "result">("intro");
   const [round, setRound] = useState(0);
   const [origIsA, setOrigIsA] = useState<boolean[]>([]);
@@ -102,6 +104,7 @@ export function EarTest() {
   if (phase === "intro") {
     return (
       <section className="ear-card">
+        <VsIntro vs={vs} unit="개" />
         <p className="ear-kicker">🎧 1분 블라인드 테스트</p>
         <h1 className="ear-title">
           당신 귀는 <em>압축 음질</em>을
@@ -180,6 +183,7 @@ export function EarTest() {
         {result.topPercent !== null && <> · 참가자 중 <b>상위 {result.topPercent}%</b></>}
       </p>
       <p className="hint">{tier.line}. 찍어도 5개 안팎은 맞힐 수 있어요.</p>
+      <Versus vs={vs} mine={result.score} unit="개" path="/ear-test" label="황금귀 테스트(원본 vs 압축 음원 10문제)" />
       {/* 테스트 → 커뮤니티 (Sprint 60·64): 결과 화면에서 바로 인증 댓글 */}
       <QuickBrag
         postId={EAR_BRAG_POST_ID}

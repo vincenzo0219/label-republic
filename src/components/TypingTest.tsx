@@ -17,6 +17,7 @@ import {
   type TypingStats,
 } from "@/lib/typingTest";
 import { QuickBrag } from "./QuickBrag";
+import { Versus, VsIntro, useVs } from "./Versus";
 
 type Result = { cpm: number; accuracy: number; device: TypingDevice } & TypingStats;
 type Done = { strokes: number; correct: number; total: number; ms: number };
@@ -35,6 +36,7 @@ function pick(n: number): string[] {
  * 붙여넣기는 막고, 한글 조합 중의 엔터(IME)는 다음 문장으로 넘기지 않는다.
  */
 export function TypingTest() {
+  const vs = useVs(1500);
   const [phase, setPhase] = useState<"intro" | "quiz" | "result">("intro");
   const [lines, setLines] = useState<string[]>([]);
   const [step, setStep] = useState(0);
@@ -104,6 +106,7 @@ export function TypingTest() {
   if (phase === "intro") {
     return (
       <section className="ear-card">
+        <VsIntro vs={vs} unit="타" />
         <p className="ear-kicker">⌨️ 1분 한글 타자 테스트</p>
         <h1 className="ear-title">
           나는 <em>몇 타</em>일까?
@@ -198,6 +201,7 @@ export function TypingTest() {
         {result.topPercent !== null && <> · {deviceName} 참가자 중 <b>상위 {result.topPercent}%</b></>}
       </p>
       <p className="hint">{tier.line}.</p>
+      <Versus vs={vs} mine={result.cpm} unit="타" path="/typing-test" label="한글 타자 테스트" />
 
       <QuickBrag
         postId={TYPING_BRAG_POST_ID}

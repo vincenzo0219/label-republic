@@ -15,6 +15,7 @@ import {
 } from "@/lib/firstLineTest";
 import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
 import { QuickBrag } from "./QuickBrag";
+import { Versus, VsIntro, useVs } from "./Versus";
 
 type Result = { score: number } & FirstLineStats;
 
@@ -32,6 +33,7 @@ function shuffled<T>(xs: readonly T[]): T[] {
  * 고르면 바로 정답과 작가를 보여 준다 — 틀려도 "이 책이었구나"를 알고 가게.
  */
 export function FirstLineTest() {
+  const vs = useVs(10);
   const [phase, setPhase] = useState<"intro" | "quiz" | "result">("intro");
   const [step, setStep] = useState(0);
   const [mask, setMask] = useState(0);
@@ -81,6 +83,7 @@ export function FirstLineTest() {
   if (phase === "intro") {
     return (
       <section className="ear-card">
+        <VsIntro vs={vs} unit="개" />
         <p className="ear-kicker">📜 1분 첫 문장 테스트</p>
         <h1 className="ear-title">
           첫 문장만 보고
@@ -173,6 +176,7 @@ export function FirstLineTest() {
         {result.topPercent !== null && <> · 참가자 중 <b>상위 {result.topPercent}%</b></>}
       </p>
       <p className="hint">{tier.line}.</p>
+      <Versus vs={vs} mine={result.score} unit="개" path="/first-line-test" label="첫 문장 테스트(첫 문장만 보고 책 맞히기)" />
 
       <QuickBrag
         postId={FIRST_LINE_BRAG_POST_ID}

@@ -6,6 +6,7 @@ import { api } from "@/lib/client-api";
 import { AI_PAIRS, AI_TEST_BRAG_POST_ID, AI_TEST_MIN_PARTICIPANTS, AI_TEST_TOTAL, aiBragLine, aiTier, type AiStats } from "@/lib/aiTest";
 import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
 import { QuickBrag } from "./QuickBrag";
+import { Versus, VsIntro, useVs } from "./Versus";
 
 type Result = { score: number } & AiStats;
 
@@ -14,6 +15,7 @@ type Result = { score: number } & AiStats;
  * 고르면 바로 출처와 "AI 문장을 알아보는 단서"를 보여 준다.
  */
 export function AiTest() {
+  const vs = useVs(10);
   const [phase, setPhase] = useState<"intro" | "quiz" | "result">("intro");
   const [step, setStep] = useState(0);
   const [mask, setMask] = useState(0);
@@ -62,6 +64,7 @@ export function AiTest() {
   if (phase === "intro") {
     return (
       <section className="ear-card">
+        <VsIntro vs={vs} unit="개" />
         <p className="ear-kicker">🤖 1분 AI 판별 테스트</p>
         <h1 className="ear-title">
           AI가 흉내 낸 문장,
@@ -154,6 +157,7 @@ export function AiTest() {
         {result.topPercent !== null && <> · 참가자 중 <b>상위 {result.topPercent}%</b></>}
       </p>
       <p className="hint">{tier.line}.</p>
+      <Versus vs={vs} mine={result.score} unit="개" path="/ai-test" label="AI 판별 테스트(진짜 시인 vs AI)" />
 
       {AI_TEST_BRAG_POST_ID && (
         <QuickBrag
