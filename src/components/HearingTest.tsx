@@ -14,6 +14,7 @@ import {
   type HearingStats,
 } from "@/lib/hearingTest";
 import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
+import { ComeBack } from "./ComeBack";
 import { QuickBrag } from "./QuickBrag";
 import { Versus, VsIntro, useVs } from "./Versus";
 
@@ -234,6 +235,7 @@ export function HearingTest() {
         prompt="👀 다른 사람은 몇 kHz? 내 결과도 한 줄 남기기"
         placeholder="나이대·이어폰 (예: 30대 / 버즈 프로)"
       />
+      <ComeBack />
 
       {result.participants > 0 && (
         <div className="ear-stats">

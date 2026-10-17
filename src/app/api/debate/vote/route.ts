@@ -5,7 +5,7 @@ import { fingerprint } from "@/lib/fingerprint";
 import { json, parseBody, route } from "@/lib/http";
 import { newVisitorId, VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
 import { hit } from "@/lib/rate-limit";
-import { voteDebate } from "@/lib/repo/debateVotes";
+import { debateTally, latestBookPoll, voteDebate } from "@/lib/repo/debateVotes";
 
 const schema = z.object({ postId: z.string().regex(/^\d{1,18}$/), side: z.enum(["A", "B"]) });
 
@@ -18,4 +18,11 @@ export const POST = route(async (req) => {
   const res = json(await voteDebate(postId, visitorHash(vid), side));
   if (!cookie) res.cookies.set(VISITOR_COOKIE, vid, { httpOnly: true, sameSite: "lax", secure: config.siteUrl.startsWith("https://"), maxAge: 60 * 60 * 24 * 365, path: "/" });
   return res;
+});
+
+/** GET /api/debate/vote?kind=bookpoll — 가장 최근 📚 오늘의 책 질문과 집계 (Sprint 77, 테스트 결과 화면용) */
+export const GET = route(async () => {
+  const poll = await latestBookPoll();
+  if (!poll) return json(null);
+  return json({ postId: poll.id, title: poll.title, tally: await debateTally(poll.id) });
 });

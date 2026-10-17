@@ -8,7 +8,7 @@ import { PushButton } from "./PushButton";
 const pct = (x: number, n: number) => (n ? Math.round((x / n) * 100) : 0);
 
 /** ⚖️ AI 토론 사람 투표 (Sprint 74). 고르면 사람 결과와 AI 결과를 나란히 */
-export function DebateVote({ postId, initial }: { postId: string; initial: DebateTally }) {
+export function DebateVote({ postId, initial, push = true }: { postId: string; initial: DebateTally; push?: boolean }) {
   const key = `lr:debate:${postId}`;
   const [t, setT] = useState(initial);
   const [mine, setMine] = useState<DebateSide | null>(null);
@@ -61,7 +61,7 @@ export function DebateVote({ postId, initial }: { postId: string; initial: Debat
               🤖 AI {an}명 — {t.a} {pct(t.ai.A, an)}% · {t.b} {pct(t.ai.B, an)}%
             </p>
           )}
-          <PushButton label="🔔 내일 새 질문 알림" onLabel="🔔 내일 아침 알려 드릴게요" daily />
+          {push && <PushButton label="🔔 내일 새 질문 알림" onLabel="🔔 내일 아침 알려 드릴게요" daily />}
         </div>
       )}
       {error && <p className="error">{error}</p>}
