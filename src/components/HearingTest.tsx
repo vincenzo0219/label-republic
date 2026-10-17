@@ -15,6 +15,7 @@ import {
 } from "@/lib/hearingTest";
 import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
 import { QuickBrag } from "./QuickBrag";
+import { Versus, VsIntro, useVs } from "./Versus";
 
 type Side = "A" | "B";
 type Result = { maxKhz: number } & HearingStats;
@@ -25,6 +26,7 @@ type Result = { maxKhz: number } & HearingStats;
  * 틀리거나 "둘 다 안 들려요"면 끝 — 결과는 마지막으로 맞힌 주파수.
  */
 export function HearingTest() {
+  const vs = useVs(20);
   const [phase, setPhase] = useState<"intro" | "quiz" | "result">("intro");
   const [step, setStep] = useState(0);
   const [toneSide, setToneSide] = useState<Side>("A");
@@ -132,6 +134,7 @@ export function HearingTest() {
   if (phase === "intro") {
     return (
       <section className="ear-card">
+        <VsIntro vs={vs} unit="kHz" />
         <p className="ear-kicker">🦟 1분 고음 청력 테스트</p>
         <h1 className="ear-title">
           당신 귀는 <em>몇 kHz</em>까지
@@ -222,6 +225,7 @@ export function HearingTest() {
         {result.topPercent !== null && <> · 참가자 중 <b>상위 {result.topPercent}%</b></>}
       </p>
       <p className="hint">{tier.line}. 기기·이어폰에 따라 달라질 수 있는 참고 결과예요.</p>
+      <Versus vs={vs} mine={result.maxKhz} unit="kHz" path="/hearing-test" label="고음 청력 테스트" />
 
       <QuickBrag
         postId={HEARING_BRAG_POST_ID}
