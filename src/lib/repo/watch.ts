@@ -65,6 +65,8 @@ export type WatchUpdates = {
   /** 최근 것부터 최대 20개 */
   replies: ReplyUpdate[];
   reply_count: number;
+  /** 내 댓글에 새로 붙은 👍 공감 (Sprint 78) */
+  like_count: number;
   /** 지워진 글 — 브라우저는 목록에서 뺀다 */
   gone: string[];
   /** 지워진 내 댓글 — 브라우저는 목록에서 뺀다 */
@@ -94,7 +96,7 @@ export async function watchUpdates(
 ): Promise<WatchUpdates> {
   const sinceIso = since.toISOString();
   const mine = opts.comments ?? [];
-  const [products, posts, renewals, replies, myComments] = await Promise.all([
+  const [products, posts, renewals, replies, myComments, [likeRow]] = await Promise.all([
     productIds.length
       ? query<Omit<ProductUpdate, "posts">>(
           `SELECT pr.id::text, t.brand, t.name, pr.merged_into::text,
@@ -148,6 +150,9 @@ export async function watchUpdates(
         )
       : Promise.resolve([]),
     mine.length ? query<{ id: string }>("SELECT id::text FROM comments WHERE id = ANY($1::bigint[])", [mine]) : Promise.resolve([]),
+    mine.length
+      ? query<{ n: number }>("SELECT count(*)::int AS n FROM comment_likes WHERE comment_id = ANY($1::bigint[]) AND created_at > $2::timestamptz", [mine, sinceIso])
+      : Promise.resolve([{ n: 0 }]),
   ]);
   // 미리보기는 새 글이 있는 제품 5개까지만 (요청 하나의 조회 수를 묶어 둔다)
   const previewIds = new Set(products.filter((p) => p.new_posts > 0).slice(0, 5).map((p) => p.id));
@@ -164,12 +169,14 @@ export async function watchUpdates(
   const found = new Set(posts.map((p) => p.id));
   const foundComments = new Set(myComments.map((c) => c.id));
   const replyCount = replies[0]?.n ?? 0;
-  const total = withPosts.reduce((n, p) => n + productUpdateCount(p), 0) + posts.reduce((n, p) => n + postUpdateCount(p), 0) + replyCount;
+  const likeCount = likeRow?.n ?? 0;
+  const total = withPosts.reduce((n, p) => n + productUpdateCount(p), 0) + posts.reduce((n, p) => n + postUpdateCount(p), 0) + replyCount + likeCount;
   return {
     products: withPosts,
     posts,
     replies: replies.map(({ n: _n, ...r }) => r),
     reply_count: replyCount,
+    like_count: likeCount,
     gone: postIds.filter((id) => !found.has(id)),
     gone_comments: mine.filter((id) => !foundComments.has(id)),
     total,

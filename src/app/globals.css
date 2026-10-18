@@ -968,3 +968,8 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .data-page h1 { font-size: 24px; margin: 8px 0; }
 .data-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 15px; }
 .data-table th, .data-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+
+/* 👍 댓글 공감 (Sprint 78) */
+.comment-head .like.on { color: var(--brand); font-weight: 700; }
+.report-likes { margin: 8px 0; font-weight: 700; }
+.home-news { display: block; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: color-mix(in srgb, var(--brand) 10%, var(--bg)); font-weight: 700; text-decoration: none; }
