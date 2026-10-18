@@ -184,6 +184,62 @@ export async function runDailyPush(
   }
 }
 
+const STREAK_LOCK_KEY = 4_823_080;
+export const STREAK_PUSH_HOUR = 20;
+
+/** 🔥 끊기기 전 알림 문구 (Sprint 80) */
+export function streakPushMessage(streak: number): PushMessage {
+  return {
+    title: `🔥 ${streak}일 연속 기록이 오늘 끊겨요`,
+    body: "오늘 질문 하나면 이어져요 · 1분",
+    url: "/daily?from=streak",
+    tag: "lr-streak",
+  };
+}
+
+/**
+ * 🔥 위험 사용자 알림 (Sprint 80, 듀오링고식). 어제까지 2일 이상 이어 왔는데 오늘 아직 안 한 구독에 KST 저녁 한 번.
+ */
+export async function runStreakPush(
+  now = new Date(),
+  opts: { send?: (sub: Sub, msg: PushMessage) => Promise<SendResult> } = {},
+): Promise<{ ran: boolean; sent: number; removed: number }> {
+  const day = kstDay(now);
+  const hour = (now.getUTCHours() + 9) % 24;
+  if (hour < STREAK_PUSH_HOUR) return { ran: false, sent: 0, removed: 0 };
+  const client = await pool().connect();
+  try {
+    const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [STREAK_LOCK_KEY]);
+    if (!lock.rows[0]!.ok) return { ran: false, sent: 0, removed: 0 };
+    let sent = 0;
+    let removed = 0;
+    try {
+      const { rows } = await client.query<Sub & { streak: number }>(
+        `SELECT id, endpoint, p256dh, auth, streak FROM push_subscriptions
+          WHERE streak >= 2 AND active_day = $1::date - 1 AND (streak_push_day IS NULL OR streak_push_day < $1::date)
+          ORDER BY id LIMIT $2`,
+        [day, BATCH],
+      );
+      const send = opts.send ?? ((s: Sub, m: PushMessage) => sendPush(s, m));
+      for (const s of rows) {
+        const r = await send(s, streakPushMessage(s.streak));
+        if (r === "gone") {
+          removed++;
+          await client.query("DELETE FROM push_subscriptions WHERE id = $1", [s.id]);
+          continue;
+        }
+        if (r === "sent") sent++;
+        await client.query("UPDATE push_subscriptions SET streak_push_day = $2::date WHERE id = $1", [s.id, day]);
+      }
+      return { ran: true, sent, removed };
+    } finally {
+      await client.query("SELECT pg_advisory_unlock($1)", [STREAK_LOCK_KEY]);
+    }
+  } finally {
+    client.release();
+  }
+}
+
 export function startPushScheduler(intervalMs: number): () => void {
   let running = false;
   const tick = async () => {
@@ -194,6 +250,8 @@ export function startPushScheduler(intervalMs: number): () => void {
       if (r.sent || r.removed) console.log(`[push] 알림 ${r.sent}건 발송, 구독 ${r.removed}개 정리 (확인 ${r.checked}개)`);
       const d = await runDailyPush();
       if (d.sent || d.removed) console.log(`[push] 오늘의 문제 알림 ${d.sent}건 발송, 구독 ${d.removed}개 정리`);
+      const st = await runStreakPush();
+      if (st.sent || st.removed) console.log(`[push] 연속 기록 알림 ${st.sent}건 발송, 구독 ${st.removed}개 정리`);
     } catch (err) {
       console.error("[push] batch failed:", (err as Error).message);
       reportError(err, { kind: "job", where: "push" });

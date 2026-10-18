@@ -68,6 +68,20 @@ export async function updateWatch(endpoint: string, token: string, watch: WatchL
   if (!res[0]) throw notFound("알림 구독");
 }
 
+/** 🔥 오늘 할 일을 했다 (Sprint 80): 어제도 했으면 연속 +1, 오늘 이미 했으면 그대로, 아니면 1부터 */
+export async function markActive(endpoint: string, token: string, day: string): Promise<number> {
+  checkToken(endpoint, token);
+  const res = await query<{ streak: number }>(
+    `UPDATE push_subscriptions SET
+       streak = CASE WHEN active_day = $2::date THEN streak WHEN active_day = $2::date - 1 THEN streak + 1 ELSE 1 END,
+       active_day = $2::date
+     WHERE endpoint = $1 RETURNING streak`,
+    [endpoint, day],
+  );
+  if (!res[0]) throw notFound("알림 구독");
+  return res[0].streak;
+}
+
 export async function unsubscribe(endpoint: string, token: string): Promise<void> {
   checkToken(endpoint, token);
   await query("DELETE FROM push_subscriptions WHERE endpoint = $1", [endpoint]);

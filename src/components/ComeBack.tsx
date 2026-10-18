@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
+import { currentStreak } from "@/lib/streak";
 import type { DebateTally } from "@/lib/repo/debateVotes";
 import { DebateVote } from "./DebateVote";
 import { PushButton } from "./PushButton";
@@ -13,6 +14,8 @@ import { PushButton } from "./PushButton";
  */
 export function ComeBack({ poll }: { poll?: boolean }) {
   const [today, setToday] = useState<{ postId: string; title: string; tally: DebateTally } | null>(null);
+  const [streak, setStreak] = useState(0);
+  useEffect(() => setStreak(currentStreak()), []);
 
   useEffect(() => {
     if (!poll) return;
@@ -30,7 +33,7 @@ export function ComeBack({ poll }: { poll?: boolean }) {
         </>
       )}
       <p>
-        📅 매일 새 문제 1개 · <Link href="/daily?from=result">오늘 문제 풀기</Link>
+        {streak > 0 && <b>🔥 {streak}일 연속 · </b>}📅 매일 새 문제 1개 · <Link href="/daily?from=result">오늘 문제 풀기</Link>
       </p>
       <PushButton label="🔔 내일 아침 새 문제 알림" onLabel="🔔 내일 아침 알려 드릴게요" daily />
     </div>

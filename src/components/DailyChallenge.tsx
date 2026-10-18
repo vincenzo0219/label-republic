@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { PushButton } from "./PushButton";
-import { dailyShareLine, streakOf, type DailyKind, type DailySet, type DailyToday } from "@/lib/daily";
+import { currentStreak, markDailyAction } from "@/lib/streak";
+import { dailyShareLine, type DailyKind, type DailySet, type DailyToday } from "@/lib/daily";
 
 type Side = "A" | "B";
 type Saved = { days: string[]; answers: Record<string, Partial<Record<DailyKind, boolean>>> };
@@ -79,6 +80,7 @@ export function DailyChallenge({ set }: { set: DailySet }) {
     try {
       window.localStorage.setItem(KEY, JSON.stringify(next));
     } catch {}
+    markDailyAction(set.day);
     try {
       setStats(await api<DailyToday>("/api/daily", "POST", { kind, correct }));
     } catch (e) {
@@ -99,7 +101,8 @@ export function DailyChallenge({ set }: { set: DailySet }) {
     setHeard((h) => ({ ...h, [s]: true }));
   };
 
-  const streak = streakOf(saved.days, set.day);
+  // 오늘의 책 질문·토론 투표로 이어 온 날도 함께 (Sprint 80)
+  const streak = currentStreak(set.day);
   const lineDone = today.line !== undefined;
   const earDone = today.ear !== undefined;
   const rate = (r: number | null | undefined) => (r == null ? "" : ` · 정답률 ${Math.round(r * 100)}%`);

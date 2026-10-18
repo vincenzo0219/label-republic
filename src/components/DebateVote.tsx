@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
 import type { DebateSide, DebateTally } from "@/lib/repo/debateVotes";
+import { markDailyAction } from "@/lib/streak";
 import { PushButton } from "./PushButton";
 
 const pct = (x: number, n: number) => (n ? Math.round((x / n) * 100) : 0);
@@ -13,6 +14,7 @@ export function DebateVote({ postId, initial, push = true }: { postId: string; i
   const [t, setT] = useState(initial);
   const [mine, setMine] = useState<DebateSide | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     try {
@@ -33,6 +35,7 @@ export function DebateVote({ postId, initial, push = true }: { postId: string; i
     try {
       window.localStorage.setItem(key, side);
     } catch {}
+    setStreak(markDailyAction());
     try {
       setT(await api<DebateTally>("/api/debate/vote", "POST", { postId, side }));
     } catch (e) {
@@ -56,6 +59,7 @@ export function DebateVote({ postId, initial, push = true }: { postId: string; i
           <p>
             🙋 사람 {hn}명 — {t.a} {pct(t.human.A, hn)}% · {t.b} {pct(t.human.B, hn)}%
           </p>
+          {streak > 1 && <p className="daily-streak">🔥 {streak}일 연속</p>}
           {an > 0 && (
             <p>
               🤖 AI {an}명 — {t.a} {pct(t.ai.A, an)}% · {t.b} {pct(t.ai.B, an)}%
