@@ -110,3 +110,39 @@ export async function saveBookRead(bookId: string, fingerprint: string, input: B
     return rows[0]!;
   });
 }
+
+/** 📖 지금 읽는 책 한 줄 (Sprint 82) — 독서 단톡방에서 반응이 가장 잘 붙는 "자기 이야기 + 읽는 책"을 한 줄로 */
+export type ReadingLine = { id: string; book_id: string; title: string; nickname: string; line: string; readers: number; updated_at: string };
+
+export async function readingLines(limit = 20): Promise<ReadingLine[]> {
+  return query<ReadingLine>(
+    `SELECT r.id::text, b.id::text AS book_id, b.title, r.nickname, r.line, r.updated_at,
+            (SELECT count(*)::int FROM book_reads x WHERE x.book_id = b.id) AS readers
+       FROM book_reads r JOIN books b ON b.id = r.book_id
+      WHERE r.line <> '' AND r.hidden_reason IS NULL
+      ORDER BY r.updated_at DESC LIMIT $1`,
+    [limit],
+  );
+}
+
+/** 제목과 한마디만으로 "읽는 중" 기록 — 책 카드가 없으면 만든다 */
+export async function quickRead(fingerprint: string, input: { title: string; line: string; nickname: string }): Promise<{ bookId: string }> {
+  const { id } = await createBook(input.title, "", fingerprint);
+  await saveBookRead(id, fingerprint, { status: "reading", progress: 0, line: input.line, nextTitle: "", nickname: input.nickname });
+  return { bookId: id };
+}
+
+/** 📖 나도 읽었어요 — 이미 내 기록이 있으면 그대로 두고 읽은 사람 수만 돌려준다 */
+export async function meToo(bookId: string, fingerprint: string, nickname: string): Promise<number> {
+  if (!/^\d{1,18}$/.test(bookId)) throw notFound("책");
+  if (isReservedNickname(nickname)) throw new HttpError(400, "invalid_input", "운영자·AI 큐레이터로 오인될 수 있는 닉네임은 쓸 수 없어요.");
+  const [book] = await query<{ id: string }>("SELECT id::text FROM books WHERE id = $1", [bookId]);
+  if (!book) throw notFound("책");
+  await query(
+    `INSERT INTO book_reads (book_id, reader_fingerprint, nickname, status, progress) VALUES ($1, $2, $3, 'done', 100)
+     ON CONFLICT (book_id, reader_fingerprint) DO NOTHING`,
+    [bookId, fingerprint, nickname],
+  );
+  const [r] = await query<{ n: number }>("SELECT count(*)::int AS n FROM book_reads WHERE book_id = $1", [bookId]);
+  return r!.n;
+}

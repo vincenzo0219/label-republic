@@ -133,4 +133,17 @@ d("book cards (database)", async () => {
     expect(list[0]).toMatchObject({ id: a.id, books: 2, answers: 3, top: ["데미안", "새로운 책"] });
     await expect(asks.answerAsk("99999", fp("r1"), { title: "데미안", author: "", reason: "", nickname: "추천1" })).rejects.toThrow();
   });
+
+  it("posts a one-line 'reading now' and lets others add 'me too' (Sprint 82)", async () => {
+    await query("TRUNCATE books, book_reads RESTART IDENTITY CASCADE");
+    const { bookId } = await books.quickRead(fp("q1"), { title: "소송", line: "출근길에 조금씩", nickname: "대니" });
+    const [l] = await books.readingLines();
+    expect(l).toMatchObject({ book_id: bookId, title: "소송", nickname: "대니", line: "출근길에 조금씩", readers: 1 });
+    expect(await books.meToo(bookId, fp("q2"), "읽은사람")).toBe(2);
+    expect(await books.meToo(bookId, fp("q2"), "읽은사람")).toBe(2);
+    // 내 기록이 이미 있으면 덮어쓰지 않는다
+    expect(await books.meToo(bookId, fp("q1"), "대니")).toBe(2);
+    expect((await books.readingLines())[0]).toMatchObject({ line: "출근길에 조금씩", readers: 2 });
+    await expect(books.meToo("99999", fp("q3"), "누구")).rejects.toThrow();
+  });
 });
