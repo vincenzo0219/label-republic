@@ -259,6 +259,7 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
                       👍{likes[c.id] ? ` ${likes[c.id]}` : ""}
                     </button>
                   )}
+                  {c.liked_by?.length ? <span className="liked-by">👍 {c.liked_by.join("·")}</span> : null}
                   <button className="linkish" onClick={() => startReply(c)} aria-label={`${c.nickname}님 댓글에 답글`}>답글</button>
                   {!c.is_ai_curated && (
                     <button className="linkish" onClick={() => remove(c.id)}>삭제</button>

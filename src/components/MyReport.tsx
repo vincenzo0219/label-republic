@@ -150,6 +150,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       {error && <p className="error">{error}</p>}
 
       {report && report.watch.like_count > 0 && <p className="report-likes">👍 내 댓글에 공감 {report.watch.like_count}개</p>}
+      {report && report.watch.liked_by.length > 0 && <p className="report-likes">👍 {report.watch.liked_by.join("·")}님이 내 댓글에 공감했어요</p>}
       {report && watched.comments.length > 0 && (
         <MyReplies items={report.watch.replies} count={report.watch.reply_count} onMute={(id) => removeMyComment(id)} />
       )}

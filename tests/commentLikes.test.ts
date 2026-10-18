@@ -35,5 +35,16 @@ d("comment likes (Sprint 78)", async () => {
     expect(u).toMatchObject({ like_count: 1, total: 1 });
     expect((await watchUpdates([], [], new Date(), null, { comments: [c!.id] })).like_count).toBe(0);
     await expect(toggleLike("999", "v1", true)).rejects.toMatchObject({ status: 404 });
+
+    // 운영 계정 공감 (Sprint 79): 사람 댓글에만, 1분 뒤, 한 번. 이름은 따로, 사람 공감 수에는 안 섞임
+    const { runOperatorLikes } = await import("@/lib/jobs/operatorLikes");
+    await query("UPDATE comments SET author_fingerprint = 'fp1', created_at = now() - interval '5 minutes' WHERE id = $1", [c!.id]);
+    await query("INSERT INTO comments (post_id, nickname, pw_hash, body, is_ai_curated) VALUES ($1, 'ai', 'x', 'ai', true)", [post!.id]);
+    await query("INSERT INTO comments (post_id, nickname, pw_hash, body) VALUES ($1, '돈키호테', 'x', '운영 답글')", [post!.id]);
+    expect(await runOperatorLikes(new Date())).toBe(1);
+    expect(await runOperatorLikes(new Date(Date.now() + 120_000))).toBe(0);
+    expect((await listComments(post!.id))[0]).toMatchObject({ likes: 1, liked_by: ["노방장"] });
+    const w = await watchUpdates([], [], before, null, { comments: [c!.id] });
+    expect(w).toMatchObject({ like_count: 1, liked_by: ["노방장"], total: 2 });
   });
 });

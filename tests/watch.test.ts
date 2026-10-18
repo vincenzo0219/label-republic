@@ -56,9 +56,10 @@ describe("watch & push rules", () => {
   });
 
   it("writes short notification text", () => {
-    const base = { products: [], posts: [], replies: [], reply_count: 0, like_count: 0, gone: [], gone_comments: [], total: 0 };
+    const base = { products: [], posts: [], replies: [], reply_count: 0, like_count: 0, liked_by: [], gone: [], gone_comments: [], total: 0 };
     // 👍 공감만 왔을 때 (Sprint 78)
     expect(pushMessage({ ...base, like_count: 3, total: 3 }).body).toBe("👍 내 댓글에 공감 3개");
+    expect(pushMessage({ ...base, liked_by: ["돈키호테"], total: 1 }).body).toBe("👍 돈키호테님이 공감");
     const post = { id: "1", title: "마그네슘 함량 정리", is_blinded: false, new_comments: 2, new_corrections: 1, newly_supported: 0, applied: 0, edited: false };
     expect(pushMessage({ ...base, posts: [post], total: 3 })).toEqual({
       title: "노방장 · 마그네슘 함량 정리",
