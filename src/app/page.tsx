@@ -3,6 +3,7 @@ import { FeedView } from "@/components/FeedView";
 import { CRAWLER_HEADER } from "@/lib/fingerprint";
 import { ChatStarters } from "@/components/ChatStarters";
 import { EarTestBanner } from "@/components/EarTestBanner";
+import { HomeNews } from "@/components/ReportLink";
 import { RoomOpenedNotice } from "@/components/RoomOpenedNotice";
 import { OpenVotesBanner } from "@/components/OpenVotesBanner";
 import { RenewalsBanner } from "@/components/RenewalsBanner";
@@ -32,6 +33,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      {!crawler && !sp.page && <HomeNews />}
       {!sp.page && <EarTestBanner />}
       {!crawler && <RoomOpenedNotice />}
       <OpenVotesBanner />

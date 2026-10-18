@@ -17,6 +17,8 @@ type Event =
   // AI 자동 운영이 가리거나 운영자가 풀었을 때 (Sprint 37)
   | { type: "hidden"; comment: { id: string | number; body: string; hidden_reason: string | null } };
 
+const LIKES_KEY = "lr:likes";
+
 /** 소켓·예전 응답에서 온 댓글의 번호를 문자열로, 답글 필드는 빈 값으로 맞춘다 */
 const norm = (c: Comment): Comment => ({
   ...c,
@@ -64,6 +66,13 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState(false);
+  const [likes, setLikes] = useState<Record<string, number>>(() => Object.fromEntries(initial.map((c) => [String(c.id), c.likes ?? 0])));
+  const [liked, setLiked] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      setLiked(new Set(JSON.parse(window.localStorage.getItem(LIKES_KEY) ?? "[]") as string[]));
+    } catch {}
+  }, []);
   const retry = useRef(0);
   const sending = useRef<{ key: string; sent: string } | undefined>(undefined);
 
@@ -208,6 +217,25 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
     }
   }
 
+  // 👍 공감 (Sprint 78): 누른 댓글은 이 브라우저에만 기억
+  const toggleLike = async (c: Comment) => {
+    const on = !liked.has(c.id);
+    setLiked((cur) => {
+      const next = new Set(cur);
+      if (on) next.add(c.id);
+      else next.delete(c.id);
+      try {
+        window.localStorage.setItem(LIKES_KEY, JSON.stringify([...next].slice(-500)));
+      } catch {}
+      return next;
+    });
+    setLikes((cur) => ({ ...cur, [c.id]: Math.max(0, (cur[c.id] ?? 0) + (on ? 1 : -1)) }));
+    try {
+      const r = await api<{ likes: number }>(`/api/comments/${c.id}/like`, "POST", { on });
+      setLikes((cur) => ({ ...cur, [c.id]: r.likes }));
+    } catch {}
+  };
+
   return (
     <section id="comments" aria-label="댓글">
       <h2 className="section-title">
@@ -226,6 +254,11 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
                   {c.is_ai_curated ? <b className="card-author-ai">🤖 {c.nickname}</b> : <b>{c.nickname}</b>}
                   <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
                   <span className="spacer" />
+                  {!c.hidden_reason && (
+                    <button className={`linkish like${liked.has(c.id) ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={liked.has(c.id)} aria-label={`${c.nickname}님 댓글에 공감`}>
+                      👍{likes[c.id] ? ` ${likes[c.id]}` : ""}
+                    </button>
+                  )}
                   <button className="linkish" onClick={() => startReply(c)} aria-label={`${c.nickname}님 댓글에 답글`}>답글</button>
                   {!c.is_ai_curated && (
                     <button className="linkish" onClick={() => remove(c.id)}>삭제</button>
