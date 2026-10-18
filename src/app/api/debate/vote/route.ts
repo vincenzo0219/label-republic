@@ -5,7 +5,7 @@ import { fingerprint } from "@/lib/fingerprint";
 import { json, parseBody, route } from "@/lib/http";
 import { newVisitorId, VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
 import { hit } from "@/lib/rate-limit";
-import { debateTally, latestBookPoll, voteDebate } from "@/lib/repo/debateVotes";
+import { debateTally, latestBookPoll, latestRoomPoll, voteDebate } from "@/lib/repo/debateVotes";
 
 const schema = z.object({ postId: z.string().regex(/^\d{1,18}$/), side: z.enum(["A", "B"]) });
 
@@ -21,8 +21,11 @@ export const POST = route(async (req) => {
 });
 
 /** GET /api/debate/vote?kind=bookpoll — 가장 최근 📚 오늘의 책 질문과 집계 (Sprint 77, 테스트 결과 화면용) */
-export const GET = route(async () => {
-  const poll = await latestBookPoll();
+export const GET = route(async (req) => {
+  // ?kind=room&slug=방 — 그 방의 🗳 오늘의 질문 (Sprint 83)
+  const sp = new URL(req.url).searchParams;
+  const slug = sp.get("kind") === "room" ? (sp.get("slug") ?? "").slice(0, 60) : null;
+  const poll = slug ? await latestRoomPoll(slug) : await latestBookPoll();
   if (!poll) return json(null);
   return json({ postId: poll.id, title: poll.title, tally: await debateTally(poll.id) });
 });

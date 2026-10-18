@@ -2,6 +2,7 @@ import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse"
 import { query, tx } from "../db";
 import { blinded, HttpError, notFound } from "../errors";
 import { extractMentions, resolveMentions } from "../mentions";
+import { heuristicSpam, shouldSuppress } from "../moderation";
 import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import type { Comment } from "../types";
@@ -35,6 +36,8 @@ export async function createComment(
 ): Promise<Comment> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
   // 휴대전화·이메일·주민등록번호는 지운 판으로 저장 (Sprint 37)
+  // 광고·홍보 댓글 (Sprint 83): 글과 같은 규칙으로, 연락처를 지우기 전 원문으로 판단한다
+  const spam = heuristicSpam("", input.body);
   input = { ...input, body: maskPersonalInfo(input.body).text };
   const pwHash = await hashPin(input.pin);
   return tx(async (client) => {
@@ -65,7 +68,9 @@ export async function createComment(
       for (const id of resolved) if (await hit(targetKey(id), TARGET_LIMIT, 3600_000)) mentions.push(id);
     }
     // 분명한 욕설·혐오·개인정보는 처음부터 가려진 채 올라간다 (AI 자동 운영, Sprint 37)
-    const abuse = heuristicAbuse(input.body);
+    const abuse =
+      heuristicAbuse(input.body) ??
+      (shouldSuppress(spam) ? { category: "spam" as const, evidence: spam.reasons.join(", "), model: spam.model } : null);
     const { rows } = await client.query<Comment>(
       `INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, parent_id, mentions,
                              ai_hidden_reason, ai_hidden_note, ai_hidden_model, ai_hidden_at)

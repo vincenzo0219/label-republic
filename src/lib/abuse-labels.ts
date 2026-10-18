@@ -4,6 +4,7 @@ export const ABUSE_LABELS = {
   hate: "혐오·비하 표현",
   harassment: "인신공격·위협",
   personal_info: "개인정보 노출",
+  spam: "광고·홍보 링크",
 } as const;
 export type AbuseCategory = keyof typeof ABUSE_LABELS;
 
