@@ -186,6 +186,11 @@ function startWorker() {
       // CSRF·관리자 판단은 퍼센트 인코딩을 푼 경로로 (예: /%61pi/… 가 /api/… 로 처리되는 경우 대비, Sprint 29)
       const decodedPath = decodePath(pathname);
       if (decodedPath === null) return sendJson(res, 400, "bad_request", "잘못된 주소입니다.");
+      // 단톡방 링크(?from=kakao)는 카톡 미리보기 카드 없이 주소만 보이게 (Sprint 82): 카톡 미리보기 수집기에만 빈 응답
+      if (/kakaotalk-scrap/i.test(req.headers["user-agent"] ?? "") && /[?&]from=kakao(?:&|$)/.test(req.url ?? "")) {
+        res.writeHead(204, { "Cache-Control": "no-store" });
+        return res.end();
+      }
 
       // CSRF: 상태를 바꾸는 /api/* 요청은 우리 사이트에서 보낸 JSON 요청만 받는다
       const csrf = checkCsrf({
