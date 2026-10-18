@@ -25,7 +25,7 @@ export default function sitemap(): Promise<MetadataRoute.Sitemap> {
 
 async function build(): Promise<MetadataRoute.Sitemap> {
   const [categories, posts, products, brands] = await Promise.all([
-    listCategories(), listPostIdsForSitemap(), listProductIdsForSitemap(), topRenewalBrands({ limit: 500 }),
+    listCategories({ all: true }), listPostIdsForSitemap(), listProductIdsForSitemap(), topRenewalBrands({ limit: 500 }),
   ]);
   // 성분 순위 페이지: 제품 3개 이상이 수치를 가진 항목만
   const ranks = (

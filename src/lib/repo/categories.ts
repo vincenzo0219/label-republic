@@ -3,8 +3,9 @@ import type { Category } from "../types";
 
 const COLS = "id, name, slug, description, post_count, auto_promoted_at";
 
-export async function listCategories(): Promise<Category[]> {
-  return query<Category>(`SELECT ${COLS} FROM categories ORDER BY sort_order, id`);
+/** 숨긴 방(Sprint 81)은 빼고. all 이면 숨긴 방도 (사이트맵·팩트 검색처럼 글 주소가 필요한 곳) */
+export async function listCategories(opts: { all?: boolean } = {}): Promise<Category[]> {
+  return query<Category>(`SELECT ${COLS} FROM categories ${opts.all ? "" : "WHERE NOT is_hidden "}ORDER BY sort_order, id`);
 }
 
 /** 사람(🤖 아닌) 글·댓글이 이 기간 동안 없으면 "조용한 방" — 홈 탭·첫 방문 안내에서 뒤로 보낸다 */
@@ -76,3 +77,9 @@ export async function roomTools(categoryId: number): Promise<RoomTools> {
 
 /** 성분표가 중심인 방은 "성분별", 나머지는 "스펙별" */
 export const INGREDIENT_ROOMS = new Set(["supplements", "pet-food"]);
+
+/** 방 숨기기/다시 보이기 (Sprint 81) */
+export async function setRoomHidden(slug: string, hidden: boolean): Promise<boolean> {
+  const rows = await query<{ id: number }>("UPDATE categories SET is_hidden = $2 WHERE slug = $1 RETURNING id", [slug, hidden]);
+  return rows.length > 0;
+}

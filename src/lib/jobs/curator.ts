@@ -47,7 +47,7 @@ export async function runCuratorBatch(now = new Date(), opts: { generate?: Curat
                 c.auto_promoted_at IS NOT NULL AS auto_promoted
            FROM categories c
            LEFT JOIN posts p ON p.category_id = c.id AND p.created_at > $1::timestamptz - interval '7 days'
-          WHERE c.slug <> $2 -- AI 토론방은 토론 배치만 쓴다 (Sprint 69)
+          WHERE c.slug <> $2 AND NOT c.is_hidden -- AI 토론방은 토론 배치만 (Sprint 69), 숨긴 방은 쉰다 (Sprint 81)
           GROUP BY c.id ORDER BY c.id`,
         [now.toISOString(), DEBATE_ROOM_SLUG],
       );
