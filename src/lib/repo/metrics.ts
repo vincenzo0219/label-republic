@@ -286,3 +286,30 @@ export async function resolveError(id: string): Promise<void> {
   if (!/^\d{1,18}$/.test(id)) return;
   await query("UPDATE error_events SET resolved_at = now() WHERE id = $1", [id]);
 }
+
+export type UserStateDay = { day: string; active: number; new_users: number; current: number; reactivated: number; yesterday: number; at_risk: number; curr: number | null };
+
+/**
+ * 듀오링고식 사용자 상태 (Sprint 80). 그날 방문자를 새 사용자(첫 방문일) · 현재 사용자(전날도 옴) · 돌아온 사용자(나머지)로 나누고,
+ * 전날 왔는데 그날 안 온 사람을 위험 사용자로 센다. CURR = 현재 사용자 ÷ 전날 방문자 — 메인 지표.
+ */
+export async function userStates(today: string, days = 7): Promise<UserStateDay[]> {
+  const rows = await query<Omit<UserStateDay, "reactivated" | "curr">>(
+    `WITH act AS (SELECT DISTINCT day, visitor_hash FROM page_views WHERE day >= $1::date - ($2::int + 1) AND day <= $1::date),
+          ds AS (SELECT generate_series($1::date - ($2::int - 1), $1::date, interval '1 day')::date AS t)
+     SELECT to_char(ds.t, 'YYYY-MM-DD') AS day,
+            (SELECT count(*)::int FROM act a WHERE a.day = ds.t) AS active,
+            (SELECT count(*)::int FROM act a JOIN visitors v USING (visitor_hash)
+              WHERE a.day = ds.t AND (v.first_seen AT TIME ZONE 'Asia/Seoul')::date >= ds.t) AS new_users,
+            (SELECT count(*)::int FROM act a WHERE a.day = ds.t AND EXISTS (SELECT 1 FROM act b WHERE b.visitor_hash = a.visitor_hash AND b.day = ds.t - 1)) AS current,
+            (SELECT count(*)::int FROM act a WHERE a.day = ds.t - 1) AS yesterday,
+            (SELECT count(*)::int FROM act a WHERE a.day = ds.t - 1 AND NOT EXISTS (SELECT 1 FROM act b WHERE b.visitor_hash = a.visitor_hash AND b.day = ds.t)) AS at_risk
+       FROM ds ORDER BY ds.t DESC`,
+    [today, days],
+  );
+  return rows.map((r) => ({
+    ...r,
+    reactivated: Math.max(0, r.active - r.new_users - r.current),
+    curr: r.yesterday ? Math.round((r.current / r.yesterday) * 1000) / 10 : null,
+  }));
+}

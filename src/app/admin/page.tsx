@@ -8,6 +8,7 @@ import { formatRule, RULES } from "@/lib/rules";
 import { HideRuleReason } from "@/components/admin/HideRuleReason";
 import { kstDay } from "@/lib/metrics";
 import * as m from "@/lib/repo/metrics";
+import type { UserStateDay } from "@/lib/repo/metrics";
 import { LegalHoldPanel } from "@/components/admin/LegalHoldPanel";
 import { activeLegalHolds, LEGAL_REASONS } from "@/lib/repo/legal";
 import { pendingCounts } from "@/lib/repo/operator";
@@ -81,7 +82,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openErrors(),
     ]);
   const monthStart = `${today.slice(0, 8)}01`;
-  const [ear, hearing, firstLine, typing, aiT, month, daily7] = await Promise.all([
+  const [ear, hearing, firstLine, typing, aiT, month, daily7, states] = await Promise.all([
     earFunnel(...cur),
     hearingFunnel(...cur),
     firstLineFunnel(...cur),
@@ -89,6 +90,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     aiFunnel(...cur),
     m.periodVisitors(monthStart, today),
     dailyPlayers(...cur),
+    m.userStates(today),
   ]);
   const [holds, pending, rules, ruleVotes, feedback, boardT, biz, drafts] = await Promise.all([
     activeLegalHolds(),
@@ -141,6 +143,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </header>
 
       <MonthGoal today={today} visitors={month.visitors} returning={month.returning} daily={daily7} range={range} />
+      <UserStates rows={states} />
 
       {biz && <SignalStrip m={biz} />}
 
@@ -500,6 +503,48 @@ function PostTable({ rows, unit, empty }: { rows: m.TopPost[]; unit: string; emp
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** 듀오링고식 사용자 상태 (Sprint 80). 메인 지표는 CURR — 어제 온 사람 중 오늘도 온 비율 */
+function UserStates({ rows }: { rows: UserStateDay[] }) {
+  const [t, y] = rows;
+  return (
+    <section className="month-goal" aria-label="사용자 상태">
+      <p>
+        <b>CURR (어제 온 사람 중 오늘도 온 비율) {t?.curr == null ? "—" : `${t.curr}%`}</b>{" "}
+        <span className="hint">
+          · 어제 {y?.curr == null ? "—" : `${y.curr}%`} · 오늘 위험 사용자 {t?.at_risk ?? 0}명 (어제 왔는데 오늘 아직 안 옴)
+        </span>
+      </p>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>날짜</th>
+            <th>방문</th>
+            <th>새</th>
+            <th>현재</th>
+            <th>돌아온</th>
+            <th>위험</th>
+            <th>CURR</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.day}>
+              <td>{r.day.slice(5)}</td>
+              <td>{r.active}</td>
+              <td>{r.new_users}</td>
+              <td>{r.current}</td>
+              <td>{r.reactivated}</td>
+              <td>{r.at_risk}</td>
+              <td>{r.curr == null ? "—" : `${r.curr}%`}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="hint">새: 그날 처음 온 사람 · 현재: 전날도 온 사람 · 돌아온: 쉬다가 다시 온 사람 · 위험: 전날 왔는데 그날 안 온 사람</p>
+    </section>
   );
 }
 
