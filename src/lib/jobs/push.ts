@@ -42,6 +42,7 @@ export function pushMessage(u: WatchUpdates): PushMessage {
       ? `💬 ${onlyReply.nickname}님이 ${onlyReply.kind === "reply" ? "답글" : "멘션"}: ${onlyReply.excerpt.replace(/\s+/g, " ").slice(0, 60)}`
       : replies > 1 && `💬 내 댓글에 답글·멘션 ${replies}개`,
     u.like_count > 0 && `👍 내 댓글에 공감 ${u.like_count}개`,
+    u.liked_by.length > 0 && `👍 ${u.liked_by.join("·")}님이 공감`,
     // 라벨 변경은 가장 먼저 — 한 건이면 무엇이 얼마나 바뀌었는지까지
     renewals.length === 1
       ? `🔄 ${renewals[0]!.attribute} 라벨 변경 ${formatValue(renewals[0]!.from)}→${formatValue(renewals[0]!.to)}${renewals[0]!.unit}`
@@ -56,7 +57,7 @@ export function pushMessage(u: WatchUpdates): PushMessage {
   // 한 제품·한 글의 소식뿐이면 그 이름을 제목에
   const others = u.products.filter((p) => productUpdateCount(p) > 0).length + u.posts.filter((p) => postUpdateCount(p) > 0).length;
   const single =
-    others + (replies || u.like_count ? 1 : 0) === 1
+    others + (replies || u.like_count || u.liked_by.length ? 1 : 0) === 1
       ? (u.products.find((p) => productUpdateCount(p) > 0)?.name ?? u.posts.find((p) => postUpdateCount(p) > 0)?.title ?? onlyReply?.post_title)
       : undefined;
   return {

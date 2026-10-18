@@ -166,6 +166,8 @@ export type Comment = {
   hidden_reason?: string | null;
   /** 👍 공감 수 (Sprint 78, 목록에서만) */
   likes?: number;
+  /** 공감한 운영 계정 이름 (Sprint 79, 사람 공감 수와 따로) */
+  liked_by?: string[];
 };
 
 export type BoardRequest = {
