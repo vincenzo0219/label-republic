@@ -4,6 +4,7 @@ import { cache } from "react";
 import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
+import { ReadingNow } from "@/components/ReadingNow";
 import { DEBATE_ROOM_SLUG } from "@/lib/debate";
 import { getCategoryBySlug as getCategoryUncached } from "@/lib/repo/categories";
 import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
@@ -96,6 +97,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   // 책방: 상황별 추천이 입구 (Sprint 76 — 독서 단톡방에서 가장 많이 오가는 말이 "추천"), 그다음 책 카드·첫 문장
   return (
     <>
+      <ReadingNow limit={5} />
       <div className="ear-banners">
         <Link href="/books/ask" className="ear-banner">
           <span className="ear-banner-emoji" aria-hidden>

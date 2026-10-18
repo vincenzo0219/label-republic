@@ -36,3 +36,12 @@ export const bookAnswerSchema = z.object({
   reason: text(200, "추천 이유").default(""),
   nickname,
 });
+
+/** 📖 지금 읽는 책 한 줄 (Sprint 82) */
+export const quickReadSchema = z.object({
+  title: text(80, "제목").min(1, "책 제목을 입력해 주세요."),
+  line: text(120, "한마디").min(1, "한마디를 남겨 주세요."),
+  nickname,
+});
+
+export const meTooSchema = z.object({ nickname });

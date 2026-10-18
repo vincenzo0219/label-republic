@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AskCard } from "@/components/AskCard";
 import { BookAskForm } from "@/components/BookAskForm";
 import { listAsks } from "@/lib/repo/bookAsks";
 
@@ -29,19 +30,9 @@ export default async function AsksPage() {
       {asks.length === 0 ? (
         <p className="hint">아직 상황이 없어요. 첫 상황을 열어 주세요!</p>
       ) : (
-        <ul className="book-list">
+        <ul className="ask-list">
           {asks.map((a) => (
-            <li key={a.id}>
-              <Link href={`/books/ask/${a.id}`} className="book-item">
-                <span className="book-item-title">
-                  <b>{a.situation}</b>
-                </span>
-                <span className="book-item-stats">
-                  {a.answers === 0 ? "첫 추천을 기다려요" : `추천 ${a.answers} · 책 ${a.books}권`}
-                  {a.top.length > 0 && <span>· {a.top.map((t) => `『${t}』`).join(" ")}</span>}
-                </span>
-              </Link>
-            </li>
+            <AskCard key={a.id} ask={a} />
           ))}
         </ul>
       )}

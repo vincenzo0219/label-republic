@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BookAddForm } from "@/components/BookAddForm";
+import { ReadingNow } from "@/components/ReadingNow";
 import { BOOK_ROOM_SLUG, completionRate } from "@/lib/books";
 import { listBooks } from "@/lib/repo/books";
 
@@ -28,6 +29,7 @@ export default async function BooksPage() {
       <p className="hint">
         책마다 한 장씩, 읽은 사람들이 <b>읽는 중 · 완독 · 중도 포기</b>와 한 줄을 남겨요. 쌓일수록 완독률과 &ldquo;이 책 다음에 뭐 읽었는지&rdquo;가 보여요. 피드처럼 밀려 사라지지 않아요.
       </p>
+      <ReadingNow />
       <Link href="/books/ask" className="ear-banner">
         <span className="ear-banner-emoji" aria-hidden>
           📚
