@@ -32,6 +32,7 @@ import { startDigestScheduler } from "./src/lib/jobs/digest";
 import { startSourceCheckScheduler } from "./src/lib/jobs/sources";
 import { startPushScheduler } from "./src/lib/jobs/push";
 import { startBookPollScheduler } from "./src/lib/jobs/bookPoll";
+import { startRoomPollScheduler } from "./src/lib/jobs/roomPolls";
 import { startOperatorLikesScheduler } from "./src/lib/jobs/operatorLikes";
 import { startMaintenanceScheduler } from "./src/lib/jobs/maintenance";
 import { startTrustScheduler } from "./src/lib/jobs/trust";
@@ -324,6 +325,8 @@ function startWorker() {
       // AI 밸런스 토론방 — 하루 한 번 (Sprint 69). DEBATE_ENABLED=0 이면 끈다
       if (process.env.DEBATE_ENABLED !== "0") startDebateScheduler();
       if (process.env.BOOK_POLL_ENABLED !== "0") startBookPollScheduler();
+      // 방마다 🗳 오늘의 질문 (Sprint 83)
+      if (process.env.ROOM_POLL_ENABLED !== "0") startRoomPollScheduler();
       // 사람 댓글에 운영 계정 이름으로 👍 (Sprint 79). OPERATOR_LIKES_ENABLED=0 이면 끈다
       if (process.env.OPERATOR_LIKES_ENABLED !== "0") startOperatorLikesScheduler();
       // 어뷰징 탐지 · 보류된 보드 승격 · 오래된 지표 정리

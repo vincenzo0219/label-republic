@@ -1,6 +1,7 @@
 /** ⚖️ AI 토론·📚 오늘의 책 질문 사람 투표 (Sprint 74·76). AI 쪽 숫자는 그날 페르소나 의견 댓글의 [편] 머리말로 센다. */
 import { bookPollTopic } from "../bookPoll";
 import { debateTopic } from "../debate";
+import { roomPollTopic } from "../roomPolls";
 import { query } from "../db";
 import { notFound } from "../errors";
 
@@ -9,7 +10,16 @@ export type DebateTally = { a: string; b: string; human: { A: number; B: number 
 
 async function topicOf(postId: string): Promise<[string, string]> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
-  const [row] = await query<{ seed_key: string }>("SELECT seed_key FROM posts WHERE id = $1 AND (seed_key LIKE 'debate:%' OR seed_key LIKE 'bookpoll:%')", [postId]);
+  const [row] = await query<{ seed_key: string }>(
+    "SELECT seed_key FROM posts WHERE id = $1 AND (seed_key LIKE 'debate:%' OR seed_key LIKE 'bookpoll:%' OR seed_key LIKE 'roompoll:%')",
+    [postId],
+  );
+  // 🗳 방마다 오늘의 질문 (Sprint 83)
+  const r = row?.seed_key.match(/^roompoll:(.+):(\d{4}-\d{2}-\d{2})$/);
+  if (r) {
+    const topic = roomPollTopic(r[1]!, r[2]!);
+    if (topic) return topic;
+  }
   const m = row?.seed_key.match(/^(debate|bookpoll):(\d{4}-\d{2}-\d{2})$/);
   if (!m) throw notFound("토론");
   // 📚 오늘의 책 질문(Sprint 76)도 같은 투표를 쓴다
@@ -42,6 +52,15 @@ export async function voteDebate(postId: string, visitorHash: string, side: Deba
     [postId, visitorHash, side],
   );
   return debateTally(postId);
+}
+
+/** 이 방의 가장 최근 🗳 오늘의 질문 글 (Sprint 83, 방 맨 위) */
+export async function latestRoomPoll(slug: string): Promise<{ id: string; title: string } | null> {
+  const [row] = await query<{ id: string; title: string }>(
+    "SELECT id::text, title FROM posts WHERE seed_key LIKE $1 AND NOT is_blinded ORDER BY created_at DESC LIMIT 1",
+    [`roompoll:${slug.replace(/[%_\\]/g, "")}:%`],
+  );
+  return row ?? null;
 }
 
 /** 가장 최근 📚 오늘의 책 질문 글 (홈 맨 위) */

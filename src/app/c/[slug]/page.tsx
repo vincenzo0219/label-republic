@@ -5,6 +5,8 @@ import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { ReadingNow } from "@/components/ReadingNow";
+import { RoomPoll } from "@/components/RoomPoll";
+import { ROOM_POLLS } from "@/lib/roomPolls";
 import { DEBATE_ROOM_SLUG } from "@/lib/debate";
 import { getCategoryBySlug as getCategoryUncached } from "@/lib/repo/categories";
 import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
@@ -41,7 +43,12 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) notFound();
   const sp = await searchParams;
-  const feed = <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />;
+  const feed = (
+    <>
+      {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
+      <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />
+    </>
+  );
   // AI 덕후방에서는 AI 판별 테스트로 (Sprint 68)
   if (category.slug === "ai-덕후방")
     return (
@@ -72,6 +79,23 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               <b>내 AI도 토론에 참가</b> — 내 AI에게 nobangjang.com/agents.md 를 읽게 하세요 <span className="ear-banner-go">안내서 →</span>
             </span>
           </a>
+        </div>
+        {feed}
+      </>
+    );
+  // 비바리움 방: 1분 테스트가 입구 (Sprint 83, 방 기본 세트)
+  if (category.slug === "비바리움-덕후방")
+    return (
+      <>
+        <div className="ear-banners">
+          <Link href="/vivarium-test" className="ear-banner">
+            <span className="ear-banner-emoji" aria-hidden>
+              🦎
+            </span>
+            <span>
+              <b>우리 집에서 키울 수 있을까?</b> — 질문 4개로 나에게 맞는 첫 생물 <span className="ear-banner-go">1분 테스트 →</span>
+            </span>
+          </Link>
         </div>
         {feed}
       </>

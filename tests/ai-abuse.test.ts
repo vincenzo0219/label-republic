@@ -169,6 +169,12 @@ d("AI hides abusive posts and comments with a reason (database, Sprint 37)", asy
     const c0 = await comments.createComment(p.id, { nickname: "z", pin: "1111", body: "제 번호 010-2222-3333 으로 연락 주세요" });
     expect(c0).toMatchObject({ body: "제 번호 [개인정보 가림] 으로 연락 주세요", hidden_reason: null });
     await query("DELETE FROM comments WHERE id = $1", [c0.id]);
+    // 광고·홍보 댓글은 글과 같은 규칙으로 가린다 (Sprint 83)
+    const ad = await comments.createComment(p.id, { nickname: "광고", pin: "1111", body: "분양 문의주세요 오픈채팅 https://open.kakao.com/o/abc 최저가 할인코드 드려요" });
+    expect(ad).toMatchObject({ body: "", hidden_reason: "spam" });
+    const link = await comments.createComment(p.id, { nickname: "링크", pin: "1111", body: "이 영상 참고했어요 https://www.youtube.com/watch?v=abc" });
+    expect(link.hidden_reason).toBeNull();
+    await query("DELETE FROM comments WHERE id = ANY($1::bigint[])", [[ad.id, link.id]]);
     const c1 = await comments.createComment(p.id, { nickname: "a", pin: "1111", body: "틀딱들은 모름" });
     expect(c1).toMatchObject({ body: "", hidden_reason: "hate" });
     const c2 = await comments.createComment(p.id, { nickname: "b", pin: "1111", body: "너 같은 사람은 정말 한심하다" });
