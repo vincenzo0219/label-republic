@@ -20,7 +20,7 @@ export const GET = route(async (req) => {
   if (q !== null) {
     const parsed = parseFactQuery(q);
     if (!parsed) return json({ query: null, boards: [] });
-    const cats = await listCategories();
+    const cats = await listCategories({ all: true });
     return json({ query: parsed, boards: await searchFacts(cats, parsed) });
   }
   const slug = sp.get("category");

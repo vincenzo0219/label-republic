@@ -43,7 +43,7 @@ export async function FeedView({
   const guideCandidate = category && page === 1 && !type && !sourced;
   const [categories, feed, digest, needs, tools, quiet] = await Promise.all([
     listCategories(),
-    listPosts({ categoryId: category?.id, sort, page, type, sourced, humanFirst }),
+    listPosts({ categoryId: category?.id, sort, page, type, sourced, humanFirst, hideHiddenRooms: !category }),
     category ? latestDigest(category.id) : Promise.resolve(null),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? roomTools(category.id) : Promise.resolve(null),

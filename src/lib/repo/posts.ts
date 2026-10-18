@@ -70,6 +70,8 @@ export type ListParams = {
   sourced?: boolean;
   /** 사람이 쓴 글을 최신순으로 AI 큐레이터 글보다 먼저 (홈, Sprint 72) */
   humanFirst?: boolean;
+  /** 숨긴 방(Sprint 81)의 글은 빼고 — 홈 피드용 */
+  hideHiddenRooms?: boolean;
   /** 이 제품을 태그한 글만 */
   productId?: string;
   /** 이 시각 이후에 쓴 글만 */
@@ -165,6 +167,7 @@ export async function listPosts(
     where.push(`p.post_type = $${args.length}::post_type`);
   }
   if (params.sourced) where.push("p.source_count > 0");
+  if (params.hideHiddenRooms) where.push("NOT EXISTS (SELECT 1 FROM categories hc WHERE hc.id = p.category_id AND hc.is_hidden)");
   if (params.productId) {
     args.push(params.productId);
     where.push(`EXISTS (SELECT 1 FROM post_products pp WHERE pp.post_id = p.id AND pp.product_id = $${args.length})`);
