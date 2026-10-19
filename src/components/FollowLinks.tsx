@@ -18,7 +18,6 @@ export function FollowCta() {
 export function FollowLinks() {
   return (
     <>
-      노방장 SNS{" "}
       <a href={THREADS_URL} target="_blank" rel="noopener noreferrer">
         🧵 스레드
       </a>{" "}

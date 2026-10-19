@@ -103,6 +103,7 @@ export async function FeedView({
           </ol>
         </details>
       )}
+      {category && (
       <nav className="type-filter" aria-label="글 유형">
         {/* 방 안의 작은 방: 전체 · 질문 · 자랑 · 후기 · 꿀팁 · 정보 · 정모 (잡담은 💬 수다방으로, Sprint 86) */}
         {TYPE_FILTERS.filter((f) => !category || f.value !== "chat").map((f, i) => (
@@ -123,6 +124,7 @@ export async function FeedView({
           </Link>
         )}
       </nav>
+      )}
       <SortBar basePath={basePath} params={typeParam} sort={sort} total={feed.total} />
       {feed.items.length === 0 ? (
         <div className="empty">

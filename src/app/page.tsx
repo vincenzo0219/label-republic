@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import { FeedView } from "@/components/FeedView";
 import { CRAWLER_HEADER } from "@/lib/fingerprint";
-import { ChatStarters } from "@/components/ChatStarters";
 import { EarTestBanner } from "@/components/EarTestBanner";
 import { HomeNews } from "@/components/ReportLink";
 import { RoomOpenedNotice } from "@/components/RoomOpenedNotice";
@@ -38,7 +37,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {!crawler && <RoomOpenedNotice />}
       <OpenVotesBanner />
       <RenewalsBanner />
-      {!sp.page && !sp.type && sp.sourced !== "1" && <ChatStarters />}
       <FeedView humanFirst sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />
     </>
   );
