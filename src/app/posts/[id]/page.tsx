@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import { abuseLabel } from "@/lib/abuse-labels";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AppealBox } from "@/components/AppealBox";
 import { CorrectionsPanel } from "@/components/CorrectionsPanel";
-import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { Gallery } from "@/components/Gallery";
-import { FollowCta } from "@/components/FollowLinks";
 import { LiveComments } from "@/components/LiveComments";
 import { DebateVote } from "@/components/DebateVote";
 import { debateTally } from "@/lib/repo/debateVotes";
@@ -26,10 +24,7 @@ import { VoteButtons } from "@/components/VoteButtons";
 import { WatchToggle } from "@/components/WatchToggle";
 import { config } from "@/lib/config";
 import { imageUrl } from "@/lib/media-url";
-import { CRAWLER_HEADER, fingerprint } from "@/lib/fingerprint";
-import { VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
-import { WELCOME_COOKIE } from "@/lib/onboarding";
-import { visitorHomeState } from "@/lib/repo/survey";
+import { fingerprint } from "@/lib/fingerprint";
 import { timeAgo } from "@/lib/format";
 import { listComments } from "@/lib/repo/comments";
 import { listCorrections } from "@/lib/repo/corrections";
@@ -171,17 +166,8 @@ export default async function PostPage({ params }: Props) {
     })),
   };
 
-  // 첫 방문(홈 안내를 닫지 않았고 둘째 날 전)이면 글 위에 한 줄 소개 — 홈과 같은 기준 (Sprint 48)
-  const [hdrs, jar] = await Promise.all([headers(), cookies()]);
-  const vid = jar.get(VISITOR_COOKIE)?.value;
-  const firstVisit =
-    hdrs.get(CRAWLER_HEADER) !== "1" &&
-    !jar.has(WELCOME_COOKIE) &&
-    (!vid || !/^[0-9a-f-]{36}$/.test(vid) || ((await visitorHomeState(visitorHash(vid)).catch(() => null))?.visitDays ?? 0) < 2);
-
   return (
     <article>
-      {firstVisit && <FirstVisitIntro />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <header className="post-head">
         <div className="card-top">
@@ -212,12 +198,6 @@ export default async function PostPage({ params }: Props) {
       )}
 
       {/* AI 글 안내는 한 줄로 (작성자 자리에 이미 🤖 AI 큐레이터) */}
-      {post.is_ai_curated && post.post_type === "chat" && !debate && <p className="hint ai-note">AI는 댓글을 달지 않아요 — 경험을 편하게 들려주세요.</p>}
-      {post.is_ai_curated && post.post_type !== "chat" && (
-        <p className="hint ai-note">
-          {post.ai_reviewed ? "사람이 사실관계를 확인한 글이에요." : "사람이 검수하지 않은 글이에요."} 틀린 곳은 <a href="#corrections">정정 제안</a>으로 알려 주세요.
-        </p>
-      )}
 
       {post.is_suppressed && (
         <div className="notice" style={{ marginTop: 12 }}>
@@ -268,7 +248,6 @@ export default async function PostPage({ params }: Props) {
 
       {debate && <DebateVote postId={post.id} initial={debate} />}
       <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} />
-      <FollowCta />
     </article>
   );
 }

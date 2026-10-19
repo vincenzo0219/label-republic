@@ -379,7 +379,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
         )}
         <textarea ref={bodyRef} className="textarea short" maxLength={1000} required
           aria-label={replyTo ? `${replyTo.nickname}님에게 답글` : "댓글"}
-          placeholder={replyTo ? "답글을 적어주세요. @닉네임 으로 다른 사람도 부를 수 있어요." : casual ? "자유롭게 이야기해요. @닉네임 으로 댓글 작성자를 부를 수 있어요." : "출처나 측정값을 함께 적어주세요. @닉네임 으로 댓글 작성자를 부를 수 있어요."}
+          placeholder={replyTo ? "답글" : "댓글"}
           value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
         {suggestions.length > 0 && (
           <div className="mention-suggest" role="group" aria-label="멘션할 닉네임">
