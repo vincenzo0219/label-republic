@@ -45,6 +45,16 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   const feed = (
     <>
+      <div className="ear-banners">
+        <Link href={`/c/${encodeURIComponent(category.slug)}/chat`} className="ear-banner">
+          <span className="ear-banner-emoji" aria-hidden>
+            💬
+          </span>
+          <span>
+            <b>{category.name} 수다방</b> — 가입 없이 한 줄씩 편하게 <span className="ear-banner-go">들어가기 →</span>
+          </span>
+        </Link>
+      </div>
       {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
       <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />
     </>

@@ -8,6 +8,7 @@ import { HttpError } from "@/lib/errors";
 import { searchTerms } from "@/lib/highlight";
 import { getCategoryBySlug, listCategories } from "@/lib/repo/categories";
 import { listPosts } from "@/lib/repo/posts";
+import { searchRoomChat } from "@/lib/repo/roomChat";
 import { sortSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export default async function SearchPage({ searchParams }: Props) {
   const terms = searchTerms(q);
 
   let timedOut = false;
-  const [categories, results] = await Promise.all([
+  const [categories, results, chats] = await Promise.all([
     listCategories(),
     terms.length
       ? listPosts({ q, sort, page, categoryId: category?.id, sourced }).catch((err) => {
@@ -41,6 +42,8 @@ export default async function SearchPage({ searchParams }: Props) {
           throw err;
         })
       : Promise.resolve(null),
+    // 수다방 대화도 검색된다 (Sprint 84) — 날짜별로 나누지 않고 검색으로 찾는다
+    terms.length ? searchRoomChat(terms, 10).catch(() => []) : Promise.resolve([]),
   ]);
   const base: Record<string, string> = { q, ...(category ? { category: category.slug } : {}), ...(sourced ? { sourced: "1" } : {}) };
   const srcParam: Record<string, string> = sourced ? { sourced: "1" } : {};
@@ -56,6 +59,20 @@ export default async function SearchPage({ searchParams }: Props) {
           <button className="btn btn-primary" style={{ height: "auto" }}>검색</button>
         </div>
       </form>
+      {chats.length > 0 && (
+        <section className="chat-hits" aria-label="수다방 대화">
+          <b>💬 수다방 대화</b>
+          <ul>
+            {chats.filter((h) => !category || h.slug === category.slug).map((h) => (
+              <li key={h.id}>
+                <a href={`/c/${encodeURIComponent(h.slug)}/chat#c${h.id}`}>
+                  <span className="hint">{h.room} · {h.nickname}</span> {h.body}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {q && <FactSearchPanel q={q} categories={category ? [category] : categories} />}
       {timedOut ? (
         <div className="empty" role="status">검색이 너무 오래 걸렸습니다. 검색어를 더 구체적으로 입력하거나 방을 골라 다시 검색해주세요.</div>

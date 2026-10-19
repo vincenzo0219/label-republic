@@ -53,7 +53,7 @@ function thread(comments: Comment[]): { root: Comment; replies: Comment[] }[] {
  * 소켓이 끊기면 지수 백오프로 재연결하고, 재연결 시 누락분을 REST로 다시 받아 동기화한다.
  */
 /** casual: 잡담·정모 글 — 출처·측정값을 요구하지 않는 말투로 안내한다 */
-export function LiveComments({ postId, initial, casual = false }: { postId: string; initial: Comment[]; casual?: boolean }) {
+export function LiveComments({ postId, initial, casual = false, chat = false }: { postId: string; initial: Comment[]; casual?: boolean; chat?: boolean }) {
   const [comments, setComments] = useState<Comment[]>(() => initial.map(norm));
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [live, setLive] = useState(false);
@@ -73,13 +73,45 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
       setLiked(new Set(JSON.parse(window.localStorage.getItem(LIKES_KEY) ?? "[]") as string[]));
     } catch {}
   }, []);
+  // 💬 수다방 (Sprint 84): 비번 입력 없이 이 브라우저의 4자리를 쓰고, 최근 100개부터 보여 준다
+  const [show, setShow] = useState(100);
+  const [savedNick, setSavedNick] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!chat) return;
+    try {
+      let pin = window.localStorage.getItem("lr:chatPin");
+      if (!pin || !/^\d{4}$/.test(pin)) {
+        pin = String(Math.floor(1000 + Math.random() * 9000));
+        window.localStorage.setItem("lr:chatPin", pin);
+      }
+      setForm((f) => ({ ...f, pw: pin! }));
+    } catch {
+      setForm((f) => ({ ...f, pw: String(Math.floor(1000 + Math.random() * 9000)) }));
+    }
+  }, [chat]);
+  useEffect(() => {
+    // 검색 결과(#c번호)로 왔으면 그 말을 보여 주고, 아니면 맨 아래 최신 대화로
+    if (chat && !/^#c\d/.test(window.location.hash)) endRef.current?.scrollIntoView({ block: "end" });
+  }, [chat, comments.length]);
+  useEffect(() => {
+    if (!chat || !target) return;
+    const i = comments.findIndex((c) => c.id === target);
+    if (i >= 0 && comments.length - i > show) {
+      setShow(comments.length - i);
+      requestAnimationFrame(() => document.getElementById(`c${target}`)?.scrollIntoView({ block: "center" }));
+    }
+  }, [chat, target, comments, show]);
   const retry = useRef(0);
   const sending = useRef<{ key: string; sent: string } | undefined>(undefined);
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("lr:nickname");
-      if (saved) setForm((f) => ({ ...f, nickname: saved }));
+      if (saved) {
+        setForm((f) => ({ ...f, nickname: saved }));
+        setSavedNick(true);
+      }
     } catch {}
   }, []);
 
@@ -235,6 +267,60 @@ export function LiveComments({ postId, initial, casual = false }: { postId: stri
       setLikes((cur) => ({ ...cur, [c.id]: r.likes }));
     } catch {}
   };
+
+  if (chat) {
+    const shown = comments.slice(-show);
+    return (
+      <section id="comments" className="chat-room" aria-label="수다방">
+        <p className="hint">
+          <span className={`live-dot${live ? " on" : ""}`} title={live ? "실시간 연결됨" : "연결 중…"} /> 실시간 · 가입 없이 한 줄씩
+        </p>
+        {comments.length > show && (
+          <button type="button" className="btn btn-sm" onClick={() => setShow((n) => n + 100)}>
+            이전 대화 더 보기
+          </button>
+        )}
+        {comments.length === 0 && <p className="hint">첫 마디를 남겨 보세요 👋</p>}
+        <ul className="chat-list">
+          {shown.map((c) => (
+            <li key={c.id} id={`c${c.id}`} className={`chat-msg${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
+              <div className="chat-head">
+                {c.is_ai_curated ? <b className="card-author-ai">🤖 {c.nickname}</b> : <b>{c.nickname}</b>}
+                <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
+              </div>
+              {c.hidden_reason ? (
+                <div className="chat-bubble comment-hidden">🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가렸어요.</div>
+              ) : (
+                <div className="chat-bubble">{splitMentions(c.body, nicknames).map((p, i) => (p.mention ? <span key={i} className="mention">{p.text}</span> : p.text))}</div>
+              )}
+              {!c.hidden_reason && (
+                <div className="chat-actions">
+                  <button className={`linkish like${liked.has(c.id) ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={liked.has(c.id)} aria-label={`${c.nickname}님 말에 공감`}>
+                    👍{likes[c.id] ? ` ${likes[c.id]}` : ""}
+                  </button>
+                  {c.liked_by?.length ? <span className="liked-by">👍 {c.liked_by.join("·")}</span> : null}
+                  <button className="linkish" onClick={() => setForm((f) => ({ ...f, body: f.body.includes(`@${c.nickname}`) ? f.body : `@${c.nickname} ${f.body}` }))}>답하기</button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+        <div ref={endRef} />
+        <form className="chat-form" onSubmit={submit}>
+          {!savedNick && (
+            <input ref={nickRef} className="input" placeholder="닉네임" value={form.nickname} maxLength={20} required aria-label="닉네임"
+              onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
+          )}
+          <div className="row">
+            <input className="input" placeholder="메시지" value={form.body} maxLength={1000} required aria-label="메시지"
+              onChange={(e) => setForm({ ...form, body: e.target.value })} />
+            <button className="btn btn-primary" disabled={busy || !form.body.trim()}>{busy ? "…" : "보내기"}</button>
+          </div>
+          {error && <p className="error">{error}</p>}
+        </form>
+      </section>
+    );
+  }
 
   return (
     <section id="comments" aria-label="댓글">

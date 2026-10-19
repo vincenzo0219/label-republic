@@ -19,9 +19,11 @@ export async function listComments(postId: string): Promise<Comment[]> {
   if (!/^\d{1,18}$/.test(postId)) return [];
   // 블라인드·임시조치된 글의 댓글은 내보내지 않는다 (글 API 와 같게, Sprint 33)
   return query<Comment>(
-    `SELECT ${COLS}, (SELECT count(*)::int FROM comment_likes l WHERE l.comment_id = comments.id AND l.by_name IS NULL) AS likes,
+    `SELECT * FROM (SELECT ${COLS}, (SELECT count(*)::int FROM comment_likes l WHERE l.comment_id = comments.id AND l.by_name IS NULL) AS likes,
             (SELECT coalesce(array_agg(l.by_name ORDER BY l.created_at), '{}') FROM comment_likes l WHERE l.comment_id = comments.id AND l.by_name IS NOT NULL) AS liked_by
-       FROM comments WHERE post_id = $1 AND NOT EXISTS (SELECT 1 FROM posts WHERE id = $1 AND is_blinded) ORDER BY id LIMIT 1000`,
+       FROM comments WHERE post_id = $1 AND NOT EXISTS (SELECT 1 FROM posts WHERE id = $1 AND is_blinded)
+      -- 최근 1000개 (수다방처럼 긴 대화는 최신이 보여야 한다, Sprint 84)
+      ORDER BY id DESC LIMIT 1000) t ORDER BY id`,
     [postId],
   );
 }
