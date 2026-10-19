@@ -51,5 +51,11 @@ d("room chat (Sprint 84)", async () => {
     expect(hits).toHaveLength(1);
     expect(hits[0]).toMatchObject({ slug: "비바리움-덕후방", room: "비바리움", nickname: "덕후1005" });
     expect(await searchRoomChat(["a"])).toEqual([]);
+
+    const { listPosts } = await import("@/lib/repo/posts");
+    await query("INSERT INTO posts (category_id, nickname, pw_hash, title, body, post_type) SELECT id, 'a', 'x', '[질문] 크레 먹이 추천?', '본문입니다 열 글자', 'chat' FROM categories WHERE slug = '비바리움-덕후방'");
+    const [cat] = await query<{ id: number }>("SELECT id FROM categories WHERE slug = '비바리움-덕후방'");
+    const qs = await listPosts({ categoryId: cat!.id, sort: "latest", head: "질문" });
+    expect(qs.items.map((p) => p.title)).toEqual(["[질문] 크레 먹이 추천?"]);
   });
 });

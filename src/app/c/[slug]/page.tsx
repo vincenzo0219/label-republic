@@ -7,6 +7,7 @@ import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { ReadingNow } from "@/components/ReadingNow";
 import { RoomPoll } from "@/components/RoomPoll";
 import { ROOM_POLLS } from "@/lib/roomPolls";
+import { parseHead } from "@/lib/heads";
 import { DEBATE_ROOM_SLUG } from "@/lib/debate";
 import { getCategoryBySlug as getCategoryUncached } from "@/lib/repo/categories";
 import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
@@ -56,7 +57,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         </Link>
       </div>
       {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
-      <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} sourced={sp.sourced === "1"} />
+      <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={parseHead(sp.head)} sourced={sp.sourced === "1"} />
     </>
   );
   // AI 덕후방에서는 AI 판별 테스트로 (Sprint 68)
