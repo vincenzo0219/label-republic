@@ -25,7 +25,7 @@ export function existingImages(images: { id: string; alt: string }[]): PickedIma
 }
 
 /** 10MB 초과이거나 해상도가 매우 크면 JPEG 로 줄인다. 브라우저가 못 여는 형식(HEIC 등)은 그대로 둔다 */
-async function shrinkIfNeeded(file: File): Promise<Blob> {
+export async function shrinkIfNeeded(file: File): Promise<Blob> {
   if (file.size <= MAX_BYTES && file.type !== "image/avif") return file;
   try {
     const bmp = await createImageBitmap(file); // EXIF 방향은 브라우저가 적용
@@ -42,7 +42,7 @@ async function shrinkIfNeeded(file: File): Promise<Blob> {
   }
 }
 
-async function upload(blob: Blob): Promise<{ id: string; token: string }> {
+export async function upload(blob: Blob): Promise<{ id: string; token: string }> {
   const res = await fetch("/api/uploads", { method: "POST", headers: { "Content-Type": blob.type || "image/jpeg" }, body: blob });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error?.message ?? `업로드 실패 (${res.status})`);

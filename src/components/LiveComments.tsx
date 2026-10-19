@@ -8,6 +8,8 @@ import { addMyComment, watchPost } from "@/lib/watchlist";
 import { timeAgo } from "@/lib/format";
 import type { Comment } from "@/lib/types";
 import { abuseLabel } from "@/lib/abuse-labels";
+import { imageUrl, thumbUrl } from "@/lib/media-url";
+import { shrinkIfNeeded, upload } from "./ImagePicker";
 import { EAR_BRAG_POST_ID, earBragLine } from "@/lib/earTest";
 import { HEARING_BRAG_POST_ID, hearingBragLine } from "@/lib/hearingTest";
 
@@ -15,7 +17,7 @@ type Event =
   | { type: "created"; comment: Comment }
   | { type: "deleted"; comment: { id: string | number } }
   // AI 자동 운영이 가리거나 운영자가 풀었을 때 (Sprint 37)
-  | { type: "hidden"; comment: { id: string | number; body: string; hidden_reason: string | null } };
+  | { type: "hidden"; comment: { id: string | number; body: string; hidden_reason: string | null; image_id?: string | null } };
 
 const LIKES_KEY = "lr:likes";
 
@@ -76,6 +78,23 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
   // 💬 수다방 (Sprint 84): 비번 입력 없이 이 브라우저의 4자리를 쓰고, 최근 100개부터 보여 준다
   const [show, setShow] = useState(100);
   const [savedNick, setSavedNick] = useState(false);
+  // 📷 사진 1장 (Sprint 90): 고르면 바로 올리고, 보낼 때 id·token 만 넘긴다
+  const [photo, setPhoto] = useState<{ id?: string; token?: string; preview: string; status: "uploading" | "done" | "error" } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const pickPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    setPhoto({ preview, status: "uploading" });
+    setError(null);
+    try {
+      const r = await upload(await shrinkIfNeeded(file));
+      setPhoto({ preview, status: "done", id: r.id, token: r.token });
+    } catch (err) {
+      setPhoto(null);
+      setError((err as Error).message);
+    }
+  };
+  const photoReady = photo?.status === "done";
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!chat) return;
@@ -172,8 +191,8 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
           } else if (ev.type === "deleted") {
             setComments((list) => dropComment(list, String(ev.comment.id)));
           } else if (ev.type === "hidden") {
-            const { id, body, hidden_reason } = ev.comment;
-            setComments((list) => list.map((c) => (c.id === String(id) ? { ...c, body, hidden_reason } : c)));
+            const { id, body, hidden_reason, image_id } = ev.comment;
+            setComments((list) => list.map((c) => (c.id === String(id) ? { ...c, body, hidden_reason, image_id: image_id ?? null } : c)));
           }
         } catch {}
       };
@@ -214,7 +233,12 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const payload = { ...form, ...(replyTo ? { parentId: replyTo.id } : {}) };
+    if (photo?.status === "uploading") {
+      setBusy(false);
+      return setError("사진을 올리는 중이에요. 잠깐만요.");
+    }
+    const image = photoReady ? { id: photo!.id!, token: photo!.token! } : undefined;
+    const payload = { ...form, body: form.body.trim() || (image ? "📷" : form.body), ...(replyTo ? { parentId: replyTo.id } : {}), ...(image ? { image } : {}) };
     try {
       const { comment, notifyRef } = await api<{ comment: Comment; notifyRef?: string }>(`/api/posts/${postId}/comments`, "POST", payload, {
         idempotencyKey: requestKeyFor(sending, payload),
@@ -222,6 +246,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
       sending.current = undefined;
       setComments((list) => (list.some((x) => String(x.id) === String(comment.id)) ? list : [...list, norm(comment)]));
       setForm((f) => ({ ...f, body: "" }));
+      setPhoto(null);
       setReplyTo(null);
       try {
         window.localStorage.setItem("lr:nickname", form.nickname);
@@ -287,7 +312,10 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
               {c.hidden_reason ? (
                 <div className="chat-bubble comment-hidden">🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가렸어요.</div>
               ) : (
-                <div className="chat-bubble">{splitMentions(c.body, nicknames).map((p, i) => (p.mention ? <span key={i} className="mention">{p.text}</span> : p.text))}</div>
+                <div className="chat-bubble">
+                  <Photo id={c.image_id} />
+                  {c.image_id && c.body === "📷" ? null : splitMentions(c.body, nicknames).map((p, i) => (p.mention ? <span key={i} className="mention">{p.text}</span> : p.text))}
+                </div>
               )}
               {!c.hidden_reason && (
                 <div className="chat-actions">
@@ -308,10 +336,12 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
             <input ref={nickRef} className="input" placeholder="닉네임" value={form.nickname} maxLength={20} required aria-label="닉네임"
               onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
           )}
-          <div className="row">
-            <input className="input" placeholder="메시지" value={form.body} maxLength={1000} required aria-label="메시지"
+          <PhotoPreview photo={photo} onClear={() => setPhoto(null)} />
+          <div className="row chat-row">
+            <PhotoButton fileRef={fileRef} onPick={pickPhoto} />
+            <input className="input" placeholder="메시지" value={form.body} maxLength={1000} required={!photo} aria-label="메시지"
               onChange={(e) => setForm({ ...form, body: e.target.value })} />
-            <button className="btn btn-primary" disabled={busy || !form.body.trim()}>{busy ? "…" : "보내기"}</button>
+            <button className="btn btn-primary" disabled={busy || (!form.body.trim() && !photoReady)}>{busy ? "…" : "보내기"}</button>
           </div>
           {error && <p className="error">{error}</p>}
         </form>
@@ -355,7 +385,8 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
                   </div>
                 ) : (
                   <div className="comment-body">
-                    {splitMentions(c.body, nicknames).map((p, i) => (p.mention ? <span key={i} className="mention">{p.text}</span> : p.text))}
+                    <Photo id={c.image_id} />
+                    {c.image_id && c.body === "📷" ? null : splitMentions(c.body, nicknames).map((p, i) => (p.mention ? <span key={i} className="mention">{p.text}</span> : p.text))}
                   </div>
                 )}
               </div>
@@ -377,7 +408,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
             <button type="button" className="linkish" onClick={() => setReplyTo(null)}>답글 취소</button>
           </div>
         )}
-        <textarea ref={bodyRef} className="textarea short" maxLength={1000} required
+        <textarea ref={bodyRef} className="textarea short" maxLength={1000} required={!photo}
           aria-label={replyTo ? `${replyTo.nickname}님에게 답글` : "댓글"}
           placeholder={replyTo ? "답글" : "댓글"}
           value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
@@ -401,7 +432,11 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
             💬 고마워요! 답글이 달리면 📬에서 알려 드려요. 이 주제로 더 이야기하고 싶다면 <Link href="/boards">🏠 내 덕질 방 만들기</Link>
           </p>
         )}
-        <button className="btn btn-primary" disabled={busy}>{busy ? "등록 중…" : replyTo ? "답글 등록" : "댓글 등록"}</button>
+        <PhotoPreview photo={photo} onClear={() => setPhoto(null)} />
+        <div className="row comment-submit-row">
+          <PhotoButton fileRef={fileRef} onPick={pickPhoto} />
+          <button className="btn btn-primary" disabled={busy}>{busy ? "등록 중…" : replyTo ? "답글 등록" : "댓글 등록"}</button>
+        </div>
       </form>
     </section>
   );
@@ -410,4 +445,42 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
 /** 지워진 댓글을 빼고, 그 댓글에 단 답글은 서버처럼 원 댓글 없는 댓글로 */
 function dropComment(list: Comment[], id: string): Comment[] {
   return list.filter((c) => c.id !== id).map((c) => (c.parent_id === id ? { ...c, parent_id: null } : c));
+}
+
+/** 댓글·수다방 사진 (Sprint 90) — 누르면 원본 */
+function Photo({ id }: { id?: string | null }) {
+  if (!id) return null;
+  return (
+    <a href={imageUrl(id)} target="_blank" rel="noopener" className="comment-photo">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={thumbUrl(id)} alt="첨부 사진" loading="lazy" />
+    </a>
+  );
+}
+
+function PhotoButton({ fileRef, onPick }: { fileRef: React.RefObject<HTMLInputElement | null>; onPick: (f: File | undefined) => void }) {
+  return (
+    <>
+      <button type="button" className="btn photo-btn" onClick={() => fileRef.current?.click()} aria-label="사진 올리기">
+        📷
+      </button>
+      <input ref={fileRef} type="file" accept="image/*" hidden
+        onChange={(e) => {
+          onPick(e.target.files?.[0]);
+          e.target.value = "";
+        }} />
+    </>
+  );
+}
+
+function PhotoPreview({ photo, onClear }: { photo: { preview: string; status: string } | null; onClear: () => void }) {
+  if (!photo) return null;
+  return (
+    <div className="photo-preview">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={photo.preview} alt="올릴 사진" />
+      <span className="hint">{photo.status === "uploading" ? "올리는 중…" : "📷 사진 1장"}</span>
+      <button type="button" className="linkish" onClick={onClear} aria-label="사진 빼기">✕</button>
+    </div>
+  );
 }

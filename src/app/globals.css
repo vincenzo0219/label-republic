@@ -1003,3 +1003,12 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .chat-form .live-dot { justify-self: start; }
 .room-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .room-links .chip { text-decoration: none; font-weight: 600; }
+
+/* 📷 댓글·수다방 사진 (Sprint 90) */
+.comment-photo { display: block; margin: 4px 0 6px; }
+.comment-photo img { display: block; max-width: min(260px, 100%); max-height: 320px; border-radius: 10px; object-fit: cover; }
+.photo-btn { padding: 0 12px; font-size: 18px; }
+.chat-form .chat-row { grid-template-columns: auto 1fr auto; }
+.comment-submit-row { grid-template-columns: auto 1fr; }
+.photo-preview { display: flex; align-items: center; gap: 8px; }
+.photo-preview img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; }
