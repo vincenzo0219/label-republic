@@ -57,6 +57,24 @@ export async function newPostCounts(pairs: { slug: string; since: Date }[]): Pro
   return Object.fromEntries(rows.filter((r) => r.n > 0).map((r) => [r.slug, r.n]));
 }
 
+/**
+ * 방 안 말머리·정보·정모 옆 숫자 (Sprint 93) — since 이후 올라온 글 수. 칸마다 최대 99까지만 센다.
+ * 키: 말머리 이름(질문·자랑…), info, meetup. 0 인 칸은 빼고 돌려준다.
+ */
+export async function filterCounts(slug: string, since: Date, heads: readonly string[]): Promise<Record<string, number>> {
+  const rows = await query<{ k: string; n: number }>(
+    `WITH recent AS (
+       SELECT p.title, p.post_type FROM posts p JOIN categories c ON c.id = p.category_id
+        WHERE c.slug = $1 AND p.created_at > $2 AND NOT p.is_blinded AND NOT p.is_suppressed
+        ORDER BY p.created_at DESC LIMIT 500)
+     SELECT h AS k, count(*) FILTER (WHERE r.title LIKE '[' || h || ']%')::int AS n FROM unnest($3::text[]) h CROSS JOIN recent r GROUP BY h
+     UNION ALL SELECT 'info', count(*) FILTER (WHERE post_type = 'info')::int FROM recent
+     UNION ALL SELECT 'meetup', count(*) FILTER (WHERE post_type = 'meetup')::int FROM recent`,
+    [slug, since.toISOString(), heads],
+  );
+  return Object.fromEntries(rows.filter((r) => r.n > 0).map((r) => [r.k, Math.min(r.n, 99)]));
+}
+
 export type RoomTools = { products: boolean; facts: boolean; renewals: boolean };
 
 /**

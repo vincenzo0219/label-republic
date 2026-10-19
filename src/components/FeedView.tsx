@@ -11,7 +11,7 @@ import { CategoryTabs } from "./CategoryTabs";
 import { InterestToggle } from "./InterestToggle";
 import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
-import { MarkSeen, NewDivider } from "./NewMarks";
+import { FilterCount, FilterCountsLoader, MarkSeen, NewDivider } from "./NewMarks";
 import { SortBar } from "./SortBar";
 import { HEADS, type Head } from "@/lib/heads";
 
@@ -105,15 +105,18 @@ export async function FeedView({
       )}
       {category && (
       <nav className="type-filter" aria-label="글 유형">
+        <FilterCountsLoader room={category.slug} />
         {/* 방 안의 작은 방: 전체 · 질문 · 자랑 · 후기 · 꿀팁 · 정보 · 정모 (잡담은 💬 수다방으로, Sprint 86) */}
         {TYPE_FILTERS.filter((f) => !category || f.value !== "chat").map((f, i) => (
           <Fragment key={f.label}>
             <Link href={typeHref(f.value)} aria-current={type === f.value && !head ? "true" : undefined} rel="nofollow">
               {f.label}
+              {f.value && <FilterCount k={f.value} />}
             </Link>
             {category && i === 0 && HEADS.map((h) => (
               <Link key={h.key} href={`${basePath}?${new URLSearchParams({ head: h.key })}`} aria-current={head === h.key ? "true" : undefined} rel="nofollow">
                 {h.label}
+                <FilterCount k={h.key} />
               </Link>
             ))}
           </Fragment>

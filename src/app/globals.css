@@ -417,7 +417,8 @@ select.input-sm { flex: 0 0 auto; }
 .image-add:focus-within { outline: 2px solid var(--text); outline-offset: 2px; }
 
 /* Sprint 13: 출처 */
-.type-filter { flex-wrap: wrap; row-gap: 6px; }
+.type-filter { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; scrollbar-width: none; padding-bottom: 4px; }
+.type-filter::-webkit-scrollbar { display: none; }
 .type-filter .filter-toggle { margin-left: auto; }
 .badge-src { color: var(--muted); background: var(--pending-bg); }
 .badge-src-paper, .badge-src-gov { color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, transparent); font-weight: 600; }
