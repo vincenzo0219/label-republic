@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ROOM_POLLS, roomPollTopic } from "@/lib/roomPolls";
 import { vivPick } from "@/lib/vivariumTest";
+import { veganPick } from "@/lib/veganTest";
 
 describe("room polls and vivarium test (Sprint 83)", () => {
   it("rotates two-sided questions per room and knows only configured rooms", () => {
@@ -11,6 +12,15 @@ describe("room polls and vivarium test (Sprint 83)", () => {
     expect(roomPollTopic("비바리움-덕후방", "2026-10-20")).toEqual(set.polls[1]);
     expect(roomPollTopic("없는-방", "2026-10-20")).toBeNull();
     for (const s of Object.values(ROOM_POLLS)) for (const [a, b] of s.polls) expect(a).not.toBe(b);
+  });
+
+  it("picks a vegetarian type from four answers (Sprint 88)", () => {
+    expect(veganPick({ meat: true, fish: true, dairyEgg: true, beyondFood: true }).key).toBe("flexi");
+    expect(veganPick({ meat: false, fish: true, dairyEgg: true, beyondFood: false }).key).toBe("pesco");
+    expect(veganPick({ meat: false, fish: false, dairyEgg: true, beyondFood: false }).key).toBe("lactoOvo");
+    expect(veganPick({ meat: false, fish: false, dairyEgg: false, beyondFood: false }).key).toBe("vegan");
+    expect(veganPick({ meat: false, fish: false, dairyEgg: false, beyondFood: true }).key).toBe("lifestyle");
+    expect(ROOM_POLLS["비건-덕후방"]!.polls).toHaveLength(15);
   });
 
   it("picks a first pet from four answers", () => {

@@ -111,6 +111,23 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         {feed}
       </>
     );
+  // 비건 방: 채식 타입 테스트가 입구 (Sprint 88)
+  if (category.slug === "비건-덕후방")
+    return (
+      <>
+        <div className="ear-banners">
+          <Link href="/vegan-test" className="ear-banner">
+            <span className="ear-banner-emoji" aria-hidden>
+              🌱
+            </span>
+            <span>
+              <b>나는 어떤 채식 타입?</b> — 질문 4개 <span className="ear-banner-go">1분 테스트 →</span>
+            </span>
+          </Link>
+        </div>
+        {feed}
+      </>
+    );
   // 키보드 방에서는 타자 테스트로 (Sprint 67)
   if (category.slug === "keyboards")
     return (
