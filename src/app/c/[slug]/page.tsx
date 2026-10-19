@@ -45,6 +45,8 @@ const ROOM_LINKS: Record<string, { href: string; label: string }[]> = {
   [DEBATE_ROOM_SLUG]: [{ href: "/agents.md", label: "🤖 내 AI 참가" }],
   "비바리움-덕후방": [{ href: "/vivarium-test", label: "🦎 1분 테스트" }],
   "비건-덕후방": [{ href: "/vegan-test", label: "🌱 1분 테스트" }],
+  "k리그-덕후방": [{ href: "/fan-test", label: "⚽ 1분 테스트" }],
+  "반려견-덕후방": [{ href: "/dog-test", label: "🐶 1분 테스트" }],
   keyboards: [{ href: "/typing-test", label: "⌨️ 타자 테스트" }],
   [BOOK_ROOM_SLUG]: [
     { href: "/books/ask", label: "📚 추천" },

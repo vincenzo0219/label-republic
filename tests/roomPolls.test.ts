@@ -4,6 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ROOM_POLLS, roomPollTopic } from "@/lib/roomPolls";
 import { vivPick } from "@/lib/vivariumTest";
 import { veganPick } from "@/lib/veganTest";
+import { fanPick } from "@/lib/fanTest";
+import { dogPick } from "@/lib/dogTest";
 
 describe("room polls and vivarium test (Sprint 83)", () => {
   it("rotates two-sided questions per room and knows only configured rooms", () => {
@@ -21,6 +23,21 @@ describe("room polls and vivarium test (Sprint 83)", () => {
     expect(veganPick({ meat: false, fish: false, dairyEgg: false, beyondFood: false }).key).toBe("vegan");
     expect(veganPick({ meat: false, fish: false, dairyEgg: false, beyondFood: true }).key).toBe("lifestyle");
     expect(ROOM_POLLS["비건-덕후방"]!.polls).toHaveLength(15);
+  });
+
+  it("picks fan and dog-owner types (Sprint 91)", () => {
+    expect(fanPick({ stadium: true, away: true, analysis: false, goods: false }).key).toBe("away");
+    expect(fanPick({ stadium: true, away: false, analysis: true, goods: true }).key).toBe("ultra");
+    expect(fanPick({ stadium: false, away: false, analysis: true, goods: true }).key).toBe("analyst");
+    expect(fanPick({ stadium: false, away: false, analysis: false, goods: true }).key).toBe("collector");
+    expect(fanPick({ stadium: false, away: false, analysis: false, goods: false }).key).toBe("sofa");
+    expect(dogPick({ walkTwice: true, labels: true, travel: true, photos: true }).key).toBe("labels");
+    expect(dogPick({ walkTwice: true, labels: false, travel: true, photos: true }).key).toBe("travel");
+    expect(dogPick({ walkTwice: true, labels: false, travel: false, photos: true }).key).toBe("walker");
+    expect(dogPick({ walkTwice: false, labels: false, travel: false, photos: true }).key).toBe("photo");
+    expect(dogPick({ walkTwice: false, labels: false, travel: false, photos: false }).key).toBe("home");
+    expect(ROOM_POLLS["k리그-덕후방"]!.polls).toHaveLength(15);
+    expect(ROOM_POLLS["반려견-덕후방"]!.polls).toHaveLength(15);
   });
 
   it("picks a first pet from four answers", () => {
