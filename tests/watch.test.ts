@@ -84,6 +84,14 @@ describe("watch & push rules", () => {
       tag: "lr-watch",
     });
     const many = pushMessage({ ...base, posts: [post], replies: [reply, { ...reply, id: "78", kind: "mention" }], reply_count: 2, total: 5 });
+    // 테스트 결과 글의 새 댓글은 "새 결과" 로, 그 글로 바로 (Sprint 92)
+    const dog = { ...post, id: "3126", title: "견주 테스트", new_corrections: 0 };
+    expect(pushMessage({ ...base, posts: [dog], total: 2 })).toEqual({
+      title: "노방장 · 견주 테스트",
+      body: "🧪 같은 테스트에 새 결과 2개 · 나랑 같은 타입은?",
+      url: "/posts/3126",
+      tag: "lr-watch",
+    });
     expect(many).toMatchObject({ title: "노방장 새 소식", body: "💬 내 댓글에 답글·멘션 2개 · 정정 제안 1건 · 새 댓글 2개", url: "/me" });
   });
 

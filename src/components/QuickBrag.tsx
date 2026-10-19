@@ -7,6 +7,10 @@ import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { addMyComment, getPushState, watchPost } from "@/lib/watchlist";
 import { PushButton } from "./PushButton";
 
+// 결과만 보고 떠나는 사람을 다음 날 다시 부르는 알림 (Sprint 92)
+const DAILY_LABEL = "🔔 내일 오늘의 질문 알림 받기";
+const DAILY_ON = "🔔 내일 아침 알려 드릴게요";
+
 /**
  * 테스트 결과 화면에서 바로 인증 댓글 남기기 (Sprint 64).
  * 결과 → 인증 글로 넘어가는 단계에서 거의 다 빠져서, 닉네임과 한 줄만 받아 그 자리에서 인증 글에 댓글을 단다.
@@ -73,11 +77,15 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
         <Link href={`/posts/${postId}#c${done.id}`} className="btn btn-primary ear-brag">
           👀 다른 사람들 결과 보러 가기
         </Link>
-        <PushButton label="🔔 답글 달리면 알림 받기" onLabel="🔔 답글 오면 알려 드릴게요" />
+        <PushButton label={DAILY_LABEL} onLabel={DAILY_ON} daily />
       </div>
     );
 
   return (
+    <>
+    <div className="daily-cta">
+      <PushButton label={DAILY_LABEL} onLabel={DAILY_ON} daily />
+    </div>
     <form className="quick-brag" onSubmit={submit}>
       <b>{prompt}</b>
       <p className="quick-brag-line">{line}</p>
@@ -98,5 +106,6 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
         <Link href={`/posts/${postId}`}>먼저 구경하기</Link>
       </p>
     </form>
+    </>
   );
 }

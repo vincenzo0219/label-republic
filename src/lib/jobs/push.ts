@@ -12,6 +12,7 @@ import { reportError } from "../error-tracking";
 import { DAILY_START, dailySet } from "../daily";
 import { debateTopic } from "../debate";
 import { kstDay } from "../metrics";
+import { TEST_POST_IDS } from "../testPosts";
 
 const LOCK_KEY = 4_823_006;
 const BATCH = 500;
@@ -30,7 +31,10 @@ export function pushMessage(u: WatchUpdates): PushMessage {
   const newPosts = u.products.reduce((n, p) => n + p.new_posts, 0);
   const renewals = u.products.flatMap((p) => p.renewals.map((r) => ({ ...r, name: p.name })));
   const supported = u.products.reduce((n, p) => n + p.newly_supported, 0) + u.posts.reduce((n, p) => n + p.newly_supported, 0);
-  const comments = u.posts.reduce((n, p) => n + p.new_comments, 0);
+  // 테스트 결과 글에 달린 댓글은 "새 결과" 로 따로 — 나랑 같은 타입이 있는지 궁금해서 다시 온다 (Sprint 92)
+  const testPosts = u.posts.filter((p) => TEST_POST_IDS.has(p.id) && p.new_comments > 0);
+  const results = testPosts.reduce((n, p) => n + p.new_comments, 0);
+  const comments = u.posts.reduce((n, p) => n + p.new_comments, 0) - results;
   const corrections = u.posts.reduce((n, p) => n + p.new_corrections, 0);
   const applied = u.posts.reduce((n, p) => n + p.applied, 0);
   const edited = u.posts.filter((p) => p.edited).length;
@@ -41,6 +45,7 @@ export function pushMessage(u: WatchUpdates): PushMessage {
     onlyReply
       ? `💬 ${onlyReply.nickname}님이 ${onlyReply.kind === "reply" ? "답글" : "멘션"}: ${onlyReply.excerpt.replace(/\s+/g, " ").slice(0, 60)}`
       : replies > 1 && `💬 내 댓글에 답글·멘션 ${replies}개`,
+    results && `🧪 같은 테스트에 새 결과 ${results}개 · 나랑 같은 타입은?`,
     u.like_count > 0 && `👍 내 댓글에 공감 ${u.like_count}개`,
     u.liked_by.length > 0 && `👍 ${u.liked_by.join("·")}님이 공감`,
     // 라벨 변경은 가장 먼저 — 한 건이면 무엇이 얼마나 바뀌었는지까지
@@ -64,7 +69,12 @@ export function pushMessage(u: WatchUpdates): PushMessage {
     title: single ? `노방장 · ${single.slice(0, 40)}` : "노방장 새 소식",
     body: parts.slice(0, 3).join(" · "),
     // 답글 하나뿐이면 그 댓글로 바로
-    url: onlyReply && others === 0 ? `/posts/${onlyReply.post_id}#c${onlyReply.id}` : "/me",
+    url:
+      onlyReply && others === 0
+        ? `/posts/${onlyReply.post_id}#c${onlyReply.id}`
+        : !replies && others === 1 && testPosts.length === 1
+          ? `/posts/${testPosts[0]!.id}`
+          : "/me",
     tag: "lr-watch",
   };
 }
