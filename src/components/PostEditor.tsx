@@ -1,5 +1,6 @@
 "use client";
 
+import { HEADS, headOf, withHead } from "@/lib/heads";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
@@ -458,6 +459,15 @@ export function PostEditor(props: Props) {
 
       <div className="field">
         <div className="steps"><b>2</b> 본문 작성</div>
+        {!editing && (
+          <div className="chips" aria-label="말머리">
+            {HEADS.map((h) => (
+              <button type="button" key={h.key} className="chip" aria-pressed={headOf(title) === h.key} onClick={() => setTitle((t) => withHead(t, h.key))}>
+                {h.label}
+              </button>
+            ))}
+          </div>
+        )}
         <input className="input" placeholder={postType === "info" ? "제목 (예: 마그네슘 비스글리시네이트 3종 원소 함량 비교)" : "제목 (예: 다들 입문 키보드 뭐였어요?)"} value={title} maxLength={120} required
           onChange={(e) => setTitle(e.target.value)} />
         <textarea className="textarea" value={body} maxLength={20000} required

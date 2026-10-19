@@ -14,6 +14,7 @@ import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
 import { MarkSeen, NewDivider } from "./NewMarks";
 import { SortBar } from "./SortBar";
+import { HEADS, type Head } from "@/lib/heads";
 
 const TYPE_FILTERS: { value?: PostType; label: string }[] = [
   { label: "전체" },
@@ -30,6 +31,7 @@ export async function FeedView({
   type,
   sourced = false,
   humanFirst = false,
+  head,
 }: {
   category?: Category;
   sort: SortKey;
@@ -38,12 +40,14 @@ export async function FeedView({
   /** 출처가 달린 글만 */
   sourced?: boolean;
   humanFirst?: boolean;
+  /** 방 안의 작은 방 (말머리, Sprint 86) */
+  head?: Head;
 }) {
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
-  const guideCandidate = category && page === 1 && !type && !sourced;
+  const guideCandidate = category && page === 1 && !type && !sourced && !head;
   const [categories, feed, digest, needs, tools, quiet] = await Promise.all([
     listCategories(),
-    listPosts({ categoryId: category?.id, sort, page, type, sourced, humanFirst, hideHiddenRooms: !category }),
+    listPosts({ categoryId: category?.id, sort, page, type, head, sourced, humanFirst, hideHiddenRooms: !category }),
     category ? latestDigest(category.id) : Promise.resolve(null),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? roomTools(category.id) : Promise.resolve(null),
@@ -51,7 +55,7 @@ export async function FeedView({
   ]);
   const showGuide = category && needs && needs.infoPosts < THIN_BOARD_POSTS;
   const basePath = category ? `/c/${encodeURIComponent(category.slug)}` : "/";
-  const typeParam: Record<string, string> = { ...(type ? { type } : {}), ...(sourced ? { sourced: "1" } : {}) };
+  const typeParam: Record<string, string> = { ...(type ? { type } : {}), ...(head ? { head } : {}), ...(sourced ? { sourced: "1" } : {}) };
   const params: Record<string, string> = { ...typeParam, ...(sort === "trust" ? {} : { sort }) };
   const href = (t: PostType | undefined, src: boolean) => {
     const qs = new URLSearchParams({ ...(t ? { type: t } : {}), ...(src ? { sourced: "1" } : {}), ...(sort === "trust" ? {} : { sort }) }).toString();
@@ -104,10 +108,18 @@ export async function FeedView({
       )}
       {showGuide && <BoardGuide slug={category.slug} name={category.name} needs={needs} />}
       <nav className="type-filter" aria-label="글 유형">
-        {TYPE_FILTERS.map((f) => (
-          <Link key={f.label} href={typeHref(f.value)} aria-current={type === f.value ? "true" : undefined} rel="nofollow">
-            {f.label}
-          </Link>
+        {/* 방 안의 작은 방: 전체 · 질문 · 자랑 · 후기 · 꿀팁 · 정보 · 정모 (잡담은 💬 수다방으로, Sprint 86) */}
+        {TYPE_FILTERS.filter((f) => !category || f.value !== "chat").map((f, i) => (
+          <Fragment key={f.label}>
+            <Link href={typeHref(f.value)} aria-current={type === f.value && !head ? "true" : undefined} rel="nofollow">
+              {f.label}
+            </Link>
+            {category && i === 0 && HEADS.map((h) => (
+              <Link key={h.key} href={`${basePath}?${new URLSearchParams({ head: h.key })}`} aria-current={head === h.key ? "true" : undefined} rel="nofollow">
+                {h.label}
+              </Link>
+            ))}
+          </Fragment>
         ))}
         <Link className="filter-toggle" href={href(type, !sourced)} aria-current={sourced ? "true" : undefined} rel="nofollow">
           📚 출처 있는 글만

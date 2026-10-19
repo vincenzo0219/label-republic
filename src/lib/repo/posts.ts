@@ -66,6 +66,8 @@ export type ListParams = {
   page?: number;
   pageSize?: number;
   type?: PostType;
+  /** 말머리 "[질문]" 등으로 시작하는 글만 (Sprint 86) */
+  head?: string;
   /** 출처가 달린 글만 */
   sourced?: boolean;
   /** 사람이 쓴 글을 최신순으로 AI 큐레이터 글보다 먼저 (홈, Sprint 72) */
@@ -165,6 +167,10 @@ export async function listPosts(
   if (params.type) {
     args.push(params.type);
     where.push(`p.post_type = $${args.length}::post_type`);
+  }
+  if (params.head) {
+    args.push(`[${params.head}]%`);
+    where.push(`p.title LIKE $${args.length}`);
   }
   if (params.sourced) where.push("p.source_count > 0");
   if (params.hideHiddenRooms) where.push("NOT EXISTS (SELECT 1 FROM categories hc WHERE hc.id = p.category_id AND hc.is_hidden)");
