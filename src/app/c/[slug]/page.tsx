@@ -51,7 +51,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             💬
           </span>
           <span>
-            <b>{category.name} 수다방</b> — 가입 없이 한 줄씩 편하게 <span className="ear-banner-go">들어가기 →</span>
+            <b>수다방</b>
           </span>
         </Link>
       </div>
