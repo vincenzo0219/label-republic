@@ -77,7 +77,7 @@ export async function setPostImages(client: PoolClient, postId: string, refs: Im
     throw new HttpError(400, "invalid_image", "이미지 정보가 올바르지 않습니다.");
   }
   const { rows } = await client.query<{ id: string; post_id: string | null }>(
-    "SELECT id, post_id FROM post_images WHERE id = ANY($1::uuid[]) FOR UPDATE",
+    "SELECT id, post_id FROM post_images WHERE id = ANY($1::uuid[]) AND comment_id IS NULL FOR UPDATE",
     [ids],
   );
   const found = new Map(rows.map((r) => [r.id, r.post_id]));
@@ -89,7 +89,7 @@ export async function setPostImages(client: PoolClient, postId: string, refs: Im
     if (!allowed) throw new HttpError(403, "image_forbidden", "첨부할 수 없는 이미지입니다.");
   }
   const { rows: removed } = await client.query<{ id: string }>(
-    "DELETE FROM post_images WHERE post_id = $1 AND NOT (id = ANY($2::uuid[])) RETURNING id",
+    "DELETE FROM post_images WHERE post_id = $1 AND comment_id IS NULL AND NOT (id = ANY($2::uuid[])) RETURNING id",
     [postId, ids],
   );
   for (const [i, ref] of refs.entries()) {
@@ -104,7 +104,7 @@ export async function setPostImages(client: PoolClient, postId: string, refs: Im
 export async function listPostImages(postId: string): Promise<PostImage[]> {
   if (!/^\d{1,18}$/.test(postId)) return [];
   return query<PostImage>(
-    "SELECT id, alt, width, height, thumb_width, thumb_height FROM post_images WHERE post_id = $1 ORDER BY position",
+    "SELECT id, alt, width, height, thumb_width, thumb_height FROM post_images WHERE post_id = $1 AND comment_id IS NULL ORDER BY position",
     [postId],
   );
 }
@@ -113,7 +113,8 @@ export async function listPostImages(postId: string): Promise<PostImage[]> {
 export async function readServableImage(id: string, variant: "full" | "thumb" | "small"): Promise<Buffer | null> {
   if (!UUID.test(id)) return null;
   const rows = await query<{ ok: boolean }>(
-    `SELECT true AS ok FROM post_images i JOIN posts p ON p.id = i.post_id WHERE i.id = $1 AND NOT p.is_blinded`,
+    `SELECT true AS ok FROM post_images i JOIN posts p ON p.id = i.post_id WHERE i.id = $1 AND NOT p.is_blinded
+        AND (i.comment_id IS NULL OR EXISTS (SELECT 1 FROM comments c WHERE c.id = i.comment_id AND c.ai_hidden_at IS NULL))`,
     [id],
   );
   if (!rows[0]) return null;

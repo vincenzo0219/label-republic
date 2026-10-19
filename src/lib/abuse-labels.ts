@@ -5,6 +5,7 @@ export const ABUSE_LABELS = {
   harassment: "인신공격·위협",
   personal_info: "개인정보 노출",
   spam: "광고·홍보 링크",
+  image: "부적절한 사진",
 } as const;
 export type AbuseCategory = keyof typeof ABUSE_LABELS;
 

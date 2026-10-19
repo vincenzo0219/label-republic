@@ -164,6 +164,8 @@ export type Comment = {
   mentions: string[];
   /** AI 자동 운영이 가린 댓글이면 이유 — 본문은 빈 문자열로 온다 (Sprint 37) */
   hidden_reason?: string | null;
+  /** 붙인 사진 (Sprint 90) — 가려진 댓글이면 null */
+  image_id?: string | null;
   /** 👍 공감 수 (Sprint 78, 목록에서만) */
   likes?: number;
   /** 공감한 운영 계정 이름 (Sprint 79, 사람 공감 수와 따로) */

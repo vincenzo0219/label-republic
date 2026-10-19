@@ -1,4 +1,5 @@
-import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
+import { tokenOk } from "./images";
+import { aiAbuse, aiImageAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
 import { query, tx } from "../db";
 import { blinded, HttpError, notFound } from "../errors";
 import { extractMentions, resolveMentions } from "../mentions";
@@ -13,7 +14,8 @@ export const TARGET_LIMIT = 5;
 
 // AI 자동 운영이 가린 댓글은 자리는 남기고 본문을 내보내지 않는다 (Sprint 37)
 const COLS = `id, post_id, nickname, CASE WHEN ai_hidden_reason IS NULL THEN body ELSE '' END AS body, is_ai_curated, created_at,
-  parent_id::text AS parent_id, mentions::text[] AS mentions, ai_hidden_reason AS hidden_reason`;
+  parent_id::text AS parent_id, mentions::text[] AS mentions, ai_hidden_reason AS hidden_reason,
+  CASE WHEN ai_hidden_reason IS NULL THEN image_id::text END AS image_id`;
 
 export async function listComments(postId: string): Promise<Comment[]> {
   if (!/^\d{1,18}$/.test(postId)) return [];
@@ -34,7 +36,7 @@ export async function listComments(postId: string): Promise<Comment[]> {
  */
 export async function createComment(
   postId: string,
-  input: { nickname: string; pin: string; body: string; fingerprint?: string; net?: string; parentId?: string },
+  input: { nickname: string; pin: string; body: string; fingerprint?: string; net?: string; parentId?: string; image?: { id: string; token: string } },
 ): Promise<Comment> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
   // 휴대전화·이메일·주민등록번호는 지운 판으로 저장 (Sprint 37)
@@ -73,12 +75,24 @@ export async function createComment(
     const abuse =
       heuristicAbuse(input.body) ??
       (shouldSuppress(spam) ? { category: "spam" as const, evidence: spam.reasons.join(", "), model: spam.model } : null);
+    // 사진 (Sprint 90): 방금 올린, 아직 어디에도 안 붙은 사진만 — 업로드 토큰으로 확인
+    let imageId: string | null = null;
+    if (input.image) {
+      const img = await client.query<{ id: string }>(
+        "SELECT id FROM post_images WHERE id = $1 AND post_id IS NULL AND comment_id IS NULL FOR UPDATE",
+        [input.image.id],
+      );
+      if (!img.rows[0] || !tokenOk(input.image.id, input.image.token)) throw new HttpError(400, "image_expired", "사진을 찾을 수 없어요. 다시 올려 주세요.");
+      imageId = input.image.id;
+    }
     const { rows } = await client.query<Comment>(
-      `INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, parent_id, mentions,
+      `INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, parent_id, mentions, image_id,
                              ai_hidden_reason, ai_hidden_note, ai_hidden_model, ai_hidden_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::bigint[], $8::text, $9, $10, CASE WHEN $8::text IS NOT NULL THEN now() END) RETURNING ${COLS}`,
-      [postId, input.nickname, pwHash, input.body, input.fingerprint ?? null, parentId, mentions, ...hideParams(abuse)],
+       VALUES ($1, $2, $3, $4, $5, $6, $7::bigint[], $8::uuid, $9::text, $10, $11, CASE WHEN $9::text IS NOT NULL THEN now() END) RETURNING ${COLS}`,
+      [postId, input.nickname, pwHash, input.body, input.fingerprint ?? null, parentId, mentions, imageId, ...hideParams(abuse)],
     );
+    if (imageId)
+      await client.query("UPDATE post_images SET post_id = $2, comment_id = $3, attached_at = now() WHERE id = $1", [imageId, postId, rows[0]!.id]);
     return rows[0]!;
   });
 }
@@ -97,12 +111,13 @@ export async function deleteComment(id: string, fp: string, pin: string): Promis
  */
 export async function aiModerateComment(id: string): Promise<boolean> {
   if (!/^\d{1,18}$/.test(id)) return false;
-  const rows = await query<{ body: string }>(
-    "SELECT body FROM comments WHERE id = $1 AND ai_hidden_at IS NULL AND NOT ai_hide_released AND NOT is_ai_curated",
+  const rows = await query<{ body: string; image_id: string | null }>(
+    "SELECT body, image_id::text FROM comments WHERE id = $1 AND ai_hidden_at IS NULL AND NOT ai_hide_released AND NOT is_ai_curated",
     [id],
   );
   if (!rows[0]) return false;
-  const verdict = await aiAbuse(rows[0].body);
+  // 사진이 있으면 사진도 본다 (Sprint 90)
+  const verdict = (await aiAbuse(rows[0].body)) ?? (rows[0].image_id ? await aiImageAbuse(rows[0].image_id) : null);
   if (!verdict) return false;
   const res = await query<{ id: string }>(
     `UPDATE comments SET ai_hidden_reason = $2, ai_hidden_note = $3, ai_hidden_model = $4, ai_hidden_at = now()
