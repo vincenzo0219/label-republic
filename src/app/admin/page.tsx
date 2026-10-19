@@ -82,7 +82,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openErrors(),
     ]);
   const monthStart = `${today.slice(0, 8)}01`;
-  const [ear, hearing, firstLine, typing, aiT, month, daily7, states] = await Promise.all([
+  const [ear, hearing, firstLine, typing, aiT, month, daily7, states, people] = await Promise.all([
     earFunnel(...cur),
     hearingFunnel(...cur),
     firstLineFunnel(...cur),
@@ -91,6 +91,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     m.periodVisitors(monthStart, today),
     dailyPlayers(...cur),
     m.userStates(today),
+    m.peopleReactions(today),
   ]);
   const [holds, pending, rules, ruleVotes, feedback, boardT, biz, drafts] = await Promise.all([
     activeLegalHolds(),
@@ -143,6 +144,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </header>
 
       <MonthGoal today={today} visitors={month.visitors} returning={month.returning} daily={daily7} range={range} />
+      <PeopleReactions rows={people} />
       <UserStates rows={states} />
 
       {biz && <SignalStrip m={biz} />}
@@ -503,6 +505,47 @@ function PostTable({ rows, unit, empty }: { rows: m.TopPost[]; unit: string; emp
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** 🤝 사람끼리 반응 (Sprint 87) — AI 는 사회자, 주인공은 사람. 북극성 지표 */
+function PeopleReactions({ rows }: { rows: m.PeopleDay[] }) {
+  const [t, y] = rows;
+  const week = rows.reduce((s, r) => s + r.h2h, 0);
+  return (
+    <section className="month-goal" aria-label="사람끼리 반응">
+      <p>
+        <b>🤝 사람끼리 반응 오늘 {t?.h2h ?? 0}</b>{" "}
+        <span className="hint">
+          · 어제 {y?.h2h ?? 0} · 7일 {week} · 오늘 사람 댓글 중 사람이 답한 비율 {t?.answered == null ? "—" : `${t.answered}%`}
+        </span>
+      </p>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>날짜</th>
+            <th>사람 말</th>
+            <th>사람↔사람</th>
+            <th>사람 답 받음</th>
+            <th>사람 👍</th>
+            <th>운영·AI</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.day}>
+              <td>{r.day.slice(5)}</td>
+              <td>{r.human}</td>
+              <td>{r.h2h}</td>
+              <td>{r.answered == null ? "—" : `${r.answered}%`}</td>
+              <td>{r.likes}</td>
+              <td>{r.ops}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="hint">사람↔사람: 사람 댓글에 단 답글 + 사람 글에 단 댓글 + 수다방에서 30분 안에 다른 사람 말에 이어 말한 것 · 운영 닉네임·AI 제외</p>
+    </section>
   );
 }
 

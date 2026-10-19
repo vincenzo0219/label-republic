@@ -313,3 +313,57 @@ export async function userStates(today: string, days = 7): Promise<UserStateDay[
     curr: r.yesterday ? Math.round((r.current / r.yesterday) * 1000) / 10 : null,
   }));
 }
+
+/** 운영 닉네임 — 사람끼리 반응을 셀 때 뺀다 (Sprint 87) */
+export const OPERATOR_NICKS = ["노방장", "돈키호테", "덕후1호", "💬 수다방"];
+
+export type PeopleDay = {
+  day: string;
+  /** 사람이 쓴 댓글·수다방 말 */
+  human: number;
+  /** 사람 → 다른 사람 반응: 사람 댓글에 단 답글, 사람 글에 단 댓글, 수다방에서 30분 안에 다른 사람 말에 이어 말한 것 */
+  h2h: number;
+  /** 그날 사람 댓글 중 나중에 다른 사람이 답한 비율 (%) */
+  answered: number | null;
+  /** 사람 댓글에 사람이 누른 👍 */
+  likes: number;
+  /** 운영·AI가 쓴 댓글·글 */
+  ops: number;
+};
+
+/**
+ * 🤝 사람끼리 반응 (Sprint 87, 사용자 10/19 "바로 이거야"). AI 는 사회자, 주인공은 사람 — AI 글 수가 아니라
+ * 사람이 사람에게 반응한 수가 커뮤니티의 북극성 지표다.
+ */
+export async function peopleReactions(today: string, days = 7): Promise<PeopleDay[]> {
+  return query<PeopleDay>(
+    `WITH ds AS (SELECT generate_series($1::date - ($2::int - 1), $1::date, interval '1 day')::date AS t),
+          c AS (SELECT c.id, c.post_id, c.parent_id, c.author_fingerprint AS fp, c.created_at,
+                       (c.created_at AT TIME ZONE 'Asia/Seoul')::date AS day,
+                       (NOT c.is_ai_curated AND c.author_fingerprint IS NOT NULL AND c.nickname <> ALL($3::text[])) AS human
+                  FROM comments c WHERE c.created_at >= ($1::date - $2::int) AT TIME ZONE 'Asia/Seoul' AND c.ai_hidden_at IS NULL),
+          p AS (SELECT p.id, p.author_fingerprint AS fp, p.seed_key,
+                       (NOT p.is_ai_curated AND p.author_fingerprint IS NOT NULL AND p.nickname <> ALL($3::text[])) AS human
+                  FROM posts p WHERE p.id IN (SELECT post_id FROM c)),
+          hc AS (SELECT c.*,
+                   (EXISTS (SELECT 1 FROM comments pc WHERE pc.id = c.parent_id AND NOT pc.is_ai_curated AND pc.author_fingerprint IS NOT NULL
+                              AND pc.author_fingerprint <> c.fp AND pc.nickname <> ALL($3::text[]))
+                    OR (c.parent_id IS NULL AND p.human AND p.fp <> c.fp)
+                    OR (p.seed_key LIKE 'roomchat:%' AND EXISTS (SELECT 1 FROM c o WHERE o.post_id = c.post_id AND o.human AND o.fp <> c.fp
+                              AND o.created_at < c.created_at AND o.created_at > c.created_at - interval '30 minutes'))) AS to_human,
+                   EXISTS (SELECT 1 FROM comments r WHERE r.parent_id = c.id AND NOT r.is_ai_curated AND r.author_fingerprint IS NOT NULL
+                              AND r.author_fingerprint <> c.fp AND r.nickname <> ALL($3::text[])) AS got_reply
+                   FROM c JOIN p ON p.id = c.post_id WHERE c.human)
+     SELECT to_char(ds.t, 'YYYY-MM-DD') AS day,
+            (SELECT count(*)::int FROM hc WHERE hc.day = ds.t) AS human,
+            (SELECT count(*)::int FROM hc WHERE hc.day = ds.t AND hc.to_human) AS h2h,
+            (SELECT round(100.0 * count(*) FILTER (WHERE got_reply) / nullif(count(*), 0), 1)::float FROM hc WHERE hc.day = ds.t) AS answered,
+            (SELECT count(*)::int FROM comment_likes l JOIN hc ON hc.id = l.comment_id
+              WHERE l.by_name IS NULL AND (l.created_at AT TIME ZONE 'Asia/Seoul')::date = ds.t) AS likes,
+            (SELECT count(*)::int FROM c WHERE c.day = ds.t AND NOT c.human)
+              + (SELECT count(*)::int FROM posts op WHERE (op.created_at AT TIME ZONE 'Asia/Seoul')::date = ds.t
+                   AND (op.is_ai_curated OR op.author_fingerprint IS NULL OR op.nickname = ANY($3::text[]))) AS ops
+       FROM ds ORDER BY ds.t DESC`,
+    [today, days, OPERATOR_NICKS],
+  );
+}
