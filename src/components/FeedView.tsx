@@ -7,7 +7,6 @@ import type { SortKey } from "@/lib/validation";
 import { latestDigest } from "@/lib/repo/report";
 import { THIN_BOARD_POSTS } from "@/lib/onboarding";
 import { boardNeeds } from "@/lib/repo/onboarding";
-import { BoardGuide } from "./BoardGuide";
 import { CategoryTabs } from "./CategoryTabs";
 import { InterestToggle } from "./InterestToggle";
 import { Pagination } from "./Pagination";
@@ -69,10 +68,8 @@ export async function FeedView({
       <CategoryTabs categories={categories} active={category?.slug} quiet={[...quiet]} />
       {category && (
         <div className="board-head">
-          <p className="hint" style={{ margin: 0 }}>
-            {category.description}
-            {category.auto_promoted_at && " · 커뮤니티 투표로 개설된 방"}
-          </p>
+          {/* 방 설명은 숨김 — 안내 최소화 (Sprint 89) */}
+          <span />
           <div className="board-actions">
             {/* 데이터가 있을 때만 (Sprint 42) */}
             {tools?.products && (
@@ -106,7 +103,6 @@ export async function FeedView({
           </ol>
         </details>
       )}
-      {showGuide && <BoardGuide slug={category.slug} name={category.name} needs={needs} />}
       <nav className="type-filter" aria-label="글 유형">
         {/* 방 안의 작은 방: 전체 · 질문 · 자랑 · 후기 · 꿀팁 · 정보 · 정모 (잡담은 💬 수다방으로, Sprint 86) */}
         {TYPE_FILTERS.filter((f) => !category || f.value !== "chat").map((f, i) => (
@@ -121,9 +117,11 @@ export async function FeedView({
             ))}
           </Fragment>
         ))}
-        <Link className="filter-toggle" href={href(type, !sourced)} aria-current={sourced ? "true" : undefined} rel="nofollow">
-          📚 출처 있는 글만
-        </Link>
+        {sourced && (
+          <Link className="filter-toggle" href={href(type, false)} aria-current="true" rel="nofollow">
+            📚 출처 있는 글만 ✕
+          </Link>
+        )}
       </nav>
       <SortBar basePath={basePath} params={typeParam} sort={sort} total={feed.total} />
       {feed.items.length === 0 ? (

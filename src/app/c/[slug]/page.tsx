@@ -4,7 +4,6 @@ import { cache } from "react";
 import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
-import { ReadingNow } from "@/components/ReadingNow";
 import { RoomPoll } from "@/components/RoomPoll";
 import { ROOM_POLLS } from "@/lib/roomPolls";
 import { parseHead } from "@/lib/heads";
@@ -40,143 +39,42 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/** 방 입구 바로가기 — 설명 없이 짧은 이름만 (Sprint 89, 사용자 10/19 "안내글·설명 최소화") */
+const ROOM_LINKS: Record<string, { href: string; label: string }[]> = {
+  "ai-덕후방": [{ href: "/ai-test", label: "🤖 AI 판별 테스트" }],
+  [DEBATE_ROOM_SLUG]: [{ href: "/agents.md", label: "🤖 내 AI 참가" }],
+  "비바리움-덕후방": [{ href: "/vivarium-test", label: "🦎 1분 테스트" }],
+  "비건-덕후방": [{ href: "/vegan-test", label: "🌱 1분 테스트" }],
+  keyboards: [{ href: "/typing-test", label: "⌨️ 타자 테스트" }],
+  [BOOK_ROOM_SLUG]: [
+    { href: "/books/ask", label: "📚 추천" },
+    { href: "/books", label: "📖 지금 읽는 책" },
+    { href: "/first-line-test", label: "📜 첫 문장 테스트" },
+  ],
+};
+
 export default async function CategoryPage({ params, searchParams }: Props) {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) notFound();
   const sp = await searchParams;
-  const feed = (
-    <>
-      <div className="ear-banners">
-        <Link href={`/c/${encodeURIComponent(category.slug)}/chat`} className="ear-banner">
-          <span className="ear-banner-emoji" aria-hidden>
-            💬
-          </span>
-          <span>
-            <b>수다방</b>
-          </span>
-        </Link>
-      </div>
-      {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
-      <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={parseHead(sp.head)} sourced={sp.sourced === "1"} />
-    </>
-  );
-  // AI 덕후방에서는 AI 판별 테스트로 (Sprint 68)
-  if (category.slug === "ai-덕후방")
-    return (
-      <>
-        <div className="ear-banners">
-          <Link href="/ai-test" className="ear-banner">
-            <span className="ear-banner-emoji" aria-hidden>
-              🤖
-            </span>
-            <span>
-              <b>AI 판별 테스트</b> — 진짜 시인 vs AI, 진짜를 골라낼 수 있어요? <span className="ear-banner-go">1분 테스트 →</span>
-            </span>
-          </Link>
-        </div>
-        {feed}
-      </>
-    );
-  // AI 토론방: 내 AI 에이전트 참가 (Sprint 71)
-  if (category.slug === DEBATE_ROOM_SLUG)
-    return (
-      <>
-        <div className="ear-banners">
-          <a href="/agents.md" className="ear-banner">
-            <span className="ear-banner-emoji" aria-hidden>
-              🤖
-            </span>
-            <span>
-              <b>내 AI도 토론에 참가</b> — 내 AI에게 nobangjang.com/agents.md 를 읽게 하세요 <span className="ear-banner-go">안내서 →</span>
-            </span>
-          </a>
-        </div>
-        {feed}
-      </>
-    );
-  // 비바리움 방: 1분 테스트가 입구 (Sprint 83, 방 기본 세트)
-  if (category.slug === "비바리움-덕후방")
-    return (
-      <>
-        <div className="ear-banners">
-          <Link href="/vivarium-test" className="ear-banner">
-            <span className="ear-banner-emoji" aria-hidden>
-              🦎
-            </span>
-            <span>
-              <b>우리 집에서 키울 수 있을까?</b> — 질문 4개로 나에게 맞는 첫 생물 <span className="ear-banner-go">1분 테스트 →</span>
-            </span>
-          </Link>
-        </div>
-        {feed}
-      </>
-    );
-  // 비건 방: 채식 타입 테스트가 입구 (Sprint 88)
-  if (category.slug === "비건-덕후방")
-    return (
-      <>
-        <div className="ear-banners">
-          <Link href="/vegan-test" className="ear-banner">
-            <span className="ear-banner-emoji" aria-hidden>
-              🌱
-            </span>
-            <span>
-              <b>나는 어떤 채식 타입?</b> — 질문 4개 <span className="ear-banner-go">1분 테스트 →</span>
-            </span>
-          </Link>
-        </div>
-        {feed}
-      </>
-    );
-  // 키보드 방에서는 타자 테스트로 (Sprint 67)
-  if (category.slug === "keyboards")
-    return (
-      <>
-        <div className="ear-banners">
-          <Link href="/typing-test" className="ear-banner">
-            <span className="ear-banner-emoji" aria-hidden>
-              ⌨️
-            </span>
-            <span>
-              <b>한글 타자 테스트</b> — 1분에 몇 타? 기록과 쓰는 키보드·축을 남겨요 <span className="ear-banner-go">1분 테스트 →</span>
-            </span>
-          </Link>
-        </div>
-        {feed}
-      </>
-    );
-  if (category.slug !== BOOK_ROOM_SLUG) return feed;
-  // 책방: 상황별 추천이 입구 (Sprint 76 — 독서 단톡방에서 가장 많이 오가는 말이 "추천"), 그다음 책 카드·첫 문장
+  const links = [{ href: `/c/${encodeURIComponent(category.slug)}/chat`, label: "💬 수다방" }, ...(ROOM_LINKS[category.slug] ?? [])];
   return (
     <>
-      <ReadingNow limit={5} />
-      <div className="ear-banners">
-        <Link href="/books/ask" className="ear-banner">
-          <span className="ear-banner-emoji" aria-hidden>
-            📚
-          </span>
-          <span>
-            <b>이럴 때 읽을 책</b> — 관계에 지칠 때, 혼자 있고 싶을 때… <span className="ear-banner-go">추천 보기 →</span>
-          </span>
-        </Link>
-        <Link href="/books" className="ear-banner">
-          <span className="ear-banner-emoji" aria-hidden>
-            📖
-          </span>
-          <span>
-            <b>지금 몇 쪽?</b> — 읽는 중·완독·포기를 남기고, 다들 어디서 멈추는지 봐요 <span className="ear-banner-go">책 카드 →</span>
-          </span>
-        </Link>
-        <Link href="/first-line-test" className="ear-banner">
-          <span className="ear-banner-emoji" aria-hidden>
-            📜
-          </span>
-          <span>
-            <b>첫 문장 테스트</b> — 첫 문장만 보고 무슨 책? <span className="ear-banner-go">1분 →</span>
-          </span>
-        </Link>
-      </div>
-      {feed}
+      <nav className="room-links" aria-label="바로가기">
+        {links.map((l) =>
+          l.href.endsWith(".md") ? (
+            <a key={l.href} href={l.href} className="chip">
+              {l.label}
+            </a>
+          ) : (
+            <Link key={l.href} href={l.href} className="chip">
+              {l.label}
+            </Link>
+          ),
+        )}
+      </nav>
+      {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
+      <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={parseHead(sp.head)} sourced={sp.sourced === "1"} />
     </>
   );
 }
