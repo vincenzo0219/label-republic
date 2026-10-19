@@ -1,6 +1,15 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { CHAT_TOPICS, chatTopic } from "@/lib/chatTopics";
+
+describe("today's chat topic (Sprint 85)", () => {
+  it("rotates daily and wraps", () => {
+    expect(chatTopic("2026-10-19")).toBe(CHAT_TOPICS[0]);
+    expect(chatTopic("2026-10-20")).toBe(CHAT_TOPICS[1]);
+    expect(chatTopic("2026-10-18")).toBe(CHAT_TOPICS.at(-1));
+  });
+});
 
 const url = process.env.TEST_DATABASE_URL;
 const d = url ? describe : describe.skip;
@@ -21,12 +30,13 @@ d("room chat (Sprint 84)", async () => {
   });
 
   it("keeps one chat per room, searchable, and lists the latest 1000 oldest-first", async () => {
-    await query("TRUNCATE posts, categories RESTART IDENTITY CASCADE");
+    await query("TRUNCATE posts RESTART IDENTITY CASCADE");
     await query("INSERT INTO categories (slug, name, description) VALUES ('비바리움-덕후방', '비바리움', '')");
     const a = await ensureRoomChat("비바리움-덕후방");
     expect(a).toMatchObject({ name: "비바리움" });
     expect((await ensureRoomChat("비바리움-덕후방"))?.postId).toBe(a!.postId);
     expect(await ensureRoomChat("없는-방")).toBeNull();
+    expect(await ensureRoomChat("전체")).toMatchObject({ name: "전체" });
 
     await query(
       `INSERT INTO comments (post_id, nickname, pw_hash, body) SELECT $1, '덕후' || g, 'x', '크레 먹이 ' || g FROM generate_series(1, 1005) g`,

@@ -5,6 +5,7 @@ import { Pagination } from "@/components/Pagination";
 import { PostCard } from "@/components/PostCard";
 import { SortBar } from "@/components/SortBar";
 import { HttpError } from "@/lib/errors";
+import { LOUNGE_SLUG } from "@/lib/chatTopics";
 import { searchTerms } from "@/lib/highlight";
 import { getCategoryBySlug, listCategories } from "@/lib/repo/categories";
 import { listPosts } from "@/lib/repo/posts";
@@ -65,7 +66,7 @@ export default async function SearchPage({ searchParams }: Props) {
           <ul>
             {chats.filter((h) => !category || h.slug === category.slug).map((h) => (
               <li key={h.id}>
-                <a href={`/c/${encodeURIComponent(h.slug)}/chat#c${h.id}`}>
+                <a href={`${h.slug === LOUNGE_SLUG ? "/chat" : `/c/${encodeURIComponent(h.slug)}/chat`}#c${h.id}`}>
                   <span className="hint">{h.room} · {h.nickname}</span> {h.body}
                 </a>
               </li>

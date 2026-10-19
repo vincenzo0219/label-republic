@@ -272,15 +272,11 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
     const shown = comments.slice(-show);
     return (
       <section id="comments" className="chat-room" aria-label="수다방">
-        <p className="hint">
-          <span className={`live-dot${live ? " on" : ""}`} title={live ? "실시간 연결됨" : "연결 중…"} /> 실시간 · 가입 없이 한 줄씩
-        </p>
         {comments.length > show && (
           <button type="button" className="btn btn-sm" onClick={() => setShow((n) => n + 100)}>
             이전 대화 더 보기
           </button>
         )}
-        {comments.length === 0 && <p className="hint">첫 마디를 남겨 보세요 👋</p>}
         <ul className="chat-list">
           {shown.map((c) => (
             <li key={c.id} id={`c${c.id}`} className={`chat-msg${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
@@ -307,6 +303,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
         </ul>
         <div ref={endRef} />
         <form className="chat-form" onSubmit={submit}>
+          <span className={`live-dot${live ? " on" : ""}`} title={live ? "실시간 연결됨" : "연결 중…"} />
           {!savedNick && (
             <input ref={nickRef} className="input" placeholder="닉네임" value={form.nickname} maxLength={20} required aria-label="닉네임"
               onChange={(e) => setForm({ ...form, nickname: e.target.value })} />

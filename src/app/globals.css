@@ -999,3 +999,5 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .chat-hits { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
 .chat-hits ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
 .chat-hits a { color: inherit; text-decoration: none; }
+.chat-topic { margin: 0 0 8px; padding: 8px 12px; border-radius: 10px; background: var(--gold-bg); color: var(--gold); font-weight: 600; }
+.chat-form .live-dot { justify-self: start; }

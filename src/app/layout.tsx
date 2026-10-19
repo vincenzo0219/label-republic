@@ -57,6 +57,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <form action="/search" method="get" role="search" aria-label="사이트 검색" className="header-search">
               <input type="search" name="q" placeholder="글·방·제품 검색" aria-label="검색어" maxLength={100} />
             </form>
+            <Link href="/chat" className="report-link" aria-label="전체 수다방">
+              💬
+            </Link>
             <ReportLink />
             <Link href="/write" className="btn btn-primary">
               글쓰기
