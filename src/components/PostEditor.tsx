@@ -1,6 +1,6 @@
 "use client";
 
-import { HEADS, headOf, withHead } from "@/lib/heads";
+import { HEAD_HINTS, HEADS, headOf, withHead } from "@/lib/heads";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
@@ -472,9 +472,10 @@ export function PostEditor(props: Props) {
           onChange={(e) => setTitle(e.target.value)} />
         <textarea className="textarea" value={body} maxLength={20000} required
           placeholder={
-            postType === "info"
+            (postType !== "info" && HEAD_HINTS[headOf(title) ?? "질문"]) ||
+            (postType === "info"
               ? "성분표, 함량, 측정값 등 사실 위주로 적어주세요.\n출처(라벨 사진 설명, 제조사 스펙 링크)를 남기면 신뢰도가 올라갑니다.\n'치료', '효능 보장' 같은 단정 표현은 피해주세요."
-              : "질문·경험·추천·사진 무엇이든 편하게 적어주세요.\n전화번호·주소 같은 개인 연락처는 적지 말아 주세요."
+              : "질문·경험·추천·사진 무엇이든 편하게 적어주세요.\n전화번호·주소 같은 개인 연락처는 적지 말아 주세요.")
           }
           onChange={(e) => setBody(e.target.value)} />
         <span className="hint">{body.length.toLocaleString()} / 20,000</span>

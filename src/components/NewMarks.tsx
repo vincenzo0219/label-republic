@@ -75,3 +75,41 @@ export function TabNewCount({ slug }: { slug: string }) {
     </span>
   );
 }
+
+// ---------------------------------------------------------------------------
+// 방 안 말머리·정보·정모 옆 숫자 (Sprint 93) — 지난번 이후 새 글, 처음 온 방이면 최근 7일
+// ---------------------------------------------------------------------------
+let filter: Record<string, number> = {};
+const filterListeners = new Set<() => void>();
+const subscribeFilter = (fn: () => void) => {
+  filterListeners.add(fn);
+  return () => filterListeners.delete(fn);
+};
+
+export function FilterCountsLoader({ room }: { room: string }) {
+  useEffect(() => {
+    const since = seenBefore(room);
+    const ctrl = new AbortController();
+    const q = new URLSearchParams({ slug: room, ...(since ? { since: String(since) } : {}) });
+    fetch(`/api/rooms/filter-counts?${q}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { counts?: Record<string, number> } | null) => {
+        if (!d?.counts) return;
+        filter = d.counts;
+        filterListeners.forEach((l) => l());
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [room]);
+  return null;
+}
+
+export function FilterCount({ k }: { k: string }) {
+  const n = useSyncExternalStore(subscribeFilter, () => filter[k] ?? 0, () => 0);
+  if (!n) return null;
+  return (
+    <span className="tab-count" aria-label={`새 글 ${n}개`}>
+      {n > 98 ? "99+" : n}
+    </span>
+  );
+}
