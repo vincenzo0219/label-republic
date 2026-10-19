@@ -908,6 +908,9 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .quick-brag .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .quick-brag.done p { margin: 0 0 4px; }
 .quick-brag-push { display: flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); }
+.daily-cta { display: grid; margin-top: 16px; }
+.daily-cta:empty { display: none; }
+.daily-cta .btn { width: 100%; padding: 12px; font-weight: 700; border: 2px solid var(--brand); }
 .come-back { display: grid; gap: 8px; margin: 12px 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .come-back p { margin: 0; }
 .come-back .debate-vote { margin: 0; padding: 0; border: 0; background: none; }
