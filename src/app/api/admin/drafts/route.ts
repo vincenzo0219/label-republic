@@ -18,6 +18,8 @@ const schema = z.discriminatedUnion("action", [
     extra: z.string().trim().max(2000).optional(),
     note: z.string().trim().max(1000).optional(),
     imageUrl: z.string().trim().max(500).optional(),
+    /** 글 초안을 📋 정보 탭에 올릴 때 */
+    postType: z.enum(["chat", "info"]).optional(),
   }),
   z.object({
     action: z.literal("approve"),
