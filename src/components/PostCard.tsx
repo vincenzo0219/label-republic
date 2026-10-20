@@ -14,14 +14,18 @@ export function PostCard({
   terms,
   showCategory = true,
   seenRoom,
+  inHead,
 }: {
   post: PostCardData;
   terms?: string[];
   showCategory?: boolean;
   /** 방·홈 목록에서만: 지난번 이후 새 글이면 NEW (Sprint 41) */
   seenRoom?: string;
+  /** 말머리 탭(자랑·질문…) 안: 탭 이름과 겹치는 "[자랑]"·"잡담" 표시는 뺀다 */
+  inHead?: boolean;
 }) {
   const net = post.upvotes - post.downvotes;
+  const title = inHead ? post.title.replace(/^\[[^\]]{2}\]\s*/, "") : post.title;
   return (
     <Link href={`/posts/${post.id}`} className="card">
       <article>
@@ -29,7 +33,7 @@ export function PostCard({
           {seenRoom && <NewBadge room={seenRoom} createdAt={post.created_at} />}
           {showCategory && <span className="badge badge-cat">{post.category.name}</span>}
           <TrustBadge tier={post.trust_tier} />
-          {post.post_type === "chat" && <span className="badge badge-type">💬 잡담</span>}
+          {post.post_type === "chat" && !inHead && <span className="badge badge-type">💬 잡담</span>}
           {post.meetup && <MeetupBadge meetup={post.meetup} />}
           {post.source_kinds.includes("paper") ? (
             <span className="badge badge-src badge-src-paper">🎓 논문 출처</span>
@@ -45,7 +49,7 @@ export function PostCard({
         </div>
         <div className={post.thumb_id ? "card-head has-thumb" : "card-head"}>
           <h2 className="card-title">
-            <Highlight text={post.title} terms={terms} />
+            <Highlight text={title} terms={terms} />
           </h2>
           {post.thumb_id && (
             // eslint-disable-next-line @next/next/no-img-element

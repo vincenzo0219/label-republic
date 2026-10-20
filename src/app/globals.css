@@ -1025,3 +1025,5 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .rank-no { font-weight: 800; color: var(--muted); }
 .rank-label { font-weight: 600; }
 .brag-next { display: grid; gap: 6px; margin-top: 8px; font-size: 14px; }
+/* 방 탭에서 바로 그 탭 글쓰기 */
+.tab-write { display: block; width: 100%; text-align: center; margin: 4px 0 10px; }

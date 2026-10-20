@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { PostEditor } from "@/components/PostEditor";
 import { labelReadEnabled } from "@/lib/label-read";
+import { parseHead } from "@/lib/heads";
+import type { PostType } from "@/lib/types";
 import { findTemplate } from "@/lib/onboarding";
 import { listCategories } from "@/lib/repo/categories";
 import { getProduct } from "@/lib/repo/products";
@@ -8,7 +10,7 @@ import { getProduct } from "@/lib/repo/products";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "글쓰기", robots: { index: false } };
 
-export default async function WritePage({ searchParams }: { searchParams: Promise<{ category?: string; product?: string; template?: string }> }) {
+export default async function WritePage({ searchParams }: { searchParams: Promise<{ category?: string; product?: string; template?: string; head?: string; type?: string }> }) {
   const [categories, sp] = await Promise.all([listCategories(), searchParams]);
   // 제품 페이지의 "이 제품 글쓰기" — 그 제품을 미리 태그하고 방도 맞춘다
   const found = sp.product ? await getProduct(sp.product) : null;
@@ -16,6 +18,10 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
   const initialCategory = product?.category.slug ?? sp.category;
   // 방 안내에서 고른 글쓰기 틀 (Sprint 32)
   const template = findTemplate(sp.template);
+  // 방의 탭(자랑·질문… / 정보·정모)에서 누른 글쓰기 — 그 탭으로 미리 맞춘다
+  const head = parseHead(sp.head);
+  const tabType: PostType | undefined = head ? "chat" : sp.type === "info" || sp.type === "meetup" ? sp.type : undefined;
+  const tab = tabType && { title: head ? `[${head}] ` : "", body: "", postType: tabType };
   return (
     <>
       <h1 style={{ fontSize: 20, margin: "4px 0 12px" }}>글쓰기</h1>
@@ -50,7 +56,7 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
         categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
         initialCategory={categories.some((c) => c.slug === initialCategory) ? initialCategory : undefined}
         initialProduct={product ? { id: product.id, brand: product.brand, name: product.name } : undefined}
-        initialTemplate={template ? { title: template.title, body: template.body, postType: template.postType } : undefined}
+        initialTemplate={template ? { title: template.title, body: template.body, postType: template.postType } : tab}
       />
     </>
   );
