@@ -10,6 +10,7 @@ import type { Comment } from "@/lib/types";
 import { abuseLabel } from "@/lib/abuse-labels";
 import { imageUrl, thumbUrl } from "@/lib/media-url";
 import { shrinkIfNeeded, upload } from "./ImagePicker";
+import { myNick, myPin, saveNick, withMyPin } from "@/lib/me";
 import { EAR_BRAG_POST_ID, earBragLine } from "@/lib/earTest";
 import { HEARING_BRAG_POST_ID, hearingBragLine } from "@/lib/hearingTest";
 
@@ -97,18 +98,9 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
   const photoReady = photo?.status === "done";
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!chat) return;
-    try {
-      let pin = window.localStorage.getItem("lr:chatPin");
-      if (!pin || !/^\d{4}$/.test(pin)) {
-        pin = String(Math.floor(1000 + Math.random() * 9000));
-        window.localStorage.setItem("lr:chatPin", pin);
-      }
-      setForm((f) => ({ ...f, pw: pin! }));
-    } catch {
-      setForm((f) => ({ ...f, pw: String(Math.floor(1000 + Math.random() * 9000)) }));
-    }
-  }, [chat]);
+    // 비밀번호는 이 브라우저가 알아서 (Sprint 96) — 채팅·댓글 모두
+    setForm((f) => ({ ...f, pw: myPin() }));
+  }, []);
   useEffect(() => {
     // 검색 결과(#c번호)로 왔으면 그 말을 보여 주고, 아니면 맨 아래 최신 대화로
     if (chat && !/^#c\d/.test(window.location.hash)) endRef.current?.scrollIntoView({ block: "end" });
@@ -126,7 +118,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem("lr:nickname");
+      const saved = myNick();
       if (saved) {
         setForm((f) => ({ ...f, nickname: saved }));
         setSavedNick(true);
@@ -252,7 +244,8 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
       setPhoto(null);
       setReplyTo(null);
       try {
-        window.localStorage.setItem("lr:nickname", form.nickname);
+        saveNick(form.nickname);
+        setSavedNick(true);
       } catch {}
       // 댓글을 단 글은 자동으로 소식 받기 + 이 댓글에 답글·멘션이 오면 알림
       watchPost(postId);
@@ -266,10 +259,9 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
   }
 
   async function remove(id: string) {
-    const pw = window.prompt("댓글 비밀번호 4자리");
-    if (pw === null) return;
     try {
-      await api(`/api/comments/${id}`, "DELETE", { pw });
+      const done = await withMyPin((pw) => api(`/api/comments/${id}`, "DELETE", { pw }), "댓글 비밀번호 4자리");
+      if (done === null) return;
       setComments((list) => dropComment(list, id));
       if (replyTo?.id === id) setReplyTo(null);
     } catch (err) {
@@ -402,12 +394,11 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
       ))}
 
       <form id="write" className="form" onSubmit={submit} style={{ marginTop: 16 }}>
-        <div className="row">
-          <input ref={nickRef} className="input" placeholder="닉네임" value={form.nickname} maxLength={20} required
+        {/* 닉네임은 처음 한 번만, 비밀번호는 자동 (Sprint 96) */}
+        {!savedNick && (
+          <input ref={nickRef} className="input" placeholder="닉네임 (처음 한 번만)" value={form.nickname} maxLength={20} required
             onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
-          <input className="input" placeholder="비번 4자리" inputMode="numeric" pattern="\d{4}" maxLength={4} required
-            value={form.pw} onChange={(e) => setForm({ ...form, pw: e.target.value.replace(/\D/g, "") })} />
-        </div>
+        )}
         {replyTo && (
           <div className="reply-banner" role="status">
             ↳ <b>{replyTo.nickname}</b>님에게 답글

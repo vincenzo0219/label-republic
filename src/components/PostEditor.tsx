@@ -1,5 +1,6 @@
 "use client";
 
+import { myNick, myPin, saveNick } from "@/lib/me";
 import { HEAD_HINTS, HEADS, headOf, withHead, type Head } from "@/lib/heads";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -152,6 +153,7 @@ export function PostEditor(props: Props) {
   const fullTitle = !editing && head ? `[${head}] ${title.trim()}` : title;
   const [body, setBody] = useState(editing ? props.initial.body : (template?.body ?? ""));
   const [nickname, setNickname] = useState("");
+  const [known, setKnown] = useState(false);
   const [pw, setPw] = useState("");
   const [summary, setSummary] = useState<Lines | null>(editing ? props.initial.summary : null);
   const [token, setToken] = useState<string | undefined>();
@@ -188,11 +190,17 @@ export function PostEditor(props: Props) {
   }, [category]);
 
   useEffect(() => {
-    if (editing) return;
-    try {
-      const saved = window.localStorage.getItem("lr:nickname");
-      if (saved) setNickname(saved);
-    } catch {}
+    if (editing) {
+      setPw(myPin()); // 이 브라우저에서 쓴 글이면 그대로 맞는다
+      return;
+    }
+    // 닉네임은 처음 한 번만, 비밀번호는 이 브라우저가 알아서 (Sprint 96)
+    const saved = myNick();
+    if (saved) {
+      setNickname(saved);
+      setKnown(true);
+    }
+    setPw(myPin());
   }, [editing]);
 
   // 새 글: 이전에 쓰던 글이 있으면 불러올지 묻는다
@@ -369,9 +377,7 @@ export function PostEditor(props: Props) {
         pending.current = undefined;
         posted.current = true;
         writeDraft(null);
-        try {
-          window.localStorage.setItem("lr:nickname", nickname);
-        } catch {}
+        saveNick(nickname);
         // 내가 쓴 글은 자동으로 소식 받기 (댓글·정정 제안이 달리면 📬 에 표시)
         watchPost(post.id);
         router.push(`/posts/${post.id}`);
@@ -572,14 +578,18 @@ export function PostEditor(props: Props) {
       </div>
       )}
 
-      <div className="row">
-        {!editing && (
-          <input className="input" placeholder="닉네임" value={nickname} maxLength={20} required onChange={(e) => setNickname(e.target.value)} />
-        )}
+      {!editing && (known ? (
+        <p className="as-me">
+          ✍️ <b>{nickname}</b>
+          <button type="button" className="linkish" onClick={() => setKnown(false)}>바꾸기</button>
+        </p>
+      ) : (
+        <input className="input" placeholder="닉네임 (처음 한 번만)" value={nickname} maxLength={20} required onChange={(e) => setNickname(e.target.value)} />
+      ))}
+      {editing && (
         <input className="input" placeholder="비번 4자리" inputMode="numeric" pattern="\d{4}" maxLength={4} required value={pw}
-          style={editing ? { gridColumn: "1 / -1" } : undefined}
           onChange={(e) => setPw(e.target.value.replace(/\D/g, ""))} />
-      </div>
+      )}
 
       {error && <p className="error">{error}</p>}
       <div className="sticky-submit">
