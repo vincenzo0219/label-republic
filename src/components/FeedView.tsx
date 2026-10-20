@@ -170,9 +170,12 @@ export async function FeedView({
                     : "아직 글이 없어요. 첫 글을 남기거나, 이야기하고 싶은 주제의 방을 만들어 보세요."}
           </p>
           <div className="empty-actions">
-            <Link className="btn btn-primary btn-sm" href={category ? writeHref : "/write"}>
-              {writeLabel}
-            </Link>
+            {/* 방에서는 탭 아래 글쓰기 버튼이 이미 있다 */}
+            {!category && (
+              <Link className="btn btn-primary btn-sm" href="/write">
+                ✍️ 글쓰기
+              </Link>
+            )}
             {!category && (
               <Link className="btn btn-sm" href="/boards">
                 🏠 방 만들기

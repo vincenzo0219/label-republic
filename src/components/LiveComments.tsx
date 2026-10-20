@@ -130,6 +130,9 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
       if (saved) {
         setForm((f) => ({ ...f, nickname: saved }));
         setSavedNick(true);
+      } else if (chat) {
+        // 채팅은 닉네임 칸 없이 바로 말하게 — 임시 닉네임을 붙이고 작게 바꿀 수 있게만 둔다
+        setForm((f) => (f.nickname ? f : { ...f, nickname: `덕후${Math.floor(1000 + Math.random() * 9000)}` }));
       }
     } catch {}
   }, []);
@@ -333,8 +336,11 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
         <form className="chat-form" onSubmit={submit}>
           <span className={`live-dot${live ? " on" : ""}`} title={live ? "실시간 연결됨" : "연결 중…"} />
           {!savedNick && (
-            <input ref={nickRef} className="input" placeholder="닉네임" value={form.nickname} maxLength={20} required aria-label="닉네임"
-              onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
+            <label className="chat-nick">
+              닉네임
+              <input ref={nickRef} value={form.nickname} maxLength={20} required aria-label="닉네임"
+                onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
+            </label>
           )}
           <PhotoPreview photo={photo} onClear={() => setPhoto(null)} />
           <div className="row chat-row">

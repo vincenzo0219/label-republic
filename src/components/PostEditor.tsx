@@ -1,6 +1,6 @@
 "use client";
 
-import { HEAD_HINTS, HEADS, headOf, withHead } from "@/lib/heads";
+import { HEAD_HINTS, HEADS, headOf, withHead, type Head } from "@/lib/heads";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
@@ -14,11 +14,18 @@ import type { PostFact, PostProductDates, ProductTag } from "@/lib/types";
 type Lines = [string, string, string];
 type PostType = "info" | "chat" | "meetup";
 
-const TYPE_OPTIONS: { value: PostType; label: string; hint: string }[] = [
-  { value: "info", label: "📋 정보", hint: "성분·스펙·측정값 등 사실 정보. 신뢰도 배지 대상" },
-  { value: "chat", label: "💬 잡담", hint: "자유 이야기. 신뢰도 배지 없음, 신뢰도순에서 아래쪽 노출" },
-  { value: "meetup", label: "📅 정모 제안", hint: "오프라인 모임. 참가자가 확정 인원을 채우면 자동 확정" },
+/** 글 종류 한 줄: 말머리(자랑·후기…)와 정보·정모를 한곳에서 고른다. 안 고르면 그냥 잡담 */
+const KINDS: { key: Head | "info" | "meetup"; label: string }[] = [
+  ...HEADS.map((h) => ({ key: h.key, label: h.label })),
+  { key: "info", label: "📋 정보" },
+  { key: "meetup", label: "📅 정모" },
 ];
+
+/** "[자랑] 제목" → 말머리와 제목으로 나눈다 */
+function splitHead(t: string): { head?: Head; bare: string } {
+  const head = headOf(t);
+  return { head, bare: head ? withHead(t, head) : t };
+}
 
 /** datetime-local 기본값: 한국 시간 기준 내일 저녁 7시 */
 function defaultMeetAt() {
@@ -134,12 +141,15 @@ export function PostEditor(props: Props) {
   const editing = props.mode === "edit";
   const [category, setCategory] = useState(props.mode === "create" ? props.initialCategory ?? "" : "");
   const template = props.mode === "create" ? props.initialTemplate : undefined;
-  const [postType, setPostType] = useState<PostType | "">(template?.postType ?? "");
+  const [postType, setPostType] = useState<PostType | "">(template?.postType ?? "chat");
+  const [head, setHead] = useState<Head | undefined>(() => (editing ? undefined : splitHead(template?.title ?? "").head));
   const [meetAt, setMeetAt] = useState(defaultMeetAt);
   const [location, setLocation] = useState("");
   const [minParticipants, setMinParticipants] = useState(4);
   const [capacity, setCapacity] = useState(8);
-  const [title, setTitle] = useState(editing ? props.initial.title : (template?.title ?? ""));
+  const [title, setTitle] = useState(editing ? props.initial.title : splitHead(template?.title ?? "").bare);
+  // 말머리는 제목 칸에 따로 쓰지 않고 등록할 때 붙인다
+  const fullTitle = !editing && head ? `[${head}] ${title.trim()}` : title;
   const [body, setBody] = useState(editing ? props.initial.body : (template?.body ?? ""));
   const [nickname, setNickname] = useState("");
   const [pw, setPw] = useState("");
@@ -196,7 +206,7 @@ export function PostEditor(props: Props) {
   const buildDraft = (): Draft => {
     const index = new Map(tagged.products.map((p, i) => [p.key, i]));
     return {
-      v: 1, savedAt: Date.now(), category, postType, title, body, meetAt, location, minParticipants, capacity,
+      v: 1, savedAt: Date.now(), category, postType, title: fullTitle, body, meetAt, location, minParticipants, capacity,
       sources: sources.filter((x) => x.url.trim()).map((x) => ({ url: x.url, label: x.label })),
       products: tagged.products.map((p) => ({ id: p.id, brand: p.brand, name: p.name })),
       facts: tagged.facts.flatMap(({ key: _k, product, ...f }) => (index.has(product) ? [{ ...f, product: index.get(product)! }] : [])),
@@ -214,13 +224,15 @@ export function PostEditor(props: Props) {
     }, 1000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- buildDraft 는 아래 값들로만 만들어진다
-  }, [editing, draftReady, category, postType, title, body, meetAt, location, minParticipants, capacity, sources, tagged]);
+  }, [editing, draftReady, category, postType, head, title, body, meetAt, location, minParticipants, capacity, sources, tagged]);
 
   function restoreDraft(d: Draft) {
     prevCategory.current = d.category; // 불러온 제품 태그가 방 변경 처리로 지워지지 않게
     setCategory(d.category);
     setPostType(d.postType);
-    setTitle(d.title);
+    const t = splitHead(d.title);
+    setHead(t.head);
+    setTitle(t.bare);
     setBody(d.body);
     setMeetAt(d.meetAt);
     setLocation(d.location);
@@ -301,10 +313,6 @@ export function PostEditor(props: Props) {
       setError("방을 선택해주세요.");
       return;
     }
-    if (!editing && !postType) {
-      setError("글 유형(정보·잡담·정모 제안)을 골라주세요.");
-      return;
-    }
     if (!editing && needsSummary && !summary) {
       // 등록 전 반드시 AI 요약을 검수하도록 먼저 미리보기를 만든다.
       await generate();
@@ -344,7 +352,7 @@ export function PostEditor(props: Props) {
     try {
       if (props.mode === "create") {
         const payload = {
-          category, postType, nickname, pw, title, body,
+          category, postType: postType || "chat", nickname, pw, title: fullTitle, body,
           ...(needsSummary && summary ? { summary, summaryToken: token } : {}),
           ...(imageRefs.length ? { images: imageRefs } : {}),
           ...(sourceRefs.length ? { sources: sourceRefs } : {}),
@@ -405,7 +413,8 @@ export function PostEditor(props: Props) {
         </div>
       )}
       {props.mode === "create" ? (
-        <div className="field">
+        // 방에서 글쓰기로 왔으면 방은 이미 정해졌다 — 다시 묻지 않는다
+        !props.initialCategory && <div className="field">
           <div className="steps"><b>1</b> 방 선택</div>
           <div className="chips" role="radiogroup" aria-label="방">
             {props.categories.map((c) => (
@@ -417,20 +426,6 @@ export function PostEditor(props: Props) {
         </div>
       ) : (
         <p className="hint">방: {props.categoryName}</p>
-      )}
-
-      {!editing && (
-        <div className="field">
-          <div className="steps"><b>1-2</b> 글 유형 (필수)</div>
-          <div className="chips" role="radiogroup" aria-label="글 유형">
-            {TYPE_OPTIONS.map((t) => (
-              <button type="button" key={t.value} className="chip" aria-pressed={postType === t.value} onClick={() => setPostType(t.value)}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-          {postType && <span className="hint">{TYPE_OPTIONS.find((t) => t.value === postType)!.hint}</span>}
-        </div>
       )}
 
       {!editing && postType === "meetup" && (
@@ -458,31 +453,40 @@ export function PostEditor(props: Props) {
       )}
 
       <div className="field">
-        <div className="steps"><b>2</b> 본문 작성</div>
         {!editing && (
-          <div className="chips" aria-label="말머리">
-            {HEADS.map((h) => (
-              <button type="button" key={h.key} className="chip" aria-pressed={headOf(title) === h.key} onClick={() => setTitle((t) => withHead(t, h.key))}>
-                {h.label}
-              </button>
-            ))}
+          <div className="chips" aria-label="글 종류">
+            {KINDS.map((k) => {
+              const on = k.key === "info" || k.key === "meetup" ? postType === k.key : head === k.key;
+              return (
+                <button type="button" key={k.key} className="chip" aria-pressed={on}
+                  onClick={() => {
+                    if (k.key === "info" || k.key === "meetup") {
+                      setHead(undefined);
+                      setPostType(on ? "chat" : k.key);
+                    } else {
+                      setHead(on ? undefined : k.key);
+                      setPostType("chat");
+                    }
+                  }}>
+                  {k.label}
+                </button>
+              );
+            })}
           </div>
         )}
         <input className="input" placeholder={postType === "info" ? "제목 (예: 마그네슘 비스글리시네이트 3종 원소 함량 비교)" : "제목 (예: 다들 입문 키보드 뭐였어요?)"} value={title} maxLength={120} required
           onChange={(e) => setTitle(e.target.value)} />
         <textarea className="textarea" value={body} maxLength={20000} required
           placeholder={
-            (postType !== "info" && HEAD_HINTS[headOf(title) ?? "자랑"]) ||
+            (postType !== "info" && head && HEAD_HINTS[head]) ||
             (postType === "info"
               ? "성분표, 함량, 측정값 등 사실 위주로 적어주세요.\n출처(라벨 사진 설명, 제조사 스펙 링크)를 남기면 신뢰도가 올라갑니다.\n'치료', '효능 보장' 같은 단정 표현은 피해주세요."
               : "질문·경험·추천·사진 무엇이든 편하게 적어주세요.\n전화번호·주소 같은 개인 연락처는 적지 말아 주세요.")
           }
           onChange={(e) => setBody(e.target.value)} />
-        <span className="hint">{body.length.toLocaleString()} / 20,000</span>
       </div>
 
       <div className="field">
-        <div className="steps"><b>2-2</b> 사진 (선택)</div>
         <ImagePicker value={images} onChange={setImages} onReadLabel={props.labelRead ? readLabel : undefined} readingKey={reading} />
         {props.labelRead && images.some((i) => i.token) && !labelRead && (
           <span className="hint">🔍 성분표·스펙표 사진이면 &ldquo;라벨 읽기&rdquo;로 제품과 수치를 채울 수 있어요. 사진은 판독을 위해 Anthropic(Claude)으로 보내져요.</span>
@@ -576,7 +580,6 @@ export function PostEditor(props: Props) {
           style={editing ? { gridColumn: "1 / -1" } : undefined}
           onChange={(e) => setPw(e.target.value.replace(/\D/g, ""))} />
       </div>
-      <p className="hint">회원가입 없이 닉네임만으로 작성합니다. 비밀번호는 수정·삭제할 때 필요해요.</p>
 
       {error && <p className="error">{error}</p>}
       <div className="sticky-submit">
