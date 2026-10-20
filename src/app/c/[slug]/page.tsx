@@ -7,6 +7,7 @@ import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { RoomPoll } from "@/components/RoomPoll";
 import { ROOM_POLLS } from "@/lib/roomPolls";
 import { parseHead } from "@/lib/heads";
+import { RoomMemory } from "@/components/RoomMemory";
 import { listComments } from "@/lib/repo/comments";
 import { ensureRoomChat } from "@/lib/repo/roomChat";
 import { DEBATE_ROOM_SLUG } from "@/lib/debate";
@@ -67,6 +68,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const chatProps = chat ? { postId: chat.postId, initial: await listComments(chat.postId) } : undefined;
   return (
     <>
+      <RoomMemory slug={category.slug} />
       {links.length > 0 && <nav className="room-links" aria-label="바로가기">
         {links.map((l) =>
           l.href.endsWith(".md") ? (
