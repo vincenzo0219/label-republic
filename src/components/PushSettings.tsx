@@ -92,8 +92,7 @@ export function PushSettings() {
       {(status === "off" || status === "on") && (
         <>
           <p className="hint" style={{ marginTop: 0 }}>
-            관심 제품의 새 글, 지켜보는 글의 댓글·정정 제안·수정, 내 댓글에 온 답글·멘션을 휴대폰 알림으로 받아요 (한 시간에 한 번까지 묶어서). 켜면 이 브라우저의
-            알림 주소와 관심 제품·글·내 댓글 번호만 서버에 저장되고, 끄면 바로 지워집니다. 90일 동안 이 브라우저로 사이트에 오지 않으면 자동으로 지워져요.
+            답글·새 소식을 휴대폰 알림으로 받아요.
           </p>
           {status === "off" ? (
             <button type="button" className="btn btn-sm" disabled={busy} onClick={enable}>

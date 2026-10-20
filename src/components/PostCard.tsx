@@ -33,7 +33,7 @@ export function PostCard({
           {seenRoom && <NewBadge room={seenRoom} createdAt={post.created_at} />}
           {showCategory && <span className="badge badge-cat">{post.category.name}</span>}
           <TrustBadge tier={post.trust_tier} />
-          {post.post_type === "chat" && !inHead && <span className="badge badge-type">💬 잡담</span>}
+          {post.post_type === "chat" && showCategory && <span className="badge badge-type">💬 잡담</span>}
           {post.meetup && <MeetupBadge meetup={post.meetup} />}
           {post.source_kinds.includes("paper") ? (
             <span className="badge badge-src badge-src-paper">🎓 논문 출처</span>

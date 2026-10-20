@@ -158,7 +158,8 @@ async function cachedCount(sql: string, args: unknown[]): Promise<number> {
 export async function listPosts(
   params: ListParams,
 ): Promise<{ items: PostCard[]; total: number; totalCapped: boolean; tooShort?: boolean; page: number; pageSize: number }> {
-  const where: string[] = ["NOT p.is_blinded"];
+  // 방 수다방 글은 "자유채팅" 탭에서만 — 글 목록에는 섞지 않는다
+  const where: string[] = ["NOT p.is_blinded", "(p.seed_key IS NULL OR p.seed_key NOT LIKE 'roomchat:%')"];
   const args: unknown[] = [];
   if (params.categoryId) {
     args.push(params.categoryId);
