@@ -64,7 +64,7 @@ export default async function BooksPage() {
         </ul>
       )}
       <Link href={`/c/${encodeURIComponent(BOOK_ROOM_SLUG)}`} className="ear-cta">
-        💬 책 이야기는 &ldquo;읽는 책 제목을 교환해 보자&rdquo; 방에서 →
+        💬 책 이야기는 책 덕후방에서 →
       </Link>
     </section>
   );
