@@ -7,6 +7,8 @@ import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { RoomPoll } from "@/components/RoomPoll";
 import { ROOM_POLLS } from "@/lib/roomPolls";
 import { parseHead } from "@/lib/heads";
+import { listComments } from "@/lib/repo/comments";
+import { ensureRoomChat } from "@/lib/repo/roomChat";
 import { DEBATE_ROOM_SLUG } from "@/lib/debate";
 import { getCategoryBySlug as getCategoryUncached } from "@/lib/repo/categories";
 import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
@@ -59,10 +61,13 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) notFound();
   const sp = await searchParams;
-  const links = [{ href: `/c/${encodeURIComponent(category.slug)}/chat`, label: "💬 수다방" }, ...(ROOM_LINKS[category.slug] ?? [])];
+  // 💬 수다방은 방 탭의 "자유채팅"으로 옮김
+  const links = ROOM_LINKS[category.slug] ?? [];
+  const chat = sp.tab === "chat" ? await ensureRoomChat(category.slug) : null;
+  const chatProps = chat ? { postId: chat.postId, initial: await listComments(chat.postId) } : undefined;
   return (
     <>
-      <nav className="room-links" aria-label="바로가기">
+      {links.length > 0 && <nav className="room-links" aria-label="바로가기">
         {links.map((l) =>
           l.href.endsWith(".md") ? (
             <a key={l.href} href={l.href} className="chip">
@@ -74,9 +79,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             </Link>
           ),
         )}
-      </nav>
+      </nav>}
       {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
-      <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={parseHead(sp.head)} sourced={sp.sourced === "1"} />
+      <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={parseHead(sp.head)} sourced={sp.sourced === "1"} chat={chatProps} />
     </>
   );
 }
