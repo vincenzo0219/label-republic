@@ -69,7 +69,9 @@ export async function filterCounts(slug: string, since: Date, heads: readonly st
         ORDER BY p.created_at DESC LIMIT 500)
      SELECT h AS k, count(*) FILTER (WHERE r.title LIKE '[' || h || ']%')::int AS n FROM unnest($3::text[]) h CROSS JOIN recent r GROUP BY h
      UNION ALL SELECT 'info', count(*) FILTER (WHERE post_type = 'info')::int FROM recent
-     UNION ALL SELECT 'meetup', count(*) FILTER (WHERE post_type = 'meetup')::int FROM recent`,
+     UNION ALL SELECT 'meetup', count(*) FILTER (WHERE post_type = 'meetup')::int FROM recent
+     UNION ALL SELECT 'chat', count(*)::int FROM comments cm JOIN posts p ON p.id = cm.post_id
+       WHERE p.seed_key = 'roomchat:' || $1 AND cm.created_at > $2 AND cm.ai_hidden_at IS NULL`,
     [slug, since.toISOString(), heads],
   );
   return Object.fromEntries(rows.filter((r) => r.n > 0).map((r) => [r.k, Math.min(r.n, 99)]));

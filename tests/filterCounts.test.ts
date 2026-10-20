@@ -30,7 +30,10 @@ d("room filter counts (Sprint 93)", async () => {
     await add("성분 비교", "info", "1 hour");
     await add("[행사] 오래된 글", "chat", "3 days");
     const keys = HEADS.map((h) => h.key);
-    expect(await filterCounts("dogs", new Date(Date.now() - 86_400_000), keys)).toEqual({ 행사: 2, 자랑: 1, info: 1 });
+    // 자유채팅(방 수다방) 새 말도 센다
+    const [chat] = await query<{ id: string }>("INSERT INTO posts (category_id, nickname, pw_hash, title, body, post_type, seed_key) VALUES ($1, 'n', 'x', '💬 수다방', 'b', 'chat', 'roomchat:dogs') RETURNING id", [cat!.id]);
+    await query("INSERT INTO comments (post_id, nickname, pw_hash, body) VALUES ($1, 'a', 'x', '안녕')", [chat!.id]);
+    expect(await filterCounts("dogs", new Date(Date.now() - 86_400_000), keys)).toEqual({ 행사: 2, 자랑: 1, info: 1, chat: 1 });
     expect(await filterCounts("dogs", new Date(), keys)).toEqual({});
     expect(await filterCounts("none", new Date(0), keys)).toEqual({});
   });
