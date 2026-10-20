@@ -46,6 +46,14 @@ d("operator drafts — 승인 대기함 (Sprint 51)", async () => {
     expect(list.map((r) => r.status).sort()).toEqual(["copied", "discarded", "posted", "posted"]);
   });
 
+  it("posts an info draft into the 정보 tab", async () => {
+    const draft = await drafts.createDraft({ kind: "post", categorySlug: "perfume-audio", pin: "8023", title: "정보 초안", body: "코덱 이름만 보고 음질을 단정하기 어려운 이유를 정리했어요.", postType: "info" });
+    const done = await drafts.approveDraft(draft.id);
+    made.push(done.result_post_id!);
+    const [post] = await query<{ post_type: string }>("SELECT post_type FROM posts WHERE id = $1", [done.result_post_id]);
+    expect(post!.post_type).toBe("info");
+  });
+
   it("refuses operator drafts without the 4-digit pin", async () => {
     await expect(drafts.createDraft({ kind: "post", categorySlug: "perfume-audio", title: "t", body: "본문" })).rejects.toMatchObject({ status: 400 });
     await expect(drafts.createDraft({ kind: "comment", pin: "8023", body: "본문" })).rejects.toMatchObject({ status: 400 });

@@ -58,6 +58,8 @@ export type NewDraft = {
   body: string;
   extra?: string;
   note?: string;
+  /** kind "post" 만: 정보 글로 올리기 (extra 에 "info" 로 남긴다 — 글 초안은 extra 를 안 쓴다) */
+  postType?: "chat" | "info";
   /** 인스타 이미지 — https 주소 또는 사이트 안 경로(/marketing/...) */
   imageUrl?: string;
 };
@@ -84,7 +86,7 @@ export async function createDraft(input: NewDraft): Promise<Draft> {
       needsPin ? input.pin : null,
       input.title ?? "",
       input.body,
-      input.extra ?? "",
+      input.kind === "post" ? (input.postType === "info" ? "info" : "") : (input.extra ?? ""),
       input.note ?? "",
       image,
     ],
@@ -143,7 +145,7 @@ export async function approveDraft(id: string, edit: { title?: string; body?: st
   let status: DraftStatus = "posted";
   try {
     if (d.kind === "post") {
-      const post = await createPost({ categorySlug: d.category_slug!, nickname: d.nickname, pin: d.pin!, title, body, summary: null, postType: "chat" });
+      const post = await createPost({ categorySlug: d.category_slug!, nickname: d.nickname, pin: d.pin!, title, body, summary: null, postType: d.extra === "info" ? "info" : "chat" });
       postId = post.id;
     } else if (d.kind === "comment") {
       const c = await createComment(d.post_id!, { nickname: d.nickname, pin: d.pin!, body, parentId: d.parent_id ?? undefined });
