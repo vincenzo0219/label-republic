@@ -6,6 +6,20 @@ import { api, requestKeyFor } from "@/lib/client-api";
 import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { addMyComment, getPushState, watchPost } from "@/lib/watchlist";
 import { PushButton } from "./PushButton";
+import { rankHrefFor } from "@/lib/testRanks";
+
+const IG_URL = "https://www.instagram.com/nobangjang/";
+
+/** 다음 날 다시 올 이유 (Sprint 95): 어제까지 집계 · 인스타 팔로우 */
+function BragNext({ postId }: { postId: string }) {
+  const rank = rankHrefFor(postId);
+  return (
+    <div className="brag-next">
+      {rank && <Link href={rank}>📊 다른 사람들 결과 순위 · 매일 아침 업데이트 →</Link>}
+      <a href={IG_URL} target="_blank" rel="noopener">📷 인스타 @nobangjang 팔로우하고 순위 소식 받기</a>
+    </div>
+  );
+}
 
 // 결과만 보고 떠나는 사람을 다음 날 다시 부르는 알림 (Sprint 92)
 const DAILY_LABEL = "🔔 내일 오늘의 질문 알림 받기";
@@ -78,6 +92,7 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
           👀 다른 사람들 결과 보러 가기
         </Link>
         <PushButton label={DAILY_LABEL} onLabel={DAILY_ON} daily />
+        <BragNext postId={postId} />
       </div>
     );
 
@@ -105,6 +120,7 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
       <p className="hint">가입 없음 · 다른 사람들 결과와 나란히 올라가요 ·{" "}
         <Link href={`/posts/${postId}`}>먼저 구경하기</Link>
       </p>
+      <BragNext postId={postId} />
     </form>
     </>
   );

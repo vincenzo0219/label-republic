@@ -1016,3 +1016,12 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .comment-submit-row { grid-template-columns: auto 1fr; }
 .photo-preview { display: flex; align-items: center; gap: 8px; }
 .photo-preview img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; }
+/* Sprint 95: 테스트 결과 집계 */
+.rank h1 { font-size: 22px; margin: 4px 0 12px; }
+.rank-list { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
+.rank-list li { position: relative; display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; overflow: hidden; }
+.rank-list li > * { position: relative; }
+.rank-bar { position: absolute !important; inset: 0 auto 0 0; background: color-mix(in srgb, var(--brand) 14%, transparent); }
+.rank-no { font-weight: 800; color: var(--muted); }
+.rank-label { font-weight: 600; }
+.brag-next { display: grid; gap: 6px; margin-top: 8px; font-size: 14px; }
