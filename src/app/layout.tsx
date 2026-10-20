@@ -75,7 +75,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <p>
               <Link href="/boards">방 만들기</Link> · <FeedbackLink /> · <FollowLinks />
             </p>
-            <p>성분·스펙 정보는 사용자 제보이며 의학적 조언이 아닙니다.</p>
             <nav className="footer-links" aria-label="정책">
               <Link href="/policy">운영 원칙</Link>
               <Link href="/rules">커뮤니티 규칙</Link>
