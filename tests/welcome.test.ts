@@ -40,5 +40,21 @@ d("first comment welcome (Sprint 92)", async () => {
     expect(r!.body).toContain("대니님");
     expect(welcomeText({ nickname: "a", post_id: "1", chat: true })).toContain("아무 얘기");
     expect(welcomeText({ nickname: "a", post_id: "3126", chat: false })).toContain("같은 타입");
+    expect(welcomeText({ nickname: "a", post_id: "3121", chat: false }, { nickname: "1983", why: "team", label: "FC서울" })).toContain("@1983님도 FC서울 팬");
+  });
+
+  it("calls a fan of the same team on a test result post", async () => {
+    const [cat] = await query<{ id: number }>("INSERT INTO categories (slug, name, description) VALUES ('kl', 'K리그', '') RETURNING id");
+    const [post] = await query<{ id: string }>("INSERT INTO posts (id, category_id, nickname, pw_hash, title, body, post_type) VALUES (3121, $1, 'n', 'x', 't', 'b', 'chat') RETURNING id::text", [cat!.id]);
+    const add = (nick: string, fp: string, body: string, ago: string) =>
+      query<{ id: string }>(
+        `INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, created_at) VALUES ($1, $2, 'x', $3, $4, now() - $5::interval) RETURNING id::text`,
+        [post!.id, nick, body, fp, ago],
+      );
+    await add("수원삼성", "k1", "⚽ 축구 팬 테스트: 🚌 원정 직관러 / 응원 팀: 수원삼성블루윙즈", "2 days");
+    const [b] = await add("빈이", "k2", "⚽ 축구 팬 테스트: 🚌 원정 직관러 / 응원 팀: 수원삼성/타지살이", "5 minutes");
+    expect(await runWelcome(new Date())).toBe(1);
+    const [r] = await query<{ body: string }>("SELECT body FROM comments WHERE parent_id = $1", [b!.id]);
+    expect(r!.body).toContain("@수원삼성님도 수원삼성 팬");
   });
 });
