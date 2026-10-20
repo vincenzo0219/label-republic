@@ -78,11 +78,11 @@ export async function FeedView({
   return (
     <>
       <h1 className="sr-only">{category ? `${category.name} 방` : "노방장 — 방장 없는 덕후 커뮤니티"}</h1>
-      <CategoryTabs categories={categories} active={category?.slug} quiet={[...quiet]} />
+      {/* 방 안에서는 다른 방 목록을 숨긴다 — 방 이름과 홈으로 가는 길만 */}
+      {!category && <CategoryTabs categories={categories} active={undefined} quiet={[...quiet]} />}
       {category && (
         <div className="board-head">
-          {/* 방 설명은 숨김 — 안내 최소화 (Sprint 89) */}
-          <span />
+          <Link href="/" className="room-name">← {category.name}</Link>
           <div className="board-actions">
             {/* 데이터가 있을 때만 (Sprint 42) */}
             {tools?.products && (
@@ -170,9 +170,12 @@ export async function FeedView({
                     : "아직 글이 없어요. 첫 글을 남기거나, 이야기하고 싶은 주제의 방을 만들어 보세요."}
           </p>
           <div className="empty-actions">
-            <Link className="btn btn-primary btn-sm" href={category ? writeHref : "/write"}>
-              {writeLabel}
-            </Link>
+            {/* 방에서는 탭 아래 글쓰기 버튼이 이미 있다 */}
+            {!category && (
+              <Link className="btn btn-primary btn-sm" href="/write">
+                ✍️ 글쓰기
+              </Link>
+            )}
             {!category && (
               <Link className="btn btn-sm" href="/boards">
                 🏠 방 만들기

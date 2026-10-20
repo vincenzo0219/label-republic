@@ -3,8 +3,6 @@
  */
 export const HEADS = [
   { key: "자랑", label: "📸 자랑" },
-  { key: "후기", label: "✍️ 후기" },
-  { key: "꿀팁", label: "💡 꿀팁" },
   { key: "행사", label: "🎫 행사" },
 ] as const;
 

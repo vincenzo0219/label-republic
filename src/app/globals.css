@@ -1026,4 +1026,7 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .rank-label { font-weight: 600; }
 .brag-next { display: grid; gap: 6px; margin-top: 8px; font-size: 14px; }
 /* 방 탭에서 바로 그 탭 글쓰기 */
-.tab-write { display: block; width: 100%; text-align: center; margin: 4px 0 10px; }
+.tab-write { display: flex; width: 100%; height: 44px; margin: 4px 0 10px; font-size: 15px; }
+.chat-nick { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.chat-nick input { width: 9em; border: 0; border-bottom: 1px dashed var(--line); background: transparent; font: inherit; color: var(--text); padding: 2px 0; }
+.room-name { font-weight: 700; font-size: 16px; color: var(--text); text-decoration: none; }

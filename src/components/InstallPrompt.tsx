@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type BeforeInstallPromptEvent = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
@@ -41,31 +40,18 @@ export function InstallPrompt() {
     setMode(outcome === "accepted" ? "installed" : "manual");
   }
 
-  if (mode === "hidden") return null;
-  return (
-    <section className="push-settings" aria-labelledby="install-h">
-      <h2 id="install-h" className="section-title">📱 홈 화면에 추가</h2>
-      {mode === "installed" && (
-        <p className="hint" style={{ marginTop: 0 }}>
-          앱으로 쓰고 있어요. 글에서 📥 <b>오프라인 저장</b>을 누르면 매장처럼 연결이 약한 곳에서도 <Link href="/offline">저장한 글</Link>을 볼 수 있어요.
-        </p>
-      )}
-      {mode === "prompt" && (
-        <>
-          <p className="hint" style={{ marginTop: 0 }}>앱처럼 바로 열고, 저장한 글은 연결 없이도 볼 수 있어요.</p>
-          <button type="button" className="btn btn-sm" onClick={install}>홈 화면에 추가</button>
-        </>
-      )}
-      {mode === "ios" && (
-        <p className="hint" style={{ marginTop: 0 }}>
-          Safari 아래쪽 <b>공유</b> 버튼 → <b>홈 화면에 추가</b>를 누르세요. 홈 화면에서 열면 푸시 알림도 받을 수 있어요.
-        </p>
-      )}
-      {mode === "manual" && (
-        <p className="hint" style={{ marginTop: 0 }}>
-          브라우저 메뉴의 <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>로 앱처럼 쓸 수 있어요. 저장한 글은 <Link href="/offline">여기</Link>에서 봐요.
-        </p>
-      )}
-    </section>
-  );
+  // 짧게: 설치 버튼 하나, 아이폰은 한 줄. 이미 앱이거나 안내할 버튼이 없으면 안 보인다
+  if (mode === "prompt")
+    return (
+      <section className="push-settings" aria-label="홈 화면에 추가">
+        <button type="button" className="btn btn-sm" onClick={install}>📱 홈 화면에 추가</button>
+      </section>
+    );
+  if (mode === "ios")
+    return (
+      <section className="push-settings" aria-label="홈 화면에 추가">
+        <p className="hint" style={{ margin: 0 }}>📱 Safari <b>공유</b> → <b>홈 화면에 추가</b></p>
+      </section>
+    );
+  return null;
 }

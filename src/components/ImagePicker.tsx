@@ -173,7 +173,7 @@ export function ImagePicker({
           <input ref={inputRef} type="file" accept={ACCEPT} multiple className="sr-only" onChange={(e) => addFiles(e.target.files)} />
         </label>
       )}
-      <span className="hint">성분표·라벨 사진을 올리면 검증이 쉬워져요. 위치 정보 등 사진 속 정보는 자동으로 지워집니다. 영수증 주소·얼굴 등 개인정보는 가려주세요.</span>
+      <span className="hint">얼굴·주소 같은 개인정보는 가려 주세요.</span>
       {notice && <span className="hint">{notice}</span>}
     </div>
   );

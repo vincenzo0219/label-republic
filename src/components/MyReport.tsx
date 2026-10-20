@@ -102,7 +102,6 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
           </button>
         ))}
       </div>
-      <p className="hint">관심 방은 이 브라우저에만 저장되고 서버에는 기록되지 않아요. 기기마다 따로 설정됩니다.</p>
     </div>
   );
 
@@ -112,12 +111,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       <div className="report-root">
         <section className="card">
           <h2 className="card-title">관심 방을 골라주세요</h2>
-          <p className="hint" style={{ marginTop: 0 }}>고른 방의 새 글과 주간 요약을 여기에 모아 드려요.</p>
           {picker}
-          <p className="hint">
-            제품 페이지의 <b>☆ 관심 제품</b>, 글의 <b>🔕 이 글 소식 받기</b>로 제품 새 글·댓글·정정 제안도 모을 수 있어요. 내가 쓴 글과 댓글·정정 제안을 단 글은 자동으로
-            모이고, 내 댓글에 답글이나 @멘션이 달리면 여기서 알려 드려요.
-          </p>
         </section>
         {/* 늦게 나타나는 것(푸시 설정은 서버 응답 뒤)을 맨 아래에 — 위의 내용을 밀지 않게 */}
         <InstallPrompt />
@@ -210,7 +204,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
         {report && report.posts.length === 0 && <div className="empty">새 글이 없어요. 모두 확인했습니다 👏</div>}
         {report?.posts.map((p) => <PostCard key={p.id} post={p} />)}
         {report && report.total > report.posts.length && (
-          <p className="hint">신뢰도 상위 {report.posts.length}개만 보여드려요. 나머지는 각 방에서 확인하세요.</p>
+          <p className="hint">상위 {report.posts.length}개만 보여요.</p>
         )}
       </section>
       )}
@@ -223,17 +217,6 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
         </>
       )}
 
-      {interests.length > 0 && (
-      <p className="hint">
-        RSS 리더로도 구독할 수 있어요:{" "}
-        {report?.boards.map((b, i) => (
-          <span key={b.slug}>
-            {i > 0 && " · "}
-            <a href={`/c/${encodeURIComponent(b.slug)}/feed.xml`}>{b.name}</a>
-          </span>
-        ))}
-      </p>
-      )}
     </div>
   );
 }
