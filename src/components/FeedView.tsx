@@ -61,6 +61,14 @@ export async function FeedView({
     return qs ? `${basePath}?${qs}` : basePath;
   };
   const typeHref = (t?: PostType) => href(t, sourced);
+  // 보고 있는 탭에서 바로 그 탭 글쓰기 — 말머리·글 유형을 미리 골라 둔다
+  const writeHref = `/write?${new URLSearchParams({
+    ...(category ? { category: category.slug } : {}),
+    ...(head ? { head } : type && type !== "chat" ? { type } : {}),
+  })}`;
+  const writeLabel = head
+    ? `${HEADS.find((h) => h.key === head)?.label} 글쓰기`
+    : type === "info" ? "📋 정보 글쓰기" : type === "meetup" ? "📅 정모 제안하기" : "✍️ 글쓰기";
   const seenRoom = category?.slug ?? "all";
   return (
     <>
@@ -128,6 +136,11 @@ export async function FeedView({
         )}
       </nav>
       )}
+      {category && (
+        <Link className="btn btn-primary tab-write" href={writeHref}>
+          {writeLabel}
+        </Link>
+      )}
       <SortBar basePath={basePath} params={typeParam} sort={sort} total={feed.total} />
       {feed.items.length === 0 ? (
         <div className="empty">
@@ -143,8 +156,8 @@ export async function FeedView({
                     : "아직 글이 없어요. 첫 글을 남기거나, 이야기하고 싶은 주제의 방을 만들어 보세요."}
           </p>
           <div className="empty-actions">
-            <Link className="btn btn-primary btn-sm" href={category ? `/write?category=${encodeURIComponent(category.slug)}` : "/write"}>
-              ✍️ 글쓰기
+            <Link className="btn btn-primary btn-sm" href={category ? writeHref : "/write"}>
+              {writeLabel}
             </Link>
             {!category && (
               <Link className="btn btn-sm" href="/boards">
@@ -160,7 +173,7 @@ export async function FeedView({
             <Fragment key={post.id}>
               {/* 최신순에서는 지난번에 본 곳까지 선을 긋는다 (Sprint 41) */}
               {sort === "latest" && prev && <NewDivider room={seenRoom} newer={prev.created_at} older={post.created_at} />}
-              <PostCard post={post} showCategory={!category} seenRoom={seenRoom} />
+              <PostCard post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head} />
             </Fragment>
           );
         })
