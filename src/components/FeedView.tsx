@@ -82,7 +82,7 @@ export async function FeedView({
       {!category && <CategoryTabs categories={categories} active={undefined} quiet={[...quiet]} />}
       {category && (
         <div className="board-head">
-          <Link href="/" className="room-name">← {category.name}</Link>
+          <Link href="/?all=1" className="room-name">← {category.name}</Link>
           <div className="board-actions">
             {/* 데이터가 있을 때만 (Sprint 42) */}
             {tools?.products && (
