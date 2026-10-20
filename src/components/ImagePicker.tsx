@@ -173,7 +173,6 @@ export function ImagePicker({
           <input ref={inputRef} type="file" accept={ACCEPT} multiple className="sr-only" onChange={(e) => addFiles(e.target.files)} />
         </label>
       )}
-      <span className="hint">얼굴·주소 같은 개인정보는 가려 주세요.</span>
       {notice && <span className="hint">{notice}</span>}
     </div>
   );

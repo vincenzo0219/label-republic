@@ -441,7 +441,7 @@ export function PostEditor(props: Props) {
             <input className="input" type="datetime-local" value={meetAt} required onChange={(e) => setMeetAt(e.target.value)} />
           </label>
           <label className="field">
-            <span>장소 (공개된 장소 권장 — 개인 주소·연락처는 적지 마세요)</span>
+            <span>장소</span>
             <input className="input" value={location} maxLength={100} required placeholder="예: 강남역 11번 출구 근처 카페" onChange={(e) => setLocation(e.target.value)} />
           </label>
           <div className="row" style={{ gridTemplateColumns: "1fr 1fr" }}>
@@ -486,8 +486,8 @@ export function PostEditor(props: Props) {
           placeholder={
             (postType !== "info" && head && HEAD_HINTS[head]) ||
             (postType === "info"
-              ? "성분표, 함량, 측정값 등 사실 위주로 적어주세요.\n출처(라벨 사진 설명, 제조사 스펙 링크)를 남기면 신뢰도가 올라갑니다.\n'치료', '효능 보장' 같은 단정 표현은 피해주세요."
-              : "질문·경험·추천·사진 무엇이든 편하게 적어주세요.\n전화번호·주소 같은 개인 연락처는 적지 말아 주세요.")
+              ? "알게 된 것, 알려 주고 싶은 것"
+              : "자유롭게 적어 주세요")
           }
           onChange={(e) => setBody(e.target.value)} />
       </div>

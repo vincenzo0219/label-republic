@@ -4,7 +4,6 @@ import { listPosts } from "@/lib/repo/posts";
 import { INGREDIENT_ROOMS, listCategories, quietRoomSlugs, roomTools } from "@/lib/repo/categories";
 import type { Category, PostType } from "@/lib/types";
 import type { SortKey } from "@/lib/validation";
-import { latestDigest } from "@/lib/repo/report";
 import { THIN_BOARD_POSTS } from "@/lib/onboarding";
 import { boardNeeds } from "@/lib/repo/onboarding";
 import { CategoryTabs } from "./CategoryTabs";
@@ -49,10 +48,9 @@ export async function FeedView({
 }) {
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced && !head && !chat;
-  const [categories, feed, digest, needs, tools, quiet] = await Promise.all([
+  const [categories, feed, needs, tools, quiet] = await Promise.all([
     listCategories(),
     chat ? Promise.resolve(null) : listPosts({ categoryId: category?.id, sort, page, type, head, sourced, humanFirst, hideHiddenRooms: !category }),
-    category ? latestDigest(category.id) : Promise.resolve(null),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? roomTools(category.id) : Promise.resolve(null),
     quietRoomSlugs().catch(() => new Set<string>()),
@@ -104,18 +102,6 @@ export async function FeedView({
           </div>
         </div>
       )}
-      {digest && (
-        <details className="digest-inline">
-          <summary>🗞 이번 주 요약 · {digest.headline}</summary>
-          <ol className="summary-lines">
-            {digest.lines.map((l, i) => (
-              <li key={i} data-n={i + 1}>
-                {digest.post_ids[i] ? <Link href={`/posts/${digest.post_ids[i]}`}>{l}</Link> : l}
-              </li>
-            ))}
-          </ol>
-        </details>
-      )}
       {category && (
       <nav className="type-filter" aria-label="글 유형">
         <FilterCountsLoader room={category.slug} />
@@ -129,6 +115,7 @@ export async function FeedView({
             {category && i === 0 && (
               <Link href={`${basePath}?tab=chat`} aria-current={chat ? "true" : undefined} rel="nofollow">
                 💬 자유채팅
+                <FilterCount k="chat" />
               </Link>
             )}
             {category && i === 0 && HEADS.map((h) => (
