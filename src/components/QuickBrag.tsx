@@ -7,16 +7,16 @@ import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { addMyComment, getPushState, watchPost } from "@/lib/watchlist";
 import { PushButton } from "./PushButton";
 import { rankHrefFor } from "@/lib/testRanks";
+import { INSTAGRAM_URL, KAKAO_ADD_URL } from "./FollowLinks";
 
-const IG_URL = "https://www.instagram.com/nobangjang/";
-
-/** 다음 날 다시 올 이유 (Sprint 95): 어제까지 집계 · 인스타 팔로우 */
+/** 다음 날 다시 올 이유 (Sprint 95): 어제까지 집계 · 카톡 채널 · 인스타 팔로우 */
 function BragNext({ postId }: { postId: string }) {
   const rank = rankHrefFor(postId);
   return (
     <div className="brag-next">
       {rank && <Link href={rank}>📊 다른 사람들 결과 순위 · 매일 아침 업데이트 →</Link>}
-      <a href={IG_URL} target="_blank" rel="noopener">📷 인스타 @nobangjang 팔로우하고 순위 소식 받기</a>
+      <a href={KAKAO_ADD_URL} target="_blank" rel="noopener">💬 카톡 채널 추가하고 매주 순위 받기</a>
+      <a href={INSTAGRAM_URL} target="_blank" rel="noopener">📷 인스타 @nobangjang 팔로우하고 순위 소식 받기</a>
     </div>
   );
 }

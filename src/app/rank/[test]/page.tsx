@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RANK_TESTS, kstMidnight } from "@/lib/testRanks";
 import { testRanking } from "@/lib/repo/testRanks";
+import { KAKAO_ADD_URL } from "@/components/FollowLinks";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,9 @@ export default async function Page({ params }: { params: Promise<{ test: string 
         <Link href={t.test} className="btn btn-primary">내 결과 남기기</Link>
         <Link href={`/posts/${t.postId}`} className="btn">다른 사람 결과 보기</Link>
       </div>
+      <p className="hint">
+        <a href={KAKAO_ADD_URL} target="_blank" rel="noopener">💬 카톡 채널 추가하고 매주 순위 받기</a>
+      </p>
     </section>
   );
 }
