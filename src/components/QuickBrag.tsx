@@ -7,6 +7,7 @@ import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { addMyComment, getPushState, watchPost } from "@/lib/watchlist";
 import { PushButton } from "./PushButton";
 import { rankHrefFor } from "@/lib/testRanks";
+import { myNick, myPin, saveNick } from "@/lib/me";
 import { INSTAGRAM_URL, KAKAO_ADD_URL } from "./FollowLinks";
 
 /** 다음 날 다시 올 이유 (Sprint 95): 어제까지 집계 · 카톡 채널 · 인스타 팔로우 */
@@ -36,17 +37,17 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
   const [extra, setExtra] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ id: string; pin: string } | null>(null);
+  const [done, setDone] = useState<{ id: string } | null>(null);
   const sending = useRef<{ key: string; sent: string } | undefined>(undefined);
-  const pin = useRef(String(Math.floor(1000 + Math.random() * 9000)));
+  const [known, setKnown] = useState(false);
   // 푸시를 쓸 수 있고 아직 안 켠 브라우저에서만 체크박스를 보인다
   const [pushKey, setPushKey] = useState<string | null>(null);
   const [notify, setNotify] = useState(true);
 
   useEffect(() => {
-    try {
-      setNickname(window.localStorage.getItem("lr:nickname") ?? "");
-    } catch {}
+    const n = myNick();
+    setNickname(n);
+    setKnown(n.length >= 2);
     try {
       if (!pushSupported() || Notification.permission === "denied" || (Notification.permission === "granted" && getPushState())) return;
     } catch {
@@ -61,20 +62,18 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
     setError(null);
     // 권한 창은 버튼을 누른 그 순간에 띄워야 막히지 않는다. 등록은 댓글이 생긴 뒤 (내 댓글 목록과 함께)
     const wantPush = pushKey && notify ? Notification.requestPermission().catch(() => "default" as const) : null;
-    const payload = { nickname: nickname.trim(), pw: pin.current, body: `${line}${extra.trim() || "-"}` };
+    const payload = { nickname: nickname.trim(), pw: myPin(), body: `${line}${extra.trim() || "-"}` };
     try {
       const { comment, notifyRef } = await api<{ comment: { id: string | number }; notifyRef?: string }>(`/api/posts/${postId}/comments`, "POST", payload, {
         idempotencyKey: requestKeyFor(sending, payload),
       });
       sending.current = undefined;
-      try {
-        window.localStorage.setItem("lr:nickname", payload.nickname);
-      } catch {}
+      saveNick(payload.nickname);
       watchPost(postId);
       if (notifyRef) addMyComment(notifyRef);
       if (bragApi) fetch(bragApi, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", keepalive: true }).catch(() => {});
       if (wantPush && pushKey && (await wantPush) === "granted") await enablePush(pushKey).catch(() => {});
-      setDone({ id: String(comment.id), pin: pin.current });
+      setDone({ id: String(comment.id) });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -86,7 +85,7 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
     return (
       <div className="quick-brag done" role="status">
         <p>
-          ✅ 남겼어요! 지울 때 비번은 <b>{done.pin}</b>이에요.
+          ✅ 남겼어요!
         </p>
         <Link href={`/posts/${postId}#c${done.id}`} className="btn btn-primary ear-brag">
           👀 다른 사람들 결과 보러 가기
@@ -106,7 +105,14 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
       <p className="quick-brag-line">{line}</p>
       <input className="input" placeholder={placeholder} value={extra} maxLength={120} onChange={(e) => setExtra(e.target.value)} aria-label="한 줄 덧붙이기" />
       <div className="row">
-        <input className="input" placeholder="닉네임" value={nickname} maxLength={20} required onChange={(e) => setNickname(e.target.value)} aria-label="닉네임" />
+        {known ? (
+          <span className="as-me">
+            ✍️ <b>{nickname}</b>
+            <button type="button" className="linkish" onClick={() => setKnown(false)}>바꾸기</button>
+          </span>
+        ) : (
+          <input className="input" placeholder="닉네임 (처음 한 번만)" value={nickname} maxLength={20} required onChange={(e) => setNickname(e.target.value)} aria-label="닉네임" />
+        )}
         <button className="btn btn-primary" disabled={busy || nickname.trim().length < 2}>
           {busy ? "남기는 중…" : "결과 남기기"}
         </button>

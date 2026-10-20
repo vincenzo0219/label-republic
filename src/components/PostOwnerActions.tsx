@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client-api";
+import { withMyPin } from "@/lib/me";
 
 /** 회원 없음: 작성 시 입력한 4자리 비밀번호로 수정/삭제 */
 export function PostOwnerActions({ postId }: { postId: string }) {
   const router = useRouter();
 
   async function remove() {
-    const pw = window.prompt("삭제하려면 작성 시 입력한 비밀번호 4자리를 입력하세요.");
-    if (pw === null) return;
+    if (!window.confirm("이 글을 삭제할까요?")) return;
     try {
-      await api(`/api/posts/${postId}`, "DELETE", { pw });
+      const done = await withMyPin((pw) => api(`/api/posts/${postId}`, "DELETE", { pw }), "작성할 때 정한 비밀번호 4자리");
+      if (done === null) return;
       router.replace("/");
       router.refresh();
     } catch (e) {

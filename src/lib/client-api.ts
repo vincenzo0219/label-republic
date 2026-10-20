@@ -69,6 +69,6 @@ export async function api<T>(
     throw new NetworkError();
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error?.message ?? `요청 실패 (${res.status})`);
+  if (!res.ok) throw Object.assign(new Error(data?.error?.message ?? `요청 실패 (${res.status})`), { status: res.status });
   return data as T;
 }
