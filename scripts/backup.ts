@@ -25,7 +25,7 @@ export const CHECK_TABLES = [
   "brand_alias_proposals", "brand_alias_votes", "brand_aliases", "attr_alias_proposals", "attr_alias_votes", "attr_aliases",
   "feedback", "feedback_votes",
   // Sprint 62 책 카드
-  "books", "book_reads", "book_asks", "book_ask_answers",
+  "books", "book_reads", "book_asks", "book_ask_answers", "book_bites", "book_bite_tries",
 ];
 
 type Manifest = {

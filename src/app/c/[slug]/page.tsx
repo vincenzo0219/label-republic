@@ -8,6 +8,8 @@ import { RoomPoll } from "@/components/RoomPoll";
 import { ROOM_POLLS } from "@/lib/roomPolls";
 import { parseHead } from "@/lib/heads";
 import { RoomMemory } from "@/components/RoomMemory";
+import { BookBite } from "@/components/BookBite";
+import { todayBite } from "@/lib/repo/bookBites";
 import { listComments } from "@/lib/repo/comments";
 import { ensureRoomChat } from "@/lib/repo/roomChat";
 import { DEBATE_ROOM_SLUG } from "@/lib/debate";
@@ -64,6 +66,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   // 💬 수다방은 방 탭의 "자유채팅"으로 옮김
   const links = ROOM_LINKS[category.slug] ?? [];
+  const bite = category.slug === BOOK_ROOM_SLUG && !sp.tab ? await todayBite().catch(() => null) : null;
   const chat = sp.tab === "chat" ? await ensureRoomChat(category.slug) : null;
   const chatProps = chat ? { postId: chat.postId, initial: await listComments(chat.postId) } : undefined;
   return (
@@ -83,7 +86,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         )}
       </nav>}
       {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
-      <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={parseHead(sp.head)} sourced={sp.sourced === "1"} chat={chatProps} />
+      <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={parseHead(sp.head)} sourced={sp.sourced === "1"} chat={chatProps} banner={bite && <BookBite bite={bite} />} />
     </>
   );
 }

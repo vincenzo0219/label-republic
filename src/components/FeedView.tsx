@@ -34,6 +34,7 @@ export async function FeedView({
   humanFirst = false,
   head,
   chat,
+  banner,
 }: {
   category?: Category;
   sort: SortKey;
@@ -46,6 +47,8 @@ export async function FeedView({
   head?: Head;
   /** 💬 자유채팅 탭: 글 목록 대신 방 채팅(카톡형)을 보여 준다 */
   chat?: { postId: string; initial: Comment[] };
+  /** 방 이름 바로 아래, 탭 위 (책 덕후방: 📖 오늘 책 한입) */
+  banner?: React.ReactNode;
 }) {
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced && !head && !chat;
@@ -103,6 +106,7 @@ export async function FeedView({
           </div>
         </div>
       )}
+      {banner}
       {category && (
       <nav className="type-filter" aria-label="글 유형">
         <FilterCountsLoader room={category.slug} />

@@ -1035,3 +1035,10 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .support-info div { display: grid; grid-template-columns: 6.5em 1fr; gap: 8px; }
 .support-info dt { color: var(--muted); }
 .support-info dd { margin: 0; }
+/* 📖 오늘 책 한입 */
+.book-bite { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin: 4px 0 12px; display: grid; gap: 6px; }
+.book-bite-k { margin: 0; font-size: 13px; color: var(--muted); }
+.book-bite-q { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.45; }
+.book-bite-a { margin: 0; font-size: 14px; }
+.book-bite-row { display: flex; align-items: center; gap: 10px; }
+.book-bite-note { font-size: 12px; font-weight: 400; color: var(--muted); }
