@@ -37,6 +37,8 @@ export type PostCard = {
   upvotes: number;
   downvotes: number;
   comment_count: number;
+  /** 본 횟수 (실제 값 그대로) */
+  view_count: number;
   trust_tier: TrustTier;
   is_ai_curated: boolean;
   /** AI 1차 정화로 노출 순위가 낮아진 글 */

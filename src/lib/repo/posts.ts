@@ -19,7 +19,7 @@ import { deleteSnapshot } from "../snapshots";
 import { currentProductIds, listPostFacts, listPostProductDates, setPostFacts, setPostProducts, type FactInput, type ProductRef } from "./products";
 
 const CARD_SELECT = `
-  p.id, p.nickname, p.title, p.upvotes, p.downvotes, p.comment_count,
+  p.id, p.nickname, p.title, p.upvotes, p.downvotes, p.comment_count, p.view_count,
   p.trust_tier, p.is_ai_curated, p.is_suppressed, p.post_type, p.created_at,
   CASE WHEN mt.post_id IS NULL THEN NULL ELSE json_build_object(
     'meet_at', mt.meet_at, 'location', mt.location, 'min_participants', mt.min_participants,
