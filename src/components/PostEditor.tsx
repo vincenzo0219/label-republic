@@ -1,7 +1,7 @@
 "use client";
 
 import { myNick, myPin, saveNick } from "@/lib/me";
-import { HEAD_HINTS, headOf, headsFor, withHead, type Head } from "@/lib/heads";
+import { HEAD_HINTS, NO_INFO_TAB, headOf, headsFor, withHead, type Head } from "@/lib/heads";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
@@ -16,10 +16,10 @@ type Lines = [string, string, string];
 type PostType = "info" | "chat" | "meetup";
 
 /** 글 종류 한 줄: 말머리(자랑·후기…)와 정보·정모를 한곳에서 고른다. 안 고르면 그냥 잡담 */
+// 방 탭과 같게 (10/21 단순화): 말머리 + 정보. 정모는 탭에서 뺐다
 const kindsFor = (room: string): { key: Head | "info" | "meetup"; label: string }[] => [
   ...headsFor(room),
-  { key: "info", label: "📋 정보" },
-  { key: "meetup", label: "📅 정모" },
+  ...(NO_INFO_TAB.has(room) ? [] : [{ key: "info" as const, label: "📋 정보" }]),
 ];
 
 /** "[자랑] 제목" → 말머리와 제목으로 나눈다 */

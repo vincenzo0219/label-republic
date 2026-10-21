@@ -12,17 +12,10 @@ import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
 import { FilterCount, FilterCountsLoader, MarkSeen, NewDivider } from "./NewMarks";
 import { SortBar } from "./SortBar";
-import { headLabel, headsFor, type Head } from "@/lib/heads";
+import { NO_INFO_TAB, ROOM_TAB_LINKS, headLabel, headsFor, type Head } from "@/lib/heads";
 import type { Comment } from "@/lib/types";
 import { LiveComments } from "./LiveComments";
 import { SeenTracker } from "./SeenTracker";
-
-const TYPE_FILTERS: { value?: PostType; label: string }[] = [
-  { label: "전체" },
-  { value: "info", label: "📋 정보" },
-  { value: "chat", label: "💬 잡담" },
-  { value: "meetup", label: "📅 정모" },
-];
 
 /** 홈 피드 / 카테고리 피드 공용 서버 컴포넌트 */
 export async function FeedView({
@@ -110,27 +103,27 @@ export async function FeedView({
       {category && (
       <nav className="type-filter" aria-label="글 유형">
         <FilterCountsLoader room={category.slug} />
-        {/* 방 안의 작은 방: 전체 · 자유채팅 · 자랑 · 후기 · 꿀팁 · 행사 · 정보 · 정모 */}
-        {TYPE_FILTERS.filter((f) => !category || f.value !== "chat").map((f, i) => (
-          <Fragment key={f.label}>
-            <Link href={typeHref(f.value)} aria-current={type === f.value && !head && !chat ? "true" : undefined} rel="nofollow">
-              {f.label}
-              {f.value && <FilterCount k={f.value} />}
-            </Link>
-            {category && i === 0 && (
-              <Link href={`${basePath}?tab=chat`} aria-current={chat ? "true" : undefined} rel="nofollow">
-                💬 자유채팅
-                <FilterCount k="chat" />
-              </Link>
-            )}
-            {category && i === 0 && headsFor(category.slug).map((h) => (
-              <Link key={h.key} href={`${basePath}?${new URLSearchParams({ head: h.key })}`} aria-current={head === h.key ? "true" : undefined} rel="nofollow">
-                {h.label}
-                <FilterCount k={h.key} />
-              </Link>
-            ))}
-          </Fragment>
+        {/* 방 탭 (10/21 단순화): 전체 · 채팅 · 말머리 · (정보) — 정모·잡담 탭은 없음 */}
+        <Link href={basePath} aria-current={!type && !head && !chat ? "true" : undefined} rel="nofollow">전체</Link>
+        <Link href={`${basePath}?tab=chat`} aria-current={chat ? "true" : undefined} rel="nofollow">
+          💬 채팅
+          <FilterCount k="chat" />
+        </Link>
+        {headsFor(category.slug).map((h) => (
+          <Link key={h.key} href={`${basePath}?${new URLSearchParams({ head: h.key })}`} aria-current={head === h.key ? "true" : undefined} rel="nofollow">
+            {h.label}
+            <FilterCount k={h.key} />
+          </Link>
         ))}
+        {(ROOM_TAB_LINKS[category.slug] ?? []).map((l) => (
+          <Link key={l.href} href={l.href}>{l.label}</Link>
+        ))}
+        {!NO_INFO_TAB.has(category.slug) && (
+          <Link href={typeHref("info")} aria-current={type === "info" && !head && !chat ? "true" : undefined} rel="nofollow">
+            📋 정보
+            <FilterCount k="info" />
+          </Link>
+        )}
         {sourced && (
           <Link className="filter-toggle" href={href(type, false)} aria-current="true" rel="nofollow">
             📚 출처 있는 글만 ✕
@@ -148,7 +141,8 @@ export async function FeedView({
           {writeLabel}
         </Link>
       )}
-      <SortBar basePath={basePath} params={typeParam} sort={sort} total={feed.total} />
+      {/* 방 안에서는 정렬 버튼 없이 최신순 (10/21 단순화) */}
+      {!category && <SortBar basePath={basePath} params={typeParam} sort={sort} total={feed.total} />}
       {feed.items.length === 0 ? (
         <div className="empty">
           <p>

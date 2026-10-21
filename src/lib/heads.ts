@@ -12,16 +12,28 @@ const BOOK_HEADS = [
   { key: "밑줄", label: "🔖 밑줄" },
 ] as const;
 
-const ROOM_HEADS: Record<string, readonly { key: string; label: string }[]> = {
-  "읽는-책-제목을-교환해-보자": BOOK_HEADS,
-};
-
 export const ALL_HEADS = [...BOOK_HEADS, ...HEADS] as const;
 
 export type Head = (typeof ALL_HEADS)[number]["key"];
 
+const BOOK = "읽는-책-제목을-교환해-보자";
+
+/** 방 전용 말머리가 있는 방은 그것만 쓴다 (책 덕후방: 자랑은 밑줄로, 정모는 같이 읽기로 합침 — 10/21 단순화) */
+const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
+  [BOOK]: [...BOOK_HEADS, HEADS[1]],
+};
+
+/** 방 탭 줄 끝에 붙는 다른 화면 링크 (책 덕후방: 상황별 책 추천) */
+export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {
+  [BOOK]: [{ href: "/books/ask", label: "🙋 추천" }],
+};
+
+/** 📋 정보 탭을 따로 두지 않는 방 (전체 탭에만 보인다) */
+export const NO_INFO_TAB = new Set([BOOK]);
+
+
 /** 이 방에서 보이는 말머리 (방 전용이 앞) */
-export const headsFor = (slug: string | undefined) => [...(slug ? ROOM_HEADS[slug] ?? [] : []), ...HEADS] as { key: Head; label: string }[];
+export const headsFor = (slug: string | undefined): { key: Head; label: string }[] => [...((slug && ROOM_HEADS[slug]) || HEADS)];
 
 /** 말머리를 고르면 본문 칸 예시도 바꾼다. 자랑은 물건보다 경험 쪽으로 (물건 자랑도 환영) */
 export const HEAD_HINTS: Partial<Record<Head, string>> = {
