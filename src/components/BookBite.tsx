@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
+import { markDailyAction } from "@/lib/streak";
 import type { BookBite as Bite } from "@/lib/repo/bookBites";
 
 const KEY = "lr:biteDays";
@@ -33,6 +34,8 @@ export function BookBite({ bite }: { bite: Bite }) {
     try {
       window.localStorage.setItem(KEY, JSON.stringify(next));
     } catch {}
+    // 🔥 연속 기록(오늘의 문제·질문과 같은 기록)도 이어지게 — 저녁 "끊기기 전" 알림의 기준
+    markDailyAction();
     try {
       setTries((await api<{ tries: number }>("/api/book-bites/try", "POST", {})).tries);
     } catch {}
@@ -54,6 +57,7 @@ export function BookBite({ bite }: { bite: Bite }) {
         <span className="hint">
           {tries > 0 && `${tries}명 도전 중`}
           {done && s > 1 && ` · 🔥 ${s}일째`}
+          {done && " · 내일 아침 새 한입"}
         </span>
       </div>
     </section>

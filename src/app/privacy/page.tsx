@@ -1,3 +1,4 @@
+import { META_PIXEL_ID } from "@/lib/metaPixel";
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
 import { config } from "@/lib/config";
@@ -161,7 +162,9 @@ export default function PrivacyPage() {
       <h2>2. 쿠키</h2>
       <p>
         서비스는 방문자 통계를 위해 무작위 값의 쿠키(<code>lr_vid</code>, 1년)를 사용합니다. 쿠키 값 자체는 저장하지 않고 변환한 값만 저장하며, 광고나
-        외부 추적에 쓰지 않습니다. 첫 방문 안내를 닫으면 다시 보이지 않도록 &ldquo;닫음&rdquo; 표시만 담은 쿠키(<code>lr_welcome</code>, 1년)를, 설문에 답하거나 닫으면 다시 묻지 않도록 같은 종류의 쿠키(<code>lr_pmf</code>, 답하면 1년·닫으면 90일)를 씁니다. 브라우저 설정에서 쿠키를 거부해도 서비스 이용에는 지장이 없습니다.
+        외부 추적에 쓰지 않습니다.{" "}
+        {META_PIXEL_ID &&
+          "다만 노방장 방문자에게 인스타그램·페이스북 광고를 보여 주기 위해 Meta Platforms의 픽셀(쿠키 _fbp)로 방문한 페이지 주소를 Meta(미국 등 국외 서버)에 보냅니다. 닉네임·글·댓글 내용은 보내지 않으며, 브라우저에서 쿠키를 거부하거나 Meta 광고 설정에서 맞춤 광고를 끌 수 있습니다."} 첫 방문 안내를 닫으면 다시 보이지 않도록 &ldquo;닫음&rdquo; 표시만 담은 쿠키(<code>lr_welcome</code>, 1년)를, 설문에 답하거나 닫으면 다시 묻지 않도록 같은 종류의 쿠키(<code>lr_pmf</code>, 답하면 1년·닫으면 90일)를 씁니다. 브라우저 설정에서 쿠키를 거부해도 서비스 이용에는 지장이 없습니다.
       </p>
       <p>
         방마다 마지막으로 본 시각(&ldquo;NEW&rdquo; 표시용)과 &ldquo;내 리포트&rdquo;의 관심 방·마지막 확인 시각은 이용자 브라우저의 로컬 저장소에만 보관되며 서버에 저장하지 않습니다. 방 탭의 새 글 수를 셀 때 방 이름과 시각이 요청에 함께 전달되지만 기록하지 않습니다. 리포트를 불러올 때

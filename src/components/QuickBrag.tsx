@@ -15,10 +15,21 @@ function BragNext({ postId }: { postId: string }) {
   const rank = rankHrefFor(postId);
   return (
     <div className="brag-next">
-      {rank && <Link href={rank}>📊 다른 사람들 결과 순위 · 매일 아침 업데이트 →</Link>}
-      <a href={KAKAO_ADD_URL} target="_blank" rel="noopener">💬 카톡 채널 추가하고 매주 순위 받기</a>
+      {rank && <Link href={rank}>📊 다른 사람들 결과 순위 · 내일 아침 다시 바뀌어요 →</Link>}
       <a href={INSTAGRAM_URL} target="_blank" rel="noopener">📷 인스타 @nobangjang 팔로우하고 순위 소식 받기</a>
     </div>
+  );
+}
+
+/**
+ * 결과가 나온 그 순간 카톡 채널 추가 (10/21 재방문). 인스타 앱 안 브라우저는 알림을 못 켜서,
+ * 다음 주에 다시 부를 수 있는 길은 카톡뿐이다 — 글자 링크(아무도 안 누름) 대신 맨 위 노란 버튼.
+ */
+function KakaoCta() {
+  return (
+    <a className="btn kakao kakao-cta" href={KAKAO_ADD_URL} target="_blank" rel="noopener">
+      💬 카톡 채널 추가하고 매주 순위 받기
+    </a>
   );
 }
 
@@ -90,6 +101,7 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
         <Link href={`/posts/${postId}#c${done.id}`} className="btn btn-primary ear-brag">
           👀 다른 사람들 결과 보러 가기
         </Link>
+        <KakaoCta />
         <PushButton label={DAILY_LABEL} onLabel={DAILY_ON} daily />
         <BragNext postId={postId} />
       </div>
@@ -98,6 +110,7 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
   return (
     <>
     <div className="daily-cta">
+      <KakaoCta />
       <PushButton label={DAILY_LABEL} onLabel={DAILY_ON} daily />
     </div>
     <form className="quick-brag" onSubmit={submit}>

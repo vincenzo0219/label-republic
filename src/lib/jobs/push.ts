@@ -250,6 +250,74 @@ export async function runStreakPush(
   }
 }
 
+const EVENT_LOCK_KEY = 4_823_090;
+
+/** 🎫 새 행사 알림 문구 — 한 건이면 그 글로, 여러 건이면 첫 글로 가며 개수를 붙인다 */
+export function eventPushMessage(posts: { id: string; title: string; room: string }[]): PushMessage {
+  const first = posts[0]!;
+  const title = first.title.replace(/^\[행사\]\s*/, "");
+  return {
+    title: `🎫 ${first.room} 새 행사${posts.length > 1 ? ` ${posts.length}건` : ""}`,
+    body: title.slice(0, 80),
+    url: `/posts/${first.id}?from=push`,
+    tag: "lr-event",
+  };
+}
+
+/**
+ * 🎫 방별 행사 알림 (10/21). 행사 탭에서 알림을 켠 구독에, 그 방에 새로 올라온 [행사] 글을 모아 보낸다.
+ * 밤(KST 22~8시)에는 보내지 않고 아침에 모아서.
+ */
+export async function runEventPush(
+  now = new Date(),
+  opts: { send?: (sub: Sub, msg: PushMessage) => Promise<SendResult> } = {},
+): Promise<{ ran: boolean; sent: number; removed: number }> {
+  const hour = (now.getUTCHours() + 9) % 24;
+  if (hour < 8 || hour >= 22) return { ran: false, sent: 0, removed: 0 };
+  const client = await pool().connect();
+  try {
+    const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [EVENT_LOCK_KEY]);
+    if (!lock.rows[0]!.ok) return { ran: false, sent: 0, removed: 0 };
+    let sent = 0;
+    let removed = 0;
+    try {
+      const { rows } = await client.query<Sub & { event_rooms: string[]; event_checked_until: string }>(
+        `SELECT id, endpoint, p256dh, auth, event_rooms, event_checked_until FROM push_subscriptions
+          WHERE cardinality(event_rooms) > 0 ORDER BY event_checked_until LIMIT $1`,
+        [BATCH],
+      );
+      const send = opts.send ?? ((s: Sub, m: PushMessage) => sendPush(s, m));
+      for (const s of rows) {
+        const posts = await client.query<{ id: string; title: string; room: string }>(
+          `SELECT p.id::text, p.title, c.name AS room FROM posts p JOIN categories c ON c.id = p.category_id
+            WHERE c.slug = ANY($1::text[]) AND p.title LIKE '[행사]%' AND NOT p.is_blinded
+              AND p.created_at > $2::timestamptz AND p.created_at <= $3::timestamptz
+            ORDER BY p.created_at DESC LIMIT 10`,
+          [s.event_rooms, s.event_checked_until, now.toISOString()],
+        );
+        if (posts.rows.length === 0) {
+          await client.query("UPDATE push_subscriptions SET event_checked_until = $2 WHERE id = $1", [s.id, now.toISOString()]);
+          continue;
+        }
+        const r = await send(s, eventPushMessage(posts.rows));
+        if (r === "gone") {
+          removed++;
+          await client.query("DELETE FROM push_subscriptions WHERE id = $1", [s.id]);
+          continue;
+        }
+        if (r === "sent") sent++;
+        // 실패해도 같은 행사를 다시 보내지 않는다
+        await client.query("UPDATE push_subscriptions SET event_checked_until = $2 WHERE id = $1", [s.id, now.toISOString()]);
+      }
+      return { ran: true, sent, removed };
+    } finally {
+      await client.query("SELECT pg_advisory_unlock($1)", [EVENT_LOCK_KEY]);
+    }
+  } finally {
+    client.release();
+  }
+}
+
 export function startPushScheduler(intervalMs: number): () => void {
   let running = false;
   const tick = async () => {
@@ -262,6 +330,8 @@ export function startPushScheduler(intervalMs: number): () => void {
       if (d.sent || d.removed) console.log(`[push] 오늘의 문제 알림 ${d.sent}건 발송, 구독 ${d.removed}개 정리`);
       const st = await runStreakPush();
       if (st.sent || st.removed) console.log(`[push] 연속 기록 알림 ${st.sent}건 발송, 구독 ${st.removed}개 정리`);
+      const ev = await runEventPush();
+      if (ev.sent || ev.removed) console.log(`[push] 행사 알림 ${ev.sent}건 발송, 구독 ${ev.removed}개 정리`);
     } catch (err) {
       console.error("[push] batch failed:", (err as Error).message);
       reportError(err, { kind: "job", where: "push" });
