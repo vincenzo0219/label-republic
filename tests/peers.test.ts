@@ -28,3 +28,21 @@ describe("test result peers (Sprint 94)", () => {
     expect(findPeer("⚽ 축구 팬 테스트: 🚌 원정 직관러 / 응원 팀: FC서울", "1983", earlier.slice(1))).toBeNull();
   });
 });
+
+describe("KBO teams (10/21)", async () => {
+  const { teamOf } = await import("@/lib/peers");
+  const { baseballPick, baseballBragLine, BASEBALL_TYPES } = await import("@/lib/baseballTest");
+  it("reads KBO clubs after 응원 구단: without mixing in K League names", () => {
+    expect(teamOf(`${baseballBragLine(BASEBALL_TYPES.cheer!)}기아 타이거즈`)).toBe("KIA");
+    expect(teamOf("⚾ 야구 팬 테스트: 🍗 야구장 먹방러 / 응원 구단: 대구 삼성")).toBe("삼성");
+    expect(teamOf("⚾ 야구 팬 테스트: 📊 기록 분석가 / 응원 구단: kt wiz 수원")).toBe("KT");
+    expect(teamOf("⚽ 축구 팬 테스트: 🚌 원정 직관러 / 응원 팀: 대구fc")).toBe("대구");
+  });
+  it("picks a type from the four answers", () => {
+    expect(baseballPick({ stadium: true, cheer: true, analysis: false, goods: false }).key).toBe("cheer");
+    expect(baseballPick({ stadium: true, cheer: false, analysis: true, goods: true }).key).toBe("food");
+    expect(baseballPick({ stadium: false, cheer: false, analysis: true, goods: false }).key).toBe("analyst");
+    expect(baseballPick({ stadium: false, cheer: false, analysis: false, goods: true }).key).toBe("collector");
+    expect(baseballPick({ stadium: false, cheer: true, analysis: false, goods: false }).key).toBe("home");
+  });
+});

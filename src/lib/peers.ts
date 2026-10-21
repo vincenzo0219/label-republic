@@ -33,12 +33,29 @@ const TEAMS: [string, string[]][] = [
   ["화성", ["화성"]],
 ];
 
-/** "응원 팀:" 뒤에 쓴 구단 */
+// KBO 10개 구단 (10/21 야구 팬 테스트). 결과 한 줄이 "응원 구단:" 이라 K리그 "응원 팀:" 과 섞이지 않는다
+const KBO_TEAMS: [string, string[]][] = [
+  ["KIA", ["kia", "기아", "타이거즈"]],
+  ["삼성", ["삼성", "라이온즈"]],
+  ["LG", ["lg", "엘지", "트윈스"]],
+  ["두산", ["두산", "베어스"]],
+  ["KT", ["kt", "케이티", "위즈"]],
+  ["SSG", ["ssg", "랜더스"]],
+  ["롯데", ["롯데", "자이언츠"]],
+  ["한화", ["한화", "이글스"]],
+  ["NC", ["nc", "엔씨", "다이노스"]],
+  ["키움", ["키움", "히어로즈"]],
+];
+
+/** "응원 팀:"(K리그) 또는 "응원 구단:"(KBO) 뒤에 쓴 구단 */
 export function teamOf(body: string): string | undefined {
-  const i = body.indexOf("응원 팀:");
-  if (i < 0) return undefined;
-  const t = body.slice(i + 6).toLowerCase().replace(/\s+/g, "");
-  return TEAMS.find(([, keys]) => keys.some((k) => t.includes(k)))?.[0];
+  for (const [marker, table] of [["응원 구단:", KBO_TEAMS], ["응원 팀:", TEAMS]] as const) {
+    const i = body.indexOf(marker);
+    if (i < 0) continue;
+    const t = body.slice(i + marker.length).toLowerCase().replace(/\s+/g, "");
+    return table.find(([, keys]) => keys.some((k) => t.includes(k)))?.[0];
+  }
+  return undefined;
 }
 
 /** 결과 한 줄의 앞부분 (" / " 앞) — 같은 테스트의 같은 타입·점수끼리 같다 */
