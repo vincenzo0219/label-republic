@@ -1,3 +1,4 @@
+import { BASEBALL_INTRO_POST_ID } from "./baseballTest";
 import { DOG_INTRO_POST_ID } from "./dogTest";
 import { EAR_BRAG_POST_ID } from "./earTest";
 import { FAN_INTRO_POST_ID } from "./fanTest";
@@ -12,6 +13,7 @@ export type RankTest = { key: string; postId: string; title: string; room: strin
 
 export const RANK_TESTS: Record<string, RankTest> = {
   fan: { key: "fan", postId: FAN_INTRO_POST_ID, title: "⚽ K리그 팬 순위", room: "k리그-덕후방", test: "/fan-test", teams: true },
+  kbo: { key: "kbo", postId: BASEBALL_INTRO_POST_ID, title: "⚾ KBO 팬 순위", room: "kbo-덕후방", test: "/kbo-test", teams: true },
   dog: { key: "dog", postId: DOG_INTRO_POST_ID, title: "🐶 견주 타입 분포", room: "반려견-덕후방", test: "/dog-test" },
   vegan: { key: "vegan", postId: VEGAN_INTRO_POST_ID, title: "🌱 채식 타입 분포", room: "비건-덕후방", test: "/vegan-test" },
   vivarium: { key: "vivarium", postId: VIVARIUM_INTRO_POST_ID, title: "🦎 첫 생물 분포", room: "비바리움-덕후방", test: "/vivarium-test" },
