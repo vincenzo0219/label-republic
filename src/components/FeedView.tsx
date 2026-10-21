@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import Link from "next/link";
 import { listPosts } from "@/lib/repo/posts";
 import { INGREDIENT_ROOMS, listCategories, quietRoomSlugs, roomTools } from "@/lib/repo/categories";
@@ -10,7 +9,7 @@ import { CategoryTabs } from "./CategoryTabs";
 import { InterestToggle } from "./InterestToggle";
 import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
-import { FilterCount, FilterCountsLoader, MarkSeen, NewDivider } from "./NewMarks";
+import { FilterCount, FilterCountsLoader, MarkSeen } from "./NewMarks";
 import { SortBar } from "./SortBar";
 import { NO_INFO_TAB, ROOM_TAB_LINKS, headLabel, headsFor, type Head } from "@/lib/heads";
 import type { Comment } from "@/lib/types";
@@ -171,16 +170,7 @@ export async function FeedView({
           </div>
         </div>
       ) : (
-        feed.items.map((post, i) => {
-          const prev = feed.items[i - 1];
-          return (
-            <Fragment key={post.id}>
-              {/* 최신순에서는 지난번에 본 곳까지 선을 긋는다 (Sprint 41) */}
-              {sort === "latest" && prev && <NewDivider room={seenRoom} newer={prev.created_at} older={post.created_at} />}
-              <PostCard post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head} />
-            </Fragment>
-          );
-        })
+        feed.items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head} />)
       )}
       {page === 1 && !type && !sourced && <MarkSeen room={seenRoom} />}
       <SeenTracker key={`${basePath}?${new URLSearchParams(params)}`} />
