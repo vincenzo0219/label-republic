@@ -131,6 +131,8 @@ a.card:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); 
 }
 .excerpt { font-size: 14px; color: var(--muted); margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .card-meta { display: flex; gap: 12px; font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.card-meta .num { font-size: 16px; font-weight: 700; color: var(--text); }
+.card-meta > span { display: inline-flex; align-items: center; gap: 3px; }
 .card-meta .spacer { flex: 1; }
 
 .badge {
