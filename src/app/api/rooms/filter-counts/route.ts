@@ -1,6 +1,6 @@
 import { tooMany } from "@/lib/errors";
 import { fingerprint } from "@/lib/fingerprint";
-import { HEADS } from "@/lib/heads";
+import { ALL_HEADS } from "@/lib/heads";
 import { json, route } from "@/lib/http";
 import { hit } from "@/lib/rate-limit";
 import { filterCounts } from "@/lib/repo/categories";
@@ -19,5 +19,5 @@ export const GET = route(async (req) => {
   const ms = Number(q.get("since"));
   const floor = Date.now() - WEEK;
   const since = new Date(Number.isFinite(ms) && ms > floor ? ms : floor);
-  return json({ counts: await filterCounts(slug, since, HEADS.map((h) => h.key)) });
+  return json({ counts: await filterCounts(slug, since, ALL_HEADS.map((h) => h.key)) });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { myNick, myPin, saveNick } from "@/lib/me";
-import { HEAD_HINTS, HEADS, headOf, withHead, type Head } from "@/lib/heads";
+import { HEAD_HINTS, headOf, headsFor, withHead, type Head } from "@/lib/heads";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
@@ -16,8 +16,8 @@ type Lines = [string, string, string];
 type PostType = "info" | "chat" | "meetup";
 
 /** 글 종류 한 줄: 말머리(자랑·후기…)와 정보·정모를 한곳에서 고른다. 안 고르면 그냥 잡담 */
-const KINDS: { key: Head | "info" | "meetup"; label: string }[] = [
-  ...HEADS.map((h) => ({ key: h.key, label: h.label })),
+const kindsFor = (room: string): { key: Head | "info" | "meetup"; label: string }[] => [
+  ...headsFor(room),
   { key: "info", label: "📋 정보" },
   { key: "meetup", label: "📅 정모" },
 ];
@@ -461,7 +461,7 @@ export function PostEditor(props: Props) {
       <div className="field">
         {!editing && (
           <div className="chips" aria-label="글 종류">
-            {KINDS.map((k) => {
+            {kindsFor(category).map((k) => {
               const on = k.key === "info" || k.key === "meetup" ? postType === k.key : head === k.key;
               return (
                 <button type="button" key={k.key} className="chip" aria-pressed={on}

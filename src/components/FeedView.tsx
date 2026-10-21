@@ -12,9 +12,10 @@ import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
 import { FilterCount, FilterCountsLoader, MarkSeen, NewDivider } from "./NewMarks";
 import { SortBar } from "./SortBar";
-import { HEADS, type Head } from "@/lib/heads";
+import { headLabel, headsFor, type Head } from "@/lib/heads";
 import type { Comment } from "@/lib/types";
 import { LiveComments } from "./LiveComments";
+import { SeenTracker } from "./SeenTracker";
 
 const TYPE_FILTERS: { value?: PostType; label: string }[] = [
   { label: "전체" },
@@ -70,7 +71,7 @@ export async function FeedView({
     ...(head ? { head } : type && type !== "chat" ? { type } : {}),
   })}`;
   const writeLabel = head
-    ? `${HEADS.find((h) => h.key === head)?.label} 글쓰기`
+    ? `${headLabel(head)} 글쓰기`
     : type === "info" ? "📋 정보 글쓰기" : type === "meetup" ? "📅 정모 제안하기" : "✍️ 글쓰기";
   const seenRoom = category?.slug ?? "all";
   return (
@@ -118,7 +119,7 @@ export async function FeedView({
                 <FilterCount k="chat" />
               </Link>
             )}
-            {category && i === 0 && HEADS.map((h) => (
+            {category && i === 0 && headsFor(category.slug).map((h) => (
               <Link key={h.key} href={`${basePath}?${new URLSearchParams({ head: h.key })}`} aria-current={head === h.key ? "true" : undefined} rel="nofollow">
                 {h.label}
                 <FilterCount k={h.key} />
@@ -183,6 +184,7 @@ export async function FeedView({
         })
       )}
       {page === 1 && !type && !sourced && <MarkSeen room={seenRoom} />}
+      <SeenTracker key={`${basePath}?${new URLSearchParams(params)}`} />
       <Pagination basePath={basePath} params={params} page={feed.page} pageSize={feed.pageSize} total={feed.total} />
       </>
       )}

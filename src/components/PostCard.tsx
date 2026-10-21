@@ -8,6 +8,7 @@ import { SummaryLines } from "./SummaryLines";
 import { MeetupBadge } from "./Meetup";
 import { TrustBadge } from "./TrustBadge";
 import { NewBadge } from "./NewMarks";
+import { HEAD_PREFIX } from "@/lib/heads";
 
 export function PostCard({
   post,
@@ -25,9 +26,9 @@ export function PostCard({
   inHead?: boolean;
 }) {
   const net = post.upvotes - post.downvotes;
-  const title = inHead ? post.title.replace(/^\[[^\]]{2}\]\s*/, "") : post.title;
+  const title = inHead ? post.title.replace(HEAD_PREFIX, "") : post.title;
   return (
-    <Link href={`/posts/${post.id}`} className="card">
+    <Link href={`/posts/${post.id}`} className="card" data-post-id={post.id}>
       <article>
         <div className="card-top">
           {seenRoom && <NewBadge room={seenRoom} createdAt={post.created_at} />}
