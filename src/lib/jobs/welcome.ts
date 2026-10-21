@@ -13,20 +13,61 @@ const MAX_PER_RUN = 5;
 
 type First = { id: string; post_id: string; nickname: string; slug: string; chat: boolean; body: string; fp: string };
 
-/** 첫 댓글에 붙일 환영 한 줄 — 짧게, 다음에 할 일 하나만. 같은 팀·타입인 사람이 있으면 그 사람을 불러 잇는다 (Sprint 94) */
-export function welcomeText(c: Pick<First, "nickname" | "post_id" | "chat">, peer?: Peer | null): string {
-  if (c.chat) return `${c.nickname}님 어서 와요! 👋 편하게 아무 얘기나 해요.`;
-  if (peer?.why === "team") return `${c.nickname}님 반가워요! 👋 @${peer.nickname}님도 ${peer.label} 팬이에요. 두 분 올 시즌 제일 기억에 남는 경기 하나씩 나눠 보실래요?`;
-  if (peer) return `${c.nickname}님 반가워요! 👋 @${peer.nickname}님도 같은 ${peer.label}예요. 서로 어떤 점이 비슷한지 이야기 나눠 보실래요?`;
-  if (TEST_POST_IDS.has(c.post_id)) return `${c.nickname}님 반가워요! 👋 위에 다른 분들 결과도 구경해 보세요. 같은 타입 있을지도요.`;
-  return `${c.nickname}님 반가워요! 👋 첫 댓글 고마워요. 💬 수다방에도 편하게 놀러 와요.`;
+const pick = <T,>(xs: readonly T[], v: number): T => xs[((v % xs.length) + xs.length) % xs.length]!;
+
+/** 테스트 결과 댓글에서 타입만 뽑기: "⚽ 축구 팬 테스트: 🚌 원정 직관러 / 응원 팀: …" → "🚌 원정 직관러" */
+export function resultType(body: string): string | null {
+  const m = /테스트[^:]*:\s*([^/\n]{1,30})/.exec(body);
+  return m ? m[1]!.trim() : null;
 }
 
 /**
- * 첫 댓글 환영 (Sprint 92). 처음 댓글을 남긴 사람(브라우저)에게 1분쯤 뒤 운영 계정 이름으로 답글 하나.
+ * 첫 댓글에 붙일 환영 한 줄 — 짧게, 다음에 할 일 하나만. 같은 팀·타입인 사람이 있으면 그 사람을 불러 잇는다 (Sprint 94).
+ * 같은 문장이 줄줄이 붙으면 기계 같아서, 표현을 여러 개 두고 댓글마다 돌려 쓴다 (v).
+ */
+export function welcomeText(c: Pick<First, "nickname" | "post_id" | "chat"> & { body?: string }, peer?: Peer | null, v = 0): string {
+  const n = c.nickname;
+  if (c.chat) return pick([`${n}님 어서 와요! 👋 편하게 아무 얘기나 해요.`, `${n}님 왔다 👋 오늘 뭐 하고 지냈어요?`, `오 ${n}님 반가워요 ㅎㅎ 자주 놀러 와요.`], v);
+  if (peer?.why === "team")
+    return pick(
+      [
+        `${n}님 반가워요! 👋 @${peer.nickname}님도 ${peer.label} 팬이에요. 두 분 올 시즌 제일 기억에 남는 경기 하나씩 나눠 보실래요?`,
+        `@${peer.nickname}님, ${peer.label} 팬 한 분 더 오셨어요 ⚡ ${n}님은 주로 직관이세요, 중계세요?`,
+        `${n}님 ${peer.label}! 위에 @${peer.nickname}님도 같은 팀이에요. 요즘 제일 좋아하는 선수 한 명씩 꼽아 보면 재밌겠네요.`,
+      ],
+      v,
+    );
+  if (peer)
+    return pick(
+      [
+        `${n}님 반가워요! 👋 @${peer.nickname}님도 같은 ${peer.label}예요. 서로 어떤 점이 비슷한지 이야기 나눠 보실래요?`,
+        `오 ${peer.label} 또 나왔다 ㅎㅎ @${peer.nickname}님이랑 같은 타입이에요. ${n}님은 결과 맞는 것 같아요?`,
+        `${n}님이랑 @${peer.nickname}님 둘 다 ${peer.label}! 두 분 공통점 찾아보세요 👀`,
+      ],
+      v,
+    );
+  if (TEST_POST_IDS.has(c.post_id)) {
+    const t = c.body ? resultType(c.body) : null;
+    if (t)
+      return pick(
+        [
+          `${n}님은 ${t}이군요 ㅎㅎ 결과 맞는 것 같아요?`,
+          `${t} 나왔네요! ${n}님 실제로도 그런 편이에요?`,
+          `오 ${n}님 ${t} 👀 친구도 해 보면 뭐 나올지 궁금하네요.`,
+          `${n}님 결과 잘 봤어요. ${t}, 어느 부분이 제일 공감돼요?`,
+        ],
+        v,
+      );
+    return pick([`${n}님 반가워요! 👋 위에 다른 분들 결과도 구경해 보세요. 같은 타입 있을지도요.`, `${n}님 결과 고마워요 🙌 다른 분들이랑 비교해 보면 재밌어요.`], v);
+  }
+  return pick([`${n}님 반가워요! 👋 첫 댓글 고마워요. 💬 수다방에도 편하게 놀러 와요.`, `${n}님 첫 댓글 반가워요 🙌 다른 글도 편하게 구경해요.`, `와 ${n}님 어서 와요 ㅎㅎ 자주 와 주세요.`], v);
+}
+
+/**
+ * 첫 댓글 환영 (Sprint 92). 모두에게 붙이면 똑같은 답글이 도배처럼 보여서, 대략 4명 중 1명(every)에게만 단다. 처음 댓글을 남긴 사람(브라우저)에게 1분쯤 뒤 운영 계정 이름으로 답글 하나.
  * 첫 반응이 빨리 와야 다시 온다. 이미 운영 계정이 답했거나, 가려졌거나, 30분 넘게 지난 댓글은 건너뛴다.
  */
-export async function runWelcome(now = new Date()): Promise<number> {
+export async function runWelcome(now = new Date(), every = 4): Promise<number> {
   const client = await pool().connect();
   try {
     const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [LOCK_KEY]);
@@ -40,8 +81,9 @@ export async function runWelcome(now = new Date()): Promise<number> {
             AND c.nickname <> ALL($2::text[])
             AND NOT EXISTS (SELECT 1 FROM comments e WHERE e.author_fingerprint = c.author_fingerprint AND e.id < c.id)
             AND NOT EXISTS (SELECT 1 FROM comments r WHERE r.parent_id = c.id AND r.nickname = ANY($2::text[]))
+            AND c.id % $4 = 0
           ORDER BY c.id LIMIT $3`,
-        [now.toISOString(), OPERATOR_NICKS, MAX_PER_RUN],
+        [now.toISOString(), OPERATOR_NICKS, MAX_PER_RUN, every],
       );
       let n = 0;
       for (const c of rows) {
@@ -59,7 +101,7 @@ export async function runWelcome(now = new Date()): Promise<number> {
           );
           peer = findPeer(c.body, c.nickname, earlier);
         }
-        await createComment(c.post_id, { nickname, pin: String(randomInt(1000, 10000)), body: welcomeText(c, peer), parentId: c.id });
+        await createComment(c.post_id, { nickname, pin: String(randomInt(1000, 10000)), body: welcomeText(c, peer, Math.floor(Number(c.id) / every)), parentId: c.id });
         n++;
       }
       return n;
