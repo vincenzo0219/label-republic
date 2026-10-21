@@ -16,17 +16,6 @@ export function NewBadge({ room, createdAt }: { room: string; createdAt: string 
   return <span className="badge badge-new">NEW</span>;
 }
 
-/** 최신순에서 새 글과 이미 본 글의 경계 */
-export function NewDivider({ room, newer, older }: { room: string; newer: string; older: string }) {
-  const since = useSeenBefore(room);
-  if (!since || new Date(newer).getTime() <= since || new Date(older).getTime() > since) return null;
-  return (
-    <div className="new-divider" role="separator">
-      <span>여기까지 지난번에 본 글이에요</span>
-    </div>
-  );
-}
-
 /** 방(또는 홈)을 본 것으로 기록 — 들어오기 전 시각을 먼저 고정한 뒤 지금 시각으로 */
 export function MarkSeen({ room }: { room: string }) {
   useEffect(() => {

@@ -47,6 +47,10 @@ const FROM = `
 
 // 스팸 의심(is_suppressed) 글은 모든 정렬에서 맨 뒤로 보낸다 (AI 1차 정화 — 노출 순위 하향)
 // 신뢰도순에서는 [잡담] 글을 정보 글 아래로 내린다 (정보 오염 방지). 최신순·추천순은 유형과 무관.
+/** 댓글이 이만큼 넘은 글은 최신순이 아닐 때 피드 위로 올린다 (사용자 10/22) */
+export const FEED_HOT_COMMENTS = 30;
+const HOT_FIRST = `p.is_suppressed, (p.comment_count >= ${FEED_HOT_COMMENTS}) DESC, `;
+
 const ORDER: Record<SortKey, string> = {
   // enum 순서: pending < none < top19 < top12 < top5
   // 정모는 배지 대상이 아니지만(none), 정렬에서는 "검증 대기" 정보 글과 같은 자리로 취급해 피드 상단을 독점하지 않게 한다.
@@ -207,7 +211,7 @@ export async function listPosts(
     }
   }
   const whereSql = where.join(" AND ");
-  const pageSql = pagedCardsSql(whereSql, (params.humanFirst ? "p.is_ai_curated, (CASE WHEN NOT p.is_ai_curated THEN p.created_at END) DESC NULLS LAST, " : "") + ORDER[params.sort], `$${args.length + 1}`, `$${args.length + 2}`);
+  const pageSql = pagedCardsSql(whereSql, (params.sort === "latest" ? "" : HOT_FIRST) + (params.humanFirst ? "p.is_ai_curated, (CASE WHEN NOT p.is_ai_curated THEN p.created_at END) DESC NULLS LAST, " : "") + ORDER[params.sort], `$${args.length + 1}`, `$${args.length + 2}`);
   const pageArgs = [...args, pageSize, (page - 1) * pageSize];
 
   if (terms.length) {
