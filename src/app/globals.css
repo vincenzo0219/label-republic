@@ -909,7 +909,8 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .quick-brag .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .quick-brag.done p { margin: 0 0 4px; }
 .quick-brag-push { display: flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); }
-.daily-cta { display: grid; margin-top: 16px; }
+.daily-cta { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 16px; }
+.daily-cta .btn { white-space: normal; min-width: 0; }
 .daily-cta:empty { display: none; }
 .daily-cta .btn { width: 100%; padding: 12px; font-weight: 700; border: 2px solid var(--brand); }
 .come-back { display: grid; gap: 8px; margin: 12px 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
@@ -1025,8 +1026,12 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .rank-no { font-weight: 800; color: var(--muted); }
 .rank-label { font-weight: 600; }
 .brag-next { display: grid; gap: 6px; margin-top: 8px; font-size: 14px; }
+.kakao-cta { display: flex; box-sizing: border-box; min-width: 0; white-space: normal; text-align: center; height: 46px; justify-content: center; align-items: center; font-size: 15px; margin-bottom: 8px; }
 /* 방 탭에서 바로 그 탭 글쓰기 */
 .tab-write { display: flex; width: 100%; height: 44px; margin: 4px 0 10px; font-size: 15px; }
+.event-alert { display: flex; width: 100%; height: 40px; margin: 0 0 10px; font-size: 14px; justify-content: center; align-items: center; }
+.event-alert.on { color: var(--muted); }
+.btn.kakao, a.kakao { background: #fee500; color: #191919; border-color: #fee500; font-weight: 700; text-decoration: none; }
 .chat-nick { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .chat-nick input { width: 9em; border: 0; border-bottom: 1px dashed var(--line); background: transparent; font: inherit; color: var(--text); padding: 2px 0; }
 .room-name { font-weight: 700; font-size: 16px; color: var(--text); text-decoration: none; }
@@ -1046,3 +1051,6 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .book-bite-note { font-size: 12px; font-weight: 400; color: var(--muted); }
 .yesterday { display: grid; justify-items: end; line-height: 1.15; font-size: 11px; color: var(--muted); white-space: nowrap; }
 .yesterday b { font-size: 15px; color: var(--text); }
+.inapp-tip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 16px; background: #fff8d6; color: #191919; font-size: 13px; }
+.inapp-tip a { color: inherit; text-decoration: none; }
+.inapp-tip button { background: none; border: 0; font-size: 14px; color: #555; padding: 4px; }

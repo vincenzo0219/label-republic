@@ -14,6 +14,7 @@ import { FilterCount, FilterCountsLoader, MarkSeen, NewDivider } from "./NewMark
 import { SortBar } from "./SortBar";
 import { NO_INFO_TAB, ROOM_TAB_LINKS, headLabel, headsFor, type Head } from "@/lib/heads";
 import type { Comment } from "@/lib/types";
+import { EventAlert } from "./EventAlert";
 import { LiveComments } from "./LiveComments";
 import { RoomVisitors } from "./RoomVisitors";
 import { SeenTracker } from "./SeenTracker";
@@ -145,6 +146,7 @@ export async function FeedView({
           {writeLabel}
         </Link>
       )}
+      {category && head === "행사" && <EventAlert slug={category.slug} />}
       {/* 방 안에서는 정렬 버튼 없이 최신순 (10/21 단순화) */}
       {!category && <SortBar basePath={basePath} params={typeParam} sort={sort} total={feed.total} />}
       {feed.items.length === 0 ? (

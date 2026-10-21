@@ -86,3 +86,19 @@ export async function unsubscribe(endpoint: string, token: string): Promise<void
   checkToken(endpoint, token);
   await query("DELETE FROM push_subscriptions WHERE endpoint = $1", [endpoint]);
 }
+
+/** 🎫 이 방 행사 알림 켜기/끄기 (10/21). 켤 때부터의 새 행사만 보낸다 */
+export async function setEventRoom(endpoint: string, token: string, slug: string, on: boolean): Promise<string[]> {
+  checkToken(endpoint, token);
+  const res = await query<{ event_rooms: string[] }>(
+    `UPDATE push_subscriptions SET
+       event_rooms = CASE WHEN $3 THEN (SELECT array_agg(DISTINCT r) FROM unnest(array_append(event_rooms, $2)) r)
+                          ELSE array_remove(event_rooms, $2) END,
+       event_checked_until = CASE WHEN $3 AND cardinality(event_rooms) = 0 THEN now() ELSE event_checked_until END,
+       synced_at = now()
+     WHERE endpoint = $1 RETURNING event_rooms`,
+    [endpoint, slug, on],
+  );
+  if (!res[0]) throw notFound("알림 구독");
+  return res[0].event_rooms;
+}
