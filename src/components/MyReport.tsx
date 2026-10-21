@@ -153,28 +153,6 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       )}
       {report && watched.posts.length > 0 && <WatchedPosts items={report.watch.posts} onRemove={(id) => toggleWatchPost(id)} />}
 
-      {report && report.digests.length > 0 && (
-        <section aria-label="이번 주 요약">
-          <h2 className="section-title">🗞 이번 주 요약</h2>
-          {report.digests.map((d) => (
-            <article key={d.category_slug} className="ai-card">
-              <h2>
-                <Link href={`/c/${encodeURIComponent(d.category_slug)}`}>{d.category_name}</Link>
-                <span>{d.model_version.startsWith("extractive") ? "인기 글 모음" : "AI 요약"} · {fmtDate(d.created_at)}</span>
-              </h2>
-              <p style={{ margin: "0 0 8px", fontWeight: 700 }}>{d.headline}</p>
-              <ol className="summary-lines">
-                {d.lines.map((l, i) => (
-                  <li key={i} data-n={i + 1}>
-                    {d.post_ids[i] ? <Link href={`/posts/${d.post_ids[i]}`}>{l}</Link> : l}
-                  </li>
-                ))}
-              </ol>
-            </article>
-          ))}
-        </section>
-      )}
-
       {report && report.meetups.length > 0 && (
         <section aria-label="다가오는 정모">
           <h2 className="section-title">📅 다가오는 정모</h2>

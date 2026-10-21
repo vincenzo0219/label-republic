@@ -872,7 +872,7 @@ docker compose up --build
 | `LEGAL_EFFECTIVE_DATE` | 법률 검토를 마친 약관·방침 시행일. 비우면 "검토 전 초안" 배너 |
 | `RUN_MIGRATIONS` | Docker 시작 시 마이그레이션 적용 |
 | `SOURCE_CHECK_INTERVAL_SEC` | 출처 링크 확인 배치 주기 (기본 900초, 0이면 끔). 서버에서 외부 사이트로 나가는 요청이 필요 |
-| `DIGEST_INTERVAL_SEC` | 보드 주간 다이제스트 배치 주기 (기본 3600초, 0이면 끔) |
+| `DIGEST_INTERVAL_SEC` | 보드 주간 다이제스트 배치 주기 (기본 0). `DIGEST_ENABLED=1` 일 때만 돈다 (10/21부터 꺼 둠) |
 | `RATE_LIMIT_BACKEND` | `postgres`(운영 기본, 인스턴스 간 공유) / `memory`(개발 기본) |
 | `WEB_CONCURRENCY` | 웹 워커 프로세스 수 (기본 1, `auto` = CPU 수). 2 이상이면 `RATE_LIMIT_BACKEND=postgres` 필수 |
 | `IMAGE_STORAGE` | 이미지 저장소 `local`(기본) / `s3` |

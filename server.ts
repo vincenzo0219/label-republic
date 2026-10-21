@@ -336,7 +336,8 @@ function startWorker() {
       if (config.maintenanceIntervalSec > 0) startMaintenanceScheduler(config.maintenanceIntervalSec * 1000);
       if (config.businessReportIntervalSec > 0) startBusinessReportScheduler(config.businessReportIntervalSec * 1000);
       // 보드별 주간 다이제스트 (개인화 리포트용, 보드 단위 공유 캐시)
-      if (config.digestIntervalSec > 0) startDigestScheduler(config.digestIntervalSec * 1000);
+      // 이번 주 요약은 화면에서 뺐다 (10/21) — 서버 .env 에 예전 값이 남아 있어도 DIGEST_ENABLED=1 일 때만
+      if (process.env.DIGEST_ENABLED === "1" && config.digestIntervalSec > 0) startDigestScheduler(config.digestIntervalSec * 1000);
       // 출처 링크 생존 확인 (외부 사이트에 요청 — 사설 주소는 차단)
       if (config.sourceCheckIntervalSec > 0) startSourceCheckScheduler(config.sourceCheckIntervalSec * 1000);
       if (config.pushEnabled && config.pushIntervalSec > 0) startPushScheduler(config.pushIntervalSec * 1000);
