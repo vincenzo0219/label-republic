@@ -367,3 +367,16 @@ export async function peopleReactions(today: string, days = 7): Promise<PeopleDa
     [today, days, OPERATOR_NICKS],
   );
 }
+
+/** 지금까지 이 방(방 화면 + 방 글)을 본 고유 방문자 수 — 방 머리의 "👥 n" (카톡 오픈채팅 인원처럼 숫자만) */
+export async function roomVisitorsTotal(slug: string): Promise<number> {
+  const rows = await query<{ n: number }>(
+    `SELECT count(DISTINCT pv.visitor_hash)::int AS n
+       FROM page_views pv
+       LEFT JOIN posts p ON p.id = pv.post_id
+       LEFT JOIN categories c ON c.id = p.category_id
+      WHERE pv.category_slug = $1 OR c.slug = $1`,
+    [slug],
+  );
+  return rows[0]?.n ?? 0;
+}

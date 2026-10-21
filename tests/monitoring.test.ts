@@ -264,6 +264,9 @@ d("monitoring (database)", async () => {
     const today = metrics.kstDay();
     const weekAgo = metrics.kstDay(new Date(Date.now() - 6 * 86400_000));
     expect(await dash.periodVisitors(weekAgo, today)).toEqual({ visitors: 2, returning: 1 });
+    // 방 누적 인원: 방 글을 본 사람도 그 방 사람으로 센다
+    expect(await dash.roomVisitorsTotal("supplements")).toBe(2);
+    expect(await dash.roomVisitorsTotal("perfume-audio")).toBe(0);
     expect(await dash.sourceBreakdown(weekAgo, today)).toEqual([
       { source: "search", landings: 2 },
       { source: "direct", landings: 1 },

@@ -15,6 +15,7 @@ import { SortBar } from "./SortBar";
 import { NO_INFO_TAB, ROOM_TAB_LINKS, headLabel, headsFor, type Head } from "@/lib/heads";
 import type { Comment } from "@/lib/types";
 import { LiveComments } from "./LiveComments";
+import { RoomVisitors } from "./RoomVisitors";
 import { SeenTracker } from "./SeenTracker";
 
 /** 홈 피드 / 카테고리 피드 공용 서버 컴포넌트 */
@@ -77,7 +78,10 @@ export async function FeedView({
       {!category && <CategoryTabs categories={categories} active={undefined} quiet={[...quiet]} />}
       {category && (
         <div className="board-head">
-          <Link href="/?all=1" className="room-name">← {category.name}</Link>
+          <span className="room-title">
+            <Link href="/?all=1" className="room-name">← {category.name}</Link>
+            <RoomVisitors slug={category.slug} />
+          </span>
           <div className="board-actions">
             {/* 데이터가 있을 때만 (Sprint 42) */}
             {tools?.products && (
