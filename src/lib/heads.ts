@@ -1,22 +1,43 @@
 /**
- * 방 안의 작은 방 (Sprint 86) — 네이버 카페 말머리처럼 제목 앞 "[질문]" 으로 나눈다. 따로 저장하지 않고 제목으로 거른다.
+ * 방 안의 작은 방 (Sprint 86) — 네이버 카페 말머리처럼 제목 앞 "[자랑]" 으로 나눈다. 따로 저장하지 않고 제목으로 거른다.
+ * 모든 방: 자랑·행사. 방마다 더 있을 수 있다 (책 덕후방: 같이 읽기·밑줄, Sprint 96).
  */
 export const HEADS = [
   { key: "자랑", label: "📸 자랑" },
   { key: "행사", label: "🎫 행사" },
 ] as const;
 
-export type Head = (typeof HEADS)[number]["key"];
+const BOOK_HEADS = [
+  { key: "같이읽기", label: "📖 같이 읽기" },
+  { key: "밑줄", label: "🔖 밑줄" },
+] as const;
+
+const ROOM_HEADS: Record<string, readonly { key: string; label: string }[]> = {
+  "읽는-책-제목을-교환해-보자": BOOK_HEADS,
+};
+
+export const ALL_HEADS = [...BOOK_HEADS, ...HEADS] as const;
+
+export type Head = (typeof ALL_HEADS)[number]["key"];
+
+/** 이 방에서 보이는 말머리 (방 전용이 앞) */
+export const headsFor = (slug: string | undefined) => [...(slug ? ROOM_HEADS[slug] ?? [] : []), ...HEADS] as { key: Head; label: string }[];
 
 /** 말머리를 고르면 본문 칸 예시도 바꾼다. 자랑은 물건보다 경험 쪽으로 (물건 자랑도 환영) */
 export const HEAD_HINTS: Partial<Record<Head, string>> = {
   자랑: "물건도 경험도 다 좋아요.\n예) 오늘 다녀온 직관 · 우리 개 산책 코스 · 이번 달 읽은 책 · 처음 산 LP",
   행사: "언제 · 어디서 · 무엇을, 그리고 공식 안내 링크를 남겨 주세요.",
+  같이읽기: "같이 읽을 책 · 어디까지 읽었는지 · 모임 날짜",
+  밑줄: "좋았던 문장 한 줄과 책 제목 (사진도 좋아요)",
 };
 
-export const parseHead = (v: string | undefined): Head | undefined => HEADS.find((h) => h.key === v)?.key;
+export const parseHead = (v: string | undefined): Head | undefined => ALL_HEADS.find((h) => h.key === v)?.key;
 
-export const headOf = (title: string): Head | undefined => parseHead(/^\[([^\]]{2})\]/.exec(title)?.[1]);
+export const HEAD_PREFIX = /^\[([^\]]{2,4})\]\s*/;
+
+export const headOf = (title: string): Head | undefined => parseHead(HEAD_PREFIX.exec(title)?.[1]);
+
+export const headLabel = (h: Head) => ALL_HEADS.find((x) => x.key === h)!.label;
 
 /** 제목의 말머리를 바꾼다 (같은 걸 다시 누르면 뗀다) */
 export function withHead(title: string, head: Head): string {

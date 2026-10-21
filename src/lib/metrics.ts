@@ -107,6 +107,11 @@ export type PageViewInput = {
 const gv = globalThis as unknown as { __labelRepPendingViews?: Map<string, number> };
 const pendingViews = (gv.__labelRepPendingViews ??= new Map<string, number>());
 
+/** 목록에서 화면에 보인 글도 한 번씩 센다 (Sprint 96, 카톡 "읽음"처럼). 브라우저가 글마다 한 번만 보낸다 */
+export function addSeen(ids: string[]) {
+  for (const id of ids) pendingViews.set(id, (pendingViews.get(id) ?? 0) + 1);
+}
+
 /** 모아 둔 조회수를 DB에 반영 (server.ts 가 주기적으로, 그리고 종료 시 호출) */
 export async function flushViewCounts(): Promise<number> {
   if (!pendingViews.size) return 0;
