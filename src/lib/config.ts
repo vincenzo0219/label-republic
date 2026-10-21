@@ -231,8 +231,9 @@ export const config = {
     return process.env.ALERT_WEBHOOK_URL ?? "";
   },
   get digestIntervalSec() {
-    const n = Number(process.env.DIGEST_INTERVAL_SEC ?? 3600);
-    return Number.isFinite(n) && n >= 0 ? n : 3600;
+    // 이번 주 요약은 화면에서 뺐다 (10/21 운영자 요청) — 기본은 꺼짐, 켜려면 DIGEST_INTERVAL_SEC=3600
+    const n = Number(process.env.DIGEST_INTERVAL_SEC ?? 0);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
   },
   get boardPromotionThreshold() {
     const n = Number(process.env.BOARD_PROMOTION_THRESHOLD);
