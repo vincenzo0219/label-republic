@@ -81,12 +81,12 @@ export function PostCard({
           )}
           <span>{timeAgo(post.created_at)}</span>
           <span className="spacer" />
-          <span aria-label="순추천">▲ {net}</span>
-          {post.view_count > 0 && <span aria-label="조회수">👁 {post.view_count}</span>}
-          <span aria-label="댓글 수">💬 {post.comment_count}</span>
-          {post.image_count > 0 && <span aria-label={`사진 ${post.image_count}장`}>📷 {post.image_count}</span>}
-          {post.source_count > 0 && <span aria-label={`출처 ${post.source_count}개`}>📚 {post.source_count}</span>}
-          {post.correction_count > 0 && <span aria-label={`정정 제안 ${post.correction_count}건`}>🛠 {post.correction_count}</span>}
+          <span aria-label="순추천">▲ <b className="num">{net}</b></span>
+          {post.view_count > 0 && <span aria-label="조회수">👁 <b className="num">{post.view_count}</b></span>}
+          <span aria-label="댓글 수">💬 <b className="num">{post.comment_count}</b></span>
+          {post.image_count > 0 && <span aria-label={`사진 ${post.image_count}장`}>📷 <b className="num">{post.image_count}</b></span>}
+          {post.source_count > 0 && <span aria-label={`출처 ${post.source_count}개`}>📚 <b className="num">{post.source_count}</b></span>}
+          {post.correction_count > 0 && <span aria-label={`정정 제안 ${post.correction_count}건`}>🛠 <b className="num">{post.correction_count}</b></span>}
         </div>
       </article>
     </Link>
