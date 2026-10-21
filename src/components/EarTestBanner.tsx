@@ -8,6 +8,7 @@ const TESTS = [
   { href: "/chat", label: "💬 수다방" },
   { href: "/vegan-test", label: "🌱 채식 타입" },
   { href: "/vivarium-test", label: "🦎 비바리움" },
+  { href: "/run-test", label: "🏃 러너" },
   { href: "/kbo-test", label: "⚾ 야구 팬" },
   { href: "/fan-test", label: "⚽ 축구 팬" },
   { href: "/dog-test", label: "🐶 견주" },
