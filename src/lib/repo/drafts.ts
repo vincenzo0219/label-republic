@@ -145,7 +145,7 @@ export async function approveDraft(id: string, edit: { title?: string; body?: st
   let status: DraftStatus = "posted";
   try {
     if (d.kind === "post") {
-      const post = await createPost({ categorySlug: d.category_slug!, nickname: d.nickname, pin: d.pin!, title, body, summary: null, postType: d.extra === "info" ? "info" : "chat" });
+      const post = await createPost({ categorySlug: d.category_slug!, nickname: d.nickname, pin: d.pin!, title, body, summary: null, noSummary: true, postType: d.extra === "info" ? "info" : "chat" });
       postId = post.id;
     } else if (d.kind === "comment") {
       const c = await createComment(d.post_id!, { nickname: d.nickname, pin: d.pin!, body, parentId: d.parent_id ?? undefined });

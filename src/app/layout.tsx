@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { FollowLinks } from "@/components/FollowLinks";
-import { WriteLink } from "@/components/WriteLink";
+import { YesterdayVisitors } from "@/components/YesterdayVisitors";
 import { FeedbackLink } from "@/components/FeedbackLink";
 import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
@@ -62,8 +62,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               💬
             </Link>
             <ReportLink />
-            <Suspense fallback={<Link href="/write" className="btn btn-primary">글쓰기</Link>}>
-              <WriteLink />
+            <Suspense fallback={null}>
+              <YesterdayVisitors />
             </Suspense>
           </div>
         </header>
