@@ -66,7 +66,7 @@ export function DogTest() {
           다시 하기
         </button>
         <Link href="/c/반려견-덕후방" className="btn">
-          🐶 반려견 덕후방 가기
+          🐶 애견인의 모임 가기
         </Link>
       </div>
     </section>
