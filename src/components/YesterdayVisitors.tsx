@@ -14,7 +14,7 @@ export async function YesterdayVisitors() {
   }
   return (
     <span className="yesterday" aria-label={`어제 방문자 ${g.__lrYesterday.n}명`}>
-      어제 방문자
+      어제
       <b>{g.__lrYesterday.n.toLocaleString()}명</b>
     </span>
   );
