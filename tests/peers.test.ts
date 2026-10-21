@@ -57,3 +57,14 @@ describe("runner test (10/21)", async () => {
     expect(runnerPick({ dawn: false, crew: false, record: false, race: false }).key).toBe("scenery");
   });
 });
+
+describe("yoga test (10/21)", async () => {
+  const { yogaPick } = await import("@/lib/yogaTest");
+  it("picks a type from the four answers", () => {
+    expect(yogaPick({ sweat: true, group: true, morning: true, gear: true }).key).toBe("core");
+    expect(yogaPick({ sweat: false, group: true, morning: false, gear: false }).key).toBe("mate");
+    expect(yogaPick({ sweat: false, group: true, morning: false, gear: true }).key).toBe("gear");
+    expect(yogaPick({ sweat: false, group: false, morning: true, gear: true }).key).toBe("morning");
+    expect(yogaPick({ sweat: false, group: false, morning: false, gear: false }).key).toBe("heal");
+  });
+});
