@@ -10,6 +10,9 @@ import { TrustBadge } from "./TrustBadge";
 import { NewBadge } from "./NewMarks";
 import { HEAD_PREFIX } from "@/lib/heads";
 
+/** 이 수를 넘긴 댓글 수는 제목 옆에 크게 */
+const HOT_COMMENTS = 100;
+
 export function PostCard({
   post,
   terms,
@@ -52,6 +55,8 @@ export function PostCard({
           <h2 className="card-title">
             <Highlight text={title} terms={terms} />
           </h2>
+          {/* 유튜브 "1000만" 처럼 많이 모인 글은 제목 옆에 큰 숫자 (10/21) — 댓글 100개부터, 실제 숫자 그대로 */}
+          {post.comment_count >= HOT_COMMENTS && <span className="badge-hot">💬 {post.comment_count.toLocaleString()}</span>}
           {post.thumb_id && (
             // eslint-disable-next-line @next/next/no-img-element
             <img className="card-thumb" src={smallThumbUrl(post.thumb_id)} alt="" width={64} height={64} loading="lazy" decoding="async" />
