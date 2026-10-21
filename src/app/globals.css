@@ -1056,3 +1056,8 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .inapp-tip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 16px; background: #fff8d6; color: #191919; font-size: 13px; }
 .inapp-tip a { color: inherit; text-decoration: none; }
 .inapp-tip button { background: none; border: 0; font-size: 14px; color: #555; padding: 4px; }
+.badge-hot { position: relative; overflow: hidden; flex: none; align-self: center; display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 10px; background: #ffd400; color: #191919; font-size: 20px; font-weight: 800; letter-spacing: -0.3px; white-space: nowrap; box-shadow: 0 0 0 0 #ffd40099; animation: hot-glow 1.8s ease-in-out infinite; }
+.badge-hot::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, #ffffffcc, transparent); transform: skewX(-20deg); animation: hot-shine 2.2s ease-in-out infinite; }
+@keyframes hot-shine { 0% { left: -60% } 60%, 100% { left: 130% } }
+@keyframes hot-glow { 0%, 100% { box-shadow: 0 0 0 0 #ffd40000 } 50% { box-shadow: 0 0 12px 2px #ffd400aa } }
+@media (prefers-reduced-motion: reduce) { .badge-hot, .badge-hot::after { animation: none; } }
