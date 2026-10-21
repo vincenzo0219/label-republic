@@ -81,7 +81,7 @@ export function PostCard({
           <span>{timeAgo(post.created_at)}</span>
           <span className="spacer" />
           <span aria-label="순추천">▲ {net}</span>
-          <span aria-label="조회수">👁 {post.view_count}</span>
+          {post.view_count > 0 && <span aria-label="조회수">👁 {post.view_count}</span>}
           <span aria-label="댓글 수">💬 {post.comment_count}</span>
           {post.image_count > 0 && <span aria-label={`사진 ${post.image_count}장`}>📷 {post.image_count}</span>}
           {post.source_count > 0 && <span aria-label={`출처 ${post.source_count}개`}>📚 {post.source_count}</span>}

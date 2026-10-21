@@ -180,7 +180,7 @@ export default async function PostPage({ params }: Props) {
           {/* AI 글 표시는 작성자 자리 한 곳에 (배지·작성자·안내에 세 번 나오던 것을 줄임) */}
           {post.is_ai_curated ? <span className="card-author-ai">🤖 AI 큐레이터</span> : <span>{post.nickname}</span>}
           <time dateTime={post.created_at}>{timeAgo(post.created_at)}</time>
-          <span aria-label="조회수">👁 {post.view_count}</span>
+          {post.view_count > 0 && <span aria-label="조회수">👁 {post.view_count}</span>}
           {post.revision_count > 0 ? (
             <Link href={`/posts/${post.id}/history`}>수정 이력 {post.revision_count}</Link>
           ) : (
