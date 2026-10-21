@@ -46,3 +46,14 @@ describe("KBO teams (10/21)", async () => {
     expect(baseballPick({ stadium: false, cheer: true, analysis: false, goods: false }).key).toBe("home");
   });
 });
+
+describe("runner test (10/21)", async () => {
+  const { runnerPick } = await import("@/lib/runnerTest");
+  it("picks a type from the four answers", () => {
+    expect(runnerPick({ dawn: true, crew: false, record: true, race: true }).key).toBe("record");
+    expect(runnerPick({ dawn: true, crew: true, record: false, race: true }).key).toBe("medal");
+    expect(runnerPick({ dawn: true, crew: true, record: false, race: false }).key).toBe("crew");
+    expect(runnerPick({ dawn: true, crew: false, record: false, race: false }).key).toBe("dawn");
+    expect(runnerPick({ dawn: false, crew: false, record: false, race: false }).key).toBe("scenery");
+  });
+});

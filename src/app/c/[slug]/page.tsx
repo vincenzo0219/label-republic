@@ -52,6 +52,7 @@ const ROOM_LINKS: Record<string, { href: string; label: string }[]> = {
   "비건-덕후방": [{ href: "/vegan-test", label: "🌱 1분 테스트" }],
   "k리그-덕후방": [{ href: "/fan-test", label: "⚽ 1분 테스트" }],
   "kbo-덕후방": [{ href: "/kbo-test", label: "⚾ 1분 테스트" }],
+  "러닝-덕후방": [{ href: "/run-test", label: "🏃 1분 테스트" }],
   "반려견-덕후방": [{ href: "/dog-test", label: "🐶 1분 테스트" }],
   keyboards: [{ href: "/typing-test", label: "⌨️ 타자 테스트" }],
   // 책 덕후방은 위 버튼 없이 (추천은 탭으로, 10/21 단순화)
