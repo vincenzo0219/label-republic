@@ -53,11 +53,7 @@ const ROOM_LINKS: Record<string, { href: string; label: string }[]> = {
   "k리그-덕후방": [{ href: "/fan-test", label: "⚽ 1분 테스트" }],
   "반려견-덕후방": [{ href: "/dog-test", label: "🐶 1분 테스트" }],
   keyboards: [{ href: "/typing-test", label: "⌨️ 타자 테스트" }],
-  [BOOK_ROOM_SLUG]: [
-    { href: "/books/ask", label: "📚 추천" },
-    { href: "/books", label: "📖 지금 읽는 책" },
-    { href: "/first-line-test", label: "📜 첫 문장 테스트" },
-  ],
+  // 책 덕후방은 위 버튼 없이 (추천은 탭으로, 10/21 단순화)
 };
 
 export default async function CategoryPage({ params, searchParams }: Props) {
@@ -86,7 +82,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         )}
       </nav>}
       {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
-      <FeedView category={category} sort={sortSchema.parse(sp.sort)} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={parseHead(sp.head)} sourced={sp.sourced === "1"} chat={chatProps} banner={bite && <BookBite bite={bite} />} />
+      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={parseHead(sp.head)} sourced={sp.sourced === "1"} chat={chatProps} banner={bite && <BookBite bite={bite} />} />
     </>
   );
 }
