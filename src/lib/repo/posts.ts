@@ -317,6 +317,8 @@ export type CreatePostInput = {
   title: string;
   body: string;
   summary: ResolvedSummary | null;
+  /** 운영 퀴즈·짧은 정보 글: AI 3줄 요약 없이 본문 첫 줄을 그대로 보인다 (요약이 "…게시글이다"처럼 어색해서) */
+  noSummary?: boolean;
   /** 작성자 fingerprint — 어뷰징 탐지의 "갓 생긴 fingerprint" 판별에만 쓰인다 */
   fingerprint?: string;
   /** 접속 망 대역 변환값 (networkHash, Sprint 29) — 리뉴얼 판단에서 같은 망의 글을 한 사람으로 센다 */
@@ -346,7 +348,7 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
   if (postType === "meetup" && !input.meetup) throw new HttpError(400, "invalid_input", "정모 일시·장소·인원을 입력해주세요.");
   // 잡담·정모 글은 3줄 요약 없이 바로 올린다 — 짧은 이야기를 요약하면 오히려 어색하고 글쓰기만 번거로워진다 (론칭 검수)
   const summary: ResolvedSummary | null =
-    input.summary ?? (postType === "info" ? { ...(await generateSummary(input.title, input.body)), isAuthorEdited: false } : null);
+    input.summary ?? (postType === "info" && !input.noSummary ? { ...(await generateSummary(input.title, input.body)), isAuthorEdited: false } : null);
   const pwHash = await hashPin(input.pin);
   const spamCut = await getRule("spam_suppress_score");
   // 분명한 욕설·혐오·개인정보는 처음부터 가려진 채 올라간다 (AI 자동 운영, Sprint 37)

@@ -1042,3 +1042,5 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .book-bite-a { margin: 0; font-size: 14px; }
 .book-bite-row { display: flex; align-items: center; gap: 10px; }
 .book-bite-note { font-size: 12px; font-weight: 400; color: var(--muted); }
+.yesterday { display: grid; justify-items: end; line-height: 1.15; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.yesterday b { font-size: 15px; color: var(--text); }
