@@ -1059,3 +1059,10 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 @keyframes hot-shine { 0% { left: -60% } 60%, 100% { left: 130% } }
 @keyframes hot-glow { 0%, 100% { box-shadow: 0 0 0 0 #ffd40000 } 50% { box-shadow: 0 0 12px 2px #ffd400aa } }
 @media (prefers-reduced-motion: reduce) { .badge-hot, .badge-hot::after { animation: none; } }
+
+/* 마이페이지 (10/22) */
+.my-page .card { margin-bottom: 12px; }
+.my-page .row { display: flex; gap: 8px; }
+.my-page .row .input { flex: 1; min-width: 0; }
+.my-list { list-style: none; padding: 0; margin: 0; }
+.my-list li { padding: 10px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }

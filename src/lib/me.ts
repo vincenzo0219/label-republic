@@ -42,3 +42,28 @@ export async function withMyPin<T>(run: (pw: string) => Promise<T>, ask: string)
     return run(pw);
   }
 }
+
+/** 비밀번호를 바꾸면 이 브라우저가 기억하는 번호도 바꾼다 (마이페이지, 10/22) */
+export function setMyPin(pin: string) {
+  try {
+    if (/^\d{4}$/.test(pin)) window.localStorage.setItem(PIN, pin);
+  } catch {}
+}
+
+const POSTS = "lr:myPosts";
+/** 내가 쓴 글 번호 — 마이페이지 "내 글" (서버는 저장하지 않는다) */
+export function myPostIds(): string[] {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(POSTS) ?? "[]");
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && /^\d{1,18}$/.test(x)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addMyPost(id: string) {
+  try {
+    const cur = myPostIds();
+    if (!cur.includes(id)) window.localStorage.setItem(POSTS, JSON.stringify([...cur, id].slice(-100)));
+  } catch {}
+}
