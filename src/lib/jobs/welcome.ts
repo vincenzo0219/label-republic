@@ -4,7 +4,7 @@ import { reportError } from "../error-tracking";
 import { createComment } from "../repo/comments";
 import { OPERATOR_NICKS } from "../repo/metrics";
 import { TEST_POST_IDS } from "../testPosts";
-import { findPeer, type Peer } from "../peers";
+import type { Peer } from "../peers";
 
 const LOCK_KEY = 4_823_092;
 const MAX_PER_RUN = 5;
@@ -26,6 +26,13 @@ type Who = (typeof WELCOME_NAMES)[number];
 /** 닉네임별 말투 (10/22 사용자 확정 페르소나): 노방장 30대 총무형 존댓말, 돈키호테 차분한 ~네요, 덕후1호 20대 짧은 반말 */
 const by = <T,>(who: string, m: Record<Who, T>): T => m[(WELCOME_NAMES as readonly string[]).includes(who) ? (who as Who) : "노방장"];
 
+/** "응원 팀: FC서울 / 직관파" → "FC서울" (없거나 "-"면 null) */
+export function resultTeam(body: string): string | null {
+  const m = /응원\s*(?:팀|구단)\s*:\s*([^/\n]{1,20})/.exec(body);
+  const t = m?.[1]?.trim();
+  return t && t !== "-" ? t : null;
+}
+
 /**
  * 첫 댓글에 붙일 환영 한 줄 — 짧게. 같은 팀·타입인 사람이 있으면 그 사람을 불러 잇는다 (Sprint 94).
  * 10/22 실제 카톡방 말투: 15자 안팎, 말투 표시(ㅎㅎ·ㄷㄷ·^^)는 한 번에 하나까지, 질문은 가끔만, 이모지·느낌표 없이.
@@ -42,28 +49,17 @@ export function welcomeText(c: Pick<First, "nickname" | "post_id" | "chat"> & { 
       }),
       v,
     );
-  if (peer?.why === "team") {
-    const p = peer.nickname, L = peer.label;
+  // 10/22: 실제 카톡방에선 남을 서로 소개해 주지 않는다(메시지 120만 개 중 0.001%) → @로 다른 사람을 부르지 않고, 그 사람 얘기에만 반응
+  const team = c.body ? resultTeam(c.body) : null;
+  if (TEST_POST_IDS.has(c.post_id) && team)
     return pick(
       by(who, {
-        노방장: [`@${p}님도 ${L} 팬이세요 ㅎㅎ`, `${L} 팬 또 오셨네요. @${p}님 반가우시겠다`, `@${p}님이랑 ${L} 얘기 통하겠네요`, `${n}님 ${L}이시구나. @${p}님도요`],
-        돈키호테: [`@${p}님도 ${L} 팬이시던데요`, `${L} 팬이 한 분 늘었군요. @${p}님도 계세요`, `@${p}님과 같은 ${L}이시네요`],
-        덕후1호: [`오 ${L} @${p}님도 ${L}임`, `@${p}님 ${L} 동지 왔어요`, `${L} 또 나왔다 @${p}님`],
+        노방장: [`${team} 팬이시구나`, `오 ${team} ㅎㅎ`, `${team} 요즘 어때요`, `${n}님 ${team}이시네요`],
+        돈키호테: [`${team} 팬이시군요`, `${team}이시네요`, `${team} 응원하시는군요`],
+        덕후1호: [`오 ${team}`, `${team} 팬 왔다`, `${team} 요즘 좋던데`],
       }),
       v,
     );
-  }
-  if (peer) {
-    const p = peer.nickname, L = peer.label;
-    return pick(
-      by(who, {
-        노방장: [`@${p}님이랑 같은 ${L}이네요`, `${L} 또 나왔네요 ㅎㅎ @${p}님도요`, `${n}님 @${p}님이랑 같은 타입이시다`],
-        돈키호테: [`@${p}님도 ${L}이었는데요`, `${L}가 또 나왔군요. @${p}님과 같네요`, `@${p}님과 결과가 같으시네요`],
-        덕후1호: [`@${p}님이랑 똑같네 ${L}`, `${L} 벌써 두 명째 @${p}님`, `오 @${p}님이랑 같은 결과`],
-      }),
-      v,
-    );
-  }
   if (TEST_POST_IDS.has(c.post_id)) {
     const t = c.body ? resultType(c.body) : null;
     if (t)
@@ -121,20 +117,7 @@ export async function runWelcome(now = new Date(), every = 1): Promise<number> {
         const nickname = WELCOME_NAMES[Number(c.id) % WELCOME_NAMES.length]!;
         // 닉네임과 표현이 같이 돌면 같은 닉네임이 늘 같은 말을 해서, 표현 번호는 닉네임 순번과 따로 센다
         const v = Math.floor(Number(c.id) / every / WELCOME_NAMES.length);
-        let peer: Peer | null = null;
-        if (TEST_POST_IDS.has(c.post_id)) {
-          // 같은 글에 최근 7일 안에 결과를 남긴 다른 사람 (최근 것부터)
-          const { rows: earlier } = await client.query<{ nickname: string; body: string }>(
-            `SELECT nickname, body FROM comments
-              WHERE post_id = $1 AND id < $2 AND parent_id IS NULL AND NOT is_ai_curated AND ai_hidden_at IS NULL
-                AND author_fingerprint IS NOT NULL AND author_fingerprint <> $3 AND nickname <> ALL($4::text[])
-                AND created_at > $5::timestamptz - interval '7 days'
-              ORDER BY id DESC LIMIT 300`,
-            [c.post_id, c.id, c.fp, OPERATOR_NICKS, now.toISOString()],
-          );
-          peer = findPeer(c.body, c.nickname, earlier);
-        }
-        await createComment(c.post_id, { nickname, pin: String(randomInt(1000, 10000)), body: welcomeText(c, peer, v, nickname), parentId: c.id });
+        await createComment(c.post_id, { nickname, pin: String(randomInt(1000, 10000)), body: welcomeText(c, null, v, nickname), parentId: c.id });
         n++;
       }
       return n;

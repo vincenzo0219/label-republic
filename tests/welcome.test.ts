@@ -41,18 +41,21 @@ d("first comment welcome (Sprint 92)", async () => {
     expect(r!.body).toContain("대니님");
     expect(welcomeText({ nickname: "a", post_id: "1", chat: true })).toContain("a님");
     expect(welcomeText({ nickname: "a", post_id: "3126", chat: false })).toContain("a님 결과");
-    expect(welcomeText({ nickname: "a", post_id: "3121", chat: false }, { nickname: "1983", why: "team", label: "FC서울" })).toContain("@1983님도 FC서울 팬");
+    // 다른 사람을 @로 불러 소개하지 않고, 그 사람 팀에만 반응
+    expect(welcomeText({ nickname: "a", post_id: "3121", chat: false, body: "⚽ 축구 팬 테스트: 📊 전술 분석가 / 응원 팀: FC서울" })).toContain("FC서울");
     // 닉네임마다 말투가 다르고, 이모지·느낌표 없이 짧게
     expect(welcomeText({ nickname: "a", post_id: "1", chat: true }, null, 0, "덕후1호")).toBe("오 a님 왔다");
     for (const who of ["노방장", "돈키호테", "덕후1호"])
       for (let v = 0; v < 4; v++) {
-        const t = welcomeText({ nickname: "a", post_id: "3121", chat: false }, { nickname: "b", why: "team", label: "FC서울" }, v, who);
-        expect(t).toContain("@b님");
+        const t = welcomeText({ nickname: "a", post_id: "3121", chat: false, body: "⚽ 축구 팬 테스트: 📊 전술 분석가 / 응원 팀: FC서울" }, null, v, who);
+        expect(t).toContain("FC서울");
+        expect(t).not.toContain("@");
         expect(t).not.toMatch(/[!👋⚡🙌👀]/u);
       }
-    expect(welcomeText({ nickname: "a", post_id: "3121", chat: false, body: "⚽ 축구 팬 테스트: 👕 굿즈 수집가 / 응원 팀: 강원FC" })).toContain("👕 굿즈 수집가");
+    expect(welcomeText({ nickname: "a", post_id: "3121", chat: false, body: "⚽ 축구 팬 테스트: 👕 굿즈 수집가 / 응원 팀: 강원FC" })).toContain("강원FC");
+    expect(welcomeText({ nickname: "a", post_id: "3121", chat: false, body: "⚽ 축구 팬 테스트: 👕 굿즈 수집가 / 응원 팀: -" })).toContain("👕 굿즈 수집가");
     // 표현을 돌려 써서 연달아 같은 문장이 붙지 않는다
-    const b = "⚽ 축구 팬 테스트: 📊 전술 분석가 / 응원 팀: 경남fc";
+    const b = "⚽ 축구 팬 테스트: 📊 전술 분석가 / 응원 팀: -";
     const texts = new Set([0, 1, 2, 3].map((v) => welcomeText({ nickname: "a", post_id: "3121", chat: false, body: b }, null, v)));
     expect(texts.size).toBe(4);
   });
@@ -66,7 +69,7 @@ d("first comment welcome (Sprint 92)", async () => {
     await query("DELETE FROM comments WHERE post_id = $1", [post!.id]);
   });
 
-  it("calls a fan of the same team on a test result post", async () => {
+  it("reacts to the team without introducing other people", async () => {
     const [cat] = await query<{ id: number }>("INSERT INTO categories (slug, name, description) VALUES ('kl', 'K리그', '') RETURNING id");
     const [post] = await query<{ id: string }>("INSERT INTO posts (id, category_id, nickname, pw_hash, title, body, post_type) VALUES (3121, $1, 'n', 'x', 't', 'b', 'chat') RETURNING id::text", [cat!.id]);
     const add = (nick: string, fp: string, body: string, ago: string) =>
@@ -78,7 +81,7 @@ d("first comment welcome (Sprint 92)", async () => {
     const [b] = await add("빈이", "k2", "⚽ 축구 팬 테스트: 🚌 원정 직관러 / 응원 팀: 수원삼성/타지살이", "5 minutes");
     expect(await runWelcome(new Date(), 1)).toBe(1);
     const [r] = await query<{ body: string }>("SELECT body FROM comments WHERE parent_id = $1", [b!.id]);
-    expect(r!.body).toContain("@수원삼성님");
     expect(r!.body).toContain("수원삼성");
+    expect(r!.body).not.toContain("@");
   });
 });

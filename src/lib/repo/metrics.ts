@@ -314,8 +314,8 @@ export async function userStates(today: string, days = 7): Promise<UserStateDay[
   }));
 }
 
-/** 운영 닉네임 — 사람 지표·자동 환영·테스트 순위에서 뺀다. 울트라매니아·동탄맨·부산수지·예은이는 대표님 (10/22) */
-export const OPERATOR_NICKS = ["노방장", "돈키호테", "덕후1호", "💬 수다방", "울트라매니아", "동탄맨", "부산수지", "예은이"];
+/** 운영 닉네임 — 사람 지표·자동 환영·테스트 순위에서 뺀다. 울트라매니아·동탄맨·부산수지·예은이·러블리는 대표님 (10/22) */
+export const OPERATOR_NICKS = ["노방장", "돈키호테", "덕후1호", "💬 수다방", "울트라매니아", "동탄맨", "부산수지", "예은이", "러블리"];
 
 export type PeopleDay = {
   day: string;
