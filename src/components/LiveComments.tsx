@@ -11,6 +11,7 @@ import { abuseLabel } from "@/lib/abuse-labels";
 import { imageUrl, thumbUrl } from "@/lib/media-url";
 import { shrinkIfNeeded, upload } from "./ImagePicker";
 import { myNick, myPin, saveNick, withMyPin } from "@/lib/me";
+import { NickCheck } from "./NickCheck";
 import { EAR_BRAG_POST_ID, earBragLine } from "@/lib/earTest";
 import { HEARING_BRAG_POST_ID, hearingBragLine } from "@/lib/hearingTest";
 
@@ -332,6 +333,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
                 onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
             </label>
           )}
+          {!savedNick && <NickCheck nickname={form.nickname} />}
           <PhotoPreview photo={photo} onClear={() => setPhoto(null)} />
           <div className="row chat-row">
             <PhotoButton fileRef={fileRef} onPick={pickPhoto} />
@@ -394,8 +396,11 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
       <form id="write" className="form" onSubmit={submit} style={{ marginTop: 16 }}>
         {/* 닉네임은 처음 한 번만, 비밀번호는 자동 (Sprint 96) */}
         {!savedNick && (
-          <input ref={nickRef} className="input" placeholder="닉네임 (처음 한 번만)" value={form.nickname} maxLength={20} required
-            onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
+          <>
+            <input ref={nickRef} className="input" placeholder="닉네임 (처음 한 번만)" value={form.nickname} maxLength={20} required
+              onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
+            <NickCheck nickname={form.nickname} />
+          </>
         )}
         {replyTo && (
           <div className="reply-banner" role="status">

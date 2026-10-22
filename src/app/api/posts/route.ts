@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { json, parseBody, route } from "@/lib/http";
+import { claimNickname } from "@/lib/repo/nicknames";
 import { withIdempotency } from "@/lib/idempotency";
 import { HttpError, tooMany } from "@/lib/errors";
 import { agentHash, fingerprint, networkHash } from "@/lib/fingerprint";
@@ -39,6 +40,7 @@ export const POST = route(async (req) => {
     if (!(await hit(`post:create:${fp}`, 10, 10 * 60 * 1000))) throw tooMany();
     if (!(await hit(`post:create-net:${networkHash(req.headers)}`, 30, 10 * 60 * 1000))) throw tooMany();
     const input = await parseBody(req, createPostSchema);
+    await claimNickname(input.nickname, input.pw);
     // 신고로 여러 번 블라인드된 곳이면 한동안 쓸 수 없다 (강퇴 대신 자동 쓰기 제한, Sprint 37)
     await assertCanWrite({ fingerprint: fp, net: networkHash(req.headers), agent: agentHash(req.headers) });
     if (input.postType === "meetup") {

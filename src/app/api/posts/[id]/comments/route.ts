@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { json, parseBody, route } from "@/lib/http";
+import { claimNickname } from "@/lib/repo/nicknames";
 import { withIdempotency } from "@/lib/idempotency";
 import { tooMany } from "@/lib/errors";
 import { agentHash, fingerprint, networkHash } from "@/lib/fingerprint";
@@ -23,6 +24,7 @@ export const POST = route<P>(async (req, { id }) => {
     const net = networkHash(req.headers);
     if (!(await hit(`comment:create-net:${net}`, 60, 10 * 60 * 1000))) throw tooMany();
     const input = await parseBody(req, commentSchema);
+    await claimNickname(input.nickname, input.pw);
     await assertCanWrite({ fingerprint: fp, net, agent: agentHash(req.headers) });
     const comment = await createComment(id, { nickname: input.nickname, pin: input.pw, body: input.body, fingerprint: fp, net, parentId: input.parentId, image: input.image });
     // 문맥이 필요한 욕설·인신공격은 등록 직후 Claude 가 판단해 가린다 (Sprint 37)

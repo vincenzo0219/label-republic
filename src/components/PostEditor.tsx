@@ -1,6 +1,7 @@
 "use client";
 
 import { addMyPost, myNick, myPin, saveNick } from "@/lib/me";
+import { NickCheck } from "./NickCheck";
 import { HEAD_HINTS, NO_INFO_TAB, headOf, headsFor, withHead, type Head } from "@/lib/heads";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -585,7 +586,10 @@ export function PostEditor(props: Props) {
           <button type="button" className="linkish" onClick={() => setKnown(false)}>바꾸기</button>
         </p>
       ) : (
-        <input className="input" placeholder="닉네임 (처음 한 번만)" value={nickname} maxLength={20} required onChange={(e) => setNickname(e.target.value)} />
+        <>
+          <input className="input" placeholder="닉네임 (처음 한 번만)" value={nickname} maxLength={20} required onChange={(e) => setNickname(e.target.value)} />
+          <NickCheck nickname={nickname} />
+        </>
       ))}
       {editing && (
         <input className="input" placeholder="비번 4자리" inputMode="numeric" pattern="\d{4}" maxLength={4} required value={pw}
