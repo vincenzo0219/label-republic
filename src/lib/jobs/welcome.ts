@@ -4,12 +4,12 @@ import { reportError } from "../error-tracking";
 import { createComment } from "../repo/comments";
 import { OPERATOR_NICKS } from "../repo/metrics";
 import { TEST_POST_IDS } from "../testPosts";
-import { OPERATOR_NAMES } from "./operatorLikes";
-import { BOOK_ROOM_SLUG } from "../books";
 import { findPeer, type Peer } from "../peers";
 
 const LOCK_KEY = 4_823_092;
 const MAX_PER_RUN = 5;
+/** 환영 답글을 번갈아 다는 운영 닉네임 (10/22) */
+export const WELCOME_NAMES = ["노방장", "돈키호테", "덕후1호"] as const;
 
 type First = { id: string; post_id: string; nickname: string; slug: string; chat: boolean; body: string; fp: string };
 
@@ -64,10 +64,10 @@ export function welcomeText(c: Pick<First, "nickname" | "post_id" | "chat"> & { 
 }
 
 /**
- * 첫 댓글 환영 (Sprint 92). 모두에게 붙이면 똑같은 답글이 도배처럼 보여서, 대략 4명 중 1명(every)에게만 단다. 처음 댓글을 남긴 사람(브라우저)에게 1분쯤 뒤 운영 계정 이름으로 답글 하나.
+ * 첫 댓글 환영 (Sprint 92). 10/22 사용자: 4명 중 1명 → 다시 모두에게(every=1), 운영 닉네임 셋을 번갈아 가며. 표현은 여러 개를 돌려 쓴다. 처음 댓글을 남긴 사람(브라우저)에게 1분쯤 뒤 운영 계정 이름으로 답글 하나.
  * 첫 반응이 빨리 와야 다시 온다. 이미 운영 계정이 답했거나, 가려졌거나, 30분 넘게 지난 댓글은 건너뛴다.
  */
-export async function runWelcome(now = new Date(), every = 4): Promise<number> {
+export async function runWelcome(now = new Date(), every = 1): Promise<number> {
   const client = await pool().connect();
   try {
     const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [LOCK_KEY]);
@@ -87,7 +87,7 @@ export async function runWelcome(now = new Date(), every = 4): Promise<number> {
       );
       let n = 0;
       for (const c of rows) {
-        const nickname = c.slug === BOOK_ROOM_SLUG ? OPERATOR_NAMES[BOOK_ROOM_SLUG] : OPERATOR_NAMES.default;
+        const nickname = WELCOME_NAMES[Number(c.id) % WELCOME_NAMES.length]!;
         let peer: Peer | null = null;
         if (TEST_POST_IDS.has(c.post_id)) {
           // 같은 글에 최근 7일 안에 결과를 남긴 다른 사람 (최근 것부터)
