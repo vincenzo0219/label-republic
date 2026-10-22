@@ -1,16 +1,19 @@
 import { z } from "zod";
 import { json, parseBody, route } from "@/lib/http";
-import { tooMany } from "@/lib/errors";
+import { HttpError, tooMany } from "@/lib/errors";
 import { fingerprint } from "@/lib/fingerprint";
 import { hit } from "@/lib/rate-limit";
 import { MAX_ME_IDS, changeMyPin, myActivity, renameMine } from "@/lib/repo/me";
+import { loginNickname, moveNickname, nicknameStatus, repinNickname } from "@/lib/repo/nicknames";
 import { nickname, pin } from "@/lib/validation";
 
 const ids = z.array(z.string().regex(/^\d{1,18}$/)).max(MAX_ME_IDS).default([]);
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("activity"), posts: ids, comments: ids }),
-  z.object({ action: z.literal("rename"), pw: pin, nickname, posts: ids, comments: ids }),
-  z.object({ action: z.literal("pin"), pw: pin, newPw: pin, posts: ids, comments: ids }),
+  z.object({ action: z.literal("rename"), pw: pin, nickname, from: z.string().max(20).default(""), posts: ids, comments: ids }),
+  z.object({ action: z.literal("pin"), pw: pin, newPw: pin, nickname: z.string().max(20).default(""), posts: ids, comments: ids }),
+  z.object({ action: z.literal("check"), nickname }),
+  z.object({ action: z.literal("login"), nickname, pw: pin }),
 ]);
 
 /**
@@ -24,7 +27,20 @@ export const POST = route(async (req) => {
     if (!(await hit(`me:list:${fp}`, 30, 60_000))) throw tooMany();
     return json(await myActivity(input.posts, input.comments, fp));
   }
+  if (input.action === "check") {
+    if (!(await hit(`me:check:${fp}`, 60, 60_000))) throw tooMany();
+    return json({ status: await nicknameStatus(input.nickname) });
+  }
   if (!(await hit(`me:edit:${fp}`, 5, 60_000))) throw tooMany();
-  if (input.action === "rename") return json(await renameMine(input.pw, input.nickname, input.posts, input.comments, fp));
+  if (input.action === "login") {
+    const ok = await loginNickname(input.nickname, input.pw, fp);
+    if (!ok) throw new HttpError(404, "not_found", "아직 아무도 안 쓴 닉네임이에요. 그대로 쓰면 내 닉네임이 돼요.");
+    return json({ ok: true });
+  }
+  if (input.action === "rename") {
+    await moveNickname(input.from, input.nickname, input.pw);
+    return json(await renameMine(input.pw, input.nickname, input.posts, input.comments, fp));
+  }
+  if (input.nickname) await repinNickname(input.nickname, input.pw, input.newPw);
   return json(await changeMyPin(input.pw, input.newPw, input.posts, input.comments, fp));
 });
