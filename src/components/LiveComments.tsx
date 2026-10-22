@@ -122,10 +122,8 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
       if (saved) {
         setForm((f) => ({ ...f, nickname: saved }));
         setSavedNick(true);
-      } else if (chat) {
-        // 채팅은 닉네임 칸 없이 바로 말하게 — 임시 닉네임을 붙이고 작게 바꿀 수 있게만 둔다
-        setForm((f) => (f.nickname ? f : { ...f, nickname: `덕후${Math.floor(1000 + Math.random() * 9000)}` }));
       }
+      // 처음 온 사람은 임시 닉네임 없이 직접 정하게 한다 (사용자 10/22)
     } catch {}
   }, []);
 
@@ -330,7 +328,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
           {!savedNick && (
             <label className="chat-nick">
               닉네임
-              <input ref={nickRef} value={form.nickname} maxLength={20} required aria-label="닉네임"
+              <input ref={nickRef} value={form.nickname} maxLength={20} required aria-label="닉네임" placeholder="처음 한 번만 정해요"
                 onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
             </label>
           )}
