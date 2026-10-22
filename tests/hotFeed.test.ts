@@ -37,5 +37,8 @@ d("posts with many comments rise in the feed (10/22)", async () => {
     expect(home.items[0]!.title).toBe("old busy");
     const latest = await listPosts({ categoryId: cat!.id, sort: "latest", page: 1 });
     expect(latest.items[0]!.title).toBe("new quiet");
+    // 방 피드(기본 최신순)에서도 맨 위로
+    const room = await listPosts({ categoryId: cat!.id, sort: "latest", page: 1, hotFirst: true });
+    expect(room.items[0]!.title).toBe("old busy");
   });
 });
