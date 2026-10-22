@@ -18,6 +18,7 @@ import { getBoardThreshold } from "@/lib/repo/board-requests";
 import { getBusinessMetrics } from "@/lib/repo/business";
 import { earFunnel } from "@/lib/repo/earTest";
 import { dailyPlayers } from "@/lib/repo/daily";
+import { pushStats } from "@/lib/repo/push";
 import { firstLineFunnel } from "@/lib/repo/firstLineTest";
 import { typingFunnel } from "@/lib/repo/typingTest";
 import { aiFunnel } from "@/lib/repo/aiTest";
@@ -444,6 +445,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         )}
       </section>
 
+      <PushPanel />
+
       <section className="panel" aria-labelledby="errors-h">
         <h2 id="errors-h">
           서버 오류 {errors.length > 0 && <span className="count-badge">{errors.length}</span>}
@@ -616,6 +619,23 @@ function MonthGoal({ today, visitors, returning, daily, range }: { today: string
       <p className="hint">
         📅 오늘의 문제 (최근 {range}일): 푼 사람 {daily.players}명 · 그중 2일 이상 {daily.repeat}명
       </p>
+    </section>
+  );
+}
+
+/** 🔔 알림 신청 현황 (10/22) — 웹 푸시 구독 수와 방별 🎫 행사 알림 */
+async function PushPanel() {
+  const p = await pushStats();
+  return (
+    <section className="panel" aria-labelledby="push-h">
+      <h2 id="push-h">🔔 알림 신청 (웹 푸시)</h2>
+      <p className="hint">카톡이 아니라 브라우저 푸시 알림이에요. 휴대폰은 홈 화면에 추가한 뒤 켤 수 있어요(iPhone).</p>
+      <div className="stat-row small">
+        <StatTile label="푸시 켠 기기" value={p.total} />
+        <StatTile label="매일 알림" value={p.daily} />
+        <StatTile label="🎫 행사 알림" value={p.eventSubs} />
+      </div>
+      <HBarList title="🎫 방별 행사 알림" rows={p.rooms.map((r) => ({ label: r.slug, value: r.n }))} unit="명" empty="아직 행사 알림을 켠 사람이 없어요." />
     </section>
   );
 }
