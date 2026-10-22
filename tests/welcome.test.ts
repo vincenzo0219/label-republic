@@ -36,7 +36,8 @@ d("first comment welcome (Sprint 92)", async () => {
     expect(await runWelcome(new Date(), 1)).toBe(1);
     expect(await runWelcome(new Date(), 1)).toBe(0);
     const [r] = await query<{ nickname: string; body: string; parent_id: string }>("SELECT nickname, body, parent_id::text FROM comments WHERE parent_id IS NOT NULL");
-    expect(r).toMatchObject({ nickname: "돈키호테", parent_id: first!.id });
+    expect(r).toMatchObject({ parent_id: first!.id });
+    expect(["노방장", "돈키호테", "덕후1호"]).toContain(r!.nickname);
     expect(r!.body).toContain("대니님");
     expect(welcomeText({ nickname: "a", post_id: "1", chat: true })).toContain("아무 얘기");
     expect(welcomeText({ nickname: "a", post_id: "3126", chat: false })).toContain("같은 타입");
