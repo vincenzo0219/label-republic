@@ -1,6 +1,6 @@
 "use client";
 
-import { myNick, myPin, saveNick } from "@/lib/me";
+import { addMyPost, myNick, myPin, saveNick } from "@/lib/me";
 import { HEAD_HINTS, NO_INFO_TAB, headOf, headsFor, withHead, type Head } from "@/lib/heads";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -380,6 +380,7 @@ export function PostEditor(props: Props) {
         saveNick(nickname);
         // 내가 쓴 글은 자동으로 소식 받기 (댓글·정정 제안이 달리면 📬 에 표시)
         watchPost(post.id);
+        addMyPost(post.id);
         router.push(`/posts/${post.id}`);
       } else {
         await api(`/api/posts/${props.postId}`, "PATCH", {

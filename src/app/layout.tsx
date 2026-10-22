@@ -66,6 +66,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               💬
             </Link>
             <ReportLink />
+            <Link href="/my" className="report-link" aria-label="마이페이지">
+              👤
+            </Link>
             <Suspense fallback={null}>
               <YesterdayVisitors />
             </Suspense>
