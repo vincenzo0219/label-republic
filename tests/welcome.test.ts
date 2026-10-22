@@ -39,9 +39,17 @@ d("first comment welcome (Sprint 92)", async () => {
     expect(r).toMatchObject({ parent_id: first!.id });
     expect(["노방장", "돈키호테", "덕후1호"]).toContain(r!.nickname);
     expect(r!.body).toContain("대니님");
-    expect(welcomeText({ nickname: "a", post_id: "1", chat: true })).toContain("아무 얘기");
-    expect(welcomeText({ nickname: "a", post_id: "3126", chat: false })).toContain("같은 타입");
+    expect(welcomeText({ nickname: "a", post_id: "1", chat: true })).toContain("a님");
+    expect(welcomeText({ nickname: "a", post_id: "3126", chat: false })).toContain("a님 결과");
     expect(welcomeText({ nickname: "a", post_id: "3121", chat: false }, { nickname: "1983", why: "team", label: "FC서울" })).toContain("@1983님도 FC서울 팬");
+    // 닉네임마다 말투가 다르고, 이모지·느낌표 없이 짧게
+    expect(welcomeText({ nickname: "a", post_id: "1", chat: true }, null, 0, "덕후1호")).toBe("오 a님 왔다");
+    for (const who of ["노방장", "돈키호테", "덕후1호"])
+      for (let v = 0; v < 4; v++) {
+        const t = welcomeText({ nickname: "a", post_id: "3121", chat: false }, { nickname: "b", why: "team", label: "FC서울" }, v, who);
+        expect(t).toContain("@b님");
+        expect(t).not.toMatch(/[!👋⚡🙌👀]/u);
+      }
     expect(welcomeText({ nickname: "a", post_id: "3121", chat: false, body: "⚽ 축구 팬 테스트: 👕 굿즈 수집가 / 응원 팀: 강원FC" })).toContain("👕 굿즈 수집가");
     // 표현을 돌려 써서 연달아 같은 문장이 붙지 않는다
     const b = "⚽ 축구 팬 테스트: 📊 전술 분석가 / 응원 팀: 경남fc";
