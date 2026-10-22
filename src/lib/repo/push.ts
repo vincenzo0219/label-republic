@@ -102,3 +102,18 @@ export async function setEventRoom(endpoint: string, token: string, slug: string
   if (!res[0]) throw notFound("알림 구독");
   return res[0].event_rooms;
 }
+
+export type PushStats = { total: number; daily: number; eventSubs: number; rooms: { slug: string; n: number }[] };
+
+/** 관리자: 푸시 알림 신청 현황 (10/22) — 전체 구독, 매일 알림, 🎫 행사 알림(방별) */
+export async function pushStats(): Promise<PushStats> {
+  const [row] = await query<{ total: number; daily: number; event_subs: number }>(
+    `SELECT count(*)::int AS total, count(*) FILTER (WHERE daily)::int AS daily,
+            count(*) FILTER (WHERE cardinality(event_rooms) > 0)::int AS event_subs
+       FROM push_subscriptions`,
+  );
+  const rooms = await query<{ slug: string; n: number }>(
+    "SELECT r AS slug, count(*)::int AS n FROM push_subscriptions, unnest(event_rooms) AS r GROUP BY r ORDER BY n DESC, r",
+  );
+  return { total: row?.total ?? 0, daily: row?.daily ?? 0, eventSubs: row?.event_subs ?? 0, rooms };
+}
