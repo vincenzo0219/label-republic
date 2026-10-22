@@ -21,46 +21,77 @@ export function resultType(body: string): string | null {
   return m ? m[1]!.trim() : null;
 }
 
+type Who = (typeof WELCOME_NAMES)[number];
+
+/** 닉네임별 말투 (10/22 사용자 확정 페르소나): 노방장 30대 총무형 존댓말, 돈키호테 차분한 ~네요, 덕후1호 20대 짧은 반말 */
+const by = <T,>(who: string, m: Record<Who, T>): T => m[(WELCOME_NAMES as readonly string[]).includes(who) ? (who as Who) : "노방장"];
+
 /**
- * 첫 댓글에 붙일 환영 한 줄 — 짧게, 다음에 할 일 하나만. 같은 팀·타입인 사람이 있으면 그 사람을 불러 잇는다 (Sprint 94).
- * 같은 문장이 줄줄이 붙으면 기계 같아서, 표현을 여러 개 두고 댓글마다 돌려 쓴다 (v).
+ * 첫 댓글에 붙일 환영 한 줄 — 짧게. 같은 팀·타입인 사람이 있으면 그 사람을 불러 잇는다 (Sprint 94).
+ * 10/22 실제 카톡방 말투: 15자 안팎, 말투 표시(ㅎㅎ·ㄷㄷ·^^)는 한 번에 하나까지, 질문은 가끔만, 이모지·느낌표 없이.
+ * 표현은 닉네임마다 여러 개를 두고 댓글마다 돌려 쓴다 (v).
  */
-export function welcomeText(c: Pick<First, "nickname" | "post_id" | "chat"> & { body?: string }, peer?: Peer | null, v = 0): string {
+export function welcomeText(c: Pick<First, "nickname" | "post_id" | "chat"> & { body?: string }, peer?: Peer | null, v = 0, who: string = "노방장"): string {
   const n = c.nickname;
-  if (c.chat) return pick([`${n}님 어서 와요! 👋 편하게 아무 얘기나 해요.`, `${n}님 왔다 👋 오늘 뭐 하고 지냈어요?`, `오 ${n}님 반가워요 ㅎㅎ 자주 놀러 와요.`], v);
-  if (peer?.why === "team")
+  if (c.chat)
     return pick(
-      [
-        `${n}님 반가워요! 👋 @${peer.nickname}님도 ${peer.label} 팬이에요. 두 분 올 시즌 제일 기억에 남는 경기 하나씩 나눠 보실래요?`,
-        `@${peer.nickname}님, ${peer.label} 팬 한 분 더 오셨어요 ⚡ ${n}님은 주로 직관이세요, 중계세요?`,
-        `${n}님 ${peer.label}! 위에 @${peer.nickname}님도 같은 팀이에요. 요즘 제일 좋아하는 선수 한 명씩 꼽아 보면 재밌겠네요.`,
-      ],
+      by(who, {
+        노방장: [`${n}님 어서 오세요`, `${n}님 왔네요 ㅎㅎ`, `${n}님 편하게 있다 가세요`, `오 ${n}님 처음이시죠`],
+        돈키호테: [`${n}님 반갑습니다`, `${n}님 처음 뵙네요`, `${n}님 오셨군요`],
+        덕후1호: [`오 ${n}님 왔다`, `${n}님 어서와요`, `새 얼굴이다 ${n}님`],
+      }),
       v,
     );
-  if (peer)
+  if (peer?.why === "team") {
+    const p = peer.nickname, L = peer.label;
     return pick(
-      [
-        `${n}님 반가워요! 👋 @${peer.nickname}님도 같은 ${peer.label}예요. 서로 어떤 점이 비슷한지 이야기 나눠 보실래요?`,
-        `오 ${peer.label} 또 나왔다 ㅎㅎ @${peer.nickname}님이랑 같은 타입이에요. ${n}님은 결과 맞는 것 같아요?`,
-        `${n}님이랑 @${peer.nickname}님 둘 다 ${peer.label}! 두 분 공통점 찾아보세요 👀`,
-      ],
+      by(who, {
+        노방장: [`@${p}님도 ${L} 팬이세요 ㅎㅎ`, `${L} 팬 또 오셨네요. @${p}님 반가우시겠다`, `@${p}님이랑 ${L} 얘기 통하겠네요`, `${n}님 ${L}이시구나. @${p}님도요`],
+        돈키호테: [`@${p}님도 ${L} 팬이시던데요`, `${L} 팬이 한 분 늘었군요. @${p}님도 계세요`, `@${p}님과 같은 ${L}이시네요`],
+        덕후1호: [`오 ${L} @${p}님도 ${L}임`, `@${p}님 ${L} 동지 왔어요`, `${L} 또 나왔다 @${p}님`],
+      }),
       v,
     );
+  }
+  if (peer) {
+    const p = peer.nickname, L = peer.label;
+    return pick(
+      by(who, {
+        노방장: [`@${p}님이랑 같은 ${L}이네요`, `${L} 또 나왔네요 ㅎㅎ @${p}님도요`, `${n}님 @${p}님이랑 같은 타입이시다`],
+        돈키호테: [`@${p}님도 ${L}이었는데요`, `${L}가 또 나왔군요. @${p}님과 같네요`, `@${p}님과 결과가 같으시네요`],
+        덕후1호: [`@${p}님이랑 똑같네 ${L}`, `${L} 벌써 두 명째 @${p}님`, `오 @${p}님이랑 같은 결과`],
+      }),
+      v,
+    );
+  }
   if (TEST_POST_IDS.has(c.post_id)) {
     const t = c.body ? resultType(c.body) : null;
     if (t)
       return pick(
-        [
-          `${n}님은 ${t}이군요 ㅎㅎ 결과 맞는 것 같아요?`,
-          `${t} 나왔네요! ${n}님 실제로도 그런 편이에요?`,
-          `오 ${n}님 ${t} 👀 친구도 해 보면 뭐 나올지 궁금하네요.`,
-          `${n}님 결과 잘 봤어요. ${t}, 어느 부분이 제일 공감돼요?`,
-        ],
+        by(who, {
+          노방장: [`${t} 나왔네요 ㅎㅎ`, `${n}님 ${t}이시구나`, `${t}, 맞는 것 같아요?`, `오 ${t} 처음 보는 것 같은데`],
+          돈키호테: [`${n}님은 ${t}이시군요`, `${t}라니 재밌네요`, `${t} 결과 잘 봤습니다`],
+          덕후1호: [`${t} ㄷㄷ`, `오 ${t} 나왔네`, `${t} 실제로도 그럼?`],
+        }),
         v,
       );
-    return pick([`${n}님 반가워요! 👋 위에 다른 분들 결과도 구경해 보세요. 같은 타입 있을지도요.`, `${n}님 결과 고마워요 🙌 다른 분들이랑 비교해 보면 재밌어요.`], v);
+    return pick(
+      by(who, {
+        노방장: [`${n}님 결과 고마워요`, `위에 같은 타입 있나 한번 보세요`, `${n}님 결과 잘 봤어요 ^^`],
+        돈키호테: [`${n}님 결과 잘 봤습니다`, `위에 비슷한 분이 계실지도요`],
+        덕후1호: [`결과 ㄱㅅ요 ${n}님`, `위에 같은 결과 있나 봐요`],
+      }),
+      v,
+    );
   }
-  return pick([`${n}님 반가워요! 👋 첫 댓글 고마워요. 💬 수다방에도 편하게 놀러 와요.`, `${n}님 첫 댓글 반가워요 🙌 다른 글도 편하게 구경해요.`, `와 ${n}님 어서 와요 ㅎㅎ 자주 와 주세요.`], v);
+  return pick(
+    by(who, {
+      노방장: [`${n}님 첫 댓글 고마워요`, `${n}님 어서 오세요 ^^`, `${n}님 자주 놀러 오세요`],
+      돈키호테: [`${n}님 반갑습니다`, `${n}님 처음 뵙네요`],
+      덕후1호: [`${n}님 어서와요`, `오 새 얼굴 ${n}님`],
+    }),
+    v,
+  );
 }
 
 /**
@@ -88,6 +119,8 @@ export async function runWelcome(now = new Date(), every = 1): Promise<number> {
       let n = 0;
       for (const c of rows) {
         const nickname = WELCOME_NAMES[Number(c.id) % WELCOME_NAMES.length]!;
+        // 닉네임과 표현이 같이 돌면 같은 닉네임이 늘 같은 말을 해서, 표현 번호는 닉네임 순번과 따로 센다
+        const v = Math.floor(Number(c.id) / every / WELCOME_NAMES.length);
         let peer: Peer | null = null;
         if (TEST_POST_IDS.has(c.post_id)) {
           // 같은 글에 최근 7일 안에 결과를 남긴 다른 사람 (최근 것부터)
@@ -101,7 +134,7 @@ export async function runWelcome(now = new Date(), every = 1): Promise<number> {
           );
           peer = findPeer(c.body, c.nickname, earlier);
         }
-        await createComment(c.post_id, { nickname, pin: String(randomInt(1000, 10000)), body: welcomeText(c, peer, Math.floor(Number(c.id) / every)), parentId: c.id });
+        await createComment(c.post_id, { nickname, pin: String(randomInt(1000, 10000)), body: welcomeText(c, peer, v, nickname), parentId: c.id });
         n++;
       }
       return n;
