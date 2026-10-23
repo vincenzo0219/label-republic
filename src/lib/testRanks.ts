@@ -2,6 +2,10 @@ import { BASEBALL_INTRO_POST_ID } from "./baseballTest";
 import { RUNNER_INTRO_POST_ID } from "./runnerTest";
 import { YOGA_INTRO_POST_ID } from "./yogaTest";
 import { SHOE_INTRO_POST_ID } from "./shoeTest";
+import { GAME_INTRO_POST_ID } from "./gameTest";
+import { DRAMA_INTRO_POST_ID } from "./dramaTest";
+import { COFFEE_INTRO_POST_ID } from "./coffeeTest";
+import { ANIME_INTRO_POST_ID } from "./animeTest";
 import { DOG_INTRO_POST_ID } from "./dogTest";
 import { EAR_BRAG_POST_ID } from "./earTest";
 import { FAN_INTRO_POST_ID } from "./fanTest";
@@ -20,9 +24,13 @@ export const RANK_TESTS: Record<string, RankTest> = {
   run: { key: "run", postId: RUNNER_INTRO_POST_ID, title: "🏃 러너 타입 분포", room: "러닝-덕후방", test: "/run-test" },
   yoga: { key: "yoga", postId: YOGA_INTRO_POST_ID, title: "🧘 수련 타입 분포", room: "요가-필라테스-덕후방", test: "/yoga-test" },
   shoe: { key: "shoe", postId: SHOE_INTRO_POST_ID, title: "👟 신발러 타입 분포", room: "신발-덕후방", test: "/shoe-test" },
+  game: { key: "game", postId: GAME_INTRO_POST_ID, title: "🎮 게이머 타입 분포", room: "게임-덕후방", test: "/game-test" },
+  drama: { key: "drama", postId: DRAMA_INTRO_POST_ID, title: "📺 드라마러 타입 분포", room: "드라마-덕후방", test: "/drama-test" },
+  coffee: { key: "coffee", postId: COFFEE_INTRO_POST_ID, title: "☕ 커피러 타입 분포", room: "커피-덕후방", test: "/coffee-test" },
+  anime: { key: "anime", postId: ANIME_INTRO_POST_ID, title: "🎨 덕질 타입 분포", room: "애니-만화-덕후방", test: "/anime-test" },
   dog: { key: "dog", postId: DOG_INTRO_POST_ID, title: "🐶 견주 타입 분포", room: "반려견-덕후방", test: "/dog-test" },
   vegan: { key: "vegan", postId: VEGAN_INTRO_POST_ID, title: "🌱 채식 타입 분포", room: "비건-덕후방", test: "/vegan-test" },
-  vivarium: { key: "vivarium", postId: VIVARIUM_INTRO_POST_ID, title: "🦎 첫 생물 분포", room: "비바리움-덕후방", test: "/vivarium-test" },
+  vivarium: { key: "vivarium", postId: VIVARIUM_INTRO_POST_ID, title: "🦎 비바리움 결과 분포", room: "비바리움-덕후방", test: "/vivarium-test" },
   ear: { key: "ear", postId: EAR_BRAG_POST_ID, title: "🎧 황금귀 점수 분포", room: "perfume-audio", test: "/ear-test" },
 };
 
