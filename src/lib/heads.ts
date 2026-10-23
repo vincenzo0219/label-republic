@@ -12,6 +12,7 @@ export const HEADS = [
 const BOOK_HEADS = [
   { key: "같이읽기", label: "📖 같이 읽기" },
   { key: "밑줄", label: "🔖 밑줄" },
+  { key: "추천", label: "📚 추천" },
 ] as const;
 
 export const ALL_HEADS = [...BOOK_HEADS, ...HEADS] as const;
@@ -27,7 +28,7 @@ const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
 
 /** 방 탭 줄 끝에 붙는 다른 화면 링크 (책 덕후방: 상황별 책 추천) */
 export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {
-  [BOOK]: [{ href: "/books/ask", label: "🙋 추천" }],
+  [BOOK]: [{ href: "/books/ask", label: "🙋 물어보기" }],
 };
 
 /** 📋 정보 탭을 따로 두지 않는 방 (전체 탭에만 보인다) */
@@ -44,6 +45,7 @@ export const HEAD_HINTS: Partial<Record<Head, string>> = {
   혜택: "무엇을 · 언제까지 · 어떻게 받는지, 그리고 공식 안내 링크를 남겨 주세요.",
   같이읽기: "같이 읽을 책 · 어디까지 읽었는지 · 모임 날짜",
   밑줄: "좋았던 문장 한 줄과 책 제목 (사진도 좋아요)",
+  추천: "이런 상황엔 이 책 · 같은 주제 다른 관점 두 권 · 신간 · 명저",
 };
 
 export const parseHead = (v: string | undefined): Head | undefined => ALL_HEADS.find((h) => h.key === v)?.key;
