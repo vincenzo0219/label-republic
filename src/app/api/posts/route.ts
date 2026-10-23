@@ -10,8 +10,9 @@ import { assertCanWrite } from "@/lib/repo/write-limits";
 import { aiModeratePost, createPost, listPosts } from "@/lib/repo/posts";
 import { resolveSummary } from "@/lib/summary";
 import { createPostSchema, postTypeFilterSchema, sortSchema } from "@/lib/validation";
+import { parseHead } from "@/lib/heads";
 
-/** GET /api/posts?category=&sort=trust|latest|votes&q=&page=&sourced=1 — 피드/검색 */
+/** GET /api/posts?category=&sort=trust|latest|votes&q=&page=&sourced=1&head=말머리 — 피드/검색 (head: 방 탭과 같은 거르기, 행사는 혜택 포함) */
 export const GET = route(async (req) => {
   const sp = new URL(req.url).searchParams;
   let categoryId: number | undefined;
@@ -28,6 +29,7 @@ export const GET = route(async (req) => {
     page: Number(sp.get("page")) || 1,
     type: postTypeFilterSchema.parse(sp.get("type") ?? undefined),
     sourced: sp.get("sourced") === "1",
+    head: parseHead(sp.get("head") ?? undefined),
   });
   return json(result);
 });
