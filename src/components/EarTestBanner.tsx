@@ -10,6 +10,7 @@ const TESTS = [
   { href: "/vivarium-test", label: "🦎 비바리움" },
   { href: "/run-test", label: "🏃 러너" },
   { href: "/yoga-test", label: "🧘 요가·필라테스" },
+  { href: "/shoe-test", label: "👟 신발" },
   { href: "/kbo-test", label: "⚾ 야구 팬" },
   { href: "/fan-test", label: "⚽ 축구 팬" },
   { href: "/dog-test", label: "🐶 견주" },

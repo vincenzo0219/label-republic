@@ -2,6 +2,7 @@ import { AI_TEST_BRAG_POST_ID } from "./aiTest";
 import { BASEBALL_INTRO_POST_ID } from "./baseballTest";
 import { RUNNER_INTRO_POST_ID } from "./runnerTest";
 import { YOGA_INTRO_POST_ID } from "./yogaTest";
+import { SHOE_INTRO_POST_ID } from "./shoeTest";
 import { DOG_INTRO_POST_ID } from "./dogTest";
 import { EAR_BRAG_POST_ID } from "./earTest";
 import { FAN_INTRO_POST_ID } from "./fanTest";
@@ -15,5 +16,5 @@ import { VIVARIUM_INTRO_POST_ID } from "./vivariumTest";
 export const TEST_POST_IDS: ReadonlySet<string> = new Set([
   AI_TEST_BRAG_POST_ID, BASEBALL_INTRO_POST_ID, DOG_INTRO_POST_ID, EAR_BRAG_POST_ID, FAN_INTRO_POST_ID, FIRST_LINE_BRAG_POST_ID,
   HEARING_BRAG_POST_ID, RUNNER_INTRO_POST_ID, TYPING_BRAG_POST_ID,
-  YOGA_INTRO_POST_ID, VEGAN_INTRO_POST_ID, VIVARIUM_INTRO_POST_ID,
+  YOGA_INTRO_POST_ID, SHOE_INTRO_POST_ID, VEGAN_INTRO_POST_ID, VIVARIUM_INTRO_POST_ID,
 ]);
