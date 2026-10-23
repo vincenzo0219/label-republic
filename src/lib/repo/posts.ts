@@ -47,7 +47,7 @@ const FROM = `
 
 // 스팸 의심(is_suppressed) 글은 모든 정렬에서 맨 뒤로 보낸다 (AI 1차 정화 — 노출 순위 하향)
 // 신뢰도순에서는 [잡담] 글을 정보 글 아래로 내린다 (정보 오염 방지). 최신순·추천순은 유형과 무관.
-/** 댓글이 이만큼 넘은 글은 피드 첫 페이지 맨 위로 올린다 (사용자 10/22 "50 넘으면 첫 페이지 맨 위로"). 방 피드는 최신순이어도 올린다 (hotFirst) */
+/** 댓글이 이만큼 넘은 글은 전체 탭 첫 페이지 맨 위로 올린다 (사용자 10/22 "50 넘으면 첫 페이지 맨 위로", 10/23 "전체 탭만, 다른 탭은 시간순") */
 export const FEED_HOT_COMMENTS = 50;
 const HOT_FIRST = `p.is_suppressed, (p.comment_count >= ${FEED_HOT_COMMENTS}) DESC, `;
 
@@ -76,7 +76,7 @@ export type ListParams = {
   sourced?: boolean;
   /** 사람이 쓴 글을 최신순으로 AI 큐레이터 글보다 먼저 (홈, Sprint 72) */
   humanFirst?: boolean;
-  /** 사람이 보는 피드(홈·방): 최신순이어도 댓글 많은 글을 맨 위로 */
+  /** 사람이 보는 피드: 전체 탭이면 최신순이어도 댓글 많은 글을 맨 위로, 탭(자유채팅·자랑·행사·정보)은 false 로 시간순 (사용자 10/23) */
   hotFirst?: boolean;
   /** 숨긴 방(Sprint 81)의 글은 빼고 — 홈 피드용 */
   hideHiddenRooms?: boolean;
@@ -213,7 +213,7 @@ export async function listPosts(
     }
   }
   const whereSql = where.join(" AND ");
-  const pageSql = pagedCardsSql(whereSql, (params.sort === "latest" && !params.hotFirst ? "" : HOT_FIRST) + (params.humanFirst ? "p.is_ai_curated, (CASE WHEN NOT p.is_ai_curated THEN p.created_at END) DESC NULLS LAST, " : "") + ORDER[params.sort], `$${args.length + 1}`, `$${args.length + 2}`);
+  const pageSql = pagedCardsSql(whereSql, ((params.hotFirst ?? params.sort !== "latest") ? HOT_FIRST : "") + (params.humanFirst ? "p.is_ai_curated, (CASE WHEN NOT p.is_ai_curated THEN p.created_at END) DESC NULLS LAST, " : "") + ORDER[params.sort], `$${args.length + 1}`, `$${args.length + 2}`);
   const pageArgs = [...args, pageSize, (page - 1) * pageSize];
 
   if (terms.length) {

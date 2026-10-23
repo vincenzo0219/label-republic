@@ -48,7 +48,7 @@ export async function FeedView({
   const guideCandidate = category && page === 1 && !type && !sourced && !head && !chat;
   const [categories, feed, needs, tools, quiet] = await Promise.all([
     listCategories(),
-    chat ? Promise.resolve(null) : listPosts({ categoryId: category?.id, sort, page, type, head, sourced, humanFirst, hotFirst: true, hideHiddenRooms: !category }),
+    chat ? Promise.resolve(null) : listPosts({ categoryId: category?.id, sort, page, type, head, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category }),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? roomTools(category.id) : Promise.resolve(null),
     quietRoomSlugs().catch(() => new Set<string>()),
