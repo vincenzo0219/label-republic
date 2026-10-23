@@ -177,3 +177,25 @@ describe("debate style test (10/23)", async () => {
     expect(TEST_POST_IDS.has(DEBATE_TEST_POST_ID)).toBe(true);
   });
 });
+
+describe("parent type test (10/23)", async () => {
+  const { parentPick, parentBragLine, PARENT_TYPES, PARENT_INTRO_POST_ID } = await import("@/lib/parentTest");
+  const { TEST_POST_IDS } = await import("@/lib/testPosts");
+  const { RANK_TESTS } = await import("@/lib/testRanks");
+  const { typeOf, typeLabel } = await import("@/lib/peers");
+  const base = { research: false, plan: false, photo: false, diary: false, outing: false, place: false, easy: false };
+  it("picks a type from the seven answers", () => {
+    expect(parentPick(base).key).toBe("easy");
+    expect(parentPick({ ...base, research: true, plan: true }).key).toBe("info");
+    expect(parentPick({ ...base, plan: true, photo: true, diary: true }).key).toBe("record");
+    expect(parentPick({ ...base, plan: true, outing: true, place: true }).key).toBe("outing");
+  });
+  it("results are all positive and free of dashes", () => {
+    for (const t of Object.values(PARENT_TYPES)) expect(`${t.name}${t.what}`).not.toMatch(/[—–]/);
+  });
+  it("brag line reads as a test result type and posts into a test post", () => {
+    expect(typeLabel(typeOf(`${parentBragLine(PARENT_TYPES.outing!)}주말 나들이`)!)).toBe("🚙 나들이 대장");
+    expect(TEST_POST_IDS.has(PARENT_INTRO_POST_ID)).toBe(true);
+    expect(RANK_TESTS.parent?.test).toBe("/parent-test");
+  });
+});
