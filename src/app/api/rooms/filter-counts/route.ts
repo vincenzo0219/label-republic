@@ -1,6 +1,6 @@
 import { tooMany } from "@/lib/errors";
 import { fingerprint } from "@/lib/fingerprint";
-import { ALL_HEADS } from "@/lib/heads";
+import { ALL_HEADS, tabMembers } from "@/lib/heads";
 import { json, route } from "@/lib/http";
 import { hit } from "@/lib/rate-limit";
 import { filterCounts } from "@/lib/repo/categories";
@@ -19,5 +19,11 @@ export const GET = route(async (req) => {
   const ms = Number(q.get("since"));
   const floor = Date.now() - WEEK;
   const since = new Date(Number.isFinite(ms) && ms > floor ? ms : floor);
-  return json({ counts: await filterCounts(slug, since, ALL_HEADS.map((h) => h.key)) });
+  const counts = await filterCounts(slug, since, ALL_HEADS.map((h) => h.key));
+  // 합쳐진 탭 숫자는 그 안 말머리들을 더한다 (행사 = 행사 + 혜택)
+  for (const h of ALL_HEADS) {
+    const n = tabMembers(h.key).reduce((a, k) => a + (counts[k] ?? 0), 0);
+    if (n > 0) counts[h.key] = Math.min(n, 99);
+  }
+  return json({ counts });
 });
