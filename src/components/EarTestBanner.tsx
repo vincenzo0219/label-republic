@@ -16,6 +16,8 @@ const TESTS = [
   { href: "/coffee-test", label: "☕ 커피" },
   { href: "/anime-test", label: "🎨 애니·만화" },
   { href: "/viv-test", label: "🌿 비바리움 타입" },
+  { href: "/wine-test", label: "🍷 술 취향" },
+  { href: "/debate-test", label: "⚖️ 토론 스타일" },
   { href: "/kbo-test", label: "⚾ 야구 팬" },
   { href: "/fan-test", label: "⚽ 축구 팬" },
   { href: "/dog-test", label: "🐶 견주" },
