@@ -143,11 +143,11 @@ d("AI curator keeps posting after the seeds run out (database, Sprint 37)", asyn
     expect((await query<{ ai_reviewed: boolean }>("SELECT ai_reviewed FROM posts WHERE id = $1", [id]))[0]!.ai_reviewed).toBe(true);
   });
 
-  it("alternates info posts with conversation starters (Sprint 41): chat posts are short questions without AI comments", async () => {
+  it("writes a conversation starter after four info posts (Sprint 41, 10/23 one in five): chat posts are short questions without AI comments", async () => {
     await onlyBoard("keyboards");
     await query(
       `INSERT INTO posts (category_id, nickname, pw_hash, title, body, is_ai_curated, seed_key, created_at)
-       SELECT id, 'AI 큐레이터', '!ai-curator', '정보 시드', '본문', true, 'info-seed', now() - interval '13 hours' FROM categories WHERE slug = 'keyboards'`,
+       SELECT id, 'AI 큐레이터', '!ai-curator', '정보 시드 ' || n, '본문', true, 'info-seed-' || n, now() - interval '13 hours' FROM categories, generate_series(1, 4) n WHERE slug = 'keyboards'`,
     );
     const chat = (body: string, extra: Partial<CuratorDraft> = {}): CuratorDraft => ({
       title: "처음 산 기계식 키보드는 뭐였나요?",
