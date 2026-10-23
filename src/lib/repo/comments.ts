@@ -105,6 +105,15 @@ export async function deleteComment(id: string, fp: string, pin: string): Promis
   await query("DELETE FROM comments WHERE id = $1", [id]);
 }
 
+/** 댓글 본문 고치기 (10/23) — 지울 때와 같은 비번 확인. 개인정보는 등록 때처럼 가린다 */
+export async function updateComment(id: string, fp: string, pin: string, body: string): Promise<void> {
+  if (!/^\d{1,18}$/.test(id)) throw notFound("댓글");
+  const rows = await query<{ pw_hash: string }>("SELECT pw_hash FROM comments WHERE id = $1", [id]);
+  if (!rows[0]) throw notFound("댓글");
+  await assertPin(`comment:${id}`, fp, pin, rows[0].pw_hash);
+  await query("UPDATE comments SET body = $2 WHERE id = $1", [id, maskPersonalInfo(body).text]);
+}
+
 /**
  * 등록 직후 비동기로: Claude 가 문맥으로 판단해 확신이 높으면 가린다 (API 키가 없으면 규칙 판단만).
  * 운영자가 풀어 준 댓글, 이미 가려진 댓글은 건드리지 않는다. 가려지면 트리거가 실시간으로 알린다.

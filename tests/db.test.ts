@@ -417,6 +417,9 @@ d("database rules", async () => {
     const post = await newPost();
     const c = await comments.createComment(post.id, { nickname: "댓글러", pin: "4321", body: "좋은 정보" });
     expect((await posts.getPost(post.id))!.comment_count).toBe(1);
+    await expect(comments.updateComment(c.id, fp(1), "0000", "고친 말")).rejects.toMatchObject({ status: 403 });
+    await comments.updateComment(c.id, fp(1), "4321", "고친 말");
+    expect((await comments.listComments(post.id)).find((x) => x.id === c.id)?.body).toBe("고친 말");
     await expect(comments.deleteComment(c.id, fp(1), "0000")).rejects.toMatchObject({ status: 403 });
     await comments.deleteComment(c.id, fp(1), "4321");
     expect((await posts.getPost(post.id))!.comment_count).toBe(0);

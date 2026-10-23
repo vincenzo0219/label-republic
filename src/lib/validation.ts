@@ -137,6 +137,9 @@ export const updatePostSchema = z.object({
 
 export const pinOnlySchema = z.object({ pw: pin });
 
+/** 댓글 고치기 (10/23): 비번 + 새 본문 */
+export const commentEditSchema = z.object({ pw: pin, body: trimmed(1, 1000, "댓글") });
+
 export const voteSchema = z.object({ value: z.union([z.literal(1), z.literal(-1)]) });
 
 export const reportSchema = z.object({ reason: z.string().trim().max(200).default("") });
