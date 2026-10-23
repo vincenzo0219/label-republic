@@ -8,15 +8,14 @@ import { addMyComment, getPushState, watchPost } from "@/lib/watchlist";
 import { PushButton } from "./PushButton";
 import { rankHrefFor } from "@/lib/testRanks";
 import { myNick, myPin, saveNick } from "@/lib/me";
-import { INSTAGRAM_URL, KAKAO_ADD_URL } from "./FollowLinks";
+import { KAKAO_ADD_URL } from "./FollowLinks";
 
 /** 다음 날 다시 올 이유 (Sprint 95): 어제까지 집계 · 카톡 채널 · 인스타 팔로우 */
 function BragNext({ postId }: { postId: string }) {
   const rank = rankHrefFor(postId);
   return (
     <div className="brag-next">
-      {rank && <Link href={rank}>📊 다른 사람들 결과 순위 · 내일 아침 다시 바뀌어요 →</Link>}
-      <a href={INSTAGRAM_URL} target="_blank" rel="noopener">📷 인스타 @nobangjang 팔로우하고 순위 소식 받기</a>
+      {rank && <Link href={rank}>📊 결과 순위 →</Link>}
     </div>
   );
 }
@@ -28,13 +27,13 @@ function BragNext({ postId }: { postId: string }) {
 function KakaoCta() {
   return (
     <a className="btn kakao kakao-cta" href={KAKAO_ADD_URL} target="_blank" rel="noopener">
-      💬 카톡 채널 추가하고 매주 순위 받기
+      💬 카톡으로 매주 순위 받기
     </a>
   );
 }
 
 // 결과만 보고 떠나는 사람을 다음 날 다시 부르는 알림 (Sprint 92)
-const DAILY_LABEL = "🔔 내일 오늘의 질문 알림 받기";
+const DAILY_LABEL = "🔔 내일 질문 알림";
 const DAILY_ON = "🔔 내일 아침 알려 드릴게요";
 
 /**
@@ -96,10 +95,10 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
     return (
       <div className="quick-brag done" role="status">
         <p>
-          ✅ 남겼어요!
+          ✅ 남겼어요
         </p>
         <Link href={`/posts/${postId}#c${done.id}`} className="btn btn-primary ear-brag">
-          👀 다른 사람들 결과 보러 가기
+          👀 다른 결과 보기
         </Link>
         <KakaoCta />
         <PushButton label={DAILY_LABEL} onLabel={DAILY_ON} daily />
@@ -114,9 +113,8 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
       <PushButton label={DAILY_LABEL} onLabel={DAILY_ON} daily />
     </div>
     <form className="quick-brag" onSubmit={submit}>
-      <b>{prompt}</b>
       <p className="quick-brag-line">{line}</p>
-      <input className="input" placeholder={placeholder} value={extra} maxLength={120} onChange={(e) => setExtra(e.target.value)} aria-label="한 줄 덧붙이기" />
+      <input className="input" placeholder={placeholder} value={extra} maxLength={120} onChange={(e) => setExtra(e.target.value)} aria-label={prompt} />
       <div className="row">
         {known ? (
           <span className="as-me">
@@ -132,13 +130,10 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
       </div>
       {pushKey && (
         <label className="quick-brag-push">
-          <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> 🔔 답글 오면 알림
+          <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> 🔔 답글 알림
         </label>
       )}
       {error && <p className="error">{error}</p>}
-      <p className="hint">가입 없음 · 다른 사람들 결과와 나란히 올라가요 ·{" "}
-        <Link href={`/posts/${postId}`}>먼저 구경하기</Link>
-      </p>
       <BragNext postId={postId} />
     </form>
     </>

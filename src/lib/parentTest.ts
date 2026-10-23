@@ -1,5 +1,5 @@
 /** 👶 나는 어떤 육아 타입? 1분 테스트 (10/23, 육아 덕후방, 커피 테스트와 같은 틀). 부모의 육아 스타일만. 아이 나이·성별·사는 곳, 건강·발달·수면 판단은 묻지도 말하지도 않는다. 결과는 모두 긍정적으로. */
-export const PARENT_INTRO_POST_ID = "9115"; // 육아 덕후방 "👶 나의 육아 한 줄 자기소개"
+export const PARENT_INTRO_POST_ID = "9663"; // 육아 덕후방 채팅 (10/23 사용자 "자기소개 글은 빼고 채팅창에서 자연스럽게")
 
 export type ParentAnswers = {
   research: boolean; // 사기 전에 후기·비교
