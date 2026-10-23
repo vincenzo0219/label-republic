@@ -40,5 +40,8 @@ d("posts with many comments rise in the feed (10/22)", async () => {
     // 방 피드(기본 최신순)에서도 맨 위로
     const room = await listPosts({ categoryId: cat!.id, sort: "latest", page: 1, hotFirst: true });
     expect(room.items[0]!.title).toBe("old busy");
+    // 탭(유형·말머리)에서는 시간순 (10/23)
+    const tab = await listPosts({ categoryId: cat!.id, sort: "latest", page: 1, type: "chat", hotFirst: false });
+    expect(tab.items[0]!.title).toBe("new quiet");
   });
 });
