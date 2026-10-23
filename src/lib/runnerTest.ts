@@ -1,5 +1,5 @@
 /** 🏃 나는 어떤 러너? 1분 테스트 (10/21, 러닝 덕후방 — 팬 테스트와 같은 틀). 기록·건강 판단 없이 달리는 스타일만. */
-export const RUNNER_INTRO_POST_ID = "5879"; // 러닝 덕후방 "🏃 나의 러닝 한 줄 자기소개"
+export const RUNNER_INTRO_POST_ID = "6083"; // 러닝 덕후방 채팅 (10/23 자기소개 글은 빼고 채팅으로)
 
 export type RunnerAnswers = { dawn: boolean; crew: boolean; record: boolean; race: boolean };
 export type RunnerType = { key: string; emoji: string; name: string; what: string };

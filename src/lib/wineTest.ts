@@ -1,5 +1,5 @@
 /** 🍷 나의 술 취향은? 1분 테스트 (10/23, 와인·위스키 덕후방 — 커피 테스트와 같은 틀). 맛 취향만, 양·횟수·가격·브랜드 없이. 만 19세 이상. */
-export const WINE_INTRO_POST_ID = "6995"; // 와인·위스키 덕후방 "🍷 나의 술 취향 한 줄 자기소개"
+export const WINE_INTRO_POST_ID = "6998"; // 와인·위스키 덕후방 채팅 (10/23 자기소개 글은 빼고 채팅으로)
 
 export type WineAnswers = {
   red: boolean; // 레드

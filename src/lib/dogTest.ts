@@ -1,5 +1,5 @@
 /** 🐶 나는 어떤 견주? 1분 테스트 (Sprint 91, 반려견 덕후방 기본 세트). 건강·훈련 조언 없이 생활 스타일만. */
-export const DOG_INTRO_POST_ID = "3126";
+export const DOG_INTRO_POST_ID = "3173"; // 반려견 덕후방 채팅 (10/23 자기소개 글은 빼고 채팅으로)
 
 export type DogAnswers = { walkTwice: boolean; labels: boolean; travel: boolean; photos: boolean };
 export type DogType = { key: string; emoji: string; name: string; what: string };

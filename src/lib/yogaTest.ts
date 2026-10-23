@@ -1,5 +1,5 @@
 /** 🧘 나는 어떤 요가·필라테스 타입? 1분 테스트 (10/21, 요가·필라테스 덕후방 — 팬 테스트와 같은 틀). 건강·체형 판단 없이 수련 스타일만. */
-export const YOGA_INTRO_POST_ID = "5976"; // 요가·필라테스 덕후방 "🧘 나의 수련 한 줄 자기소개"
+export const YOGA_INTRO_POST_ID = "6466"; // 요가·필라테스 덕후방 채팅 (10/23 자기소개 글은 빼고 채팅으로)
 
 export type YogaAnswers = { morning: boolean; group: boolean; sweat: boolean; gear: boolean };
 export type YogaType = { key: string; emoji: string; name: string; what: string };
