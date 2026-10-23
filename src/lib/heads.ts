@@ -20,16 +20,15 @@ export const ALL_HEADS = [...BOOK_HEADS, ...HEADS] as const;
 export type Head = (typeof ALL_HEADS)[number]["key"];
 
 const BOOK = "읽는-책-제목을-교환해-보자";
+export const BOOK_ROOM = BOOK;
 
 /** 방 전용 말머리가 있는 방은 그것만 쓴다 (책 덕후방: 자랑은 밑줄로, 정모는 같이 읽기로 합침 — 10/21 단순화) */
 const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
   [BOOK]: [...BOOK_HEADS, HEADS[1], HEADS[2]],
 };
 
-/** 방 탭 줄 끝에 붙는 다른 화면 링크 (책 덕후방: 상황별 책 추천) */
-export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {
-  [BOOK]: [{ href: "/books/ask", label: "🙋 물어보기" }],
-};
+/** 방 탭 줄 끝에 붙는 다른 화면 링크 (책 덕후방 물어보기는 10/23 📚 추천 탭 안으로 합침) */
+export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {};
 
 /** 📋 정보 탭을 따로 두지 않는 방 (전체 탭에만 보인다) */
 export const NO_INFO_TAB = new Set([BOOK]);
@@ -58,7 +57,7 @@ export const HEAD_HINTS: Partial<Record<Head, string>> = {
   혜택: "무엇을 · 언제까지 · 어떻게 받는지, 그리고 공식 안내 링크를 남겨 주세요.",
   같이읽기: "같이 읽을 책 · 어디까지 읽었는지 · 모임 날짜",
   밑줄: "좋았던 문장 한 줄과 책 제목 (사진도 좋아요)",
-  추천: "이런 상황엔 이 책 · 같은 주제 다른 관점 두 권 · 신간 · 명저",
+  추천: "이런 상황엔 이 책 · 같은 주제 다른 관점 두 권 · 신간 · 명저 (상황별로 물어보기는 이 탭 아래에서)",
 };
 
 export const parseHead = (v: string | undefined): Head | undefined => ALL_HEADS.find((h) => h.key === v)?.key;
