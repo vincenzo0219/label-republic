@@ -14,8 +14,6 @@ import { SortBar } from "./SortBar";
 import { NO_INFO_TAB, ROOM_TAB_LINKS, headLabel, tabHeadsFor, type Head } from "@/lib/heads";
 import type { Comment } from "@/lib/types";
 import { EventAlert } from "./EventAlert";
-import { BookAsksInline } from "./BookAsksInline";
-import { BOOK_ROOM } from "@/lib/heads";
 import { LiveComments } from "./LiveComments";
 import { RoomVisitors } from "./RoomVisitors";
 import { SeenTracker } from "./SeenTracker";
@@ -177,7 +175,6 @@ export async function FeedView({
       {page === 1 && !type && !sourced && <MarkSeen room={seenRoom} />}
       <SeenTracker key={`${basePath}?${new URLSearchParams(params)}`} />
       <Pagination basePath={basePath} params={params} page={feed.page} pageSize={feed.pageSize} total={feed.total} />
-      {category?.slug === BOOK_ROOM && head === "추천" && page === 1 && <BookAsksInline />}
       </>
       )}
     </>

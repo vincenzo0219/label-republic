@@ -1,5 +1,5 @@
 /** ☕ 나는 어떤 커피러? 1분 테스트 (10/23, 커피 덕후방 — 신발 테스트와 같은 틀). 마시는 습관만, 브랜드·가격 없이. */
-export const COFFEE_INTRO_POST_ID = "6868"; // 커피 덕후방 "☕ 나의 커피 한 줄 자기소개"
+export const COFFEE_INTRO_POST_ID = "6880"; // 커피 덕후방 채팅 (10/23 자기소개 글은 빼고 채팅으로)
 
 export type CoffeeAnswers = {
   ice: boolean; // 겨울에도 아아
