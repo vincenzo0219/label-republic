@@ -143,3 +143,37 @@ describe("vivarium type test (10/23)", async () => {
     expect(TEST_POST_IDS.has(VIV_TYPE_INTRO_POST_ID)).toBe(true);
   });
 });
+
+describe("wine test (10/23)", async () => {
+  const { winePick, wineBragLine, WINE_TYPES, WINE_INTRO_POST_ID } = await import("@/lib/wineTest");
+  const { TEST_POST_IDS } = await import("@/lib/testPosts");
+  const { typeOf, typeLabel } = await import("@/lib/peers");
+  const base = { red: false, heavy: false, smoky: false, fruit: false, pairing: false, label: false };
+  it("picks a type from the six answers", () => {
+    expect(winePick({ ...base, fruit: true }).key).toBe("light");
+    expect(winePick({ ...base, red: true, heavy: true, fruit: true }).key).toBe("red");
+    expect(winePick({ ...base, red: true, smoky: true }).key).toBe("peat");
+    expect(winePick({ ...base, red: true, heavy: true, fruit: true, pairing: true, label: true }).key).toBe("pair");
+  });
+  it("brag line reads as a test result type and posts into a test post", () => {
+    expect(typeLabel(typeOf(`${wineBragLine(WINE_TYPES.peat!)}훈연 향`)!)).toBe("🥃 스모키 피트파");
+    expect(TEST_POST_IDS.has(WINE_INTRO_POST_ID)).toBe(true);
+  });
+});
+
+describe("debate style test (10/23)", async () => {
+  const { debatePick, debateBragLine, DEBATE_TYPES, DEBATE_TEST_POST_ID } = await import("@/lib/debateTest");
+  const { TEST_POST_IDS } = await import("@/lib/testPosts");
+  const { typeOf, typeLabel } = await import("@/lib/peers");
+  const base = { evidence: false, empathy: false, last: false, flip: false, calm: false, facts: false, fun: false };
+  it("picks a type from the seven answers", () => {
+    expect(debatePick(base).key).toBe("fighter");
+    expect(debatePick({ ...base, evidence: true, facts: true }).key).toBe("logic");
+    expect(debatePick({ ...base, empathy: true, calm: true, fun: true }).key).toBe("mediator");
+    expect(debatePick({ ...base, flip: true, fun: true }).key).toBe("devil");
+  });
+  it("brag line reads as a test result type and posts into a test post", () => {
+    expect(typeLabel(typeOf(`${debateBragLine(DEBATE_TYPES.logic!)}찍먹`)!)).toBe("🧠 근거 들이미는 논리파");
+    expect(TEST_POST_IDS.has(DEBATE_TEST_POST_ID)).toBe(true);
+  });
+});
