@@ -1,5 +1,5 @@
 /** 🎮 나는 어떤 게이머? 1분 테스트 (10/23, 게임 덕후방 — 신발 테스트와 같은 틀). 게임 습관만, 게임 이름·가격 없이. */
-export const GAME_INTRO_POST_ID = "6865"; // 게임 덕후방 "🎮 나의 게임 한 줄 자기소개"
+export const GAME_INTRO_POST_ID = "6879"; // 게임 덕후방 채팅 (10/23 자기소개 글은 빼고 채팅으로)
 
 export type GameAnswers = {
   rank: boolean; // 랭크 위주

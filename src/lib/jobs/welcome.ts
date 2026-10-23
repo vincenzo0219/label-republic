@@ -40,7 +40,9 @@ export function resultTeam(body: string): string | null {
  */
 export function welcomeText(c: Pick<First, "nickname" | "post_id" | "chat"> & { body?: string }, peer?: Peer | null, v = 0, who: string = "노방장"): string {
   const n = c.nickname;
-  if (c.chat)
+  // 테스트 결과가 채팅으로 오면 (10/23) 그 결과에 반응하고, 그냥 수다면 채팅 인사
+  const isResult = TEST_POST_IDS.has(c.post_id) && !!c.body && !!(resultTeam(c.body) || resultType(c.body));
+  if (c.chat && !isResult)
     return pick(
       by(who, {
         노방장: [`${n}님 어서 오세요`, `${n}님 왔네요 ㅎㅎ`, `${n}님 편하게 있다 가세요`, `오 ${n}님 처음이시죠`],
@@ -60,7 +62,7 @@ export function welcomeText(c: Pick<First, "nickname" | "post_id" | "chat"> & { 
       }),
       v,
     );
-  if (TEST_POST_IDS.has(c.post_id)) {
+  if (TEST_POST_IDS.has(c.post_id) && (!c.chat || isResult)) {
     const t = c.body ? resultType(c.body) : null;
     if (t)
       return pick(

@@ -1,5 +1,5 @@
 /** 📺 나는 어떤 드라마러? 1분 테스트 (10/23, 드라마 덕후방 — 신발 테스트와 같은 틀). 보는 습관만, 작품 이름·스포 없이. */
-export const DRAMA_INTRO_POST_ID = "6859"; // 드라마 덕후방 "📺 나의 드라마 한 줄 자기소개"
+export const DRAMA_INTRO_POST_ID = "6877"; // 드라마 덕후방 채팅 (10/23 자기소개 글은 빼고 채팅으로)
 
 export type DramaAnswers = {
   binge: boolean; // 끝나고 몰아서

@@ -1,5 +1,5 @@
 /** 🎨 나는 어떤 오타쿠? 1분 테스트 (10/23, 애니·만화 덕후방 — 신발 테스트와 같은 틀). 덕질 습관만, 작품 이름·가격 없이. */
-export const ANIME_INTRO_POST_ID = "5362"; // 애니·만화 덕후방 "🎨 요즘 보는 작품 하나만 알려 주세요" (따로 자기소개 글이 없어 이 글에)
+export const ANIME_INTRO_POST_ID = "5180"; // 애니·만화 덕후방 채팅 (10/23 자기소개 글은 빼고 채팅으로)
 
 export type AnimeAnswers = {
   goods: boolean; // 굿즈 사요

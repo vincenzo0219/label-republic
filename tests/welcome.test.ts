@@ -40,7 +40,7 @@ d("first comment welcome (Sprint 92)", async () => {
     expect(["노방장", "돈키호테", "덕후1호"]).toContain(r!.nickname);
     expect(r!.body).toContain("대니님");
     expect(welcomeText({ nickname: "a", post_id: "1", chat: true })).toContain("a님");
-    expect(welcomeText({ nickname: "a", post_id: "3126", chat: false })).toContain("a님 결과");
+    expect(welcomeText({ nickname: "a", post_id: "3173", chat: false })).toContain("a님 결과");
     // 다른 사람을 @로 불러 소개하지 않고, 그 사람 팀에만 반응
     expect(welcomeText({ nickname: "a", post_id: "3121", chat: false, body: "⚽ 축구 팬 테스트: 📊 전술 분석가 / 응원 팀: FC서울" })).toContain("FC서울");
     // 닉네임마다 말투가 다르고, 이모지·느낌표 없이 짧게
