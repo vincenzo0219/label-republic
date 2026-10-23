@@ -8,6 +8,7 @@ import { COFFEE_INTRO_POST_ID } from "./coffeeTest";
 import { ANIME_INTRO_POST_ID } from "./animeTest";
 import { WINE_INTRO_POST_ID } from "./wineTest";
 import { DEBATE_TEST_POST_ID } from "./debateTest";
+import { PARENT_INTRO_POST_ID } from "./parentTest";
 import { DOG_INTRO_POST_ID } from "./dogTest";
 import { EAR_BRAG_POST_ID } from "./earTest";
 import { FAN_INTRO_POST_ID } from "./fanTest";
@@ -31,6 +32,7 @@ export const RANK_TESTS: Record<string, RankTest> = {
   coffee: { key: "coffee", postId: COFFEE_INTRO_POST_ID, title: "☕ 커피러 타입 분포", room: "커피-덕후방", test: "/coffee-test" },
   anime: { key: "anime", postId: ANIME_INTRO_POST_ID, title: "🎨 덕질 타입 분포", room: "애니-만화-덕후방", test: "/anime-test" },
   wine: { key: "wine", postId: WINE_INTRO_POST_ID, title: "🍷 술 취향 타입 분포", room: "와인-위스키-덕후방", test: "/wine-test" },
+  parent: { key: "parent", postId: PARENT_INTRO_POST_ID, title: "👶 육아 타입 분포", room: "육아-덕후방", test: "/parent-test" },
   debate: { key: "debate", postId: DEBATE_TEST_POST_ID, title: "⚖️ 토론 스타일 분포", room: "ai-밸런스-토론방", test: "/debate-test" },
   dog: { key: "dog", postId: DOG_INTRO_POST_ID, title: "🐶 견주 타입 분포", room: "반려견-덕후방", test: "/dog-test" },
   vegan: { key: "vegan", postId: VEGAN_INTRO_POST_ID, title: "🌱 채식 타입 분포", room: "비건-덕후방", test: "/vegan-test" },

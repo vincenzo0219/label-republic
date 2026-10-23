@@ -60,6 +60,7 @@ async function build(): Promise<MetadataRoute.Sitemap> {
     { url: `${config.siteUrl}/viv-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/wine-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/debate-test`, changeFrequency: "weekly" as const, priority: 0.7 },
+    { url: `${config.siteUrl}/parent-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/dog-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/chat`, changeFrequency: "hourly" as const, priority: 0.6 },
     { url: `${config.siteUrl}/daily`, changeFrequency: "daily" as const, priority: 0.8 },
