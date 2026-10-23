@@ -1,5 +1,5 @@
 /** 👟 나는 어떤 신발러? 1분 테스트 (10/23, 신발 덕후방 — 요가·러너 테스트와 같은 틀). 브랜드·가격 없이 신는 습관만. */
-export const SHOE_INTRO_POST_ID = "6862"; // 신발 덕후방 "👟 나의 신발 한 줄 자기소개"
+export const SHOE_INTRO_POST_ID = "6878"; // 신발 덕후방 채팅 (10/23 자기소개 글은 빼고 채팅으로)
 
 export type ShoeAnswers = {
   halfUp: boolean; // 반업

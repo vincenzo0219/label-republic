@@ -57,7 +57,7 @@ export const HEAD_HINTS: Partial<Record<Head, string>> = {
   혜택: "무엇을 · 언제까지 · 어떻게 받는지, 그리고 공식 안내 링크를 남겨 주세요.",
   같이읽기: "같이 읽을 책 · 어디까지 읽었는지 · 모임 날짜",
   밑줄: "좋았던 문장 한 줄과 책 제목 (사진도 좋아요)",
-  추천: "이런 상황엔 이 책 · 같은 주제 다른 관점 두 권 · 신간 · 명저 (상황별로 물어보기는 이 탭 아래에서)",
+  추천: "이런 상황엔 이 책 · 같은 주제 다른 관점 두 권 · 신간 · 명저",
 };
 
 export const parseHead = (v: string | undefined): Head | undefined => ALL_HEADS.find((h) => h.key === v)?.key;
