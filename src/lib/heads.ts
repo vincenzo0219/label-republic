@@ -35,8 +35,21 @@ export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> =
 export const NO_INFO_TAB = new Set([BOOK]);
 
 
-/** 이 방에서 보이는 말머리 (방 전용이 앞) */
+/** 이 방에서 보이는 말머리 (방 전용이 앞) — 글쓰기에서 고르는 목록 */
 export const headsFor = (slug: string | undefined): { key: Head; label: string }[] => [...((slug && ROOM_HEADS[slug]) || HEADS)];
+
+/** 탭 하나에 다른 말머리 글도 함께 보이게 (10/23 사용자 "핫딜·할인은 모든 행사방에 넣어") */
+const TAB_INCLUDES: Partial<Record<Head, Head[]>> = { 행사: ["혜택"] };
+const TAB_LABELS: Partial<Record<Head, string>> = { 행사: "🎫 행사·할인" };
+
+/** 방 탭 줄에 보이는 말머리 — 다른 탭에 합쳐진 말머리(혜택)는 따로 탭을 두지 않는다 */
+export const tabHeadsFor = (slug: string | undefined): { key: Head; label: string }[] => {
+  const merged = new Set(Object.values(TAB_INCLUDES).flat());
+  return headsFor(slug).filter((h) => !merged.has(h.key)).map((h) => ({ ...h, label: TAB_LABELS[h.key] ?? h.label }));
+};
+
+/** 이 탭에 보이는 말머리들 (자기 자신 + 합쳐진 것) */
+export const tabMembers = (h: Head): Head[] => [h, ...(TAB_INCLUDES[h] ?? [])];
 
 /** 말머리를 고르면 본문 칸 예시도 바꾼다. 자랑은 물건보다 경험 쪽으로 (물건 자랑도 환영) */
 export const HEAD_HINTS: Partial<Record<Head, string>> = {

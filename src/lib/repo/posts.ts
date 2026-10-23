@@ -7,6 +7,7 @@ import { hit } from "../rate-limit";
 import { aiSpam, combine, heuristicSpam, moderationNote, shouldSuppress, type SpamVerdict } from "../moderation";
 import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
 import { searchTerms } from "../highlight";
+import { tabMembers, type Head } from "../heads";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
 import type { PostCard, PostDetail, PostRevision, PostType } from "../types";
@@ -176,8 +177,11 @@ export async function listPosts(
     where.push(`p.post_type = $${args.length}::post_type`);
   }
   if (params.head) {
-    args.push(`[${params.head}]%`);
-    where.push(`p.title LIKE $${args.length}`);
+    const likes = tabMembers(params.head as Head).map((h) => {
+      args.push(`[${h}]%`);
+      return `p.title LIKE $${args.length}`;
+    });
+    where.push(`(${likes.join(" OR ")})`);
   }
   if (params.sourced) where.push("p.source_count > 0");
   if (params.hideHiddenRooms) where.push("NOT EXISTS (SELECT 1 FROM categories hc WHERE hc.id = p.category_id AND hc.is_hidden)");

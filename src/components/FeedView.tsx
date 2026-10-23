@@ -11,7 +11,7 @@ import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
 import { FilterCount, FilterCountsLoader, MarkSeen } from "./NewMarks";
 import { SortBar } from "./SortBar";
-import { NO_INFO_TAB, ROOM_TAB_LINKS, headLabel, headsFor, type Head } from "@/lib/heads";
+import { NO_INFO_TAB, ROOM_TAB_LINKS, headLabel, tabHeadsFor, type Head } from "@/lib/heads";
 import type { Comment } from "@/lib/types";
 import { EventAlert } from "./EventAlert";
 import { LiveComments } from "./LiveComments";
@@ -113,7 +113,7 @@ export async function FeedView({
           💬 채팅
           <FilterCount k="chat" />
         </Link>
-        {headsFor(category.slug).map((h) => (
+        {tabHeadsFor(category.slug).map((h) => (
           <Link key={h.key} href={`${basePath}?${new URLSearchParams({ head: h.key })}`} aria-current={head === h.key ? "true" : undefined} rel="nofollow">
             {h.label}
             <FilterCount k={h.key} />
