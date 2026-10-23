@@ -146,13 +146,14 @@ async function autogenerate(
     [s.id],
   );
   const recentTitles = recent.rows.map((r) => r.title);
-  // 정보 글과 대화 시작 글을 번갈아 (Sprint 41) — 이 방의 마지막 AI 글이 정보 글이면 이번엔 대화
+  // 정보 글 4개에 대화 시작 글(질문) 1개 (10/23 사용자 "질문·댓글 요구는 5개 중 1개만", 전에는 번갈아 — Sprint 41)
   const lastAi = await client.query<{ post_type: string }>(
-    "SELECT post_type FROM posts WHERE category_id = $1 AND is_ai_curated ORDER BY id DESC LIMIT 1",
+    "SELECT post_type FROM posts WHERE category_id = $1 AND is_ai_curated ORDER BY id DESC LIMIT 4",
     [s.id],
   );
   // 새 방의 첫 글은 대화 질문 — 빈 방에서는 정보 글보다 답하기 쉬운 질문이 먼저다
-  const kind = lastAi.rows[0]?.post_type === "chat" ? "info" : lastAi.rows[0] ? "chat" : starter ? "chat" : "info";
+  const recentKinds = lastAi.rows.map((r) => r.post_type);
+  const kind = recentKinds.length === 0 ? (starter ? "chat" : "info") : recentKinds.length >= 4 && !recentKinds.includes("chat") ? "chat" : "info";
   let draft;
   try {
     draft = await generate({ slug: s.slug, name: s.name, description: s.description }, recentTitles, kind);
