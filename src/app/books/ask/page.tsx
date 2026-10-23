@@ -23,9 +23,6 @@ export default async function AsksPage() {
       <h1 className="ear-title">
         <em>○○할 때</em> 읽을 책
       </h1>
-      <p className="hint">
-        단톡방에선 &ldquo;추천해 주세요&rdquo;에 달린 답이 금방 밀려서 같은 질문이 또 올라와요. 여기선 상황마다 한 장에 추천이 쌓이고, 많이 추천된 책이 위로 올라와요. 추천된 책은 책 카드로 이어져 완독률도 볼 수 있어요.
-      </p>
       <BookAskForm />
       {asks.length === 0 ? (
         <p className="hint">아직 상황이 없어요. 첫 상황을 열어 주세요!</p>
