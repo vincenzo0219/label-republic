@@ -95,8 +95,9 @@ export async function FeedView({
       {category && (
         <div className="board-head">
           <span className="room-title">
-            <Link href="/?all=1" className="room-name">← {category.name}</Link>
+            <span className="room-name">{category.name}</span>
             <MyRoomStar slug={category.slug} />
+            <Link href="/?all=1" className="all-rooms-link">☰ 전체 방</Link>
             <RoomVisitors slug={category.slug} />
           </span>
           <div className="board-actions">

@@ -164,6 +164,15 @@ export function homeRedirectTarget(input: { rooms: string[]; search: string; ref
   return `/c/${encodeURIComponent(input.rooms[0]!)}`;
 }
 
+/**
+ * 지나온 경로(NavCounter 가 남김)로 사이트 안 이동인지. 첫 화면이면 비어 있거나 지금 경로 하나뿐이다.
+ * NavCounter 의 effect 가 이 판단보다 먼저 돌든 나중에 돌든 같은 답이 나온다.
+ */
+export function isSoftNav(paths: string[], here: string): boolean {
+  if (paths.length >= 2) return true;
+  return paths.length === 1 && paths[0] !== here;
+}
+
 // ---------------------------------------------------------------------------
 // 칩에 쓰는 짧은 이름·이모지
 // ---------------------------------------------------------------------------
