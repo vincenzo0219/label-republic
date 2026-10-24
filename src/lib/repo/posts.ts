@@ -67,6 +67,8 @@ function escapeLike(term: string) {
 
 export type ListParams = {
   categoryId?: number;
+  /** 이 방들(slug)의 글만 — 홈의 내 방 피드 */
+  categorySlugs?: string[];
   sort: SortKey;
   q?: string;
   page?: number;
@@ -175,6 +177,10 @@ export async function listPosts(
     args.push(params.categoryId);
     where.push(`p.category_id = $${args.length}`);
   }
+  if (params.categorySlugs) {
+    args.push(params.categorySlugs);
+    where.push(`p.category_id IN (SELECT id FROM categories WHERE slug = ANY($${args.length}::text[]))`);
+  }
   if (params.type) {
     args.push(params.type);
     where.push(`p.post_type = $${args.length}::post_type`);
@@ -250,13 +256,22 @@ export async function listPosts(
  * 개인화 리포트용: 선택한 방들의 since 이후 새 [정보]·[정모] 글 (잡담·블라인드·광고 의심 제외), 신뢰도순.
  * total 은 limit 과 무관한 전체 개수.
  */
-export async function listNewPosts(categoryIds: number[], since: Date, limit = 30): Promise<{ items: PostCard[]; total: number }> {
+/**
+ * 관심 방 새 글 조건: $1 방 번호들, $2 방마다의 기준 시각(같은 순서). 잡담은 빼되 [행사]·[혜택] 말머리 글은 넣는다.
+ * 방마다 기준이 다른 건 이미 그 방에서 읽은 글을 다시 세지 않으려고 (방을 마지막으로 본 시각, 10/24)
+ */
+export const BOARD_NEW_WHERE = `NOT p.is_blinded AND NOT p.is_suppressed
+    AND (p.post_type <> 'chat' OR p.title LIKE '[행사]%' OR p.title LIKE '[혜택]%')
+    AND p.category_id = ANY($1::int[])
+    AND p.created_at > (SELECT x.s FROM unnest($1::int[], $2::timestamptz[]) AS x(id, s) WHERE x.id = p.category_id LIMIT 1)`;
+
+/** since: 모든 방 공통 기준 또는 categoryIds 와 같은 순서의 방별 기준 */
+export async function listNewPosts(categoryIds: number[], since: Date | Date[], limit = 30): Promise<{ items: PostCard[]; total: number }> {
   if (!categoryIds.length) return { items: [], total: 0 };
-  const where = `NOT p.is_blinded AND NOT p.is_suppressed AND p.post_type <> 'chat'
-    AND p.category_id = ANY($1::int[]) AND p.created_at > $2::timestamptz`;
+  const per = categoryIds.map((_, i) => (Array.isArray(since) ? since[i]! : since).toISOString());
   const [items, count] = await Promise.all([
-    query<PostCard>(pagedCardsSql(where, ORDER.trust, "$3"), [categoryIds, since.toISOString(), limit]),
-    query<{ total: number }>(`SELECT count(*)::int AS total FROM posts p WHERE ${where}`, [categoryIds, since.toISOString()]),
+    query<PostCard>(pagedCardsSql(BOARD_NEW_WHERE, ORDER.trust, "$3"), [categoryIds, per, limit]),
+    query<{ total: number }>(`SELECT count(*)::int AS total FROM posts p WHERE ${BOARD_NEW_WHERE}`, [categoryIds, per]),
   ]);
   return { items, total: count[0]!.total };
 }

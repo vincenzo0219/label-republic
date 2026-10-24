@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AutoMyRoom } from "@/components/MyRooms";
 import { abuseLabel } from "@/lib/abuse-labels";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -174,6 +175,7 @@ export default async function PostPage({ params }: Props) {
 
   return (
     <article>
+      <AutoMyRoom slug={post.category.slug} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <header className="post-head">
         <div className="card-top">
