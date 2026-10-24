@@ -199,3 +199,31 @@ describe("parent type test (10/23)", async () => {
     expect(RANK_TESTS.parent?.test).toBe("/parent-test");
   });
 });
+
+describe("writer genre test (10/24)", async () => {
+  const { writerPick, writerBragLine, WRITER_TYPES, WRITER_INTRO_POST_ID } = await import("@/lib/writerTest");
+  const { TEST_POST_IDS } = await import("@/lib/testPosts");
+  const { RANK_TESTS } = await import("@/lib/testRanks");
+  const { typeOf, typeLabel } = await import("@/lib/peers");
+  it("picks a genre from the five answers", () => {
+    expect(writerPick({ start: "fantasy", scene: "althist", notes: "fantasy", grow: "hyunpan", comment: "world" }).key).toBe("fantasy");
+    expect(writerPick({ start: "rofan", scene: "romance", notes: "althist", grow: "romance", comment: "flutter" }).key).toBe("romance");
+    expect(writerPick({ start: "hyunpan", scene: "murim", notes: "murim", grow: "hyunpan", comment: "cider" }).key).toBe("hyunpan");
+    expect(writerPick({ start: "rofan", scene: "murim", notes: "althist", grow: "hyunpan", comment: "world" }).key).toBe("althist");
+    // 동점이면 첫 질문에서 고른 장르
+    expect(writerPick({ start: "hyunpan", scene: "althist", notes: "fantasy", grow: "hyunpan", comment: "world" }).key).toBe("hyunpan");
+    expect(writerPick({ start: "rofan", scene: "murim", notes: "fantasy", grow: "romance", comment: "cider" }).key).toBe("murim");
+  });
+  it("every genre is reachable and results are short and dash-free", () => {
+    for (const t of Object.values(WRITER_TYPES)) {
+      expect(`${t.name}${t.what}`).not.toMatch(/[—–]/);
+      expect([...t.what].length).toBeLessThanOrEqual(40);
+      expect(writerPick({ start: t.key, scene: t.key, notes: t.key, grow: t.key, comment: "world" }).key).toBe(t.key);
+    }
+  });
+  it("brag line reads as a test result type and posts into the room chat", () => {
+    expect(typeLabel(typeOf(`${writerBragLine(WRITER_TYPES.murim)}무협 10화`)!)).toBe("⚔️ 무협 고수");
+    expect(TEST_POST_IDS.has(WRITER_INTRO_POST_ID)).toBe(true);
+    expect(RANK_TESTS.writer?.test).toBe("/writer-test");
+  });
+});
