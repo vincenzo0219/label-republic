@@ -3,7 +3,8 @@ import { aiAbuse, aiImageAbuse, heuristicAbuse, hideParams, maskPersonalInfo } f
 import { query, tx } from "../db";
 import { blinded, HttpError, notFound } from "../errors";
 import { extractMentions, resolveMentions } from "../mentions";
-import { investProblem, isInvestRoom } from "../investRooms";
+import { investProblem } from "../investRooms";
+import { roomAbuseOpts, roomHeuristicAbuse } from "../roomModeration";
 import { heuristicSpam, shouldSuppress } from "../moderation";
 import { hashPin } from "../password";
 import { hit } from "../rate-limit";
@@ -16,10 +17,12 @@ async function roomOfPost(postId: string): Promise<string | null> {
   return r?.slug ?? null;
 }
 
-/** 투자방 규칙 (10/24): 외부 채팅방 링크·리딩방 모집·전화번호는 댓글로도 못 올린다 */
-async function assertInvestOk(postId: string, body: string): Promise<void> {
-  const problem = investProblem(await roomOfPost(postId), body);
+/** 투자방 규칙 (10/24): 외부 채팅방 링크·리딩방 모집·전화번호는 댓글로도 못 올린다. 글이 있는 방 slug 를 돌려준다 */
+async function assertInvestOk(postId: string, body: string): Promise<string | null> {
+  const slug = await roomOfPost(postId);
+  const problem = investProblem(slug, body);
   if (problem) throw new HttpError(400, "invest_rule", problem);
+  return slug;
 }
 
 /** 같은 망에서 한 댓글로 보내는 답글·멘션 알림 (시간당) */
@@ -52,7 +55,7 @@ export async function createComment(
   input: { nickname: string; pin: string; body: string; fingerprint?: string; net?: string; parentId?: string; image?: { id: string; token: string } },
 ): Promise<Comment> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
-  await assertInvestOk(postId, input.body);
+  const slug = await assertInvestOk(postId, input.body);
   // 휴대전화·이메일·주민등록번호는 지운 판으로 저장 (Sprint 37)
   // 광고·홍보 댓글 (Sprint 83): 글과 같은 규칙으로, 연락처를 지우기 전 원문으로 판단한다
   const spam = heuristicSpam("", input.body);
@@ -88,6 +91,7 @@ export async function createComment(
     // 분명한 욕설·혐오·개인정보는 처음부터 가려진 채 올라간다 (AI 자동 운영, Sprint 37)
     const abuse =
       heuristicAbuse(input.body) ??
+      roomHeuristicAbuse(slug, input.body) ??
       (shouldSuppress(spam) ? { category: "spam" as const, evidence: spam.reasons.join(", "), model: spam.model } : null);
     // 사진 (Sprint 90): 방금 올린, 아직 어디에도 안 붙은 사진만 — 업로드 토큰으로 확인
     let imageId: string | null = null;
@@ -141,8 +145,11 @@ export async function aiModerateComment(id: string): Promise<boolean> {
     [id],
   );
   if (!rows[0]) return false;
-  // 사진이 있으면 사진도 본다 (Sprint 90). 투자방은 리딩방·수익 보장 홍보도 (10/24)
-  const verdict = (await aiAbuse(rows[0].body, { invest: isInvestRoom(rows[0].slug) })) ?? (rows[0].image_id ? await aiImageAbuse(rows[0].image_id) : null);
+  // 사진이 있으면 사진도 본다 (Sprint 90). 투자방은 리딩방·수익 보장 홍보도, 식단방은 극단적 다이어트 조장도 (10/24)
+  const verdict =
+    roomHeuristicAbuse(rows[0].slug, rows[0].body) ??
+    (await aiAbuse(rows[0].body, roomAbuseOpts(rows[0].slug))) ??
+    (rows[0].image_id ? await aiImageAbuse(rows[0].image_id) : null);
   if (!verdict) return false;
   const res = await query<{ id: string }>(
     `UPDATE comments SET ai_hidden_reason = $2, ai_hidden_note = $3, ai_hidden_model = $4, ai_hidden_at = now()

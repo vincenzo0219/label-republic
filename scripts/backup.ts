@@ -33,6 +33,8 @@ export const CHECK_TABLES = [
   "market_radar",
   // 10/24 📍 동네 체험 🔔 알림
   "kids_program_alerts",
+  // 10/24 🥗 오늘 식단 인증 (연속 일수)
+  "meal_logs",
 ];
 
 type Manifest = {

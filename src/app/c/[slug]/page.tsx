@@ -24,6 +24,9 @@ import { MarketCard } from "@/components/MarketCard";
 import { savingsSummary } from "@/lib/repo/savingsLog";
 import { upcomingEvents } from "@/lib/repo/marketEvents";
 import { SAVINGS_ROOMS } from "@/lib/savingsLog";
+import { MealLog } from "@/components/MealLog";
+import { mealSummary } from "@/lib/repo/mealLog";
+import { DIET_ROOMS } from "@/lib/dietRoom";
 import { MARKET_ROOMS } from "@/lib/marketEvents";
 import { RadarCard } from "@/components/RadarCard";
 import { RADAR_ROOMS } from "@/lib/marketRadar";
@@ -115,6 +118,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const plain = !sp.tab && !sp.type;
   const savings = SAVINGS_ROOMS.has(category.slug) && plain && (!head || head === "자랑") ? await savingsSummary(category.slug).catch(() => null) : null;
   const savingsBox = savings && <SavingsLog room={category.slug} {...savings} compact={!head} />;
+  // 🥗 오늘 식단 인증 (다이어트 식단 방). 실패하면 안 보인다
+  const meal = DIET_ROOMS.has(category.slug) && plain && (!head || head === "자랑") ? await mealSummary(category.slug).catch(() => null) : null;
+  const mealBox = meal && <MealLog room={category.slug} {...meal} compact={!head} />;
   // 🎫 광고(?from=ig_*)로 들어오면 맨 위에 가까운 일정 한 장 — 투자방은 📅 일정 카드, 육아방은 📍 동네 체험 한 줄을 그 자리로 (10/24)
   const ad = isAdLanding(sp.from);
   const markets = MARKET_ROOMS[category.slug];
@@ -134,7 +140,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       {marketBox}
     </>
   );
-  const roomBox = writingBox || savingsBox || marketBoxes;
+  const roomBox = writingBox || savingsBox || mealBox || marketBoxes;
   // 📍 동네 체험 (육아방): 💬 채팅 뒤 탭 + 전체 탭 맨 위 한 줄. 지역은 브라우저에 저장돼 있어 화면에서 불러온다
   const roomTab = roomTabOf(category.slug, sp.tab);
   const roomTabProps = roomTab?.key === KIDS_TAB ? { key: KIDS_TAB, node: <KidsTab /> } : undefined;

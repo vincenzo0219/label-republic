@@ -32,6 +32,8 @@ const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
   미국주식방: [SCHEDULE, JOURNAL],
   주식: [SCHEDULE, JOURNAL],
   "적립식-투자방": [{ key: "자랑", label: "📒 적립 인증" }, HEADS[2]],
+  // 이용자가 만든 식단방 (10/24): 📸 자랑 탭만 "📸 식단 인증" 으로, 나머지는 그대로
+  "다이어트-식단-함께해요": [{ key: "자랑", label: "📸 식단 인증" }, HEADS[1], HEADS[2]],
 };
 /** 방 전용 이름을 붙인 말머리는 탭에서도 그 이름 (공용 "🎫 행사·할인" 으로 바꾸지 않음) */
 const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방"]);
@@ -84,6 +86,7 @@ const ROOM_HINTS: Record<string, Partial<Record<Head, string>>> = {
   미국주식방: { 행사: "날짜 · 일정 · 공식 링크", 자랑: "날짜 · 산 것·판 것 · 이유 한 줄" },
   주식: { 행사: "날짜 · 일정 · 공식 링크", 자랑: "날짜 · 산 것·판 것 · 이유 한 줄" },
   "적립식-투자방": { 자랑: "몇 달째 · 무엇을", 혜택: "무엇을 · 언제까지 · 공식 링크" },
+  "다이어트-식단-함께해요": { 자랑: "오늘 먹은 것 · 사진 한 장" },
 };
 export const headHint = (h: Head, slug?: string): string | undefined => (slug && ROOM_HINTS[slug]?.[h]) || HEAD_HINTS[h];
 

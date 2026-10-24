@@ -7,6 +7,7 @@ export const ABUSE_LABELS = {
   spam: "광고·홍보 링크",
   image: "부적절한 사진",
   invest: "리딩방·수익 보장 홍보",
+  diet: "극단적 다이어트 조장",
 } as const;
 export type AbuseCategory = keyof typeof ABUSE_LABELS;
 

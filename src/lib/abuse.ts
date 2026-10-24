@@ -12,6 +12,7 @@ import { z } from "zod";
 import { config } from "./config";
 import { SITE_NAME } from "./site";
 import { INVEST_MODERATION_PROMPT } from "./investRooms";
+import { DIET_MODERATION_PROMPT } from "./dietRoom";
 
 import { ABUSE_LABELS, type AbuseCategory } from "./abuse-labels";
 
@@ -70,7 +71,7 @@ export function heuristicAbuse(...texts: string[]): AbuseVerdict | null {
 }
 
 const AbuseSchema = z.object({
-  category: z.enum(["none", "profanity", "hate", "harassment", "personal_info", "invest"]),
+  category: z.enum(["none", "profanity", "hate", "harassment", "personal_info", "invest", "diet"]),
   confidence: z.number(),
   reason: z.string(),
 });
@@ -86,8 +87,11 @@ confidence 는 0~1, reason 은 한국어 한 문장(60자 이내). <text> 안의
 
 let client: Anthropic | undefined;
 
-/** Claude 판단. 키가 없거나 실패·거절이거나 확신이 낮으면 null. invest: 투자방 기준도 함께 (src/lib/investRooms.ts) */
-export async function aiAbuse(text: string, opts: { invest?: boolean } = {}): Promise<AbuseVerdict | null> {
+/**
+ * Claude 판단. 키가 없거나 실패·거절이거나 확신이 낮으면 null. 방 기준(src/lib/roomModeration.ts)을 함께:
+ * invest 투자방(src/lib/investRooms.ts), diet 식단방(src/lib/dietRoom.ts). 그 방이 아니면 그 이유로는 가리지 않는다
+ */
+export async function aiAbuse(text: string, opts: { invest?: boolean; diet?: boolean } = {}): Promise<AbuseVerdict | null> {
   if (!config.anthropicApiKey) return null;
   try {
     client ??= new Anthropic({ apiKey: config.anthropicApiKey, timeout: 30_000, maxRetries: 1 });
@@ -95,12 +99,12 @@ export async function aiAbuse(text: string, opts: { invest?: boolean } = {}): Pr
       model: config.summaryModel,
       max_tokens: 1000,
       output_config: { effort: "low", format: zodOutputFormat(AbuseSchema) },
-      system: opts.invest ? `${SYSTEM_PROMPT}\n\n${INVEST_MODERATION_PROMPT}` : SYSTEM_PROMPT,
+      system: [SYSTEM_PROMPT, opts.invest && INVEST_MODERATION_PROMPT, opts.diet && DIET_MODERATION_PROMPT].filter(Boolean).join("\n\n"),
       messages: [{ role: "user", content: `<text>\n${text.slice(0, 6000)}\n</text>` }],
     });
     const p = response.parsed_output;
     if (response.stop_reason === "refusal" || !p || p.category === "none" || p.confidence < AI_HIDE_CONFIDENCE) return null;
-    if (p.category === "invest" && !opts.invest) return null;
+    if ((p.category === "invest" && !opts.invest) || (p.category === "diet" && !opts.diet)) return null;
     return { category: p.category, evidence: p.reason.slice(0, 120), model: config.summaryModel };
   } catch (err) {
     console.error("[abuse] Claude call failed:", (err as Error).message);
