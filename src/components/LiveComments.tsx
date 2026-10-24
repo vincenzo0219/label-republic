@@ -361,7 +361,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
         댓글 {comments.length}
         <span className={`live-dot${live ? " on" : ""}`} title={live ? "실시간 연결됨" : "연결 중…"} />
       </h2>
-      {comments.length === 0 && <p className="hint">{casual ? "첫 댓글을 남겨 이야기를 시작해 보세요." : "첫 댓글로 팩트를 보태주세요."}</p>}
+      {comments.length === 0 && <p className="hint">{casual ? "아직 댓글이 없어요" : "첫 댓글로 팩트를 보태주세요."}</p>}
       {groups.map(({ root, replies }) => (
         <div key={root.id} className="comment-thread">
           {[root, ...replies].map((c) => {
