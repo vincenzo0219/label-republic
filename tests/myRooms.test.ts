@@ -7,6 +7,7 @@ import {
   autoAddFirstRoom,
   getMyRooms,
   homeRedirectTarget,
+  isSoftNav,
   MY_ROOMS_KEY,
   MY_ROOMS_MAX,
   myRoomsCookieValue,
@@ -93,6 +94,12 @@ describe("home redirect to the only room", () => {
     expect(homeRedirectTarget(base)).toBe(`/c/${encodeURIComponent("육아-덕후방")}`);
     expect(homeRedirectTarget({ ...base, referrer: "https://l.instagram.com/" })).toBe(`/c/${encodeURIComponent("육아-덕후방")}`);
     expect(homeRedirectTarget({ ...base, search: "?source=pwa" })).toBe(`/c/${encodeURIComponent("육아-덕후방")}`);
+  });
+  it("tells a first screen from an in-site navigation", () => {
+    expect(isSoftNav([], "/")).toBe(false);
+    expect(isSoftNav(["/"], "/")).toBe(false);
+    expect(isSoftNav(["/c/a"], "/")).toBe(true);
+    expect(isSoftNav(["/c/a", "/"], "/")).toBe(true);
   });
   it("stays on home otherwise", () => {
     expect(homeRedirectTarget({ ...base, rooms: [] })).toBeNull();

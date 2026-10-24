@@ -8,6 +8,7 @@ import {
   autoAddFirstRoom,
   getMyRooms,
   homeRedirectTarget,
+  isSoftNav,
   MY_ROOMS_KEY,
   onMyRoomsChange,
   roomEmoji,
@@ -30,13 +31,13 @@ export function useMyRooms(): string[] | null {
   return useSyncExternalStore(onMyRoomsChange, snapshot, () => null);
 }
 
-// 사이트 안 이동(클라이언트 내비게이션) 횟수 — 0 이면 바깥에서 막 열린 첫 화면
-let navs = 0;
-/** 루트 레이아웃 body 맨 끝에 하나. 앞쪽 형제(페이지)의 effect 가 먼저 돌기 때문에 첫 화면에서는 0 을 본다 */
+// 이 탭에서 지나온 경로 (클라이언트 내비게이션). 하이드레이션 순서와 상관없이 판단하려고 횟수 대신 경로를 남긴다
+const paths: string[] = [];
+/** 루트 레이아웃에 하나 */
 export function NavCounter() {
   const path = usePathname();
   useEffect(() => {
-    navs++;
+    if (paths.at(-1) !== path) paths.push(path);
   }, [path]);
   return null;
 }
@@ -96,11 +97,11 @@ export function MyRoomsBar({ rooms, initial, legacy, filtered, redirect }: { roo
   const [open, setOpen] = useState(false);
   const mine = live ?? initial ?? [];
 
-  // 처음 그려질 때 사이트 안 이동으로 왔는지 기억 (NavCounter 는 레이아웃 맨 끝이라 이 effect 가 먼저 돈다)
+  // 처음 그려질 때 사이트 안 이동으로 왔는지 기억
   const soft = useRef<boolean | null>(null);
   const decided = useRef(false);
   useEffect(() => {
-    if (soft.current === null) soft.current = navs > 0;
+    if (soft.current === null) soft.current = isSoftNav(paths, location.pathname);
     if (live === null) return;
     let has = false;
     try {
