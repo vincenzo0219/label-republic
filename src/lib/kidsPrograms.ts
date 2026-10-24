@@ -151,15 +151,15 @@ const F = {
   dateText: ["dates", "programDates", "program_dates", "date", "period", "dateText", "date_text", "schedule", "eventDate", "event_date"],
   start: ["startDate", "start_date", "programStart", "program_start", "eventStart", "event_start", "dates.start", "programDates.start", "program_dates.start", "period.start", "from", "start"],
   end: ["endDate", "end_date", "programEnd", "program_end", "eventEnd", "event_end", "dates.end", "programDates.end", "program_dates.end", "period.end", "to", "end"],
-  applyStart: ["applyStart", "apply_start", "applyStartAt", "apply_start_at", "registrationStart", "registration_start", "registrationStartAt", "registration_start_at", "regStart", "reg_start", "receiptStart", "receipt_start", "applyFrom", "registration.start", "apply.start", "registration.startAt", "apply.startAt"],
-  applyEnd: ["applyEnd", "apply_end", "applyEndAt", "apply_end_at", "registrationEnd", "registration_end", "registrationEndAt", "registration_end_at", "regEnd", "reg_end", "receiptEnd", "receipt_end", "applyTo", "registration.end", "apply.end", "registration.endAt", "apply.endAt"],
+  applyStart: ["applicationStart", "application_start", "applicationStartAt", "applyStart", "apply_start", "applyStartAt", "apply_start_at", "registrationStart", "registration_start", "registrationStartAt", "registration_start_at", "regStart", "reg_start", "receiptStart", "receipt_start", "applyFrom", "registration.start", "apply.start", "registration.startAt", "apply.startAt"],
+  applyEnd: ["applicationEnd", "application_end", "applicationEndAt", "applyEnd", "apply_end", "applyEndAt", "apply_end_at", "registrationEnd", "registration_end", "registrationEndAt", "registration_end_at", "regEnd", "reg_end", "receiptEnd", "receipt_end", "applyTo", "registration.end", "apply.end", "registration.endAt", "apply.endAt"],
   applyUrl: ["applyUrl", "apply_url", "applyLink", "apply_link", "registrationUrl", "registration_url", "link", "url", "institutionUrl", "institution_url", "orgUrl", "sourceUrl", "source_url"],
   ibolUrl: ["ibolUrl", "ibol_url", "ibolLink", "ibol_link", "detailUrl", "detail_url", "ibol", "pageUrl", "page_url"],
   source: ["source", "sourceName", "source_name", "provider", "dataSource", "data_source"],
 } as const;
 
 /** 알려진 필드 이름 (모르는 모양을 기록할 때) */
-const KNOWN = new Set(Object.values(F).flat().map((k) => k.split(".")[0]!));
+const KNOWN = new Set([...Object.values(F).flat().map((k) => k.split(".")[0]!), "status", "walkIn"]);
 
 function formatCost(v: unknown): string {
   if (typeof v === "number") return v === 0 ? "무료" : `${v.toLocaleString("ko-KR")}원`;
