@@ -51,6 +51,11 @@ export function PostCard({
           ) : post.source_kinds.includes("gov") ? (
             <span className="badge badge-src badge-src-gov">🏛 공공기관 출처</span>
           ) : null}
+          {(post.human_comment_count ?? 0) > 0 && (
+            <span className="badge badge-people" aria-label={`사람 댓글 ${post.human_comment_count}개`}>
+              💬 {post.human_comment_count}
+            </span>
+          )}
           {post.disputed_count > 0 && <span className="badge badge-disputed">🛠 정정 제안 {post.disputed_count}</span>}
           {post.is_suppressed && (
             <span className="badge badge-pending" title="스팸·광고 패턴이 감지되어 노출 순위가 낮아진 글">

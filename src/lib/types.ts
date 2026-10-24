@@ -58,6 +58,8 @@ export type PostCard = {
   correction_count: number;
   /** 커뮤니티가 동의했는데 아직 반영되지 않은 정정 제안 수 */
   disputed_count: number;
+  /** 사람(AI·운영 닉네임 아님)이 단 댓글 수 */
+  human_comment_count?: number;
 };
 
 export type ProductTag = { id: string; brand: string; name: string };

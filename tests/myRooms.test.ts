@@ -167,6 +167,23 @@ d("home feed with my rooms (db)", async () => {
     expect((await listPosts({ sort: "latest", page: 1, categorySlugs: ["없는-방"] })).items).toHaveLength(0);
   });
 
+  it("counts only human comments on cards", async () => {
+    const [p] = await query<{ id: string }>("SELECT id::text AS id FROM posts ORDER BY id LIMIT 1");
+    const fp = "f".repeat(64);
+    const add = (nick: string, ai: boolean, withFp: boolean) =>
+      query("INSERT INTO comments (post_id, nickname, pw_hash, body, is_ai_curated, author_fingerprint) VALUES ($1, $2, 'x', 'hi', $3, $4)", [p!.id, nick, ai, withFp ? fp : null]);
+    await add("하나", false, true);
+    await add("두리", false, true);
+    await add("노방장", false, true);
+    await add("돈키호테", false, true);
+    await add("AI 큐레이터", true, false);
+    await add("익명", false, false);
+    const items = (await listPosts({ sort: "latest", page: 1 })).items;
+    const card = items.find((x) => x.id === p!.id)!;
+    expect(card.human_comment_count).toBe(2);
+    expect(items.filter((x) => x.id !== p!.id).every((x) => x.human_comment_count === 0)).toBe(true);
+  });
+
   it("관심 방 새 글: skips posts read in the room and includes [행사]", async () => {
     const { countNew, buildReport, parseSeen } = await import("@/lib/repo/report");
     await query("TRUNCATE posts, categories RESTART IDENTITY CASCADE");
