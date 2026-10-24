@@ -4,7 +4,7 @@
  */
 import { query } from "../db";
 import type { PostCard } from "../types";
-import { listNewPosts, listUpcomingMeetups } from "./posts";
+import { BOARD_NEW_WHERE, listNewPosts, listUpcomingMeetups } from "./posts";
 import { watchUpdates, type WatchUpdates } from "./watch";
 
 export const MAX_REPORT_BOARDS = 10;
@@ -47,6 +47,32 @@ export function parseBoards(raw: string | null | undefined): string[] {
   return Array.from(new Set((raw ?? "").split(",").map((s) => s.trim()).filter((s) => s && s.length <= 60))).slice(0, MAX_REPORT_BOARDS);
 }
 
+/** "slug:epochMs,..." — 방을 마지막으로 본 시각 (브라우저에만 있는 값, 기록하지 않음) */
+export function parseSeen(raw: string | null | undefined): Map<string, Date> {
+  const out = new Map<string, Date>();
+  for (const part of (raw ?? "").split(",").slice(0, 60)) {
+    const i = part.lastIndexOf(":");
+    if (i <= 0) continue;
+    let slug = part.slice(0, i);
+    try {
+      slug = decodeURIComponent(slug);
+    } catch {
+      continue;
+    }
+    const ms = Number(part.slice(i + 1));
+    if (slug.length <= 60 && Number.isFinite(ms) && ms > 0) out.set(slug, new Date(ms));
+  }
+  return out;
+}
+
+/** 방마다 기준 시각: 공통 기준(since)과 그 방을 마지막으로 본 시각 중 늦은 쪽 (지금보다 뒤로는 안 감) */
+function perBoardSince(cats: { slug: string }[], since: Date, seen?: Map<string, Date>, now = new Date()): Date[] {
+  return cats.map((c) => {
+    const s = seen?.get(c.slug);
+    return s && s > since ? (s > now ? now : s) : since;
+  });
+}
+
 async function resolveBoards(slugs: string[]) {
   if (!slugs.length) return [];
   return query<{ id: number; slug: string; name: string }>(
@@ -56,9 +82,9 @@ async function resolveBoards(slugs: string[]) {
 }
 
 /** 헤더 배지용 가벼운 조회 — 새 글 + 관심 제품·지켜보는 글 새 소식 개수만 */
-export async function countNew(slugs: string[], since: Date, watched: Watched = NO_WATCH): Promise<number> {
+export async function countNew(slugs: string[], since: Date, watched: Watched = NO_WATCH, seen?: Map<string, Date>): Promise<number> {
   const [boards, watch] = await Promise.all([
-    countBoardPosts(slugs, since),
+    countBoardPosts(slugs, since, seen),
     watched.products.length || watched.posts.length || watched.comments?.length
       ? watchUpdates(watched.products, watched.posts, since, watched.fingerprint, { comments: watched.comments }).then((w) => w.total)
       : Promise.resolve(0),
@@ -66,23 +92,22 @@ export async function countNew(slugs: string[], since: Date, watched: Watched = 
   return boards + watch;
 }
 
-async function countBoardPosts(slugs: string[], since: Date): Promise<number> {
+async function countBoardPosts(slugs: string[], since: Date, seen?: Map<string, Date>): Promise<number> {
   const cats = await resolveBoards(slugs);
   if (!cats.length) return 0;
-  const rows = await query<{ n: number }>(
-    `SELECT count(*)::int AS n FROM posts p
-      WHERE NOT p.is_blinded AND NOT p.is_suppressed AND p.post_type <> 'chat'
-        AND p.category_id = ANY($1::int[]) AND p.created_at > $2::timestamptz`,
-    [cats.map((c) => c.id), since.toISOString()],
-  );
+  const rows = await query<{ n: number }>(`SELECT count(*)::int AS n FROM posts p WHERE ${BOARD_NEW_WHERE}`, [
+    cats.map((c) => c.id),
+    perBoardSince(cats, since, seen).map((d) => d.toISOString()),
+  ]);
   return rows[0]!.n;
 }
 
-export async function buildReport(slugs: string[], since: Date, now = new Date(), watched: Watched = NO_WATCH): Promise<Report> {
+export async function buildReport(slugs: string[], since: Date, now = new Date(), watched: Watched = NO_WATCH, seen?: Map<string, Date>): Promise<Report> {
   const cats = await resolveBoards(slugs);
   const ids = cats.map((c) => c.id);
+  const per = perBoardSince(cats, since, seen, now);
   const [newPosts, meetups, digests, perBoard, watch] = await Promise.all([
-    listNewPosts(ids, since),
+    listNewPosts(ids, per),
     listUpcomingMeetups(ids, now),
     ids.length
       ? query<BoardDigest>(
@@ -96,11 +121,8 @@ export async function buildReport(slugs: string[], since: Date, now = new Date()
       : Promise.resolve([]),
     ids.length
       ? query<{ category_id: number; n: number }>(
-          `SELECT category_id, count(*)::int AS n FROM posts p
-            WHERE NOT p.is_blinded AND NOT p.is_suppressed AND p.post_type <> 'chat'
-              AND p.category_id = ANY($1::int[]) AND p.created_at > $2::timestamptz
-            GROUP BY category_id`,
-          [ids, since.toISOString()],
+          `SELECT category_id, count(*)::int AS n FROM posts p WHERE ${BOARD_NEW_WHERE} GROUP BY category_id`,
+          [ids, per.map((d) => d.toISOString())],
         )
       : Promise.resolve([]),
     watchUpdates(watched.products, watched.posts, since, watched.fingerprint, { previews: true, comments: watched.comments }),

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getInterests, getSeenAt, onInterestsChange } from "@/lib/interests";
+import { getMyRooms, onMyRoomsChange } from "@/lib/myRooms";
+import { seenParam } from "@/lib/seen";
 import { dailyPushSync, getMyComments, getWatchedPosts, getWatchedProducts } from "@/lib/watchlist";
 
 /** 관심 목록·내 댓글의 새 소식 수 (헤더 배지와 홈 알림이 같이 쓴다) */
@@ -11,7 +13,9 @@ export function useReportCount(sync = false): number {
   useEffect(() => {
     let cancelled = false;
     const load = () => {
-      const boards = getInterests();
+      // 내 방이 있으면 관심 방 중 내 방만 센다
+      const mine = getMyRooms();
+      const boards = getInterests().filter((b) => !mine.length || mine.includes(b));
       const products = getWatchedProducts();
       const posts = getWatchedPosts();
       const comments = getMyComments();
@@ -23,6 +27,7 @@ export function useReportCount(sync = false): number {
         ...(posts.length ? { posts: posts.join(",") } : {}),
         ...(comments.length ? { comments: comments.join(",") } : {}),
         ...(getSeenAt() ? { since: getSeenAt()! } : {}),
+        ...(seenParam(boards) ? { seen: seenParam(boards) } : {}),
       });
       fetch(`/api/report?${qs}`)
         .then((r) => (r.ok ? r.json() : { total: 0 }))
@@ -32,9 +37,11 @@ export function useReportCount(sync = false): number {
     load();
     if (sync) dailyPushSync();
     const off = onInterestsChange(load);
+    const offMine = onMyRoomsChange(load);
     return () => {
       cancelled = true;
       off();
+      offMine();
     };
   }, [sync]);
   return count;

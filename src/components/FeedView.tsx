@@ -6,7 +6,7 @@ import type { SortKey } from "@/lib/validation";
 import { THIN_BOARD_POSTS } from "@/lib/onboarding";
 import { boardNeeds } from "@/lib/repo/onboarding";
 import { CategoryTabs } from "./CategoryTabs";
-import { InterestToggle } from "./InterestToggle";
+import { MyRoomStar } from "./MyRooms";
 import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
 import { FilterCount, FilterCountsLoader, MarkSeen } from "./NewMarks";
@@ -33,6 +33,8 @@ export async function FeedView({
   banner,
   lead,
   roomTab,
+  mine,
+  onlyMine = false,
 }: {
   category?: Category;
   sort: SortKey;
@@ -51,12 +53,16 @@ export async function FeedView({
   lead?: React.ReactNode;
   /** 💬 채팅 뒤 방 전용 탭 (육아방 📍동네 체험): 글 목록 대신 이 화면 */
   roomTab?: { key: string; node: React.ReactNode };
+  /** 내 방 slug (쿠키) — 홈 탭에 ★, 내 방 먼저 */
+  mine?: string[];
+  /** 홈: 내 방 글만 */
+  onlyMine?: boolean;
 }) {
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced && !head && !chat && !roomTab;
   const [categories, feed, needs, tools, quiet] = await Promise.all([
     listCategories(),
-    chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, sort, page, type, head, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category }),
+    chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, categorySlugs: !category && onlyMine && mine?.length ? mine : undefined, sort, page, type, head, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category }),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? roomTools(category.id) : Promise.resolve(null),
     quietRoomSlugs().catch(() => new Set<string>()),
@@ -85,11 +91,12 @@ export async function FeedView({
     <>
       <h1 className="sr-only">{category ? `${category.name} 방` : "노방장 — 방장 없는 덕후 커뮤니티"}</h1>
       {/* 방 안에서는 다른 방 목록을 숨긴다 — 방 이름과 홈으로 가는 길만 */}
-      {!category && <CategoryTabs categories={categories} active={undefined} quiet={[...quiet]} />}
+      {!category && !onlyMine && <CategoryTabs categories={categories} active={undefined} quiet={[...quiet]} mine={mine} />}
       {category && (
         <div className="board-head">
           <span className="room-title">
             <Link href="/?all=1" className="room-name">← {category.name}</Link>
+            <MyRoomStar slug={category.slug} />
             <RoomVisitors slug={category.slug} />
           </span>
           <div className="board-actions">
@@ -109,7 +116,6 @@ export async function FeedView({
                 🔄 라벨 변경
               </Link>
             )}
-            <InterestToggle slug={category.slug} name={category.name} />
           </div>
         </div>
       )}

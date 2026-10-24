@@ -67,3 +67,9 @@ export function markSeen(room: string, at = Date.now()) {
   m[room] = at;
   save(m);
 }
+
+/** 리포트 요청용 "slug:ms,..." — 관심 방을 마지막으로 본 시각 (그 뒤 글만 새 글로 센다) */
+export function seenParam(rooms: string[]): string {
+  const m = load();
+  return rooms.filter((r) => m[r]).map((r) => `${encodeURIComponent(r)}:${m[r]}`).join(",");
+}

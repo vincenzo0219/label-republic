@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatMeetAt } from "@/components/Meetup";
 import { PostCard } from "@/components/PostCard";
 import { getInterests, getSeenAt, onInterestsChange, setInterests, setSeenAt } from "@/lib/interests";
+import { seenParam } from "@/lib/seen";
 import type { Report } from "@/lib/repo/report";
 import { getMyComments, getWatchedPosts, getWatchedProducts, reconcile, removeMyComment, toggleWatchPost, toggleWatchProduct } from "@/lib/watchlist";
 import { InstallPrompt } from "./InstallPrompt";
@@ -57,6 +58,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       ...(w.posts.length ? { posts: w.posts.join(",") } : {}),
       ...(w.comments.length ? { comments: w.comments.join(",") } : {}),
       ...(from ? { since: from } : {}),
+      ...(seenParam(boards) ? { seen: seenParam(boards) } : {}),
     });
     try {
       const res = await fetch(`/api/report?${qs}`);
