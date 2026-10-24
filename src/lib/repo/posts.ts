@@ -8,6 +8,7 @@ import { aiSpam, combine, heuristicSpam, moderationNote, shouldSuppress, type Sp
 import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
 import { searchTerms } from "../highlight";
 import { tabMembers, type Head } from "../heads";
+import { OPERATOR_NICKS } from "./metrics";
 import { investProblem, isInvestRoom } from "../investRooms";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
@@ -19,6 +20,12 @@ import { listPostSources, setPostSources, type SourceRef } from "./sources";
 import { getRule } from "./rules";
 import { deleteSnapshot } from "../snapshots";
 import { currentProductIds, listPostFacts, listPostProductDates, setPostFacts, setPostProducts, type FactInput, type ProductRef } from "./products";
+
+// 사람 댓글: AI·에이전트·운영 닉네임이 아니고, 가려지지 않은 것 (카드의 "💬 N", 10/24)
+const NOT_HUMAN_NICKS = [...OPERATOR_NICKS, "AI 큐레이터"].map((n) => `'${n.replace(/'/g, "''")}'`).join(", ");
+const HUMAN_COMMENTS_SQL = `(SELECT count(*)::int FROM comments hc
+    WHERE hc.post_id = p.id AND NOT hc.is_ai_curated AND hc.agent_id IS NULL AND hc.author_fingerprint IS NOT NULL
+      AND hc.ai_hidden_at IS NULL AND hc.nickname NOT IN (${NOT_HUMAN_NICKS}))`;
 
 const CARD_SELECT = `
   p.id, p.nickname, p.title, p.upvotes, p.downvotes, p.comment_count, p.view_count,
@@ -39,7 +46,8 @@ const CARD_SELECT = `
        ELSE (SELECT array_agg(DISTINCT ps.kind::text) FROM post_sources ps WHERE ps.post_id = p.id) END AS source_kinds,
   coalesce((SELECT json_agg(json_build_object('id', pr.id::text, 'brand', pr.brand, 'name', pr.name) ORDER BY pp.position)
               FROM post_products pp JOIN products pr ON pr.id = pp.product_id WHERE pp.post_id = p.id), '[]'::json) AS products,
-  p.correction_count, p.disputed_count`;
+  p.correction_count, p.disputed_count,
+  ${HUMAN_COMMENTS_SQL} AS human_comment_count`;
 
 const FROM = `
   FROM posts p
