@@ -202,6 +202,10 @@ export const config = {
     const n = Number(process.env.SOURCE_CHECK_INTERVAL_SEC ?? 900);
     return Number.isFinite(n) && n >= 0 ? n : 900;
   },
+  /** 📍 동네 체험: 아이볼 파트너 API 주소 (테스트·스테이징에서만 바꾼다) */
+  get ibolApiBase() {
+    return (process.env.IBOL_API_BASE ?? "https://ibol.kr").replace(/\/+$/, "");
+  },
   /** 웹 푸시(VAPID). 두 키가 모두 있어야 푸시 알림을 켤 수 있다 — `npm run push:keys` 로 생성 */
   get vapidPublicKey() {
     return process.env.VAPID_PUBLIC_KEY ?? "";

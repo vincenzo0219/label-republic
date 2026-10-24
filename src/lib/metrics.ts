@@ -38,6 +38,8 @@ export function classifySource(opts: { landing: boolean; referrer?: string | nul
   if (!opts.landing) return { source: "internal", host: null };
   const tagged = opts.from ? FROM_TAGS[opts.from.toLowerCase()] : undefined;
   if (tagged) return { source: "social", host: tagged };
+  // 자매 서비스 아이볼(ibol.kr)의 "후기·수다 → 노방장" 카드 (/kids/<id>?from=ibol, 10/24)
+  if (opts.from?.toLowerCase() === "ibol") return { source: "referral", host: "ibol.kr" };
   const host = referrerHost(opts.referrer);
   if (!host) return { source: "direct", host: null };
   if (host === opts.siteHost.toLowerCase().replace(/:\d+$/, "")) return { source: "internal", host };

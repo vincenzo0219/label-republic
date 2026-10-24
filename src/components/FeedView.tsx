@@ -11,7 +11,7 @@ import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
 import { FilterCount, FilterCountsLoader, MarkSeen } from "./NewMarks";
 import { SortBar } from "./SortBar";
-import { NO_INFO_TAB, ROOM_TAB_LINKS, headLabel, tabHeadsFor, type Head } from "@/lib/heads";
+import { NO_INFO_TAB, ROOM_CHAT_TABS, ROOM_TAB_LINKS, headLabel, tabHeadsFor, type Head } from "@/lib/heads";
 import type { Comment } from "@/lib/types";
 import { EventAlert } from "./EventAlert";
 import { LiveComments } from "./LiveComments";
@@ -32,6 +32,7 @@ export async function FeedView({
   chat,
   banner,
   lead,
+  roomTab,
 }: {
   category?: Category;
   sort: SortKey;
@@ -48,12 +49,14 @@ export async function FeedView({
   banner?: React.ReactNode;
   /** 탭 아래, 글 목록 위 (작가지망생방 📸 자랑: ✍️ 오늘 몇 자) */
   lead?: React.ReactNode;
+  /** 💬 채팅 뒤 방 전용 탭 (육아방 📍동네 체험): 글 목록 대신 이 화면 */
+  roomTab?: { key: string; node: React.ReactNode };
 }) {
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
-  const guideCandidate = category && page === 1 && !type && !sourced && !head && !chat;
+  const guideCandidate = category && page === 1 && !type && !sourced && !head && !chat && !roomTab;
   const [categories, feed, needs, tools, quiet] = await Promise.all([
     listCategories(),
-    chat ? Promise.resolve(null) : listPosts({ categoryId: category?.id, sort, page, type, head, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category }),
+    chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, sort, page, type, head, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category }),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? roomTools(category.id) : Promise.resolve(null),
     quietRoomSlugs().catch(() => new Set<string>()),
@@ -115,11 +118,16 @@ export async function FeedView({
       <nav className="type-filter" aria-label="글 유형">
         <FilterCountsLoader room={category.slug} />
         {/* 방 탭 (10/21 단순화): 전체 · 채팅 · 말머리 · (정보) — 정모·잡담 탭은 없음 */}
-        <Link href={basePath} aria-current={!type && !head && !chat ? "true" : undefined} rel="nofollow">전체</Link>
+        <Link href={basePath} aria-current={!type && !head && !chat && !roomTab ? "true" : undefined} rel="nofollow">전체</Link>
         <Link href={`${basePath}?tab=chat`} aria-current={chat ? "true" : undefined} rel="nofollow">
           💬 채팅
           <FilterCount k="chat" />
         </Link>
+        {(ROOM_CHAT_TABS[category.slug] ?? []).map((t) => (
+          <Link key={t.key} href={`${basePath}?tab=${t.key}`} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow">
+            {t.label}
+          </Link>
+        ))}
         {tabHeadsFor(category.slug).map((h) => (
           <Link key={h.key} href={`${basePath}?${new URLSearchParams({ head: h.key })}`} aria-current={head === h.key ? "true" : undefined} rel="nofollow">
             {h.label}
@@ -130,7 +138,7 @@ export async function FeedView({
           <Link key={l.href} href={l.href}>{l.label}</Link>
         ))}
         {!NO_INFO_TAB.has(category.slug) && (
-          <Link href={typeHref("info")} aria-current={type === "info" && !head && !chat ? "true" : undefined} rel="nofollow">
+          <Link href={typeHref("info")} aria-current={type === "info" && !head && !chat && !roomTab ? "true" : undefined} rel="nofollow">
             📋 정보
             <FilterCount k="info" />
           </Link>
@@ -144,6 +152,8 @@ export async function FeedView({
       )}
       {chat ? (
         <LiveComments postId={chat.postId} initial={chat.initial} casual chat badges={chat.badges} />
+      ) : roomTab ? (
+        roomTab.node
       ) : feed && (
       <>
       {lead}

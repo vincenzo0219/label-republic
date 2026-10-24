@@ -188,7 +188,52 @@ function adticket(s, w, h, f) {
   return { css, html: `<div class="tk">${html}</div>` };
 }
 
-export const STYLES = { paper, pop, versus, chat, stat, ticket, adticket };
+/** 8. 체크리스트 광고 (10/24, 육아방) — 잘 된 광고 구조: 알약 칩 → 2줄 큰 제목 → 형광펜 큰 숫자 → 체크 5줄 → 출처 한 줄 → 로고 바 + CTA 버튼.
+ *  s = { kicker(칩), title("1줄\n2줄"), bigPre, big, bigPost, items:[[문장]], sub(출처), room("👶 육아방"), cta }
+ *  릴스 f0 = 칩·제목·숫자, f1 = 체크 5줄, f2 = 방 이름·주소·CTA 바. 위 14%·아래 20% 비움. 글자 40px 이상. */
+function checklist(s, w, h, f) {
+  const T = tall(h);
+  const G = "#1f6b4f";
+  const css = `body{width:${w}px;height:${h}px;background:linear-gradient(170deg,#eaf7ef 0%,#d7f0e2 55%,#c8eadb 100%);color:#111;padding:${T ? "300px 104px 410px" : "70px 72px 0"};display:flex;flex-direction:column${T ? ";justify-content:center" : ""}}
+  .chip{align-self:flex-start;background:#fff;border-radius:999px;padding:14px 34px;font-size:${T ? 48 : 40}px;font-weight:700;color:${G};box-shadow:0 6px 18px #1f6b4f1f}
+  h1{margin-top:${T ? 44 : 30}px;font-size:${T ? 104 : 92}px;line-height:1.2;letter-spacing:-4px;font-weight:700}
+  .num{margin-top:${T ? 40 : 18}px;display:flex;align-items:baseline;gap:18px;font-weight:700;color:${G}}
+  .num small{font-size:${T ? 64 : 52}px;letter-spacing:-2px;color:#111}
+  .num b{position:relative;font-size:${T ? 200 : 156}px;line-height:1.05;letter-spacing:-5px;z-index:0}
+  .num b:after{content:"";position:absolute;left:-10px;right:-10px;bottom:${T ? 18 : 12}px;height:${T ? 56 : 40}px;background:#ffd84d;border-radius:8px;z-index:-1}
+  .num i{font-style:normal;font-size:${T ? 76 : 60}px;letter-spacing:-2px}
+  .list{margin-top:${T ? 0 : 30}px;display:grid;gap:${T ? 46 : 22}px}
+  .list div{display:flex;align-items:center;gap:${T ? 28 : 22}px;font-size:${T ? 60 : 50}px;font-weight:700;letter-spacing:-1.5px;line-height:1.2}
+  .ck{flex:none;width:${T ? 80 : 64}px;height:${T ? 80 : 64}px;border-radius:50%;background:${G};position:relative}
+  .ck:after{content:"";position:absolute;left:30%;top:22%;width:28%;height:46%;border:solid #fff;border-width:0 ${T ? 10 : 8}px ${T ? 10 : 8}px 0;transform:rotate(45deg)}
+  .lk{font-size:${T ? 56 : 44}px;font-weight:700;color:${G};margin-bottom:${T ? 56 : 0}px}
+  .src{margin-top:${T ? 56 : 22}px;font-size:40px;color:#5d7268}
+  .bar{${T ? "margin-top:70px;border-radius:40px" : "position:absolute;left:0;right:0;bottom:0"};background:#fff;padding:${T ? "40px 40px" : "30px 56px"};display:flex;align-items:center;justify-content:space-between;gap:${T ? 34 : 20}px;box-shadow:0 -6px 24px #1f6b4f14${T ? ";flex-direction:column;align-items:stretch" : ""}}
+  .lg{display:flex;align-items:center;gap:20px}.lg img{width:${T ? 100 : 92}px;height:${T ? 100 : 92}px;border-radius:24px}
+  .lg b{display:block;font-size:${T ? 52 : 46}px;letter-spacing:-1px}.lg span{display:block;font-size:40px;color:#5d7268;font-weight:700}
+  .btn{background:#ff5a64;color:#fff;font-size:${T ? 50 : 46}px;font-weight:700;border-radius:999px;padding:${T ? "30px 40px" : "28px 40px"};white-space:nowrap;text-align:center;box-shadow:0 8px 20px #ff5a6455}
+  .room{font-size:${T ? 150 : 100}px;font-weight:700;letter-spacing:-6px;line-height:1.1}
+  .url{margin-top:20px;font-size:${T ? 72 : 52}px;font-weight:700;color:${G};letter-spacing:-2px}
+  .say{margin-top:${T ? 40 : 20}px;font-size:${T ? 56 : 44}px;font-weight:700;line-height:1.35;letter-spacing:-1px;color:#2c3d35}
+  .sun{position:absolute;right:${T ? 70 : 60}px;top:${T ? 300 : 52}px;width:${T ? 210 : 170}px;height:${T ? 210 : 170}px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffe680,#ffc93c);box-shadow:0 0 0 ${T ? 22 : 18}px #ffd84d55,0 0 0 ${T ? 44 : 36}px #ffd84d26}
+  .sun:before,.sun:after{content:"";position:absolute;top:40%;width:13%;height:15%;border-radius:50%;background:#3a2a10}.sun:before{left:28%}.sun:after{right:28%}
+  .sun i{position:absolute;left:34%;top:56%;width:32%;height:16%;border:solid #3a2a10;border-width:0 0 ${T ? 8 : 7}px;border-radius:0 0 50% 50%/0 0 100% 100%}
+  .sun u{position:absolute;top:58%;width:16%;height:10%;border-radius:50%;background:#ff9a8a99}.sun u:first-of-type{left:12%}.sun u:last-of-type{right:12%}`;
+  const sun = `<div class="sun"><u></u><i></i><u></u></div>`;
+  const head = `<div class="chip">${esc(s.kicker)}</div><h1>${esc(s.title).replace(/\n/g, "<br>")}</h1>`;
+  const num = `<div class="num">${s.bigPre ? `<small>${esc(s.bigPre)}</small>` : ""}<b>${esc(s.big)}</b><i>${esc(s.bigPost ?? "")}</i></div>`;
+  const list = `<div class="list">${s.items.map(([a]) => `<div><span class="ck"></span>${esc(a)}</div>`).join("")}</div>`;
+  const logo = `<div class="lg"><img src="file:///home/user/label-republic/public/icons/icon-192.png"><div><b>노방장</b><span>nobangjang.com · 무료</span></div></div>`;
+  const bar = `<div class="bar">${logo}<span class="btn">${esc(s.cta)} →</span></div>`;
+  let html;
+  if (f === 0) html = `${sun}${head}${num}`;
+  else if (f === 1) html = `<div class="lk">${esc(s.room)}에서는</div>${list}<div class="src">${esc(s.sub)}</div>`;
+  else if (f === 2) html = `${sun}<div class="room">${esc(s.room)}</div><div class="url">nobangjang.com</div><div class="say">${esc(s.say ?? "").replace(/\n/g, "<br>")}</div>${bar}`;
+  else html = `${sun}${head}${num}${list}<div class="src">${esc(s.sub)}</div>${bar}`;
+  return { css, html };
+}
+
+export const STYLES = { paper, pop, versus, chat, stat, ticket, adticket, checklist };
 export const page = (style, s, w, h, f) => {
   const { css, html } = STYLES[style](s, w, h, f);
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><style>${font}${css}</style></head><body>${html}</body></html>`;

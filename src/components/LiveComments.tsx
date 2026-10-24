@@ -59,7 +59,9 @@ function thread(comments: Comment[]): { root: Comment; replies: Comment[] }[] {
  * 소켓이 끊기면 지수 백오프로 재연결하고, 재연결 시 누락분을 REST로 다시 받아 동기화한다.
  */
 /** casual: 잡담·정모 글 — 출처·측정값을 요구하지 않는 말투로 안내한다 */
-export function LiveComments({ postId, initial, casual = false, chat = false, badges }: { postId: string; initial: Comment[]; casual?: boolean; chat?: boolean; badges?: BadgeMap }) {
+/** ensurePost: 아직 글이 없는 화면(📍 동네 체험)에서 첫 댓글을 보낼 때 글을 만들고 번호를 돌려준다. postId 는 "" */
+export function LiveComments({ postId: initialPostId, initial, casual = false, chat = false, badges, ensurePost }: { postId: string; initial: Comment[]; casual?: boolean; chat?: boolean; badges?: BadgeMap; ensurePost?: () => Promise<string> }) {
+  const [postId, setPostId] = useState(initialPostId);
   const [comments, setComments] = useState<Comment[]>(() => initial.map(norm));
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [live, setLive] = useState(false);
@@ -163,6 +165,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false, ba
     let ws: WebSocket | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
+    if (!postId) return;
 
     const upsert = (c: Comment) =>
       setComments((list) => (list.some((x) => String(x.id) === String(c.id)) ? list : [...list, norm(c)]));
@@ -236,7 +239,10 @@ export function LiveComments({ postId, initial, casual = false, chat = false, ba
     const image = photoReady ? { id: photo!.id!, token: photo!.token! } : undefined;
     const payload = { ...form, body: form.body.trim() || (image ? "📷" : form.body), ...(replyTo ? { parentId: replyTo.id } : {}), ...(image ? { image } : {}) };
     try {
-      const { comment, notifyRef } = await api<{ comment: Comment; notifyRef?: string }>(`/api/posts/${postId}/comments`, "POST", payload, {
+      const pid = postId || (ensurePost ? await ensurePost() : "");
+      if (!pid) throw new Error("잠시 후 다시 시도해 주세요.");
+      if (pid !== postId) setPostId(pid);
+      const { comment, notifyRef } = await api<{ comment: Comment; notifyRef?: string }>(`/api/posts/${pid}/comments`, "POST", payload, {
         idempotencyKey: requestKeyFor(sending, payload),
       });
       sending.current = undefined;
@@ -249,7 +255,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false, ba
         setSavedNick(true);
       } catch {}
       // 댓글을 단 글은 자동으로 소식 받기 + 이 댓글에 답글·멘션이 오면 알림
-      watchPost(postId);
+      watchPost(pid);
       if (notifyRef) addMyComment(notifyRef);
       setPosted(true);
     } catch (err) {

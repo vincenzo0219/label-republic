@@ -49,6 +49,7 @@ export async function newPostCounts(pairs: { slug: string; since: Date }[]): Pro
     `SELECT c.slug,
             (SELECT count(*)::int FROM (SELECT 1 FROM posts p
                WHERE p.category_id = c.id AND p.created_at > x.since AND NOT p.is_blinded AND NOT p.is_suppressed
+                 AND (p.seed_key IS NULL OR p.seed_key NOT LIKE 'ibol:%')
                LIMIT 100) t) AS n
        FROM unnest($1::text[], $2::timestamptz[]) AS x(slug, since)
        JOIN categories c ON c.slug = x.slug`,
@@ -66,6 +67,7 @@ export async function filterCounts(slug: string, since: Date, heads: readonly st
     `WITH recent AS (
        SELECT p.title, p.post_type FROM posts p JOIN categories c ON c.id = p.category_id
         WHERE c.slug = $1 AND p.created_at > $2 AND NOT p.is_blinded AND NOT p.is_suppressed
+          AND (p.seed_key IS NULL OR p.seed_key NOT LIKE 'ibol:%')
         ORDER BY p.created_at DESC LIMIT 500)
      SELECT h AS k, count(*) FILTER (WHERE r.title LIKE '[' || h || ']%')::int AS n FROM unnest($3::text[]) h CROSS JOIN recent r GROUP BY h
      UNION ALL SELECT 'info', count(*) FILTER (WHERE post_type = 'info')::int FROM recent

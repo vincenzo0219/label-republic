@@ -114,6 +114,14 @@ export async function setSavingsDay(endpoint: string, token: string, day: number
   return res[0].savings_day;
 }
 
+/** 📍 동네 체험 🔔 (10/24): 토큰이 맞는 구독의 번호 */
+export async function subscriptionIdFor(endpoint: string, token: string): Promise<string> {
+  checkToken(endpoint, token);
+  const [row] = await query<{ id: string }>("SELECT id::text FROM push_subscriptions WHERE endpoint = $1", [endpoint]);
+  if (!row) throw notFound("알림 구독");
+  return row.id;
+}
+
 export type PushStats = { total: number; daily: number; eventSubs: number; rooms: { slug: string; n: number }[] };
 
 /** 관리자: 푸시 알림 신청 현황 (10/22) — 전체 구독, 매일 알림, 🎫 행사 알림(방별) */

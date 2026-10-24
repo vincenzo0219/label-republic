@@ -31,6 +31,8 @@ export const CHECK_TABLES = [
   "savings_logs",
   "market_events",
   "market_radar",
+  // 10/24 📍 동네 체험 🔔 알림
+  "kids_program_alerts",
 ];
 
 type Manifest = {
