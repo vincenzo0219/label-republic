@@ -1083,3 +1083,18 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .writing-top li, .writing-recent li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .writing-top li .num { margin-left: auto; font-weight: 700; }
 .writing-recent li b { color: var(--text); }
+
+/* 반대매매 계산기 (/margin-calc) */
+.mc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.mc-input { position: relative; display: block; }
+.mc-input .input { padding-right: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+.mc-input i { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 13px; color: var(--muted); }
+.mc-out { margin: 20px 0 0; padding: 4px 0 0; border-top: 1px solid var(--line); display: grid; }
+.mc-out > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.mc-out dt { color: var(--muted); font-size: 14px; }
+.mc-out dd { margin: 0; font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; text-align: right; }
+.mc-out dd.mc-bad { color: var(--danger); }
+.mc-formula { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+.mc-note { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.mc-link { display: block; margin: 0 0 12px; }
+@media (max-width: 420px) { .mc-grid { grid-template-columns: 1fr; } }
