@@ -46,7 +46,7 @@ function pop(s, w, h, f) {
   .pills span{background:#fff;border-radius:999px;padding:20px 34px;font-size:42px;font-weight:700}
   .pills i{font-style:normal;opacity:.45;margin:0 8px}
   .cta{position:absolute;left:84px;right:84px;bottom:${tall(h) ? 230 : 96}px;background:#111;color:#fff;font-size:48px;font-weight:700;border-radius:28px;padding:34px;text-align:center}`;
-  const pills = `<div class="pills">${s.items.map(([a, b]) => `<span>${esc(a)}<i>vs</i>${esc(b)}</span>`).join("")}</div>`;
+  const pills = `<div class="pills">${s.items.map(([a, b]) => `<span>${esc(a)}${b ? `<i>vs</i>${esc(b)}` : ""}</span>`).join("")}</div>`;
   const body =
     f === 2
       ? `<div class="k">${esc(s.sub)}</div><h1>${esc(s.big)}</h1>`
