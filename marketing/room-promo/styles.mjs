@@ -32,7 +32,7 @@ function paper(s, w, h, f) {
       : f === 1
         ? `<div class="k">${esc(s.kicker)}</div>${list}`
         : `<div class="k">${esc(s.kicker)}</div><h1>${titleHtml(s)}</h1>${f === "feed" ? list : ""}`;
-  return { css, html: `${brand}<span class="room">${esc(s.room)}</span><span class="stk">${s.emoji}</span>${body}<span class="cta">${esc(s.cta)} →</span>${f === 2 || f === "feed" ? `<span class="sub">가입 없이 닉네임만 · nobangjang.com</span>` : ""}` };
+  return { css, html: `${brand}<span class="room">${esc(s.room)}</span><span class="stk">${s.emoji}</span>${body}<span class="cta">${esc(s.cta)} →</span>${f === 2 || f === "feed" ? `<span class="sub">nobangjang.com</span>` : ""}` };
 }
 
 /** 2. 팝 컬러 — 방 색 한 가지로 꽉 채운 바탕, 아주 큰 검은 글씨, 흰 알약 */
