@@ -83,7 +83,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openErrors(),
     ]);
   const monthStart = `${today.slice(0, 8)}01`;
-  const [ear, hearing, firstLine, typing, aiT, month, daily7, states, people] = await Promise.all([
+  const [ear, hearing, firstLine, typing, aiT, month, daily7, states, people, readers, readers7, readers28] = await Promise.all([
     earFunnel(...cur),
     hearingFunnel(...cur),
     firstLineFunnel(...cur),
@@ -93,6 +93,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     dailyPlayers(...cur),
     m.userStates(today),
     m.peopleReactions(today),
+    m.readerDaily(today),
+    m.readerPeriod(today, 7),
+    m.readerPeriod(today, 28),
   ]);
   const [holds, pending, rules, ruleVotes, feedback, boardT, biz, drafts] = await Promise.all([
     activeLegalHolds(),
@@ -147,6 +150,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <MonthGoal today={today} visitors={month.visitors} returning={month.returning} daily={daily7} range={range} />
       <PeopleReactions rows={people} />
       <UserStates rows={states} />
+      <ReaderRatio rows={readers} w={readers7} m28={readers28} />
 
       {biz && <SignalStrip m={biz} />}
 
@@ -548,6 +552,46 @@ function PeopleReactions({ rows }: { rows: m.PeopleDay[] }) {
         </tbody>
       </table>
       <p className="hint">사람↔사람: 사람 댓글에 단 답글 + 사람 글에 단 댓글 + 수다방에서 30분 안에 다른 사람 말에 이어 말한 것 · 운영 닉네임·AI 제외</p>
+    </section>
+  );
+}
+
+/** 📖 읽는 사람 비율 — 방문자 중 글을 연 사람, 그중 참여한 사람 */
+function ReaderRatio({ rows, w, m28 }: { rows: m.ReaderDay[]; w: m.ReaderDay; m28: m.ReaderDay }) {
+  const pc = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : "—");
+  return (
+    <section className="month-goal" aria-label="읽는 사람 비율">
+      <p>
+        <b>읽는 사람 비율</b>{" "}
+        <span className="hint">
+          · 7일: 방문 {w.visitors} · 글 읽음 {w.readers} ({pc(w.readers, w.visitors)}) · 참여 {w.contributors} ({pc(w.contributors, w.visitors)})
+        </span>
+      </p>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>날짜</th>
+            <th>방문</th>
+            <th>글 읽음</th>
+            <th>%</th>
+            <th>참여</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.day}>
+              <td>{r.day.slice(5)}</td>
+              <td>{r.visitors}</td>
+              <td>{r.readers}</td>
+              <td>{pc(r.readers, r.visitors)}</td>
+              <td>{r.contributors}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="hint">
+        7일 보기만 {w.lurkers} · 바로 나감 {w.bounced} · 28일: 방문 {m28.visitors} · 글 읽음 {m28.readers} ({pc(m28.readers, m28.visitors)}) · 참여 {m28.contributors}
+      </p>
     </section>
   );
 }
