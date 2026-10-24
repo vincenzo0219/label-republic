@@ -11,6 +11,7 @@ import {
   KIDS_SEED_PREFIX,
   isProgramId,
   isValidArea,
+  extractItems,
   normalizeResponse,
   programPostBody,
   programPostTitle,
@@ -42,6 +43,23 @@ export function parseKidsQuery(sp: URLSearchParams): KidsQuery {
   const limitRaw = Number(sp.get("limit") ?? 20);
   const limit = Number.isInteger(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 20;
   return { area, age, kind, free: sp.get("free") === "1", soon, limit };
+}
+
+/** 필드 이름 확인용: 마지막 응답 첫 항목의 키와 짧은 값 (공개 프로그램 정보, 개인정보 없음) */
+let lastRawSample: Record<string, string> | null = null;
+export const kidsRawSample = () => lastRawSample;
+function rawSample(body: unknown): Record<string, string> | null {
+  const first = extractItems(body)?.[0];
+  if (!first || typeof first !== "object") return null;
+  const out: Record<string, string> = {};
+  const walk = (o: Record<string, unknown>, prefix: string, depth: number) => {
+    for (const [k, v] of Object.entries(o).slice(0, 60)) {
+      if (v && typeof v === "object" && !Array.isArray(v) && depth < 2) walk(v as Record<string, unknown>, `${prefix}${k}.`, depth + 1);
+      else out[prefix + k] = JSON.stringify(v)?.slice(0, 80) ?? "undefined";
+    }
+  };
+  walk(first as Record<string, unknown>, "", 0);
+  return out;
 }
 
 type Entry = { bucket: number; at: number; items: KidsProgram[] };
@@ -85,7 +103,9 @@ async function callIbol(qs: string, where: string): Promise<KidsProgram[]> {
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`ibol ${res.status}`);
-  const r = normalizeResponse(await res.json());
+  const body: unknown = await res.json();
+  lastRawSample = rawSample(body);
+  const r = normalizeResponse(body);
   warnShape(where, r);
   if (!r.shapeOk) throw new Error("ibol shape");
   return r.items;
