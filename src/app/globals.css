@@ -1066,3 +1066,20 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .my-page .row .input { flex: 1; min-width: 0; }
 .my-list { list-style: none; padding: 0; margin: 0; }
 .my-list li { padding: 10px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+
+/* ✍️ 오늘 몇 자 썼어요 + 방 배지 (10/24, 작가지망생방) */
+.nick-badge { color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, transparent); font-weight: 600; font-size: 11px; margin-left: 4px; }
+.writing-log { display: grid; gap: 8px; margin: 12px 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.writing-log.compact { padding: 10px 14px; }
+.writing-log.compact summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+.writing-log.compact[open] summary { margin-bottom: 8px; }
+.writing-title { margin: 0; font-size: 16px; }
+.writing-sub { margin: 8px 0 0; font-size: 14px; }
+.writing-form { display: grid; gap: 8px; }
+.writing-form .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.writing-done { margin: 0; font-size: 14px; font-weight: 600; }
+.writing-top, .writing-recent { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.writing-recent { list-style: none; padding: 8px 0 0; border-top: 1px solid var(--line); color: var(--muted); }
+.writing-top li, .writing-recent li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.writing-top li .num { margin-left: auto; font-weight: 700; }
+.writing-recent li b { color: var(--text); }

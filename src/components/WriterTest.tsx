@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { myNick, myPin } from "@/lib/me";
+import { WRITER_BADGE_ENABLED } from "@/lib/badges";
 import { writerBragLine, writerPick, type WriterAnswers, WRITER_INTRO_POST_ID } from "@/lib/writerTest";
 import { QuickBrag } from "./QuickBrag";
 import { RoomPoll } from "./RoomPoll";
@@ -26,10 +28,26 @@ const QUESTIONS: Q[] = [
   ] },
 ];
 
+/** 결과를 내 닉네임 것으로 저장 (작가지망생방 배지). 닉네임이 없거나 실패해도 조용히 넘어간다 */
+function saveResult(result: string, nickname = myNick(), pw = myPin()) {
+  if (!WRITER_BADGE_ENABLED || nickname.trim().length < 2) return;
+  fetch("/api/test-result", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ test: "writer", result, nickname: nickname.trim(), pw }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 /** ✍️ 나는 어떤 장르 작가? 1분 테스트 (10/24, 육아 테스트와 같은 틀) */
 export function WriterTest() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Partial<WriterAnswers>>({});
+  const finished = step >= QUESTIONS.length;
+  const resultKey = finished ? writerPick(answers as WriterAnswers).key : null;
+  useEffect(() => {
+    if (resultKey) saveResult(resultKey);
+  }, [resultKey]);
 
   if (step < QUESTIONS.length) {
     const q = QUESTIONS[step]!;
@@ -70,6 +88,7 @@ export function WriterTest() {
         line={writerBragLine(pick)}
         prompt="✍️ 결과와 요즘 쓰는 글 한 줄"
         placeholder="예) 회귀물 3화 / 공모전 준비"
+        onPosted={(nickname, pw) => saveResult(pick.key, nickname, pw)}
       />
       <RoomPoll slug="작가지망생방" />
       <div className="ear-actions">

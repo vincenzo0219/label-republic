@@ -1,3 +1,4 @@
+import { NickBadge } from "./NickBadge";
 import Link from "next/link";
 import { snippet } from "@/lib/highlight";
 import { smallThumbUrl } from "@/lib/media-url";
@@ -19,8 +20,11 @@ export function PostCard({
   showCategory = true,
   seenRoom,
   inHead,
+  badge,
 }: {
   post: PostCardData;
+  /** 방 배지 (작가지망생방: 장르 작가 테스트 결과) */
+  badge?: string;
   terms?: string[];
   showCategory?: boolean;
   /** 방·홈 목록에서만: 지난번 이후 새 글이면 NEW (Sprint 41) */
@@ -82,7 +86,7 @@ export function PostCard({
               🤖 AI 큐레이터
             </span>
           ) : (
-            <span>{post.nickname}</span>
+            <span>{post.nickname}<NickBadge label={badge} /></span>
           )}
           <span>{timeAgo(post.created_at)}</span>
           <span className="spacer" />

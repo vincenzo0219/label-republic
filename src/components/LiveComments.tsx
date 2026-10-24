@@ -1,5 +1,7 @@
 "use client";
 
+import { badgeOf, type BadgeMap } from "@/lib/badges";
+import { NickBadge } from "./NickBadge";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
@@ -57,7 +59,7 @@ function thread(comments: Comment[]): { root: Comment; replies: Comment[] }[] {
  * 소켓이 끊기면 지수 백오프로 재연결하고, 재연결 시 누락분을 REST로 다시 받아 동기화한다.
  */
 /** casual: 잡담·정모 글 — 출처·측정값을 요구하지 않는 말투로 안내한다 */
-export function LiveComments({ postId, initial, casual = false, chat = false }: { postId: string; initial: Comment[]; casual?: boolean; chat?: boolean }) {
+export function LiveComments({ postId, initial, casual = false, chat = false, badges }: { postId: string; initial: Comment[]; casual?: boolean; chat?: boolean; badges?: BadgeMap }) {
   const [comments, setComments] = useState<Comment[]>(() => initial.map(norm));
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [live, setLive] = useState(false);
@@ -300,7 +302,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
           {shown.map((c) => (
             <li key={c.id} id={`c${c.id}`} className={`chat-msg${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
               <div className="chat-head">
-                {c.is_ai_curated ? <b className="card-author-ai">🤖 {c.nickname}</b> : <b>{c.nickname}</b>}
+                {c.is_ai_curated ? <b className="card-author-ai">🤖 {c.nickname}</b> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} /></>}
                 <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
               </div>
               {c.hidden_reason ? (
@@ -362,7 +364,7 @@ export function LiveComments({ postId, initial, casual = false, chat = false }: 
               <div key={c.id} id={`c${c.id}`} className={`comment${c.id !== root.id ? " is-reply" : ""}${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
                 <div className="comment-head">
                   {/* AI 표시는 이름 한 곳에 (이름 + 배지로 두 번 나오던 것) */}
-                  {c.is_ai_curated ? <b className="card-author-ai">🤖 {c.nickname}</b> : <b>{c.nickname}</b>}
+                  {c.is_ai_curated ? <b className="card-author-ai">🤖 {c.nickname}</b> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} /></>}
                   <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
                   <span className="spacer" />
                   {!c.hidden_reason && (
