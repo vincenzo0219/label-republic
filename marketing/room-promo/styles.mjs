@@ -197,11 +197,11 @@ function checklist(s, w, h, f) {
   const css = `body{width:${w}px;height:${h}px;background:linear-gradient(170deg,#eaf7ef 0%,#d7f0e2 55%,#c8eadb 100%);color:#111;padding:${T ? "300px 104px 410px" : "70px 72px 0"};display:flex;flex-direction:column${T ? ";justify-content:center" : ""}}
   .chip{align-self:flex-start;background:#fff;border-radius:999px;padding:14px 34px;font-size:${T ? 48 : 40}px;font-weight:700;color:${G};box-shadow:0 6px 18px #1f6b4f1f}
   h1{margin-top:${T ? 44 : 30}px;font-size:${T ? 104 : 92}px;line-height:1.2;letter-spacing:-4px;font-weight:700}
-  .num{margin-top:${T ? 40 : 18}px;display:flex;align-items:baseline;gap:18px;font-weight:700;color:${G}}
-  .num small{font-size:${T ? 64 : 52}px;letter-spacing:-2px;color:#111}
-  .num b{position:relative;font-size:${T ? 200 : 156}px;line-height:1.05;letter-spacing:-5px;z-index:0}
+  .num{margin-top:${T ? 40 : 18}px;display:flex;align-items:baseline;gap:${T ? 14 : 18}px;white-space:nowrap;font-weight:700;color:${G}}
+  .num small{font-size:${T ? 54 : 52}px;letter-spacing:-2px;color:#111}
+  .num b{position:relative;font-size:${T ? 166 : 156}px;line-height:1.05;letter-spacing:-5px;z-index:0}
   .num b:after{content:"";position:absolute;left:-10px;right:-10px;bottom:${T ? 18 : 12}px;height:${T ? 56 : 40}px;background:#ffd84d;border-radius:8px;z-index:-1}
-  .num i{font-style:normal;font-size:${T ? 76 : 60}px;letter-spacing:-2px}
+  .num i{font-style:normal;font-size:${T ? 54 : 56}px;letter-spacing:-2px}
   .list{margin-top:${T ? 0 : 30}px;display:grid;gap:${T ? 46 : 22}px}
   .list div{display:flex;align-items:center;gap:${T ? 28 : 22}px;font-size:${T ? 60 : 50}px;font-weight:700;letter-spacing:-1.5px;line-height:1.2}
   .ck{flex:none;width:${T ? 80 : 64}px;height:${T ? 80 : 64}px;border-radius:50%;background:${G};position:relative}
