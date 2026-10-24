@@ -1083,6 +1083,9 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .writing-top li, .writing-recent li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .writing-top li .num { margin-left: auto; font-weight: 700; }
 .writing-recent li b { color: var(--text); }
+/* 🥗 오늘 식단 인증 (10/24) */
+.meal-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.meal-form .row { grid-template-columns: 1fr auto; }
 /* 💰📅 투자방 (10/24) */
 .invest-note { margin: 16px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
 .market-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 14px; }

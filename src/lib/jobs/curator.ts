@@ -5,6 +5,7 @@ import { curatorIntervalHours, publishSeed } from "../curator";
 import { curatorSafetyProblems, generateWithClaude, type CuratorGenerator } from "../curator-ai";
 import { reportError } from "../error-tracking";
 import { isInvestRoom } from "../investRooms";
+import { isDietRoom } from "../dietRoom";
 
 const CURATOR_LOCK_KEY = 4_823_002;
 
@@ -138,6 +139,8 @@ async function autogenerate(
   if (!generate) return { published: null, reason: "queue empty (autogen off)" };
   // 투자방은 AI 가 글을 쓰지 않는다 — 종목 추천·매수·매도 의견이 섞일 틈을 없앤다 (10/24, 자본시장법·유사투자자문)
   if (isInvestRoom(s.slug)) return { published: null, reason: "queue empty (autogen off: invest room)" };
+  // 식단방도 AI 가 글을 쓰지 않는다 — 식단·건강 효과를 말하는 문장이 섞일 틈을 없앤다 (10/24)
+  if (isDietRoom(s.slug)) return { published: null, reason: "queue empty (autogen off: diet room)" };
   const starter = isStarterRoom(s);
   const used = await client.query<{ n: number }>(
     "SELECT count(*)::int AS n FROM curator_generations WHERE created_at > $1::timestamptz - interval '1 day'",

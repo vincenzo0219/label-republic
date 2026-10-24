@@ -9,7 +9,8 @@ import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse"
 import { searchTerms } from "../highlight";
 import { tabMembers, type Head } from "../heads";
 import { OPERATOR_NICKS } from "./metrics";
-import { investProblem, isInvestRoom } from "../investRooms";
+import { investProblem } from "../investRooms";
+import { roomAbuseOpts, roomHeuristicAbuse } from "../roomModeration";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
 import type { PostCard, PostDetail, PostRevision, PostType } from "../types";
@@ -391,7 +392,7 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
   const pwHash = await hashPin(input.pin);
   const spamCut = await getRule("spam_suppress_score");
   // 분명한 욕설·혐오·개인정보는 처음부터 가려진 채 올라간다 (AI 자동 운영, Sprint 37)
-  const abuse = heuristicAbuse(input.title, input.body);
+  const abuse = heuristicAbuse(input.title, input.body) ?? roomHeuristicAbuse(input.categorySlug, input.title, input.body);
 
   const id = await tx(async (client) => {
     const cat = await client.query<{ id: number }>("SELECT id FROM categories WHERE slug = $1", [input.categorySlug]);
@@ -479,7 +480,7 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
       await client.query("UPDATE posts SET revision_count = revision_count + 1 WHERE id = $1", [id]);
     }
     // 고친 내용은 다시 판단한다 (운영자가 풀어 준 판단도 새 내용에는 이어지지 않음)
-    const abuse = heuristicAbuse(title, body);
+    const abuse = heuristicAbuse(title, body) ?? roomHeuristicAbuse(post.category.slug, title, body);
     await client.query(
       `UPDATE posts SET title = $2, body = $3, updated_at = now(),
          spam_score = $4, is_suppressed = $5, moderation_note = $6, moderated_by = $7,
@@ -562,7 +563,8 @@ function moderationParams(v: SpamVerdict, spamCut: number): [number, boolean, st
 export async function aiModeratePost(id: string): Promise<SpamVerdict | null> {
   const post = await loadPost(id);
   if (!post || post.is_blinded) return null;
-  const [ai, abuse] = await Promise.all([aiSpam(post.title, post.body), aiAbuse(`${post.title}\n\n${post.body}`, { invest: isInvestRoom(post.category.slug) })]);
+  const [ai, aiAbuseVerdict] = await Promise.all([aiSpam(post.title, post.body), aiAbuse(`${post.title}\n\n${post.body}`, roomAbuseOpts(post.category.slug))]);
+  const abuse = roomHeuristicAbuse(post.category.slug, post.title, post.body) ?? aiAbuseVerdict;
   // 욕설·혐오·인신공격·개인정보: 확신이 높으면 가린다 (운영자가 이 내용을 풀어 줬으면 다시 가리지 않음)
   if (abuse) {
     await query(
