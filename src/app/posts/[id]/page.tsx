@@ -27,6 +27,9 @@ import { imageUrl } from "@/lib/media-url";
 import { fingerprint } from "@/lib/fingerprint";
 import { timeAgo } from "@/lib/format";
 import { listComments } from "@/lib/repo/comments";
+import { badgesSafe } from "@/lib/repo/badges";
+import { badgeOf } from "@/lib/badges";
+import { NickBadge } from "@/components/NickBadge";
 import { listCorrections } from "@/lib/repo/corrections";
 import { FACT_KIND_LABEL, formatValue } from "@/lib/products";
 import { LEGAL_HOLD_DAYS, LEGAL_REASONS, type LegalReason } from "@/lib/repo/legal";
@@ -121,6 +124,8 @@ export default async function PostPage({ params }: Props) {
     getRules(),
     post.post_type === "chat" ? debateTally(id).catch(() => null) : Promise.resolve(null),
   ]);
+  // 방 배지 (작가지망생방: 장르 작가 테스트 결과)
+  const badges = await badgesSafe(post.category.slug, [post.nickname, ...comments.map((c) => c.nickname)]);
   const productName = new Map(post.products.map((p) => [p.id, `${p.brand} ${p.name}`]));
   const factLabels = post.facts.map(
     (f) => `${productName.get(f.product_id) ?? ""} · ${f.attribute} ${formatValue(f.value)} ${f.unit}${f.basis ? ` (${f.basis})` : ""} · ${FACT_KIND_LABEL[f.kind]}`,
@@ -178,7 +183,7 @@ export default async function PostPage({ params }: Props) {
         <h1>{post.title}</h1>
         <div className="post-meta">
           {/* AI 글 표시는 작성자 자리 한 곳에 (배지·작성자·안내에 세 번 나오던 것을 줄임) */}
-          {post.is_ai_curated ? <span className="card-author-ai">🤖 AI 큐레이터</span> : <span>{post.nickname}</span>}
+          {post.is_ai_curated ? <span className="card-author-ai">🤖 AI 큐레이터</span> : <span>{post.nickname}<NickBadge label={badgeOf(badges, post.nickname)} /></span>}
           <time dateTime={post.created_at}>{timeAgo(post.created_at)}</time>
           {post.view_count > 0 && <span aria-label="조회수">👁 {post.view_count}</span>}
           {post.revision_count > 0 ? (
@@ -248,7 +253,7 @@ export default async function PostPage({ params }: Props) {
       )}
 
       {debate && <DebateVote postId={post.id} initial={debate} />}
-      <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} />
+      <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} badges={badges} />
     </article>
   );
 }

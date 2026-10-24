@@ -42,7 +42,7 @@ const DAILY_ON = "🔔 내일 아침 알려 드릴게요";
  * 지울 때 쓰는 비번 4자리는 자동으로 정해 보여 준다 (입력칸을 하나 줄이려고).
  * 답글 알림은 따로 누르는 사람이 없어서 (Sprint 77) 남기기 버튼 옆에 미리 체크해 두고, 남길 때 함께 켠다.
  */
-export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { postId: string; line: string; bragApi?: string; placeholder: string; prompt: string }) {
+export function QuickBrag({ postId, line, bragApi, placeholder, prompt, onPosted }: { postId: string; line: string; bragApi?: string; placeholder: string; prompt: string; onPosted?: (nickname: string, pw: string) => void }) {
   const [nickname, setNickname] = useState("");
   const [extra, setExtra] = useState("");
   const [busy, setBusy] = useState(false);
@@ -81,6 +81,7 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt }: { post
       saveNick(payload.nickname);
       watchPost(postId);
       if (notifyRef) addMyComment(notifyRef);
+      onPosted?.(payload.nickname, payload.pw);
       if (bragApi) fetch(bragApi, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", keepalive: true }).catch(() => {});
       if (wantPush && pushKey && (await wantPush) === "granted") await enablePush(pushKey).catch(() => {});
       setDone({ id: String(comment.id) });

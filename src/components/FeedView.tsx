@@ -17,6 +17,8 @@ import { EventAlert } from "./EventAlert";
 import { LiveComments } from "./LiveComments";
 import { RoomVisitors } from "./RoomVisitors";
 import { SeenTracker } from "./SeenTracker";
+import { badgeOf, ROOM_BADGES, type BadgeMap } from "@/lib/badges";
+import { badgesSafe } from "@/lib/repo/badges";
 
 /** 홈 피드 / 카테고리 피드 공용 서버 컴포넌트 */
 export async function FeedView({
@@ -29,6 +31,7 @@ export async function FeedView({
   head,
   chat,
   banner,
+  lead,
 }: {
   category?: Category;
   sort: SortKey;
@@ -40,9 +43,11 @@ export async function FeedView({
   /** 방 안의 작은 방 (말머리, Sprint 86) */
   head?: Head;
   /** 💬 자유채팅 탭: 글 목록 대신 방 채팅(카톡형)을 보여 준다 */
-  chat?: { postId: string; initial: Comment[] };
+  chat?: { postId: string; initial: Comment[]; badges?: BadgeMap };
   /** 방 이름 바로 아래, 탭 위 (책 덕후방: 📖 오늘 책 한입) */
   banner?: React.ReactNode;
+  /** 탭 아래, 글 목록 위 (작가지망생방 📸 자랑: ✍️ 오늘 몇 자) */
+  lead?: React.ReactNode;
 }) {
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced && !head && !chat;
@@ -53,6 +58,8 @@ export async function FeedView({
     category ? roomTools(category.id) : Promise.resolve(null),
     quietRoomSlugs().catch(() => new Set<string>()),
   ]);
+  // 방 배지 (작가지망생방: 장르 작가 테스트 결과)
+  const badges = category && feed && Object.hasOwn(ROOM_BADGES, category.slug) ? await badgesSafe(category.slug, feed.items.map((p) => p.nickname)) : undefined;
   const showGuide = category && needs && needs.infoPosts < THIN_BOARD_POSTS;
   const basePath = category ? `/c/${encodeURIComponent(category.slug)}` : "/";
   const typeParam: Record<string, string> = { ...(type ? { type } : {}), ...(head ? { head } : {}), ...(sourced ? { sourced: "1" } : {}) };
@@ -136,9 +143,10 @@ export async function FeedView({
       </nav>
       )}
       {chat ? (
-        <LiveComments postId={chat.postId} initial={chat.initial} casual chat />
+        <LiveComments postId={chat.postId} initial={chat.initial} casual chat badges={chat.badges} />
       ) : feed && (
       <>
+      {lead}
       {/* 머리글에 글쓰기가 없어서 (어제 방문자 자리) 목록 위 이 버튼 하나가 글쓰기 */}
       {(
         <Link className="btn btn-primary tab-write" href={writeHref}>
@@ -170,7 +178,7 @@ export async function FeedView({
           </div>
         </div>
       ) : (
-        feed.items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head} />)
+        feed.items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head} badge={badgeOf(badges, post.nickname)} />)
       )}
       {page === 1 && !type && !sourced && <MarkSeen room={seenRoom} />}
       <SeenTracker key={`${basePath}?${new URLSearchParams(params)}`} />
