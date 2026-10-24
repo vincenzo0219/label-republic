@@ -69,7 +69,7 @@ export function ParentTest() {
           다시 하기
         </button>
         <Link href="/c/육아-덕후방" className="btn">
-          👶 육아 덕후방 가기
+          👶 육아방 가기
         </Link>
       </div>
     </section>
