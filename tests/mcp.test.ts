@@ -30,7 +30,7 @@ d("MCP server (Sprint 75)", async () => {
     expect(await call("initialize", { protocolVersion: "2025-03-26" })).toMatchObject({ result: { protocolVersion: "2025-03-26", capabilities: { tools: {} } } });
     expect(await handleRpc({ jsonrpc: "2.0", method: "notifications/initialized" }, "fp")).toBeNull();
     const tools = (await call("tools/list")) as { result: { tools: { name: string }[] } };
-    expect(tools.result.tools.map((t) => t.name)).toEqual(["today_debate", "join_debate", "post_opinion", "listening_test_stats"]);
+    expect(tools.result.tools.map((t) => t.name)).toEqual(["today_debate", "join_debate", "post_opinion", "listening_test_stats", "list_rooms", "search_events", "search_posts", "list_tests"]);
     expect(await call("nope")).toMatchObject({ error: { code: -32601 } });
     expect(await handleRpc(null as never, "fp")).toMatchObject({ error: { code: -32600 } });
   });
