@@ -371,6 +371,93 @@ export async function runSavingsPush(
   }
 }
 
+const KIDS_LOCK_KEY = 4_823_097;
+/** 접수 시작 알림을 이만큼 늦게까지는 보낸다 (서버가 잠깐 멈췄을 때). 더 늦으면 보내지 않고 끝낸다 */
+const KIDS_LATE_MS = 2 * 3600_000;
+export const KIDS_PRE_MS = 30 * 60_000;
+
+/** 📍 동네 체험 🔔 문구 (10/24): 30분 전 · 접수 시작 */
+export function kidsPushMessage(a: { program_id: string; program_name: string }, stage: "pre" | "start"): PushMessage {
+  return {
+    title: stage === "pre" ? "🔔 30분 뒤 신청 시작" : "🔔 지금 신청 시작",
+    body: a.program_name.slice(0, 80),
+    url: `/kids/${encodeURIComponent(a.program_id)}?from=push`,
+    tag: `lr-kids-${a.program_id}-${stage}`,
+  };
+}
+
+/**
+ * 📍 동네 체험 🔔 (10/24). 접수 시작 30분 전에 한 번, 시작 시각에 한 번. 보낼 줄을 먼저 표시(UPDATE … RETURNING)하고
+ * 보내므로 여러 번 돌거나 여러 인스턴스여도 한 번만. 30분 전 알림을 놓친 채 시작 시각이 지났으면 그건 건너뛴다.
+ */
+export async function runKidsPush(
+  now = new Date(),
+  opts: { send?: (sub: Sub, msg: PushMessage) => Promise<SendResult> } = {},
+): Promise<{ ran: boolean; sent: number; removed: number }> {
+  const client = await pool().connect();
+  try {
+    const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [KIDS_LOCK_KEY]);
+    if (!lock.rows[0]!.ok) return { ran: false, sent: 0, removed: 0 };
+    let sent = 0;
+    let removed = 0;
+    try {
+      const t = now.toISOString();
+      // 놓친 30분 전 알림은 보내지 않고 끝낸 것으로 (시작 알림이 곧 간다)
+      await client.query(
+        "UPDATE kids_program_alerts SET pre_sent_at = $1 WHERE pre_sent_at IS NULL AND apply_start_at <= $1::timestamptz",
+        [t],
+      );
+      // 너무 늦은 시작 알림도 끝낸 것으로
+      await client.query(
+        "UPDATE kids_program_alerts SET start_sent_at = $1 WHERE start_sent_at IS NULL AND apply_start_at < $1::timestamptz - make_interval(secs => $2)",
+        [t, KIDS_LATE_MS / 1000],
+      );
+      const pre = await client.query<{ id: string; subscription_id: string; program_id: string; program_name: string }>(
+        `UPDATE kids_program_alerts SET pre_sent_at = $1
+          WHERE id IN (SELECT id FROM kids_program_alerts
+                        WHERE pre_sent_at IS NULL AND apply_start_at > $1::timestamptz AND apply_start_at - make_interval(secs => $2) <= $1::timestamptz
+                        ORDER BY apply_start_at LIMIT $3 FOR UPDATE SKIP LOCKED)
+          RETURNING id, subscription_id, program_id, program_name`,
+        [t, KIDS_PRE_MS / 1000, BATCH],
+      );
+      const start = await client.query<{ id: string; subscription_id: string; program_id: string; program_name: string }>(
+        `UPDATE kids_program_alerts SET start_sent_at = $1
+          WHERE id IN (SELECT id FROM kids_program_alerts
+                        WHERE start_sent_at IS NULL AND apply_start_at <= $1::timestamptz
+                        ORDER BY apply_start_at LIMIT $2 FOR UPDATE SKIP LOCKED)
+          RETURNING id, subscription_id, program_id, program_name`,
+        [t, BATCH],
+      );
+      const jobs = [...pre.rows.map((a) => ({ a, stage: "pre" as const })), ...start.rows.map((a) => ({ a, stage: "start" as const }))];
+      const send = opts.send ?? ((s: Sub, m: PushMessage) => sendPush(s, m));
+      const gone = new Set<string>();
+      for (const { a, stage } of jobs) {
+        if (gone.has(a.subscription_id)) continue;
+        const { rows } = await client.query<Sub>("SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE id = $1", [a.subscription_id]);
+        const s = rows[0];
+        if (!s) continue;
+        const r = await send(s, kidsPushMessage(a, stage));
+        if (r === "gone") {
+          removed++;
+          gone.add(a.subscription_id);
+          await client.query("DELETE FROM push_subscriptions WHERE id = $1", [s.id]);
+        } else if (r === "sent") sent++;
+      }
+      // 끝난 알림·오래된 프로그램 캐시 정리
+      await client.query("DELETE FROM kids_program_alerts WHERE start_sent_at IS NOT NULL AND apply_start_at < $1::timestamptz - interval '7 days'", [t]);
+      await client.query("DELETE FROM kids_programs WHERE fetched_at < $1::timestamptz - interval '60 days'", [t]);
+      return { ran: true, sent, removed };
+    } finally {
+      await client.query("SELECT pg_advisory_unlock($1)", [KIDS_LOCK_KEY]);
+    }
+  } finally {
+    client.release();
+  }
+}
+
+/** 🔔 접수 알림은 30분 전·시작 시각에 맞춰야 해서 1분마다 따로 */
+export const KIDS_PUSH_INTERVAL_MS = 60_000;
+
 export function startPushScheduler(intervalMs: number): () => void {
   let running = false;
   const tick = async () => {
@@ -396,5 +483,23 @@ export function startPushScheduler(intervalMs: number): () => void {
   };
   const timer = setInterval(tick, intervalMs);
   timer.unref();
-  return () => clearInterval(timer);
+  let kidsRunning = false;
+  const kidsTimer = setInterval(async () => {
+    if (kidsRunning) return;
+    kidsRunning = true;
+    try {
+      const k = await runKidsPush();
+      if (k.sent || k.removed) console.log(`[push] 동네 체험 알림 ${k.sent}건 발송, 구독 ${k.removed}개 정리`);
+    } catch (err) {
+      console.error("[push] kids failed:", (err as Error).message);
+      reportError(err, { kind: "job", where: "push-kids" });
+    } finally {
+      kidsRunning = false;
+    }
+  }, Math.min(intervalMs, KIDS_PUSH_INTERVAL_MS));
+  kidsTimer.unref();
+  return () => {
+    clearInterval(timer);
+    clearInterval(kidsTimer);
+  };
 }

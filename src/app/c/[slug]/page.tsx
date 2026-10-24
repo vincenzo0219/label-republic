@@ -28,6 +28,10 @@ import { MARKET_ROOMS } from "@/lib/marketEvents";
 import { RadarCard } from "@/components/RadarCard";
 import { RADAR_ROOMS } from "@/lib/marketRadar";
 import { getRadar } from "@/lib/repo/marketRadar";
+import { roomTabOf } from "@/lib/heads";
+import { KIDS_ROOM, KIDS_TAB } from "@/lib/kidsPrograms";
+import { KidsTab } from "@/components/KidsTab";
+import { KidsTopLine } from "@/components/KidsTopLine";
 
 /** ✍️ 오늘 몇 자 (작가지망생방): 이번 주 순위 + 어제·오늘 인증 + 배지. 실패하면 안 보인다 */
 async function loadWriting(slug: string) {
@@ -119,6 +123,10 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     </>
   );
   const roomBox = writingBox || savingsBox || marketBoxes;
+  // 📍 동네 체험 (육아방): 💬 채팅 뒤 탭 + 전체 탭 맨 위 한 줄. 지역은 브라우저에 저장돼 있어 화면에서 불러온다
+  const roomTab = roomTabOf(category.slug, sp.tab);
+  const roomTabProps = roomTab?.key === KIDS_TAB ? { key: KIDS_TAB, node: <KidsTab /> } : undefined;
+  const kidsLine = category.slug === KIDS_ROOM && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? <KidsTopLine /> : null;
   return (
     <>
       <RoomMemory slug={category.slug} />
@@ -136,7 +144,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         )}
       </nav>}
       {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
-      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? roomBox : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : null} />
+      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? roomBox : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : kidsLine} roomTab={roomTabProps} />
     </>
   );
 }

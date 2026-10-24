@@ -168,6 +168,8 @@ export async function listPosts(
 ): Promise<{ items: PostCard[]; total: number; totalCapped: boolean; tooShort?: boolean; page: number; pageSize: number }> {
   // 방 수다방 글은 "자유채팅" 탭에서만 — 글 목록에는 섞지 않는다
   const where: string[] = ["NOT p.is_blinded", "(p.seed_key IS NULL OR p.seed_key NOT LIKE 'roomchat:%')"];
+  // 📍 동네 체험 프로그램 글(ibol:<id>)은 방 전체·정보 목록에 섞지 않는다 — 📍 탭·프로그램 페이지·검색에서만 (10/24)
+  if (!params.q?.trim()) where.push("(p.seed_key IS NULL OR p.seed_key NOT LIKE 'ibol:%')");
   const args: unknown[] = [];
   if (params.categoryId) {
     args.push(params.categoryId);
