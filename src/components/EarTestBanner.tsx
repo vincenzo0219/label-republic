@@ -38,13 +38,25 @@ export async function EarTestBanner() {
     ...(poll ? [{ href: `/posts/${poll.id}`, label: "📚 오늘의 투표" }] : []),
     ...(debate ? [{ href: `/posts/${debate.post.id}`, label: "⚖️ AI 토론" }] : []),
   ];
+  // 1분 테스트는 한 칸으로 접어 둔다 (10/24, 칩이 너무 많음)
+  const [chat, ...tests] = TESTS;
   return (
     <nav className="home-tests" aria-label="바로가기">
-      {[...today, ...TESTS].map((t) => (
+      {[...today, chat!].map((t) => (
         <Link key={t.href} href={t.href}>
           {t.label}
         </Link>
       ))}
+      <details className="home-tests-more">
+        <summary>1분 테스트 {tests.length}개 →</summary>
+        <div className="home-tests-list">
+          {tests.map((t) => (
+            <Link key={t.href} href={t.href}>
+              {t.label}
+            </Link>
+          ))}
+        </div>
+      </details>
     </nav>
   );
 }

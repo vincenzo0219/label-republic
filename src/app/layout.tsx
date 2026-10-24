@@ -9,6 +9,7 @@ import { ErrorReporter } from "@/components/ErrorReporter";
 import { ReadOnlyWatcher } from "@/components/ReadOnlyWatcher";
 import { InAppBrowserTip } from "@/components/InAppBrowserTip";
 import { MetaPixel } from "@/components/MetaPixel";
+import { NavCounter } from "@/components/MyRooms";
 import { ReportLink } from "@/components/ReportLink";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { config } from "@/lib/config";
@@ -94,6 +95,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </nav>
           </div>
         </footer>
+        {/* 맨 끝에 둬야 페이지 effect 가 먼저 돈다 (홈 → 내 방 이동 판단) */}
+        <NavCounter />
       </body>
     </html>
   );

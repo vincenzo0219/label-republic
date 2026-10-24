@@ -1,3 +1,4 @@
+import { toast } from "./toast";
 import { getMyComments, getPushState, getWatchedPosts, getWatchedProducts, setPushState } from "./watchlist";
 
 function urlBase64ToUint8Array(base64: string) {
@@ -26,6 +27,8 @@ export async function pushPublicKey(): Promise<string | null> {
  */
 export async function enablePush(publicKey: string, daily?: boolean): Promise<"on" | NotificationPermission> {
   const permission = await Notification.requestPermission();
+  // 거절돼 있으면 버튼이 아무 반응 없어 보이므로 한 줄 알려 준다 (10/24)
+  if (permission === "denied") toast("알림이 꺼져 있어요 · 브라우저 설정에서 켜 주세요", 2500);
   if (permission !== "granted") return permission;
   const reg = await navigator.serviceWorker.register("/sw.js");
   await navigator.serviceWorker.ready;

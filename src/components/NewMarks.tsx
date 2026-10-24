@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { getMyRooms } from "@/lib/myRooms";
 import { markSeen, readSeenAll, seenBefore } from "@/lib/seen";
 
 function useSeenBefore(room: string): number | null | undefined {
@@ -38,7 +39,9 @@ const subscribe = (fn: () => void) => {
 export function NewCountsLoader({ active }: { active?: string }) {
   useEffect(() => {
     const seen = readSeenAll();
-    const pairs = Object.entries(seen).filter(([room]) => room !== "all" && room !== active);
+    // 내 방이 있으면 내 방만 센다
+    const mine = getMyRooms();
+    const pairs = Object.entries(seen).filter(([room]) => room !== "all" && room !== active && (!mine.length || mine.includes(room)));
     if (!pairs.length) return;
     const ctrl = new AbortController();
     const q = pairs.map(([room, at]) => `${encodeURIComponent(room)}:${at}`).join(",");
