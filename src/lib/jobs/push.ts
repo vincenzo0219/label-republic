@@ -13,6 +13,8 @@ import { DAILY_START, dailySet } from "../daily";
 import { debateTopic } from "../debate";
 import { kstDay } from "../metrics";
 import { TEST_POST_IDS } from "../testPosts";
+import { SAVINGS_ROOM } from "../investRooms";
+import { kstMonth } from "../savingsLog";
 
 const LOCK_KEY = 4_823_006;
 const BATCH = 500;
@@ -318,6 +320,57 @@ export async function runEventPush(
   }
 }
 
+const SAVINGS_LOCK_KEY = 4_823_095;
+export const SAVINGS_PUSH_HOUR = 9;
+
+/** 💰 적립일 알림 문구 (10/24) */
+export function savingsPushMessage(): PushMessage {
+  return { title: "💰 적립일", body: "이번 달 적립 체크", url: `/c/${encodeURIComponent(SAVINGS_ROOM)}?from=push`, tag: "lr-savings" };
+}
+
+/**
+ * 💰 매달 적립일 알림 (10/24, 적립식 투자방). 고른 날(1~28일) KST 오전 9시부터, 그달 한 번.
+ */
+export async function runSavingsPush(
+  now = new Date(),
+  opts: { send?: (sub: Sub, msg: PushMessage) => Promise<SendResult> } = {},
+): Promise<{ ran: boolean; sent: number; removed: number }> {
+  const kst = new Date(now.getTime() + 9 * 3600_000);
+  if (kst.getUTCHours() < SAVINGS_PUSH_HOUR) return { ran: false, sent: 0, removed: 0 };
+  const dom = kst.getUTCDate();
+  const month = kstMonth(now);
+  const client = await pool().connect();
+  try {
+    const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [SAVINGS_LOCK_KEY]);
+    if (!lock.rows[0]!.ok) return { ran: false, sent: 0, removed: 0 };
+    let sent = 0;
+    let removed = 0;
+    try {
+      const { rows } = await client.query<Sub>(
+        `SELECT id, endpoint, p256dh, auth FROM push_subscriptions
+          WHERE savings_day = $1 AND (savings_sent_month IS NULL OR savings_sent_month < $2::date) ORDER BY id LIMIT $3`,
+        [dom, month, BATCH],
+      );
+      const send = opts.send ?? ((s: Sub, m: PushMessage) => sendPush(s, m));
+      for (const s of rows) {
+        const r = await send(s, savingsPushMessage());
+        if (r === "gone") {
+          removed++;
+          await client.query("DELETE FROM push_subscriptions WHERE id = $1", [s.id]);
+          continue;
+        }
+        if (r === "sent") sent++;
+        await client.query("UPDATE push_subscriptions SET savings_sent_month = $2::date WHERE id = $1", [s.id, month]);
+      }
+      return { ran: true, sent, removed };
+    } finally {
+      await client.query("SELECT pg_advisory_unlock($1)", [SAVINGS_LOCK_KEY]);
+    }
+  } finally {
+    client.release();
+  }
+}
+
 export function startPushScheduler(intervalMs: number): () => void {
   let running = false;
   const tick = async () => {
@@ -332,6 +385,8 @@ export function startPushScheduler(intervalMs: number): () => void {
       if (st.sent || st.removed) console.log(`[push] 연속 기록 알림 ${st.sent}건 발송, 구독 ${st.removed}개 정리`);
       const ev = await runEventPush();
       if (ev.sent || ev.removed) console.log(`[push] 행사 알림 ${ev.sent}건 발송, 구독 ${ev.removed}개 정리`);
+      const sv = await runSavingsPush();
+      if (sv.sent || sv.removed) console.log(`[push] 적립일 알림 ${sv.sent}건 발송, 구독 ${sv.removed}개 정리`);
     } catch (err) {
       console.error("[push] batch failed:", (err as Error).message);
       reportError(err, { kind: "job", where: "push" });

@@ -1083,3 +1083,17 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .writing-top li, .writing-recent li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .writing-top li .num { margin-left: auto; font-weight: 700; }
 .writing-recent li b { color: var(--text); }
+/* 💰📅 투자방 (10/24) */
+.invest-note { margin: 16px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
+.market-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 14px; }
+.market-list li { display: flex; gap: 8px; align-items: baseline; }
+.market-list .num { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.market-list a { color: var(--text); text-decoration: none; }
+.market-card details summary { cursor: pointer; margin-top: 4px; }
+.savings-remind { display: flex; gap: 6px; align-items: center; }
+.market-card { padding: 10px 14px; gap: 6px; }
+.market-card .writing-title { font-size: 14px; }
+.radar-cause { margin: 0; font-size: 13px; }
+.radar-cause a { color: var(--text); }
+.radar-sources { margin: 0; }
+.radar-sources a { color: var(--muted); }

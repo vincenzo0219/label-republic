@@ -2,7 +2,7 @@
 
 import { addMyPost, myNick, myPin, saveNick } from "@/lib/me";
 import { NickCheck } from "./NickCheck";
-import { HEAD_HINTS, NO_INFO_TAB, headOf, headsFor, withHead, type Head } from "@/lib/heads";
+import { NO_INFO_TAB, headHint, headOf, headsFor, withHead, type Head } from "@/lib/heads";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
@@ -486,7 +486,7 @@ export function PostEditor(props: Props) {
           onChange={(e) => setTitle(e.target.value)} />
         <textarea className="textarea" value={body} maxLength={20000} required
           placeholder={
-            (postType !== "info" && head && HEAD_HINTS[head]) ||
+            (postType !== "info" && head && headHint(head, boardSlug)) ||
             (postType === "info"
               ? "알게 된 것, 알려 주고 싶은 것"
               : "자유롭게 적어 주세요")

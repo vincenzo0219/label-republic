@@ -75,7 +75,7 @@ export async function FeedView({
     ...(head ? { head } : type && type !== "chat" ? { type } : {}),
   })}`;
   const writeLabel = head
-    ? `${headLabel(head)} 글쓰기`
+    ? `${headLabel(head, category?.slug)} 글쓰기`
     : type === "info" ? "📋 정보 글쓰기" : type === "meetup" ? "📅 정모 제안하기" : "✍️ 글쓰기";
   const seenRoom = category?.slug ?? "all";
   return (

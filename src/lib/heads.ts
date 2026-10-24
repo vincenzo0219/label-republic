@@ -22,10 +22,19 @@ export type Head = (typeof ALL_HEADS)[number]["key"];
 const BOOK = "읽는-책-제목을-교환해-보자";
 export const BOOK_ROOM = BOOK;
 
+/** 투자방 (10/24): 말머리(제목 앞 [행사]·[자랑]·[혜택])는 그대로, 탭 이름만 방에 맞게 */
+const SCHEDULE = { key: "행사", label: "📅 일정" } as const;
+const JOURNAL = { key: "자랑", label: "📒 매매일지" } as const;
+
 /** 방 전용 말머리가 있는 방은 그것만 쓴다 (책 덕후방: 자랑은 밑줄로, 정모는 같이 읽기로 합침 — 10/21 단순화) */
 const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
   [BOOK]: [...BOOK_HEADS, HEADS[1], HEADS[2]],
+  미국주식방: [SCHEDULE, JOURNAL],
+  주식: [SCHEDULE, JOURNAL],
+  "적립식-투자방": [{ key: "자랑", label: "📒 적립 인증" }, HEADS[2]],
 };
+/** 방 전용 이름을 붙인 말머리는 탭에서도 그 이름 (공용 "🎫 행사·할인" 으로 바꾸지 않음) */
+const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방"]);
 
 /** 방 탭 줄 끝에 붙는 다른 화면 링크 (책 덕후방 물어보기는 10/23 📚 추천 탭 안으로 합침) */
 export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {};
@@ -43,8 +52,12 @@ const TAB_LABELS: Partial<Record<Head, string>> = { 행사: "🎫 행사·할인
 
 /** 방 탭 줄에 보이는 말머리 — 다른 탭에 합쳐진 말머리(혜택)는 따로 탭을 두지 않는다 */
 export const tabHeadsFor = (slug: string | undefined): { key: Head; label: string }[] => {
-  const merged = new Set(Object.values(TAB_INCLUDES).flat());
-  return headsFor(slug).filter((h) => !merged.has(h.key)).map((h) => ({ ...h, label: TAB_LABELS[h.key] ?? h.label }));
+  const heads = headsFor(slug);
+  const keys = new Set(heads.map((h) => h.key));
+  // 합쳐질 탭(행사)이 이 방에 있을 때만 따로 두지 않는다 (적립식 투자방은 🎁 혜택만 있음)
+  const merged = new Set((Object.entries(TAB_INCLUDES) as [Head, Head[]][]).filter(([k]) => keys.has(k)).flatMap(([, v]) => v));
+  const own = !!slug && ROOM_LABELED.has(slug);
+  return heads.filter((h) => !merged.has(h.key)).map((h) => ({ ...h, label: own ? h.label : (TAB_LABELS[h.key] ?? h.label) }));
 };
 
 /** 이 탭에 보이는 말머리들 (자기 자신 + 합쳐진 것) */
@@ -60,13 +73,21 @@ export const HEAD_HINTS: Partial<Record<Head, string>> = {
   추천: "이런 상황엔 이 책 · 같은 주제 다른 관점 두 권 · 신간 · 명저",
 };
 
+/** 투자방 말머리 예시 (10/24) — 짧게 */
+const ROOM_HINTS: Record<string, Partial<Record<Head, string>>> = {
+  미국주식방: { 행사: "날짜 · 일정 · 공식 링크", 자랑: "날짜 · 산 것·판 것 · 이유 한 줄" },
+  주식: { 행사: "날짜 · 일정 · 공식 링크", 자랑: "날짜 · 산 것·판 것 · 이유 한 줄" },
+  "적립식-투자방": { 자랑: "몇 달째 · 무엇을", 혜택: "무엇을 · 언제까지 · 공식 링크" },
+};
+export const headHint = (h: Head, slug?: string): string | undefined => (slug && ROOM_HINTS[slug]?.[h]) || HEAD_HINTS[h];
+
 export const parseHead = (v: string | undefined): Head | undefined => ALL_HEADS.find((h) => h.key === v)?.key;
 
 export const HEAD_PREFIX = /^\[([^\]]{2,4})\]\s*/;
 
 export const headOf = (title: string): Head | undefined => parseHead(HEAD_PREFIX.exec(title)?.[1]);
 
-export const headLabel = (h: Head) => ALL_HEADS.find((x) => x.key === h)!.label;
+export const headLabel = (h: Head, slug?: string) => (slug && ROOM_HEADS[slug]?.find((x) => x.key === h)?.label) || ALL_HEADS.find((x) => x.key === h)!.label;
 
 /** 제목의 말머리를 바꾼다 (같은 걸 다시 누르면 뗀다) */
 export function withHead(title: string, head: Head): string {
