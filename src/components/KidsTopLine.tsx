@@ -8,7 +8,7 @@ import { KidsCard } from "./KidsCard";
 
 const TAB = `/c/${encodeURIComponent(KIDS_ROOM)}?tab=${KIDS_TAB}`;
 
-/** 육아방 전체 탭 맨 위 한 줄: 📍 {구} · 이번 주 무료 체험 N개 → + 작은 카드 2개. 지역이 없으면 📍 동네 고르기. 실패하면 안 보인다 */
+/** 육아방 전체 탭 맨 위 한 줄: 📍 {구} · 이번 주 무료 체험 N개 → + 작은 카드 2개. 지역이 없으면 📍 우리 동네 영유아 프로그램 보기. 실패하면 안 보인다 */
 export function KidsTopLine() {
   const [area, setArea] = useState<string | null | undefined>(undefined);
   const [items, setItems] = useState<KidsProgram[] | null>(null);
@@ -21,7 +21,7 @@ export function KidsTopLine() {
   if (area === undefined) return null;
   if (!area)
     return (
-      <Link href={TAB} className="kids-line">📍 동네 고르기</Link>
+      <Link href={TAB} className="kids-line">📍 우리 동네 영유아 프로그램 보기</Link>
     );
   if (!items) return null;
   const week = items.filter((p) => isThisWeekFree(p));
