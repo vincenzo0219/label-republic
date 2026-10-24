@@ -32,6 +32,9 @@ import { roomTabOf } from "@/lib/heads";
 import { KIDS_ROOM, KIDS_TAB } from "@/lib/kidsPrograms";
 import { KidsTab } from "@/components/KidsTab";
 import { KidsTopLine } from "@/components/KidsTopLine";
+import { AdSchedule } from "@/components/AdSchedule";
+import { isAdLanding } from "@/lib/adSchedule";
+import { recentEventPosts } from "@/lib/repo/adSchedule";
 
 /** ✍️ 오늘 몇 자 (작가지망생방): 이번 주 순위 + 어제·오늘 인증 + 배지. 실패하면 안 보인다 */
 async function loadWriting(slug: string) {
@@ -112,9 +115,18 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const plain = !sp.tab && !sp.type;
   const savings = SAVINGS_ROOMS.has(category.slug) && plain && (!head || head === "자랑") ? await savingsSummary(category.slug).catch(() => null) : null;
   const savingsBox = savings && <SavingsLog room={category.slug} {...savings} compact={!head} />;
+  // 🎫 광고(?from=ig_*)로 들어오면 맨 위에 가까운 일정 한 장 — 투자방은 📅 일정 카드, 육아방은 📍 동네 체험 한 줄을 그 자리로 (10/24)
+  const ad = isAdLanding(sp.from);
   const markets = MARKET_ROOMS[category.slug];
-  const events = markets && plain && (!head || head === "행사") ? await upcomingEvents(markets).catch(() => null) : null;
-  const marketBox = events && <MarketCard events={events} />;
+  const events = markets && (ad || (plain && (!head || head === "행사"))) ? await upcomingEvents(markets).catch(() => null) : null;
+  const adTop = !ad
+    ? null
+    : markets
+      ? events && <MarketCard events={events} />
+      : category.slug === KIDS_ROOM
+        ? <KidsTopLine />
+        : <AdSchedule posts={await recentEventPosts(category.id).catch(() => [])} slug={category.slug} />;
+  const marketBox = events && !ad && plain && (!head || head === "행사") && <MarketCard events={events} />;
   const radar = RADAR_ROOMS.has(category.slug) && plain && !head ? await getRadar(category.slug).catch(() => null) : null;
   const marketBoxes = (radar || marketBox) && (
     <>
@@ -126,10 +138,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   // 📍 동네 체험 (육아방): 💬 채팅 뒤 탭 + 전체 탭 맨 위 한 줄. 지역은 브라우저에 저장돼 있어 화면에서 불러온다
   const roomTab = roomTabOf(category.slug, sp.tab);
   const roomTabProps = roomTab?.key === KIDS_TAB ? { key: KIDS_TAB, node: <KidsTab /> } : undefined;
-  const kidsLine = category.slug === KIDS_ROOM && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? <KidsTopLine /> : null;
+  const kidsLine = !ad && category.slug === KIDS_ROOM && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? <KidsTopLine /> : null;
   return (
     <>
       <RoomMemory slug={category.slug} />
+      {adTop}
       {links.length > 0 && <nav className="room-links" aria-label="바로가기">
         {links.map((l) =>
           l.href.endsWith(".md") ? (

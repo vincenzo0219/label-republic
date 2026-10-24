@@ -39,6 +39,7 @@ import { isAttending, listParticipants } from "@/lib/repo/meetups";
 import { getAppeal } from "@/lib/repo/operator";
 import { getMyVote, getPost as getPostUncached } from "@/lib/repo/posts";
 import { EXTRACTIVE_MODEL } from "@/lib/summary";
+import { typeChip } from "@/lib/adSchedule";
 
 export const dynamic = "force-dynamic";
 
@@ -181,7 +182,7 @@ export default async function PostPage({ params }: Props) {
         <div className="card-top">
           <Link href={`/c/${encodeURIComponent(post.category.slug)}`} className="badge badge-cat">{post.category.name}</Link>
           <TrustBadge tier={post.trust_tier} categoryName={post.category.name} />
-          {post.post_type === "chat" && <span className="badge badge-type">💬 잡담</span>}
+          {typeChip(post.title, post.post_type) && <span className="badge badge-type">{typeChip(post.title, post.post_type)}</span>}
         </div>
         <h1>{post.title}</h1>
         <div className="post-meta">

@@ -1097,6 +1097,12 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .radar-cause a { color: var(--text); }
 .radar-sources { margin: 0; }
 .radar-sources a { color: var(--muted); }
+/* 🎫 이번 주 일정 — 광고 유입 첫 화면 (10/24) */
+.ad-schedule { margin: 0 0 12px; }
+.ad-schedule li { align-items: center; }
+.ad-schedule li a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge-dday { flex: none; color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, transparent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ad-schedule-all { justify-self: end; text-decoration: none; }
 
 /* 반대매매 계산기 (/margin-calc) */
 .mc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

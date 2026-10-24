@@ -10,6 +10,7 @@ import { MeetupBadge } from "./Meetup";
 import { TrustBadge } from "./TrustBadge";
 import { NewBadge } from "./NewMarks";
 import { HEAD_PREFIX } from "@/lib/heads";
+import { typeChip } from "@/lib/adSchedule";
 
 /** 이 수를 넘긴 댓글 수는 제목 옆에 크게 */
 const HOT_COMMENTS = 100;
@@ -34,6 +35,8 @@ export function PostCard({
 }) {
   const net = post.upvotes - post.downvotes;
   const title = inHead ? post.title.replace(HEAD_PREFIX, "") : post.title;
+  // [행사]·[혜택] 글은 잡담이 아니라 그 말머리로 (10/24)
+  const chip = typeChip(post.title, post.post_type);
   return (
     <Link href={`/posts/${post.id}`} className="card" data-post-id={post.id}>
       <article>
@@ -41,7 +44,7 @@ export function PostCard({
           {seenRoom && <NewBadge room={seenRoom} createdAt={post.created_at} />}
           {showCategory && <span className="badge badge-cat">{post.category.name}</span>}
           <TrustBadge tier={post.trust_tier} />
-          {post.post_type === "chat" && showCategory && <span className="badge badge-type">💬 잡담</span>}
+          {showCategory && chip && <span className="badge badge-type">{chip}</span>}
           {post.meetup && <MeetupBadge meetup={post.meetup} />}
           {post.source_kinds.includes("paper") ? (
             <span className="badge badge-src badge-src-paper">🎓 논문 출처</span>
