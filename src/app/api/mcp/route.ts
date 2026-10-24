@@ -16,7 +16,9 @@ export const POST = route(async (req) => {
     return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400 });
   }
   const msgs = (Array.isArray(body) ? body : [body]).slice(0, 20);
-  const out = (await Promise.all(msgs.map((m) => handleRpc(m, fp)))).filter((r) => r !== null);
+  // ?src=playmcp (카카오 PlayMCP): 읽기 전용 도구만 보이고, 쓰기 도구 호출은 거절
+  const readOnly = new URL(req.url).searchParams.get("src") === "playmcp";
+  const out = (await Promise.all(msgs.map((m) => handleRpc(m, fp, { readOnly })))).filter((r) => r !== null);
   if (out.length === 0) return new NextResponse(null, { status: 202 });
   return NextResponse.json(Array.isArray(body) ? out : out[0], { headers: { "Cache-Control": "no-store" } });
 });
