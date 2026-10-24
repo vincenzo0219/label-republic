@@ -19,6 +19,13 @@ import { RoomVisitors } from "./RoomVisitors";
 import { SeenTracker } from "./SeenTracker";
 import { badgeOf, ROOM_BADGES, type BadgeMap } from "@/lib/badges";
 import { badgesSafe } from "@/lib/repo/badges";
+import { ttlMemo } from "@/lib/ttlMemo";
+
+// 방 상단 도구 유무·조용한 방 목록은 자주 바뀌지 않아 60초씩 재사용 (10/24 속도)
+const cachedRoomTools = ttlMemo(roomTools, 60_000);
+const cachedQuiet = ttlMemo((_: number) => quietRoomSlugs(), 60_000);
+// 방 탭: 손가락이 닿는(hover·touchstart) 순간 그 탭 화면 전체를 미리 받는다. next/link 의 공개 타입에는 아직 없는 App Router 옵션
+const PREFETCH_ON_TOUCH = { unstable_dynamicOnHover: true } as object;
 
 /** 홈 피드 / 카테고리 피드 공용 서버 컴포넌트 */
 export async function FeedView({
@@ -61,11 +68,12 @@ export async function FeedView({
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced && !head && !chat && !roomTab;
   const [categories, feed, needs, tools, quiet] = await Promise.all([
-    listCategories(),
+    // 방 목록·조용한 방은 홈의 방 탭(CategoryTabs)에만 쓰여서, 방 안에서는 조회하지 않는다
+    category ? Promise.resolve([]) : listCategories(),
     chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, categorySlugs: !category && onlyMine && mine?.length ? mine : undefined, sort, page, type, head, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category }),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
-    category ? roomTools(category.id) : Promise.resolve(null),
-    quietRoomSlugs().catch(() => new Set<string>()),
+    category ? cachedRoomTools(category.id) : Promise.resolve(null),
+    category ? Promise.resolve(new Set<string>()) : cachedQuiet(0).catch(() => new Set<string>()),
   ]);
   // 방 배지 (작가지망생방: 장르 작가 테스트 결과)
   const badges = category && feed && Object.hasOwn(ROOM_BADGES, category.slug) ? await badgesSafe(category.slug, feed.items.map((p) => p.nickname)) : undefined;
@@ -124,19 +132,19 @@ export async function FeedView({
       {category && (
       <nav className="type-filter" aria-label="글 유형">
         <FilterCountsLoader room={category.slug} />
-        {/* 방 탭 (10/21 단순화): 전체 · 채팅 · 말머리 · (정보) — 정모·잡담 탭은 없음 */}
-        <Link href={basePath} aria-current={!type && !head && !chat && !roomTab ? "true" : undefined} rel="nofollow">전체</Link>
-        <Link href={`${basePath}?tab=chat`} aria-current={chat ? "true" : undefined} rel="nofollow">
+        {/* 방 탭 (10/21 단순화): 전체 · 채팅 · 말머리 · (정보) — 정모·잡담 탭은 없음. 손가락이 닿는 순간 탭 내용을 미리 받는다 (10/24 속도) */}
+        <Link href={basePath} aria-current={!type && !head && !chat && !roomTab ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>전체</Link>
+        <Link href={`${basePath}?tab=chat`} aria-current={chat ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
           💬 채팅
           <FilterCount k="chat" />
         </Link>
         {(ROOM_CHAT_TABS[category.slug] ?? []).map((t) => (
-          <Link key={t.key} href={`${basePath}?tab=${t.key}`} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow">
+          <Link key={t.key} href={`${basePath}?tab=${t.key}`} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
             {t.label}
           </Link>
         ))}
         {tabHeadsFor(category.slug).map((h) => (
-          <Link key={h.key} href={`${basePath}?${new URLSearchParams({ head: h.key })}`} aria-current={head === h.key ? "true" : undefined} rel="nofollow">
+          <Link key={h.key} href={`${basePath}?${new URLSearchParams({ head: h.key })}`} aria-current={head === h.key ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
             {h.label}
             <FilterCount k={h.key} />
           </Link>
@@ -145,13 +153,13 @@ export async function FeedView({
           <Link key={l.href} href={l.href}>{l.label}</Link>
         ))}
         {!NO_INFO_TAB.has(category.slug) && (
-          <Link href={typeHref("info")} aria-current={type === "info" && !head && !chat && !roomTab ? "true" : undefined} rel="nofollow">
+          <Link href={typeHref("info")} aria-current={type === "info" && !head && !chat && !roomTab ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
             📋 정보
             <FilterCount k="info" />
           </Link>
         )}
         {sourced && (
-          <Link className="filter-toggle" href={href(type, false)} aria-current="true" rel="nofollow">
+          <Link className="filter-toggle" href={href(type, false)} aria-current="true" rel="nofollow" {...PREFETCH_ON_TOUCH}>
             📚 출처 있는 글만 ✕
           </Link>
         )}
