@@ -108,6 +108,23 @@ describe("📍 kids programs adapter", () => {
     expect(p.applyUrl).not.toContain("from=");
   });
 
+  it("reads the production field names (10/24 확인)", () => {
+    const r = normalizeResponse({
+      items: [{
+        id: "nat-nlcy-1133426", title: "개미와 베짱이", organization: "국립어린이청소년도서관", kind: "체험", region: "서울 강남구",
+        venue: "체험형 동화구연실", age: "4~7세", free: false, fee: "기관 공고 확인", eventStart: "2026-11-01", eventEnd: "2026-11-01",
+        applicationStart: "2026-10-25T09:00:00+09:00", applicationEnd: "2026-11-01T11:00:00+09:00", status: "곧 신청 시작", walkIn: false,
+        applyUrl: "https://www.nlcy.go.kr/x", ibolUrl: "https://ibol.kr/?program=nat-nlcy-1133426&src=nobangjang&from=nobangjang", source: "국립어린이청소년도서관 · 프로그램",
+      }],
+    });
+    expect(r.unknownKeys).toEqual([]);
+    expect(r.items[0]).toMatchObject({
+      name: "개미와 베짱이", institution: "국립어린이청소년도서관", city: "서울 강남구", place: "체험형 동화구연실", cost: "기관 공고 확인",
+      startDate: "2026-10-31T15:00:00.000Z", dateText: "11/1", applyStartAt: "2026-10-25T00:00:00.000Z", applyEndAt: "2026-11-01T02:00:00.000Z",
+      ibolUrl: "https://ibol.kr/?program=nat-nlcy-1133426&src=nobangjang&from=nobangjang",
+    });
+  });
+
   it("moves an ibol-only apply link to the ibol link and leaves institution links unchanged", () => {
     const p = normalizeProgram({ id: "x", name: "n", url: "https://ibol.kr/p/x" })!;
     expect(p.applyUrl).toBeNull();
