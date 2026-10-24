@@ -19,6 +19,15 @@ import { WritingLog } from "@/components/WritingLog";
 import { badgesSafe } from "@/lib/repo/badges";
 import { recentWriting, weeklyWriters } from "@/lib/repo/writingLog";
 import { WRITING_ROOMS } from "@/lib/writingLog";
+import { SavingsLog } from "@/components/SavingsLog";
+import { MarketCard } from "@/components/MarketCard";
+import { savingsSummary } from "@/lib/repo/savingsLog";
+import { upcomingEvents } from "@/lib/repo/marketEvents";
+import { SAVINGS_ROOMS } from "@/lib/savingsLog";
+import { MARKET_ROOMS } from "@/lib/marketEvents";
+import { RadarCard } from "@/components/RadarCard";
+import { RADAR_ROOMS } from "@/lib/marketRadar";
+import { getRadar } from "@/lib/repo/marketRadar";
 
 /** ✍️ 오늘 몇 자 (작가지망생방): 이번 주 순위 + 어제·오늘 인증 + 배지. 실패하면 안 보인다 */
 async function loadWriting(slug: string) {
@@ -95,6 +104,21 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const head = parseHead(sp.head);
   const writing = WRITING_ROOMS.has(category.slug) && !sp.tab && !sp.type && (!head || head === "자랑") ? await loadWriting(category.slug) : null;
   const writingBox = writing && <WritingLog room={category.slug} {...writing} compact={!head} />;
+  // 💰 이번 달 적립 (적립식 투자방) · 📅 오늘 밤 미국장 (미국주식방·주식). 실패하면 안 보인다
+  const plain = !sp.tab && !sp.type;
+  const savings = SAVINGS_ROOMS.has(category.slug) && plain && (!head || head === "자랑") ? await savingsSummary(category.slug).catch(() => null) : null;
+  const savingsBox = savings && <SavingsLog room={category.slug} {...savings} compact={!head} />;
+  const markets = MARKET_ROOMS[category.slug];
+  const events = markets && plain && (!head || head === "행사") ? await upcomingEvents(markets).catch(() => null) : null;
+  const marketBox = events && <MarketCard events={events} />;
+  const radar = RADAR_ROOMS.has(category.slug) && plain && !head ? await getRadar(category.slug).catch(() => null) : null;
+  const marketBoxes = (radar || marketBox) && (
+    <>
+      {radar && <RadarCard radar={radar} />}
+      {marketBox}
+    </>
+  );
+  const roomBox = writingBox || savingsBox || marketBoxes;
   return (
     <>
       <RoomMemory slug={category.slug} />
@@ -112,7 +136,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         )}
       </nav>}
       {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
-      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && writingBox} lead={head ? writingBox : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : null} />
+      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? roomBox : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : null} />
     </>
   );
 }

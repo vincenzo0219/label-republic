@@ -8,6 +8,7 @@ import { AppealBox } from "@/components/AppealBox";
 import { CorrectionsPanel } from "@/components/CorrectionsPanel";
 import { Gallery } from "@/components/Gallery";
 import { LiveComments } from "@/components/LiveComments";
+import { INVEST_NOTICE, isInvestRoom } from "@/lib/investRooms";
 import { DebateVote } from "@/components/DebateVote";
 import { debateTally } from "@/lib/repo/debateVotes";
 import { PostOwnerActions } from "@/components/PostOwnerActions";
@@ -254,6 +255,7 @@ export default async function PostPage({ params }: Props) {
 
       {debate && <DebateVote postId={post.id} initial={debate} />}
       <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} badges={badges} />
+      {isInvestRoom(post.category.slug) && <p className="invest-note">{INVEST_NOTICE}</p>}
     </article>
   );
 }

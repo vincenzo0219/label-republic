@@ -8,6 +8,7 @@ import { aiSpam, combine, heuristicSpam, moderationNote, shouldSuppress, type Sp
 import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
 import { searchTerms } from "../highlight";
 import { tabMembers, type Head } from "../heads";
+import { investProblem, isInvestRoom } from "../investRooms";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
 import type { PostCard, PostDetail, PostRevision, PostType } from "../types";
@@ -350,6 +351,9 @@ export type CreatePostInput = {
 };
 
 export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
+  // 투자방: 외부 채팅방 링크·리딩방 모집·전화번호는 올리지 않는다 (10/24, src/lib/investRooms.ts)
+  const invest = investProblem(raw.categorySlug, raw.title, raw.body, ...(raw.summary?.lines ?? []), ...(raw.sources ?? []).flatMap((x) => [x.url, x.label]));
+  if (invest) throw new HttpError(400, "invest_rule", invest);
   // 광고 판단은 원문으로 (연락처 자체가 광고 신호), 저장은 휴대전화·이메일·주민등록번호를 지운 판으로 (Sprint 37)
   const spam = heuristicSpam(raw.title, raw.body);
   const input = { ...raw, title: maskPersonalInfo(raw.title).text.slice(0, 120), body: maskPersonalInfo(raw.body).text };
@@ -427,6 +431,8 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
     if (!post) throw notFound();
     if (post.is_blinded) throw blinded();
     await assertPin(`post:${id}`, fp, pin, post.pw_hash);
+    const invest = investProblem(post.category.slug, input.title, input.body, ...(input.summary?.lines ?? []), ...(input.sources ?? []).flatMap((x) => [x.url, x.label]));
+    if (invest) throw new HttpError(400, "invest_rule", invest);
     // 휴대전화·이메일·주민등록번호는 지운 판으로 저장 (Sprint 37)
     const title = input.title === undefined ? post.title : maskPersonalInfo(input.title).text.slice(0, 120);
     const body = input.body === undefined ? post.body : maskPersonalInfo(input.body).text;
@@ -531,7 +537,7 @@ function moderationParams(v: SpamVerdict, spamCut: number): [number, boolean, st
 export async function aiModeratePost(id: string): Promise<SpamVerdict | null> {
   const post = await loadPost(id);
   if (!post || post.is_blinded) return null;
-  const [ai, abuse] = await Promise.all([aiSpam(post.title, post.body), aiAbuse(`${post.title}\n\n${post.body}`)]);
+  const [ai, abuse] = await Promise.all([aiSpam(post.title, post.body), aiAbuse(`${post.title}\n\n${post.body}`, { invest: isInvestRoom(post.category.slug) })]);
   // 욕설·혐오·인신공격·개인정보: 확신이 높으면 가린다 (운영자가 이 내용을 풀어 줬으면 다시 가리지 않음)
   if (abuse) {
     await query(

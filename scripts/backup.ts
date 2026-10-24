@@ -28,6 +28,9 @@ export const CHECK_TABLES = [
   "books", "book_reads", "book_asks", "book_ask_answers", "book_bites", "book_bite_tries", "nickname_claims",
   // 10/24 작가지망생방 ✍️ 오늘 몇 자 (연속 일수가 사라지면 안 된다)
   "writing_logs",
+  "savings_logs",
+  "market_events",
+  "market_radar",
 ];
 
 type Manifest = {

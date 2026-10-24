@@ -103,6 +103,17 @@ export async function setEventRoom(endpoint: string, token: string, slug: string
   return res[0].event_rooms;
 }
 
+/** 💰 매달 적립일 알림 (10/24): 1~28일, null 이면 끈다. 이번 달 그날이 이미 지났으면 다음 달부터 */
+export async function setSavingsDay(endpoint: string, token: string, day: number | null): Promise<number | null> {
+  checkToken(endpoint, token);
+  const res = await query<{ savings_day: number | null }>(
+    "UPDATE push_subscriptions SET savings_day = $2, synced_at = now() WHERE endpoint = $1 RETURNING savings_day",
+    [endpoint, day],
+  );
+  if (!res[0]) throw notFound("알림 구독");
+  return res[0].savings_day;
+}
+
 export type PushStats = { total: number; daily: number; eventSubs: number; rooms: { slug: string; n: number }[] };
 
 /** 관리자: 푸시 알림 신청 현황 (10/22) — 전체 구독, 매일 알림, 🎫 행사 알림(방별) */

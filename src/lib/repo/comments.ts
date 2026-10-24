@@ -3,11 +3,24 @@ import { aiAbuse, aiImageAbuse, heuristicAbuse, hideParams, maskPersonalInfo } f
 import { query, tx } from "../db";
 import { blinded, HttpError, notFound } from "../errors";
 import { extractMentions, resolveMentions } from "../mentions";
+import { investProblem, isInvestRoom } from "../investRooms";
 import { heuristicSpam, shouldSuppress } from "../moderation";
 import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import type { Comment } from "../types";
 import { assertPin } from "./pin-guard";
+
+/** 글이 있는 방 slug (없으면 null) */
+async function roomOfPost(postId: string): Promise<string | null> {
+  const [r] = await query<{ slug: string }>("SELECT c.slug FROM posts p JOIN categories c ON c.id = p.category_id WHERE p.id = $1", [postId]);
+  return r?.slug ?? null;
+}
+
+/** 투자방 규칙 (10/24): 외부 채팅방 링크·리딩방 모집·전화번호는 댓글로도 못 올린다 */
+async function assertInvestOk(postId: string, body: string): Promise<void> {
+  const problem = investProblem(await roomOfPost(postId), body);
+  if (problem) throw new HttpError(400, "invest_rule", problem);
+}
 
 /** 같은 망에서 한 댓글로 보내는 답글·멘션 알림 (시간당) */
 export const TARGET_LIMIT = 5;
@@ -39,6 +52,7 @@ export async function createComment(
   input: { nickname: string; pin: string; body: string; fingerprint?: string; net?: string; parentId?: string; image?: { id: string; token: string } },
 ): Promise<Comment> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
+  await assertInvestOk(postId, input.body);
   // 휴대전화·이메일·주민등록번호는 지운 판으로 저장 (Sprint 37)
   // 광고·홍보 댓글 (Sprint 83): 글과 같은 규칙으로, 연락처를 지우기 전 원문으로 판단한다
   const spam = heuristicSpam("", input.body);
@@ -108,9 +122,10 @@ export async function deleteComment(id: string, fp: string, pin: string): Promis
 /** 댓글 본문 고치기 (10/23) — 지울 때와 같은 비번 확인. 개인정보는 등록 때처럼 가린다 */
 export async function updateComment(id: string, fp: string, pin: string, body: string): Promise<void> {
   if (!/^\d{1,18}$/.test(id)) throw notFound("댓글");
-  const rows = await query<{ pw_hash: string }>("SELECT pw_hash FROM comments WHERE id = $1", [id]);
+  const rows = await query<{ pw_hash: string; post_id: string }>("SELECT pw_hash, post_id::text FROM comments WHERE id = $1", [id]);
   if (!rows[0]) throw notFound("댓글");
   await assertPin(`comment:${id}`, fp, pin, rows[0].pw_hash);
+  await assertInvestOk(rows[0].post_id, body);
   await query("UPDATE comments SET body = $2 WHERE id = $1", [id, maskPersonalInfo(body).text]);
 }
 
@@ -120,13 +135,14 @@ export async function updateComment(id: string, fp: string, pin: string, body: s
  */
 export async function aiModerateComment(id: string): Promise<boolean> {
   if (!/^\d{1,18}$/.test(id)) return false;
-  const rows = await query<{ body: string; image_id: string | null }>(
-    "SELECT body, image_id::text FROM comments WHERE id = $1 AND ai_hidden_at IS NULL AND NOT ai_hide_released AND NOT is_ai_curated",
+  const rows = await query<{ body: string; image_id: string | null; slug: string }>(
+    `SELECT c.body, c.image_id::text, cat.slug FROM comments c JOIN posts p ON p.id = c.post_id JOIN categories cat ON cat.id = p.category_id
+      WHERE c.id = $1 AND c.ai_hidden_at IS NULL AND NOT c.ai_hide_released AND NOT c.is_ai_curated`,
     [id],
   );
   if (!rows[0]) return false;
-  // 사진이 있으면 사진도 본다 (Sprint 90)
-  const verdict = (await aiAbuse(rows[0].body)) ?? (rows[0].image_id ? await aiImageAbuse(rows[0].image_id) : null);
+  // 사진이 있으면 사진도 본다 (Sprint 90). 투자방은 리딩방·수익 보장 홍보도 (10/24)
+  const verdict = (await aiAbuse(rows[0].body, { invest: isInvestRoom(rows[0].slug) })) ?? (rows[0].image_id ? await aiImageAbuse(rows[0].image_id) : null);
   if (!verdict) return false;
   const res = await query<{ id: string }>(
     `UPDATE comments SET ai_hidden_reason = $2, ai_hidden_note = $3, ai_hidden_model = $4, ai_hidden_at = now()
