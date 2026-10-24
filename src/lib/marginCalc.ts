@@ -114,3 +114,21 @@ export function formatInput(s: string): string {
   const head = int.replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return rest.length ? `${head}.${rest.join("")}` : head;
 }
+
+/**
+ * 레버리지·인버스 ETF 기간 수익률 예시: 매일 하루 등락률의 multiple배를 추종할 때 (보수·괴리 제외).
+ * 일별 등락률(%) 배열 → 기간 수익률(%). 하루 −100% 이하로 떨어지면 0에서 멈춘다.
+ * 예: +10%, −10% → 지수 −1%, 2배 −4%, 인버스(−1배) −1%
+ */
+export function compoundReturnPct(dailyPcts: number[], multiple = 1): number | null {
+  if (dailyPcts.length === 0 || dailyPcts.some((p) => !Number.isFinite(p))) return null;
+  let v = 1;
+  for (const p of dailyPcts) v = Math.max(0, v * (1 + (multiple * p) / 100));
+  return (v - 1) * 100;
+}
+
+/** 등락률 입력란: 부호·숫자·소수점만 */
+export function cleanSigned(s: string): string {
+  const t = s.replace(/[−–]/g, "-").replace(/[^\d.-]/g, "");
+  return (t.startsWith("-") ? "-" : "") + t.replace(/-/g, "");
+}

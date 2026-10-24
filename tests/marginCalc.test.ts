@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { calcMargin, formatInput, parseNum, type MarginInput } from "@/lib/marginCalc";
+import { calcMargin, cleanSigned, compoundReturnPct, formatInput, parseNum, type MarginInput } from "@/lib/marginCalc";
+
+describe("레버리지·인버스 ETF 기간 수익률 예시", () => {
+  it("+10%, −10%: 지수 −1%, 2배 −4% (금융투자협회 예시), 인버스 −1%", () => {
+    // 지수 1.1×0.9 = 0.99, 2배 1.2×0.8 = 0.96, 인버스 0.9×1.1 = 0.99
+    expect(compoundReturnPct([10, -10])).toBeCloseTo(-1, 9);
+    expect(compoundReturnPct([10, -10], 2)).toBeCloseTo(-4, 9);
+    expect(compoundReturnPct([10, -10], -1)).toBeCloseTo(-1, 9);
+  });
+  it("한 방향이면 2배보다 크다: +10%, +10% → 지수 21%, 2배 44%", () => {
+    expect(compoundReturnPct([10, 10])).toBeCloseTo(21, 9);
+    expect(compoundReturnPct([10, 10], 2)).toBeCloseTo(44, 9);
+  });
+  it("하루 −50% 이하면 2배는 0에서 멈추고, 잘못된 입력은 null", () => {
+    expect(compoundReturnPct([-60, 10], 2)).toBeCloseTo(-100, 9);
+    expect(compoundReturnPct([])).toBeNull();
+    expect(compoundReturnPct([NaN, 1])).toBeNull();
+  });
+  it("등락률 입력 정리", () => {
+    expect(cleanSigned("−10")).toBe("-10");
+    expect(cleanSigned("1-0a.5")).toBe("10.5");
+    expect(cleanSigned("-3.2")).toBe("-3.2");
+  });
+});
 
 const base: MarginInput = { buyAmount: 20_000_000, loan: 10_000_000, qty: 1000, price: 20_000, maintenancePct: 140, discountPct: 20 };
 
