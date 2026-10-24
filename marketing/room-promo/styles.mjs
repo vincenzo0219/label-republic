@@ -157,7 +157,38 @@ function ticket(s, w, h, f) {
   };
 }
 
-export const STYLES = { paper, pop, versus, chat, stat, ticket };
+/** 7. 광고 티켓 (10/24, 유료 홍보용 릴스) — 방 색 바탕 + 검은 입장권. 릴스 UI 안전영역(위 14%·아래 20%)과 4:5 잘림 안에만 글자.
+ *  f0 = 훅 한 줄만(이모지·숫자/날짜, 브랜드 없음), f1 = 날짜 목록만, f2 = 왜 방이 좋은지 + 마감 강조(big) + 방 이름·주소. 글자 40px 이상. */
+function adticket(s, w, h, f) {
+  const T = tall(h);
+  const css = `body{width:${w}px;height:${h}px;background:${s.accent};color:#fff;padding:${T ? 300 : 70}px 56px ${T ? 400 : 70}px;display:flex}
+  .tk{position:relative;flex:1;background:#121318;border-radius:44px;padding:${T ? "80px 64px" : "64px 60px"};display:flex;flex-direction:column;justify-content:center}
+  .tk:before,.tk:after{content:"";position:absolute;left:-40px;top:${f === "feed" ? 37 : 50}%;width:80px;height:80px;margin-top:-40px;border-radius:50%;background:${s.accent}}.tk:after{left:auto;right:-40px}
+  .cut{border-top:6px dashed #3a3c46;margin:${T ? 56 : 40}px -20px}
+  .emo{font-size:${T ? 180 : 110}px;line-height:1}
+  h1{font-size:${T ? 140 : 84}px;line-height:1.12;letter-spacing:-6px;font-weight:700;margin-top:30px}
+  h1 em{font-style:normal;color:${s.accent}}
+  .rows{display:grid;gap:${T ? 44 : 26}px}
+  .rows div{display:grid;grid-template-columns:${T ? 330 : 300}px 1fr;gap:24px;align-items:baseline}
+  .rows b{font-size:${T ? 62 : 50}px;font-weight:700;color:${s.accent};letter-spacing:-1px}
+  .rows span{font-size:${T ? 62 : 50}px;font-weight:700;line-height:1.2;letter-spacing:-1px}
+  .pay{font-size:${T ? 60 : 48}px;font-weight:700;line-height:1.3;letter-spacing:-1px}
+  .urg{display:inline-block;margin-top:44px;background:${s.accent};color:#111;font-size:${T ? 52 : 44}px;font-weight:700;border-radius:24px;padding:22px 32px;align-self:flex-start}
+  .room{font-size:${T ? 104 : 72}px;font-weight:700;letter-spacing:-4px;line-height:1.1}
+  .url{margin-top:20px;font-size:${T ? 56 : 44}px;font-weight:700;color:${s.accent}}
+  .pill{display:flex;justify-content:space-between;align-items:center;font-size:44px;font-weight:700}
+  .pill b{background:${s.accent};color:#111;border-radius:999px;padding:18px 34px}`;
+  const rows = `<div class="rows">${s.items.map(([a, b]) => `<div><b>${esc(a)}</b><span>${esc(b)}</span></div>`).join("")}</div>`;
+  const hook = `<div class="emo">${s.emoji}</div><h1>${titleHtml(s).replace(/\n/g, "<br>")}</h1>`;
+  let html;
+  if (f === 0) html = hook;
+  else if (f === 1) html = rows;
+  else if (f === 2) html = `<div class="pay">${esc(s.sub).replace(/\n/g, "<br>")}</div>${s.big ? `<div class="urg">⏰ ${esc(s.big)}</div>` : ""}<div class="cut"></div><div class="room">${esc(s.cta)}</div><div class="url">nobangjang.com</div>`;
+  else html = `<h1 style="margin-top:0">${s.emoji} ${titleHtml(s).replace(/\n/g, " ")}</h1><div class="cut"></div>${rows}<div class="cut"></div><div class="pill"><span>nobangjang.com</span><b>${esc(s.cta)} →</b></div>`;
+  return { css, html: `<div class="tk">${html}</div>` };
+}
+
+export const STYLES = { paper, pop, versus, chat, stat, ticket, adticket };
 export const page = (style, s, w, h, f) => {
   const { css, html } = STYLES[style](s, w, h, f);
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><style>${font}${css}</style></head><body>${html}</body></html>`;
