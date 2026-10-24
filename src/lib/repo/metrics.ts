@@ -380,3 +380,66 @@ export async function roomVisitorsTotal(slug: string): Promise<number> {
   );
   return rows[0]?.n ?? 0;
 }
+
+export type ReaderDay = {
+  day: string;
+  /** 방문자 (쿠키) */
+  visitors: number;
+  /** 글 읽은 사람: 그날 /posts/<id> 를 하나라도 연 방문자 */
+  readers: number;
+  /** 참여자: 글·댓글·추천(+책 기록) 한 사람 (IP+브라우저) */
+  contributors: number;
+  /** 보기만 한 사람 = 글 읽은 사람 − 참여자 (0 미만은 0) */
+  lurkers: number;
+  /** 바로 나간 사람 = 방문자 − 글 읽은 사람 */
+  bounced: number;
+};
+
+// 참여자 정의는 business.ts contributors() 와 같다 (글·댓글·추천·책 기록). $1~$2 는 KST 날짜.
+const READER_SQL = `
+  WITH pv AS (SELECT day, visitor_hash, bool_or(post_id IS NOT NULL) AS read FROM page_views
+               WHERE day BETWEEN $1::date AND $2::date GROUP BY day, visitor_hash),
+       act AS (
+         SELECT fp, (created_at AT TIME ZONE 'Asia/Seoul')::date AS day FROM (
+           SELECT author_fingerprint AS fp, created_at FROM posts WHERE NOT is_ai_curated AND author_fingerprint IS NOT NULL
+           UNION ALL SELECT author_fingerprint, created_at FROM comments WHERE NOT is_ai_curated AND author_fingerprint IS NOT NULL
+           UNION ALL SELECT voter_fingerprint, created_at FROM votes
+           UNION ALL SELECT reader_fingerprint, created_at FROM book_reads
+           UNION ALL SELECT answer_fingerprint, created_at FROM book_ask_answers
+         ) a
+         WHERE created_at >= $1::date::timestamp AT TIME ZONE 'Asia/Seoul'
+           AND created_at < ($2::date + 1)::timestamp AT TIME ZONE 'Asia/Seoul')`;
+
+type ReaderRaw = Omit<ReaderDay, "lurkers" | "bounced">;
+
+function readerRow(r: ReaderRaw): ReaderDay {
+  return { ...r, lurkers: Math.max(0, r.readers - r.contributors), bounced: Math.max(0, r.visitors - r.readers) };
+}
+
+/** 📖 읽는 사람 비율: 일별 (최근 날짜 먼저) */
+export async function readerDaily(today: string, days = 7): Promise<ReaderDay[]> {
+  const rows = await query<ReaderRaw>(
+    `${READER_SQL},
+       ds AS (SELECT generate_series($1::date, $2::date, interval '1 day')::date AS t)
+     SELECT to_char(ds.t, 'YYYY-MM-DD') AS day,
+            (SELECT count(*)::int FROM pv WHERE pv.day = ds.t) AS visitors,
+            (SELECT count(*)::int FROM pv WHERE pv.day = ds.t AND pv.read) AS readers,
+            (SELECT count(DISTINCT fp)::int FROM act WHERE act.day = ds.t) AS contributors
+       FROM ds ORDER BY ds.t DESC`,
+    [shiftDay(today, -(days - 1)), today],
+  );
+  return rows.map(readerRow);
+}
+
+/** 📖 읽는 사람 비율: 기간 전체 고유 인원 (일별 합이 아님) */
+export async function readerPeriod(today: string, days: number): Promise<ReaderDay> {
+  const rows = await query<ReaderRaw>(
+    `${READER_SQL}
+     SELECT $2::text AS day,
+            (SELECT count(DISTINCT visitor_hash)::int FROM pv) AS visitors,
+            (SELECT count(DISTINCT visitor_hash)::int FROM pv WHERE read) AS readers,
+            (SELECT count(DISTINCT fp)::int FROM act) AS contributors`,
+    [shiftDay(today, -(days - 1)), today],
+  );
+  return readerRow(rows[0]!);
+}
