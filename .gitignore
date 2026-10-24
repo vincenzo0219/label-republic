@@ -8,3 +8,4 @@ next-env.d.ts
 /data/
 backups/
 .claude/settings.local.json
+.claude/worktrees/
