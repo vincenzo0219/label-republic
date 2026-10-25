@@ -7,6 +7,7 @@ import { FeedView } from "@/components/FeedView";
 import { CRAWLER_HEADER } from "@/lib/fingerprint";
 import { EarTestBanner } from "@/components/EarTestBanner";
 import { HomeNews } from "@/components/ReportLink";
+import { MyRoomEvents } from "@/components/MyRoomEvents";
 import { RoomOpenedNotice } from "@/components/RoomOpenedNotice";
 import { OpenVotesBanner } from "@/components/OpenVotesBanner";
 import { RenewalsBanner } from "@/components/RenewalsBanner";
@@ -58,6 +59,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {!crawler && <MyRoomsBar rooms={rooms.map((r) => ({ slug: r.slug, name: r.name }))} initial={mine} legacy={legacy} filtered={onlyMine} redirect={!all} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       {!crawler && !sp.page && <HomeNews />}
+      {onlyMine && !sp.page && mine && <MyRoomEvents rooms={mine} />}
       {!sp.page && <EarTestBanner />}
       {!crawler && <RoomOpenedNotice />}
       <OpenVotesBanner />

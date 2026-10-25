@@ -21,6 +21,8 @@ import { SeenTracker } from "./SeenTracker";
 import { badgeOf, ROOM_BADGES, type BadgeMap } from "@/lib/badges";
 import { badgesSafe } from "@/lib/repo/badges";
 import { ttlMemo } from "@/lib/ttlMemo";
+import { eventDday, eventDdayLabel, sortByEventDday, type EventDday } from "@/lib/adSchedule";
+import { eventBodies } from "@/lib/repo/adSchedule";
 
 // 방 상단 도구 유무·조용한 방 목록은 자주 바뀌지 않아 60초씩 재사용 (10/24 속도)
 const cachedRoomTools = ttlMemo(roomTools, 60_000);
@@ -79,6 +81,14 @@ export async function FeedView({
   // 방 배지 (작가지망생방: 장르 작가 테스트 결과)
   const badges = category && feed && Object.hasOwn(ROOM_BADGES, category.slug) ? await badgesSafe(category.slug, feed.items.map((p) => p.nickname)) : undefined;
   const showGuide = category && needs && needs.infoPosts < THIN_BOARD_POSTS;
+  // 🎫 [행사]·[혜택] 카드에 D-day (10/25): 이 페이지의 그런 글만 번호로 본문을 한 번 더 읽는다
+  const eventIds = feed ? feed.items.filter((p) => /^\[(행사|혜택)\]/.test(p.title)).map((p) => p.id) : [];
+  const bodies = eventIds.length ? await eventBodies(eventIds).catch(() => new Map<string, string>()) : null;
+  const ddays = new Map<string, EventDday>(
+    feed && bodies ? feed.items.filter((p) => bodies.has(p.id)).map((p) => [p.id, eventDday({ ...p, body: bodies.get(p.id)! })]) : [],
+  );
+  // 🎫 행사 탭은 가까운 일정 먼저, 끝난 행사는 맨 뒤 (페이지 안에서만 — 행사 글은 한 방에 한 페이지를 넘는 일이 드물다)
+  const items = feed ? (category && head === "행사" ? sortByEventDday(feed.items, ddays) : feed.items) : [];
   const basePath = category ? `/c/${encodeURIComponent(category.slug)}` : "/";
   const typeParam: Record<string, string> = { ...(type ? { type } : {}), ...(head ? { head } : {}), ...(sourced ? { sourced: "1" } : {}) };
   const params: Record<string, string> = { ...typeParam, ...(sort === "trust" ? {} : { sort }) };
@@ -190,7 +200,7 @@ export async function FeedView({
       {category && head === "행사" && <EventAlert slug={category.slug} />}
       {/* 방 안에서는 정렬 버튼 없이 최신순 (10/21 단순화) */}
       {!category && <SortBar basePath={basePath} params={typeParam} sort={sort} total={feed.total} />}
-      {feed.items.length === 0 ? (
+      {items.length === 0 ? (
         <div className="empty">
           <p>
             {type === "meetup"
@@ -212,7 +222,7 @@ export async function FeedView({
           </div>
         </div>
       ) : (
-        feed.items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head || stripsHead(category?.slug)} badge={badgeOf(badges, post.nickname)} />)
+        items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head || stripsHead(category?.slug)} badge={badgeOf(badges, post.nickname)} dday={eventDdayLabel(ddays.get(post.id) ?? null)} />)
       )}
       {page === 1 && !type && !sourced && <MarkSeen room={seenRoom} />}
       <SeenTracker key={`${basePath}?${new URLSearchParams(params)}`} />

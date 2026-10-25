@@ -10,7 +10,7 @@
 const KEY = "lr_seen_v1";
 const MAX_ROOMS = 60;
 
-type SeenMap = Record<string, number>;
+export type SeenMap = Record<string, number>;
 
 function load(): SeenMap {
   try {
@@ -36,7 +36,7 @@ export function readSeenAll(): SeenMap {
 
 const SESSION_MS = 30 * 60_000;
 const SNAP_KEY = "lr_seen_snap_v1";
-type Snap = Record<string, { taken: number; v: number | null }>;
+export type Snap = Record<string, { taken: number; v: number | null }>;
 
 // 새로고침해도 30분 동안은 같은 기준을 쓰도록 탭 단위 저장소(sessionStorage)에 둔다
 function loadSnap(): Snap {
@@ -68,8 +68,23 @@ export function markSeen(room: string, at = Date.now()) {
   save(m);
 }
 
+/**
+ * 방마다 "새 글" 기준 시각: 이번 방문 전 시각(snapshot, 30분)이 있으면 그것, 없으면 마지막으로 본 시각.
+ * 방에 들어가면 바로 지금 시각으로 기록되므로, 그것을 쓰면 홈에서 센 "새 소식"이 방을 한 번 거쳐 리포트에 오는 사이 0이 된다 (10/25).
+ * 방 안 NEW 표시와 같은 기준이다.
+ */
+export function stableSeen(rooms: string[], stored: SeenMap, snap: Snap, now = Date.now()): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const r of rooms) {
+    const s = snap[r];
+    const v = s && now - s.taken < SESSION_MS ? s.v : (stored[r] ?? null);
+    if (v) out[r] = v;
+  }
+  return out;
+}
+
 /** 리포트 요청용 "slug:ms,..." — 관심 방을 마지막으로 본 시각 (그 뒤 글만 새 글로 센다) */
 export function seenParam(rooms: string[]): string {
-  const m = load();
-  return rooms.filter((r) => m[r]).map((r) => `${encodeURIComponent(r)}:${m[r]}`).join(",");
+  const m = stableSeen(rooms, load(), loadSnap());
+  return Object.entries(m).map(([r, v]) => `${encodeURIComponent(r)}:${v}`).join(",");
 }

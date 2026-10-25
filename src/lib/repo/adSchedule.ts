@@ -15,3 +15,27 @@ export async function recentEventPosts(categoryId: number, limit = 30): Promise<
     [categoryId, limit],
   );
 }
+
+/** 🎫 목록 카드 D-day용: 이 글들의 본문 앞부분 (그 페이지의 [행사]·[혜택] 글만, 번호로 바로 찾는다) */
+export async function eventBodies(ids: string[]): Promise<Map<string, string>> {
+  if (!ids.length) return new Map();
+  const rows = await query<{ id: string; body: string }>("SELECT id::text, left(body, 4000) AS body FROM posts WHERE id = ANY($1::bigint[])", [ids]);
+  return new Map(rows.map((r) => [r.id, r.body]));
+}
+
+/** 🎫 이번 주 내 방 행사 (홈): 내 방들의 최근 30일 [행사]·[혜택] 글. slugs 는 쉼표로 이은 값 (캐시 키) */
+export async function myRoomEventPosts(slugs: string): Promise<SchedulePost[]> {
+  const list = slugs.split(",").filter(Boolean);
+  if (!list.length) return [];
+  return query<SchedulePost>(
+    `SELECT p.id::text, p.title, left(p.body, 4000) AS body, p.created_at
+       FROM posts p JOIN categories c ON c.id = p.category_id
+      WHERE c.slug = ANY($1::text[]) AND NOT p.is_blinded AND NOT p.is_suppressed
+        AND p.created_at > now() - interval '30 days'
+        AND (p.title LIKE '[행사]%' OR p.title LIKE '[혜택]%')
+        AND (p.seed_key IS NULL OR p.seed_key NOT LIKE 'roomchat:%')
+      ORDER BY p.created_at DESC
+      LIMIT 40`,
+    [list],
+  );
+}

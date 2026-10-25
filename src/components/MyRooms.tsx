@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { getInterests, setInterests } from "@/lib/interests";
+import { pushPublicKey, pushSupported } from "@/lib/pushClient";
+import { enableRoomAlerts, ROOM_ALERTS_EVENT, roomAlertsOn, scheduleRoomAlertsSync } from "@/lib/roomAlerts";
 import {
   autoAddFirstRoom,
   getMyRooms,
@@ -57,19 +59,76 @@ function syncInterest(slug: string, on: boolean) {
   if (!on && cur.includes(slug)) setInterests(cur.filter((s) => s !== slug));
 }
 
+/**
+ * 🔔 내 방 새 글 알림 받기 (10/25). 누를 때만 권한을 묻는다. 푸시를 못 쓰는 브라우저·서버, 이미 켠 경우에는 안 보인다.
+ * done: 켜고 난 뒤 (토스트를 닫는 등)
+ */
+export function RoomAlertButton({ className = "btn btn-sm", onDone }: { className?: string; onDone?: () => void }) {
+  // undefined: 아직 모름, null: 못 씀
+  const [key, setKey] = useState<string | null | undefined>(undefined);
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    const sync = () => setOn(roomAlertsOn());
+    sync();
+    window.addEventListener(ROOM_ALERTS_EVENT, sync);
+    // 권한 창이 버튼 누름과 바로 이어지게 키는 미리 받아 둔다
+    if (!pushSupported()) setKey(null);
+    else void pushPublicKey().then(setKey);
+    return () => window.removeEventListener(ROOM_ALERTS_EVENT, sync);
+  }, []);
+  if (!key || (on && !msg)) return null;
+  const click = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await enableRoomAlerts(key);
+      setMsg(r === "on" ? "켰어요. 내 방에 새 글이 오면 알려 드려요 (방마다 6시간에 한 번)" : r === "failed" ? "알림을 켜지 못했어요." : "브라우저 설정에서 알림을 허용해 주세요.");
+      if (r === "on") onDone?.();
+    } catch {
+      setMsg("알림을 켜지 못했어요.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      {!on && (
+        <button type="button" className={className} onClick={click} disabled={busy}>
+          🔔 내 방 새 글 알림 받기
+        </button>
+      )}
+      {msg && (
+        <span className="hint" role="status">
+          {msg}
+        </span>
+      )}
+    </>
+  );
+}
+
 /** 방 이름 옆 ☆/★ */
 export function MyRoomStar({ slug }: { slug: string }) {
   const mine = useMyRooms();
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; offer: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
   const on = !!mine?.includes(slug);
+  const hide = (ms: number) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setToast(null), ms);
+  };
   const click = () => {
     const r = toggleMyRoom(slug);
-    if (r !== "full") syncInterest(slug, r === "added");
-    setToast(r === "added" ? "홈 맨 위에 바로가기가 생겼어요" : r === "removed" ? "내 방에서 뺐어요" : "8개까지예요");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setToast(null), 1500);
+    if (r !== "full") {
+      syncInterest(slug, r === "added");
+      scheduleRoomAlertsSync();
+    }
+    // 내 방에 담을 때 알림을 아직 안 켰으면 토스트에 버튼 하나 (누를 시간을 주려고 조금 더 오래)
+    const offer = r === "added" && pushSupported() && !roomAlertsOn();
+    setToast({ text: r === "added" ? "홈 맨 위에 바로가기가 생겼어요" : r === "removed" ? "내 방에서 뺐어요" : "8개까지예요", offer });
+    hide(offer ? 6000 : 1500);
   };
   return (
     <>
@@ -78,8 +137,9 @@ export function MyRoomStar({ slug }: { slug: string }) {
         {on ? "★ 내 방" : "☆ 내 방 추가"}
       </button>
       {toast && (
-        <span className="nb-toast" role="status">
-          {toast}
+        <span className={`nb-toast${toast.offer ? " nb-toast-action" : ""}`} role="status">
+          {toast.text}
+          {toast.offer && <RoomAlertButton className="nb-toast-btn" onDone={() => hide(2500)} />}
         </span>
       )}
     </>
@@ -154,6 +214,7 @@ export function MyRoomsBar({ rooms, initial, legacy, filtered, redirect }: { roo
       )}
       {filtered && (
         <p className="my-all">
+          <RoomAlertButton className="my-alert-btn" />
           <Link href="/?all=1">전체 방 글 보기</Link>
         </p>
       )}

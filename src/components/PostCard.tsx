@@ -23,6 +23,7 @@ export function PostCard({
   seenRoom,
   inHead,
   badge,
+  dday,
 }: {
   post: PostCardData;
   /** 방 배지 (작가지망생방: 장르 작가 테스트 결과) */
@@ -33,6 +34,8 @@ export function PostCard({
   seenRoom?: string;
   /** 말머리 탭(자랑·질문…) 안: 탭 이름과 겹치는 "[자랑]"·"잡담" 표시는 뺀다 */
   inHead?: boolean;
+  /** 🎫 행사 글의 D-day · 마감 (10/25, 날짜를 찾은 글만) */
+  dday?: string | null;
 }) {
   const net = post.upvotes - post.downvotes;
   const title = inHead ? post.title.replace(HEAD_PREFIX, "") : post.title;
@@ -42,6 +45,7 @@ export function PostCard({
     <Link href={`/posts/${post.id}`} className="card" data-post-id={post.id}>
       <article>
         <div className="card-top">
+          {dday && <span className={`badge badge-dday${dday === "마감" ? " badge-dday-ended" : ""}`}>{dday}</span>}
           {seenRoom && <NewBadge room={seenRoom} createdAt={post.created_at} />}
           {post.pinned_tab && !showCategory && <span className="badge badge-type">📌 고정</span>}
           {showCategory && <span className="badge badge-cat">{post.category.name}</span>}

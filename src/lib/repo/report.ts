@@ -4,10 +4,11 @@
  */
 import { query } from "../db";
 import type { PostCard } from "../types";
-import { BOARD_NEW_WHERE, listNewPosts, listUpcomingMeetups } from "./posts";
+import { boardNewWhere, listNewPosts, listUpcomingMeetups } from "./posts";
 import { watchUpdates, type WatchUpdates } from "./watch";
 
-export const MAX_REPORT_BOARDS = 10;
+import { MAX_REPORT_BOARDS } from "../reportQuery";
+export { MAX_REPORT_BOARDS };
 const MAX_LOOKBACK_MS = 30 * 86400_000;
 const DEFAULT_LOOKBACK_MS = 7 * 86400_000;
 
@@ -81,10 +82,10 @@ async function resolveBoards(slugs: string[]) {
   );
 }
 
-/** 헤더 배지용 가벼운 조회 — 새 글 + 관심 제품·지켜보는 글 새 소식 개수만 */
-export async function countNew(slugs: string[], since: Date, watched: Watched = NO_WATCH, seen?: Map<string, Date>): Promise<number> {
+/** 헤더 배지용 가벼운 조회 — 새 글 + 관심 제품·지켜보는 글 새 소식 개수만. read: 이미 열어 본 글 (빼고 센다) */
+export async function countNew(slugs: string[], since: Date, watched: Watched = NO_WATCH, seen?: Map<string, Date>, read: string[] = []): Promise<number> {
   const [boards, watch] = await Promise.all([
-    countBoardPosts(slugs, since, seen),
+    countBoardPosts(slugs, since, seen, read),
     watched.products.length || watched.posts.length || watched.comments?.length
       ? watchUpdates(watched.products, watched.posts, since, watched.fingerprint, { comments: watched.comments }).then((w) => w.total)
       : Promise.resolve(0),
@@ -92,22 +93,26 @@ export async function countNew(slugs: string[], since: Date, watched: Watched = 
   return boards + watch;
 }
 
-async function countBoardPosts(slugs: string[], since: Date, seen?: Map<string, Date>): Promise<number> {
+async function countBoardPosts(slugs: string[], since: Date, seen?: Map<string, Date>, read: string[] = []): Promise<number> {
   const cats = await resolveBoards(slugs);
   if (!cats.length) return 0;
-  const rows = await query<{ n: number }>(`SELECT count(*)::int AS n FROM posts p WHERE ${BOARD_NEW_WHERE}`, [
+  const rows = await query<{ n: number }>(`SELECT count(*)::int AS n FROM posts p WHERE ${boardNewWhere(read.length ? "$3" : undefined)}`, [
     cats.map((c) => c.id),
     perBoardSince(cats, since, seen).map((d) => d.toISOString()),
+    ...(read.length ? [read] : []),
   ]);
   return rows[0]!.n;
 }
 
-export async function buildReport(slugs: string[], since: Date, now = new Date(), watched: Watched = NO_WATCH, seen?: Map<string, Date>): Promise<Report> {
+/** 배지(countNew)와 같은 조건으로 센다 — 배지가 센 글이 목록에 그대로 나와야 한다 (10/25) */
+export async function buildReport(
+  slugs: string[], since: Date, now = new Date(), watched: Watched = NO_WATCH, seen?: Map<string, Date>, read: string[] = [],
+): Promise<Report> {
   const cats = await resolveBoards(slugs);
   const ids = cats.map((c) => c.id);
   const per = perBoardSince(cats, since, seen, now);
   const [newPosts, meetups, digests, perBoard, watch] = await Promise.all([
-    listNewPosts(ids, per),
+    listNewPosts(ids, per, 30, read),
     listUpcomingMeetups(ids, now),
     ids.length
       ? query<BoardDigest>(
@@ -121,8 +126,8 @@ export async function buildReport(slugs: string[], since: Date, now = new Date()
       : Promise.resolve([]),
     ids.length
       ? query<{ category_id: number; n: number }>(
-          `SELECT category_id, count(*)::int AS n FROM posts p WHERE ${BOARD_NEW_WHERE} GROUP BY category_id`,
-          [ids, per.map((d) => d.toISOString())],
+          `SELECT category_id, count(*)::int AS n FROM posts p WHERE ${boardNewWhere(read.length ? "$3" : undefined)} GROUP BY category_id`,
+          [ids, per.map((d) => d.toISOString()), ...(read.length ? [read] : [])],
         )
       : Promise.resolve([]),
     watchUpdates(watched.products, watched.posts, since, watched.fingerprint, { previews: true, comments: watched.comments }),

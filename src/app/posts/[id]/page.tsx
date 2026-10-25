@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { isAiCard } from "@/lib/aiMark";
 import { AutoMyRoom } from "@/components/MyRooms";
+import { MarkRead } from "@/components/NewMarks";
 import { abuseLabel } from "@/lib/abuse-labels";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -180,6 +181,7 @@ export default async function PostPage({ params }: Props) {
   return (
     <article>
       <AutoMyRoom slug={post.category.slug} />
+      <MarkRead postId={post.id} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <header className="post-head">
         <div className="card-top">

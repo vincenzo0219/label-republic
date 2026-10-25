@@ -2,34 +2,21 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getInterests, getSeenAt, onInterestsChange } from "@/lib/interests";
-import { getMyRooms, onMyRoomsChange } from "@/lib/myRooms";
-import { seenParam } from "@/lib/seen";
-import { dailyPushSync, getMyComments, getWatchedPosts, getWatchedProducts } from "@/lib/watchlist";
+import { onInterestsChange } from "@/lib/interests";
+import { onMyRoomsChange } from "@/lib/myRooms";
+import { readReportInput } from "@/lib/reportClient";
+import { hasReportItems, reportQuery } from "@/lib/reportQuery";
+import { dailyPushSync } from "@/lib/watchlist";
 
-/** 관심 목록·내 댓글의 새 소식 수 (헤더 배지와 홈 알림이 같이 쓴다) */
+/** 관심 목록·내 댓글의 새 소식 수 (헤더 배지와 홈 알림이 같이 쓴다). /me 의 "새 글"과 같은 요청이라 센 글이 거기 그대로 나온다 */
 export function useReportCount(sync = false): number {
   const [count, setCount] = useState(0);
   useEffect(() => {
     let cancelled = false;
     const load = () => {
-      // 내 방이 있으면 관심 방 중 내 방만 센다
-      const mine = getMyRooms();
-      const boards = getInterests().filter((b) => !mine.length || mine.includes(b));
-      const products = getWatchedProducts();
-      const posts = getWatchedPosts();
-      const comments = getMyComments();
-      if (!boards.length && !products.length && !posts.length && !comments.length) return setCount(0);
-      const qs = new URLSearchParams({
-        count: "1",
-        ...(boards.length ? { boards: boards.join(",") } : {}),
-        ...(products.length ? { products: products.join(",") } : {}),
-        ...(posts.length ? { posts: posts.join(",") } : {}),
-        ...(comments.length ? { comments: comments.join(",") } : {}),
-        ...(getSeenAt() ? { since: getSeenAt()! } : {}),
-        ...(seenParam(boards) ? { seen: seenParam(boards) } : {}),
-      });
-      fetch(`/api/report?${qs}`)
+      const input = readReportInput();
+      if (!hasReportItems(input)) return setCount(0);
+      fetch(`/api/report?${reportQuery(input, "new", true)}`)
         .then((r) => (r.ok ? r.json() : { total: 0 }))
         .then((d: { total: number }) => !cancelled && setCount(d.total))
         .catch(() => {});
@@ -64,7 +51,7 @@ export function HomeNews() {
   if (!count) return null;
   return (
     <Link href="/me" className="home-news">
-      📬 새 소식 {count > 99 ? "99+" : count}개 — 확인하기
+      📬 새 소식 {count > 99 ? "99+" : count}개 · 확인하기
     </Link>
   );
 }

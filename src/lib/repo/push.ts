@@ -103,6 +103,28 @@ export async function setEventRoom(endpoint: string, token: string, slug: string
   return res[0].event_rooms;
 }
 
+const ROOM_SLUG = /^[\p{L}\p{N}-]{1,60}$/u;
+/** 서버에 두는 내 방 수 (브라우저 내 방은 8개까지) */
+export const MAX_PUSH_ROOMS = 10;
+
+/**
+ * 🆕 내 방 새 글 알림 켜기/끄기 + 내 방 목록 맞추기 (10/25). 켤 때부터의 새 글만 보낸다.
+ * 끄면 방 목록도 지운다 (알림에만 쓰는 값이라). on 인 채로 다시 부르면 목록만 바꾼다 (☆ 내 방 추가·빼기).
+ */
+export async function setRoomAlerts(endpoint: string, token: string, on: boolean, rooms: string[]): Promise<{ on: boolean; rooms: string[] }> {
+  checkToken(endpoint, token);
+  const list = on ? [...new Set(rooms.filter((r) => ROOM_SLUG.test(r)))].slice(0, MAX_PUSH_ROOMS) : [];
+  const res = await query<{ room_alerts: boolean; my_rooms: string[] }>(
+    `UPDATE push_subscriptions SET
+       room_checked_until = CASE WHEN $2 AND NOT room_alerts THEN now() ELSE room_checked_until END,
+       room_alerts = $2, my_rooms = $3::text[], synced_at = now()
+     WHERE endpoint = $1 RETURNING room_alerts, my_rooms`,
+    [endpoint, on, list],
+  );
+  if (!res[0]) throw notFound("알림 구독");
+  return { on: res[0].room_alerts, rooms: res[0].my_rooms };
+}
+
 /** 💰 매달 적립일 알림 (10/24): 1~28일, null 이면 끈다. 이번 달 그날이 이미 지났으면 다음 달부터 */
 export async function setSavingsDay(endpoint: string, token: string, day: number | null): Promise<number | null> {
   checkToken(endpoint, token);
