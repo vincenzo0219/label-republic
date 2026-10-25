@@ -832,7 +832,7 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .card-top:empty { display: none; }
 .card-author-ai { color: var(--brand); font-weight: 600; }
 /* AI 작성 표시: 이름 옆 작은 회색 🤖 (10/25) */
-.ai-mark { margin-left: 3px; font-size: 0.75em; filter: grayscale(1); opacity: 0.55; vertical-align: 1px; }
+.ai-mark { margin-left: 3px; font-size: 0.85em; vertical-align: 1px; }
 
 /* 황금귀 테스트 (Sprint 59) */
 .ear-banners { display: grid; gap: 8px; margin: 0 0 18px; }
@@ -1172,8 +1172,8 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .kids-source { margin: 4px 0 18px; font-size: 12.5px; color: var(--muted); }
 .kids-ibol a { color: var(--brand); text-decoration: underline; }
 /* 내 방 (전용방): 방 이름 옆 ☆, 홈 맨 위 칩 */
-.my-star { border: 0; background: transparent; padding: 0 4px; font-size: 20px; line-height: 1; color: var(--gold); cursor: pointer; min-width: 32px; min-height: 32px; align-self: center; }
-.my-star[aria-pressed="false"] { color: var(--muted); }
+.my-star { border: 1px solid var(--gold); border-radius: 999px; background: transparent; padding: 4px 10px; font-size: 13px; font-weight: 600; line-height: 1; color: var(--gold); cursor: pointer; min-height: 32px; align-self: center; white-space: nowrap; }
+.my-star[aria-pressed="false"] { color: var(--text); border-color: var(--line); }
 .nb-toast {
   position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60;
   padding: 8px 16px; border-radius: 999px; background: var(--text); color: var(--bg); font-size: 14px; font-weight: 400; white-space: nowrap;
