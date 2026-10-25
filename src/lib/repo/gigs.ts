@@ -9,6 +9,7 @@ import { HttpError, notFound } from "../errors";
 import { hashPin } from "../password";
 import { assertPin } from "./pin-guard";
 import { subscriptionIdFor } from "./push";
+import { ownerAlertAfter } from "./ownerAlert";
 import { aiAbuse, heuristicAbuse, maskPersonalInfo } from "../abuse";
 import { aiSpam, combine, heuristicSpam, shouldSuppress } from "../moderation";
 import { getRule } from "./rules";
@@ -185,6 +186,8 @@ export async function createGig(
       now.toISOString(),
     ],
   );
+  // 🔔 운영자 기기로 바로 (10/25)
+  ownerAlertAfter({ kind: "gig", nickname: input.nickname, fingerprint: who.fingerprint }, { kind: "gig", gigId: row!.id, text: [input.studio, input.sigungu || input.sido, input.classType].filter(Boolean).join(" · ") });
   return { id: row!.id };
 }
 

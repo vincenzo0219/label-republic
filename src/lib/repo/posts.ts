@@ -9,6 +9,7 @@ import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse"
 import { searchTerms } from "../highlight";
 import { tabMembers, type Head } from "../heads";
 import { OPERATOR_NICKS } from "./metrics";
+import { ownerAlertAfter } from "./ownerAlert";
 import { investProblem } from "../investRooms";
 import { roomAbuseOpts, roomHeuristicAbuse } from "../roomModeration";
 import { generateSummary, type ResolvedSummary } from "../summary";
@@ -445,6 +446,8 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
     }
     return rows[0]!.id;
   });
+  // 🔔 사람이 쓴 글이면 운영자 기기로 바로 (기다리지 않음, 10/25)
+  ownerAlertAfter({ kind: "post", nickname: input.nickname, fingerprint: input.fingerprint }, { kind: "post", postId: id, title: input.title });
   return (await getPost(id))!;
 }
 

@@ -19,6 +19,8 @@ import { getBusinessMetrics } from "@/lib/repo/business";
 import { earFunnel } from "@/lib/repo/earTest";
 import { dailyPlayers } from "@/lib/repo/daily";
 import { pushStats } from "@/lib/repo/push";
+import { ownerAlertDevices } from "@/lib/repo/ownerAlert";
+import { OwnerAlertCard } from "@/components/admin/OwnerAlertCard";
 import { firstLineFunnel } from "@/lib/repo/firstLineTest";
 import { typingFunnel } from "@/lib/repo/typingTest";
 import { aiFunnel } from "@/lib/repo/aiTest";
@@ -97,7 +99,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     m.readerPeriod(today, 7),
     m.readerPeriod(today, 28),
   ]);
-  const [holds, pending, rules, ruleVotes, feedback, boardT, biz, drafts] = await Promise.all([
+  const [holds, pending, rules, ruleVotes, feedback, boardT, biz, drafts, ownerDevices] = await Promise.all([
     activeLegalHolds(),
     pendingCounts(),
     getRules(),
@@ -109,6 +111,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       return null;
     }),
     pendingDraftCount().catch(() => 0),
+    ownerAlertDevices().catch(() => 0),
   ]);
 
   const last7 = daily.slice(-range);
@@ -146,6 +149,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           ))}
         </nav>
       </header>
+
+      <OwnerAlertCard devices={ownerDevices} />
 
       <MonthGoal today={today} visitors={month.visitors} returning={month.returning} daily={daily7} range={range} />
       <PeopleReactions rows={people} />
