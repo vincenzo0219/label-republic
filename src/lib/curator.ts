@@ -58,6 +58,9 @@ export function curatorIntervalHours({ humanPosts7d: h, aiPosts7d: ai }: Retreat
 
 export type SeedContent = Pick<SeedPost, "key" | "title" | "body" | "summary" | "comments"> & { reviewed?: boolean; postType?: "info" | "chat" };
 
+/** 시드 글과 함께 AI 댓글을 다는지: 10/25 대표님 지시로 기본 꺼짐. 대표님 허락 뒤에만 CURATOR_SEED_COMMENTS=1 */
+const seedCommentsOn = () => process.env.CURATOR_SEED_COMMENTS === "1";
+
 /** 시드 한 건을 게시한다. 같은 key 가 이미 게시돼 있으면 null. 트랜잭션 안에서 호출할 것. */
 export async function publishSeed(client: PoolClient, categoryId: number, seed: SeedContent): Promise<string | null> {
   const ins = await client.query<{ id: string }>(
@@ -73,7 +76,8 @@ export async function publishSeed(client: PoolClient, categoryId: number, seed: 
     [postId, seed.summary, CURATOR_MODEL],
   );
   await client.query("UPDATE posts SET ai_summary_id = $1 WHERE id = $2", [sum.rows[0]!.id, postId]);
-  for (const body of seed.comments) {
+  // 10/25 대표님: "앞으로 내 허락없이는 댓글 달지마" → 시드 글에 AI 댓글을 함께 달지 않는다
+  for (const body of seedCommentsOn() ? seed.comments : []) {
     await client.query(
       `INSERT INTO comments (post_id, nickname, pw_hash, body, is_ai_curated) VALUES ($1, $2, $3, $4, true)`,
       [postId, CURATOR_NICKNAME, CURATOR_PW_HASH, body],
