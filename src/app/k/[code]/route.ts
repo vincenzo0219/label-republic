@@ -13,6 +13,7 @@ const LINKS: Record<string, string | { path: string; from: string }> = {
   "7": { path: "/c/요가-필라테스-덕후방", from: "kakao_pilates" }, // 필라테스 강사 오픈채팅
   "8": { path: "/c/미국주식방", from: "kakao_usstock" }, // 해외주식 오픈채팅
   "9": { path: "/margin-calc", from: "kakao_econ" }, // 경제 오픈채팅
+  "10": { path: "/c/요가-필라테스-강사방", from: "kakao_instructor" }, // 요가·필라테스 대강 오픈채팅 → 📋 대강·구인
 };
 
 const SCRAPER = /kakaotalk-scrap|kakaostory-og-reader|facebookexternalhit|Slackbot|Twitterbot|Discordbot|TelegramBot|Line\//i;

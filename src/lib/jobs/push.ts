@@ -15,6 +15,7 @@ import { kstDay } from "../metrics";
 import { TEST_POST_IDS } from "../testPosts";
 import { SAVINGS_ROOM } from "../investRooms";
 import { kstMonth } from "../savingsLog";
+import { runGigPush } from "./gigPush";
 
 const LOCK_KEY = 4_823_006;
 const BATCH = 500;
@@ -476,6 +477,9 @@ export function startPushScheduler(intervalMs: number): () => void {
   const kidsTick = guardJob("push-kids", async () => {
     const k = await runKidsPush();
     if (k.sent || k.removed) console.log(`[push] 동네 체험 알림 ${k.sent}건 발송, 구독 ${k.removed}개 정리`);
+    // 📋 대강·구인 지역 알림 (강사방, 10/25) — 당일 급구라 1분마다
+    const g = await runGigPush();
+    if (g.sent || g.removed) console.log(`[push] 대강·구인 알림 ${g.sent}건 발송, 구독 ${g.removed}개 정리`);
   });
   const kidsTimer = setInterval(kidsTick, Math.min(intervalMs, KIDS_PUSH_INTERVAL_MS));
   kidsTimer.unref();
