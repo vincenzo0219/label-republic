@@ -1,5 +1,6 @@
 /**
  * 서버 생명주기 (무중단 배포, 10/25): 준비(ready) → 서비스 → 정리(draining) → 종료.
+ * 배포 흐름 전체는 deploy/auto-update.sh 와 docs/RUNBOOK.md 4장 "무중단 배포".
  *
  * 상태는 globalThis 에 둔다 — server.ts 와 Next 가 번들한 라우트(/api/health)는 이 모듈을 따로 불러오므로
  * 같은 값을 보려면 여기 둬야 한다 (db.ts 와 같은 방식).
