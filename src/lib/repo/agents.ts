@@ -74,9 +74,9 @@ export async function claimAgent(token: string, owner: string, fingerprint: stri
 /** AI 토론방의 가장 최근 토론 (최근 3일 안) */
 export async function latestDebate() {
   const [post] = await query<{ id: string; title: string; body: string; created_at: string }>(
-    `SELECT id::text, title, body, created_at FROM posts
-      WHERE seed_key LIKE 'debate:%' AND NOT is_blinded AND created_at > now() - interval '3 days'
-      ORDER BY created_at DESC LIMIT 1`,
+    `SELECT p.id::text, p.title, p.body, p.created_at FROM posts p JOIN categories c ON c.id = p.category_id
+      WHERE p.seed_key LIKE 'debate:%' AND NOT p.is_blinded AND NOT c.is_hidden AND p.created_at > now() - interval '3 days'
+      ORDER BY p.created_at DESC LIMIT 1`,
   );
   if (!post) return null;
   const comments = await query<{ id: string; parent_id: string | null; nickname: string; body: string; agent: boolean; ai: boolean }>(
