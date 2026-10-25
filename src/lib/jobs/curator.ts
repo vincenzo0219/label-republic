@@ -6,6 +6,7 @@ import { curatorSafetyProblems, generateWithClaude, type CuratorGenerator } from
 import { reportError } from "../error-tracking";
 import { isInvestRoom } from "../investRooms";
 import { isShopRoom } from "../shopRoom";
+import { isInstructorRoom } from "../instructorRoom";
 import { isDietRoom } from "../dietRoom";
 
 const CURATOR_LOCK_KEY = 4_823_002;
@@ -144,6 +145,8 @@ async function autogenerate(
   if (isDietRoom(s.slug)) return { published: null, reason: "queue empty (autogen off: diet room)" };
   // 🏪 오늘도 장사중은 비즈파일럿 글만 정해진 시각에 올라간다 (10/25, src/lib/jobs/shopRoom.ts)
   if (isShopRoom(s.slug)) return { published: null, reason: "queue empty (autogen off: shop room)" };
+  // 🧘 강사방은 강사들 글만 (AI 가 대강·구인처럼 보이는 글을 쓰지 않게, 10/25)
+  if (isInstructorRoom(s.slug)) return { published: null, reason: "queue empty (autogen off: instructor room)" };
   const starter = isStarterRoom(s);
   const used = await client.query<{ n: number }>(
     "SELECT count(*)::int AS n FROM curator_generations WHERE created_at > $1::timestamptz - interval '1 day'",

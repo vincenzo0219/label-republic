@@ -31,7 +31,9 @@ import { MARKET_ROOMS } from "@/lib/marketEvents";
 import { RadarCard } from "@/components/RadarCard";
 import { RADAR_ROOMS } from "@/lib/marketRadar";
 import { getRadar } from "@/lib/repo/marketRadar";
-import { roomTabOf } from "@/lib/heads";
+import { ALL_TAB, ROOM_DEFAULT_TAB, roomTabOf } from "@/lib/heads";
+import { GIG_TAB } from "@/lib/instructorRoom";
+import { GigBoard } from "@/components/GigBoard";
 import { KIDS_ROOM, KIDS_TAB } from "@/lib/kidsPrograms";
 import { KidsTab } from "@/components/KidsTab";
 import { KidsTopLine } from "@/components/KidsTopLine";
@@ -142,8 +144,16 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   );
   const roomBox = writingBox || savingsBox || mealBox || marketBoxes;
   // 📍 동네 체험 (육아방): 💬 채팅 뒤 탭 + 전체 탭 맨 위 한 줄. 지역은 브라우저에 저장돼 있어 화면에서 불러온다
-  const roomTab = roomTabOf(category.slug, sp.tab);
-  const roomTabProps = roomTab?.key === KIDS_TAB ? { key: KIDS_TAB, node: <KidsTab /> } : undefined;
+  // 강사방: 탭 없이 들어오면 📋 대강·구인, 전체 글은 ?tab=all (10/25)
+  const defaultTab = ROOM_DEFAULT_TAB[category.slug];
+  const tabKey = sp.tab === ALL_TAB ? undefined : (sp.tab ?? (defaultTab && !sp.head && !sp.type && !sp.sourced && !sp.page ? defaultTab : undefined));
+  const roomTab = roomTabOf(category.slug, tabKey);
+  const roomTabProps =
+    roomTab?.key === KIDS_TAB
+      ? { key: KIDS_TAB, node: <KidsTab /> }
+      : roomTab?.key === GIG_TAB
+        ? { key: GIG_TAB, node: <GigBoard offToken={sp.u?.slice(0, 60)} /> }
+        : undefined;
   const kidsLine = !ad && category.slug === KIDS_ROOM && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? <KidsTopLine /> : null;
   return (
     <>

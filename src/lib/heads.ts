@@ -24,7 +24,10 @@ export const SHOP_HEADS = [
   { key: "가게", label: "🏆 잘된 가게" },
 ] as const;
 
-export const ALL_HEADS = [...BOOK_HEADS, ...HEADS, ...SHOP_HEADS] as const;
+/** 🧘 요가·필라테스 강사방 (10/25): 📋 대강·구인(방 전용 화면) 다음 탭 */
+const INSTRUCTOR_HEADS = [{ key: "수업팁", label: "🧘 수업 팁" }] as const;
+
+export const ALL_HEADS = [...BOOK_HEADS, ...HEADS, ...SHOP_HEADS, ...INSTRUCTOR_HEADS] as const;
 
 export type Head = (typeof ALL_HEADS)[number]["key"];
 
@@ -32,6 +35,8 @@ const BOOK = "읽는-책-제목을-교환해-보자";
 export const BOOK_ROOM = BOOK;
 /** 🏪 오늘도 장사중 주소 (10/25). 이름이 바뀌어도 주소는 그대로 */
 export const SHOP_ROOM = "오늘도-장사중";
+/** 🧘 요가·필라테스 강사방 주소 (10/25, src/lib/instructorRoom.ts 와 같은 값) */
+const INSTRUCTOR = "요가-필라테스-강사방";
 
 /** 투자방 (10/24): 말머리(제목 앞 [행사]·[자랑]·[혜택])는 그대로, 탭 이름만 방에 맞게 */
 const SCHEDULE = { key: "행사", label: "📅 일정" } as const;
@@ -46,9 +51,10 @@ const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
   // 이용자가 만든 식단방 (10/24): 📸 자랑 탭만 "📸 식단 인증" 으로, 나머지는 그대로
   "다이어트-식단-함께해요": [{ key: "자랑", label: "📸 식단 인증" }, HEADS[1], HEADS[2]],
   [SHOP_ROOM]: SHOP_HEADS,
+  [INSTRUCTOR]: INSTRUCTOR_HEADS,
 };
 /** 방 전용 이름을 붙인 말머리는 탭에서도 그 이름 (공용 "🎫 행사·할인" 으로 바꾸지 않음) */
-const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방", SHOP_ROOM]);
+const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방", SHOP_ROOM, INSTRUCTOR]);
 
 /** 방 탭 줄 끝에 붙는 다른 화면 링크 (책 덕후방 물어보기는 10/23 📚 추천 탭 안으로 합침) */
 export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {};
@@ -56,11 +62,15 @@ export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> =
 /** 💬 채팅 바로 뒤에 붙는 방 전용 탭 (?tab=키, 글 목록 대신 그 화면) — 육아방 📍동네 체험 (10/24) */
 export const ROOM_CHAT_TABS: Record<string, { key: string; label: string }[]> = {
   "육아-덕후방": [{ key: "near", label: "📍동네 체험" }],
+  [INSTRUCTOR]: [{ key: "gigs", label: "📋 대강·구인" }],
 };
+/** 탭 없이 들어오면 이 탭 (강사방: 📋 대강·구인). 이런 방의 "전체" 는 ?tab=all */
+export const ROOM_DEFAULT_TAB: Record<string, string> = { [INSTRUCTOR]: "gigs" };
+export const ALL_TAB = "all";
 export const roomTabOf = (slug: string, tab: string | undefined) => (tab ? ROOM_CHAT_TABS[slug]?.find((t) => t.key === tab) : undefined);
 
 /** 📋 정보 탭을 따로 두지 않는 방 (전체 탭에만 보인다) */
-export const NO_INFO_TAB = new Set([BOOK, SHOP_ROOM]);
+export const NO_INFO_TAB = new Set([BOOK, SHOP_ROOM, INSTRUCTOR]);
 
 
 /** 이 방에서 보이는 말머리 (방 전용이 앞) — 글쓰기에서 고르는 목록 */
@@ -96,6 +106,7 @@ export const HEAD_HINTS: Partial<Record<Head, string>> = {
   상권: "동 이름까지만 · 층 · 전에 있던 가게",
   지원: "사업 이름 · 신청 마감일 · 공식 공고 주소",
   가게: "어떤 가게 · 무엇이 달랐는지 · 출처",
+  수업팁: "어떤 수업 · 무엇을 바꿨는지 · 회원 반응",
 };
 
 /** 투자방 말머리 예시 (10/24) — 짧게 */

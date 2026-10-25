@@ -11,7 +11,7 @@ import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
 import { FilterCount, FilterCountsLoader, MarkSeen } from "./NewMarks";
 import { SortBar } from "./SortBar";
-import { NO_INFO_TAB, ROOM_CHAT_TABS, ROOM_TAB_LINKS, headLabel, tabHeadsFor, type Head } from "@/lib/heads";
+import { ALL_TAB, NO_INFO_TAB, ROOM_CHAT_TABS, ROOM_DEFAULT_TAB, ROOM_TAB_LINKS, headLabel, tabHeadsFor, type Head } from "@/lib/heads";
 import { pinnedTabFor, stripsHead } from "@/lib/shopRoom";
 import type { Comment } from "@/lib/types";
 import { EventAlert } from "./EventAlert";
@@ -96,6 +96,7 @@ export async function FeedView({
     ? `${headLabel(head, category?.slug)} 글쓰기`
     : type === "info" ? "📋 정보 글쓰기" : type === "meetup" ? "📅 정모 제안하기" : "✍️ 글쓰기";
   const seenRoom = category?.slug ?? "all";
+  const defaultTab = category ? ROOM_DEFAULT_TAB[category.slug] : undefined;
   return (
     <>
       <h1 className="sr-only">{category ? `${category.name} 방` : "노방장 — 방장 없는 덕후 커뮤니티"}</h1>
@@ -134,12 +135,18 @@ export async function FeedView({
       <nav className="type-filter" aria-label="글 유형">
         <FilterCountsLoader room={category.slug} />
         {/* 방 탭 (10/21 단순화): 전체 · 채팅 · 말머리 · (정보) — 정모·잡담 탭은 없음. 손가락이 닿는 순간 탭 내용을 미리 받는다 (10/24 속도) */}
-        <Link href={basePath} aria-current={!type && !head && !chat && !roomTab ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>전체</Link>
+        {/* 강사방처럼 기본 탭이 따로 있는 방은 그 탭이 맨 앞(주소 그대로), 전체는 맨 뒤 ?tab=all (10/25) */}
+        {defaultTab && (ROOM_CHAT_TABS[category.slug] ?? []).filter((t) => t.key === defaultTab).map((t) => (
+          <Link key={t.key} href={basePath} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
+            {t.label}
+          </Link>
+        ))}
+        {!defaultTab && <Link href={basePath} aria-current={!type && !head && !chat && !roomTab ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>전체</Link>}
         <Link href={`${basePath}?tab=chat`} aria-current={chat ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
           💬 채팅
           <FilterCount k="chat" />
         </Link>
-        {(ROOM_CHAT_TABS[category.slug] ?? []).map((t) => (
+        {(ROOM_CHAT_TABS[category.slug] ?? []).filter((t) => t.key !== defaultTab).map((t) => (
           <Link key={t.key} href={`${basePath}?tab=${t.key}`} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
             {t.label}
           </Link>
@@ -159,6 +166,7 @@ export async function FeedView({
             <FilterCount k="info" />
           </Link>
         )}
+        {defaultTab && <Link href={`${basePath}?tab=${ALL_TAB}`} aria-current={!type && !head && !chat && !roomTab ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>전체</Link>}
         {sourced && (
           <Link className="filter-toggle" href={href(type, false)} aria-current="true" rel="nofollow" {...PREFETCH_ON_TOUCH}>
             📚 출처 있는 글만 ✕

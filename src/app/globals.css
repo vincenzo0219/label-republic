@@ -1200,3 +1200,26 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .all-rooms-link { font-size: 13px; color: var(--muted); text-decoration: none; white-space: nowrap; align-self: center; }
 /* 사람 댓글이 달린 글 (10/24): 작게, 다른 배지와 같은 모양 */
 .badge-people { background: color-mix(in srgb, var(--brand) 12%, transparent); color: var(--brand); }
+
+/* 📋 대강·구인 (🧘 요가·필라테스 강사방, 10/25) */
+.gig-board { margin: 0 0 16px; }
+.gig-guide { margin: 6px 0 10px; }
+.gig-filters { display: grid; gap: 8px; margin: 0 0 10px; }
+.gig-filters .select { flex: 1 1 140px; min-width: 0; height: 40px; padding: 0 10px; }
+.gig-filters select.chip { appearance: none; -webkit-appearance: none; color: var(--text); }
+.gig-filters select.chip.picked { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); font-weight: 700; }
+.gig-alert { display: grid; gap: 6px; margin: 0 0 12px; }
+.gig-alert-on { align-items: center; gap: 6px; }
+.gig-card { text-decoration: none; color: var(--text); }
+.gig-card:hover .kids-name { text-decoration: underline; }
+.gig-more { width: 100%; margin: 0 0 16px; }
+.gig-off { margin: 0 0 10px; }
+.gig-page { max-width: 640px; }
+.gig-h1 { font-size: 20px; margin: 4px 0 12px; }
+.gig-form .kids-picker-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.gig-form .kids-picker-row > * { flex: 1 1 140px; min-width: 0; }
+.gig-form .kids-picker-row > .btn { flex: 0 0 auto; }
+.gig-facts > div { grid-template-columns: 52px 1fr; }
+.gig-notes { white-space: pre-line; overflow-wrap: anywhere; margin: 0 0 14px; font-size: 14.5px; line-height: 1.6; }
+.gig-contact { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 0; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.gig-cta { align-items: center; }
