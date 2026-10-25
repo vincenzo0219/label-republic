@@ -72,6 +72,8 @@ export async function createDraft(input: NewDraft): Promise<Draft> {
   if (needsPin && !/^\d{4}$/.test(input.pin ?? "")) throw new HttpError(400, "invalid_input", "운영자 계정 비밀번호(4자리)가 필요합니다.");
   if (input.kind === "post" && !(input.categorySlug && input.title)) throw new HttpError(400, "invalid_input", "방과 제목이 필요합니다.");
   if (input.kind === "comment" && !input.postId) throw new HttpError(400, "invalid_input", "답글을 달 글 번호가 필요합니다.");
+  // 10/25 대표님: "앞으로 자랑방에 글 쓰지마" → 운영 글은 📸 자랑 탭([자랑] 말머리)에 올리지 않는다
+  if (input.kind === "post" && /^\s*\[자랑\]/.test(input.title ?? "")) throw new HttpError(400, "no_brag", "운영 글은 자랑 탭에 올리지 않습니다.");
   const image = input.imageUrl?.startsWith("/") ? `${config.siteUrl}${input.imageUrl}` : (input.imageUrl ?? "");
   if (image && !/^https?:\/\//.test(image)) throw new HttpError(400, "invalid_input", "이미지 주소를 확인해 주세요.");
   const rows = await query<{ id: string }>(
