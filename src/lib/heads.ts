@@ -51,7 +51,8 @@ const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
   // 이용자가 만든 식단방 (10/24): 📸 자랑 탭만 "📸 식단 인증" 으로, 나머지는 그대로
   "다이어트-식단-함께해요": [{ key: "자랑", label: "📸 식단 인증" }, HEADS[1], HEADS[2]],
   [SHOP_ROOM]: SHOP_HEADS,
-  [INSTRUCTOR]: INSTRUCTOR_HEADS,
+  // 10/25 대표님: 강사방에도 행사·할인 → 워크숍·자격과정·박람회(🎫), 강사 할인·무료 세미나(🎁)
+  [INSTRUCTOR]: [...INSTRUCTOR_HEADS, { key: "행사", label: "🎫 행사·할인" }, HEADS[2]],
 };
 /** 방 전용 이름을 붙인 말머리는 탭에서도 그 이름 (공용 "🎫 행사·할인" 으로 바꾸지 않음) */
 const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방", SHOP_ROOM, INSTRUCTOR]);
