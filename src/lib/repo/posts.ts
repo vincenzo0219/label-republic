@@ -30,7 +30,7 @@ const HUMAN_COMMENTS_SQL = `(SELECT count(*)::int FROM comments hc
 
 const CARD_SELECT = `
   p.id, p.nickname, p.title, p.upvotes, p.downvotes, p.comment_count, p.view_count,
-  p.trust_tier, p.is_ai_curated, p.is_suppressed, p.post_type, p.created_at,
+  p.trust_tier, p.is_ai_curated, p.is_suppressed, p.post_type, p.created_at, p.pinned_tab,
   CASE WHEN mt.post_id IS NULL THEN NULL ELSE json_build_object(
     'meet_at', mt.meet_at, 'location', mt.location, 'min_participants', mt.min_participants,
     'capacity', mt.capacity, 'rsvp_count', mt.rsvp_count, 'status', mt.status, 'confirmed_at', mt.confirmed_at
@@ -101,7 +101,16 @@ export type ListParams = {
   excludeAuthor?: string | null;
   /** 전체 개수를 세지 않는다 (미리보기용 — total 은 가져온 개수) */
   noCount?: boolean;
+  /** 이 탭에 고정한 글(posts.pinned_tab)을 맨 위로 — '*' 는 방 전체 탭, 말머리 키는 그 탭 (🏪 오늘도 장사중, 10/25) */
+  pinnedTab?: string;
 };
+
+/** 고정 글을 쓰는 방만 정렬 앞에 붙인다 (다른 방은 정렬 인덱스를 그대로 타게) */
+export function pinnedOrder(pinnedTab: string | undefined, args: unknown[]): string {
+  if (!pinnedTab) return "";
+  args.push(pinnedTab);
+  return `(p.pinned_tab IS NOT DISTINCT FROM $${args.length}) DESC, `;
+}
 
 /** 이보다 깊은 페이지는 조회하지 않는다 (OFFSET 비용·크롤러 방어). 오래된 글은 검색·사이트맵으로 찾는다. */
 export const MAX_PAGE = 500;
@@ -235,8 +244,10 @@ export async function listPosts(
     }
   }
   const whereSql = where.join(" AND ");
-  const pageSql = pagedCardsSql(whereSql, ((params.hotFirst ?? params.sort !== "latest") ? HOT_FIRST : "") + (params.humanFirst ? "p.is_ai_curated, (CASE WHEN NOT p.is_ai_curated THEN p.created_at END) DESC NULLS LAST, " : "") + ORDER[params.sort], `$${args.length + 1}`, `$${args.length + 2}`);
-  const pageArgs = [...args, pageSize, (page - 1) * pageSize];
+  const pinArgs: unknown[] = [...args];
+  const pin = terms.length ? "" : pinnedOrder(params.pinnedTab, pinArgs);
+  const pageSql = pagedCardsSql(whereSql, pin + ((params.hotFirst ?? params.sort !== "latest") ? HOT_FIRST : "") + (params.humanFirst ? "p.is_ai_curated, (CASE WHEN NOT p.is_ai_curated THEN p.created_at END) DESC NULLS LAST, " : "") + ORDER[params.sort], `$${pinArgs.length + 1}`, `$${pinArgs.length + 2}`);
+  const pageArgs = [...pinArgs, pageSize, (page - 1) * pageSize];
 
   if (terms.length) {
     // 검색은 전체 개수를 세지 않는다: 흔한 검색어는 일치하는 글을 끝까지 훑어야 해서 결과 20건보다 몇십 배 비싸다.

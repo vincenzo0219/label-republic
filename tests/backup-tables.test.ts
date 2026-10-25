@@ -25,6 +25,7 @@ const NOT_CHECKED: Record<string, string> = {
   renewal_scans: "배치 진행 상태 (없으면 전체를 다시 계산)",
   source_check_runs: "배치 실행 기록",
   trust_batch_runs: "배치 실행 기록",
+  shop_feed_state: "피드 읽은 기록 (다음 차례에 다시 읽는다)",
   visitors: "방문 통계",
   pmf_survey: "설문 응답 (사업 지표)",
   ear_test_results: "황금귀 테스트 결과 (익명 참가 통계)",

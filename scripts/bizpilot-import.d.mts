@@ -1,0 +1,23 @@
+export type Overrides = { titles?: Record<string, string>; drop?: Record<string, string[]> };
+export type Converted = { problems: string[]; warnings: string[]; title: string; body: string; imageUrls: string[] };
+export type Item = Partial<Converted> & {
+  key: string;
+  head?: string;
+  label: string;
+  pinned?: boolean;
+  publishAt?: string;
+  slotKey?: string;
+  problems: string[];
+  warnings: string[];
+};
+export const TABS: { key: string; name: string }[];
+export const SLOTS: string[];
+export function slotId(ymd: string, hm: string): string;
+export const CTA: RegExp[];
+export function tabKey(label: string): string | null;
+export function noDash(s: string): string;
+export function sentences(line: string): string[];
+export function siteLink(url: string): string;
+export function splitCorner(title: string): { prefix: string; corner: string; rest: string };
+export function convertItem(raw: string, opts: { slotKey: string; head: string; overrides?: Overrides; faq?: boolean }): Converted;
+export function parseHandoff(md: string, opts?: { year?: number; overrides?: Overrides }): { faqs: Item[]; posts: Item[] };

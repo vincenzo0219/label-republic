@@ -42,6 +42,7 @@ export function PostCard({
       <article>
         <div className="card-top">
           {seenRoom && <NewBadge room={seenRoom} createdAt={post.created_at} />}
+          {post.pinned_tab && !showCategory && <span className="badge badge-type">📌 고정</span>}
           {showCategory && <span className="badge badge-cat">{post.category.name}</span>}
           <TrustBadge tier={post.trust_tier} />
           {showCategory && chip && <span className="badge badge-type">{chip}</span>}

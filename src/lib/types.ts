@@ -29,6 +29,8 @@ export type Meetup = {
 
 export type PostCard = {
   id: string;
+  /** 탭 맨 위 고정 ('*' 전체 탭, 말머리 키) — 고정 글을 쓰는 방만 (10/25) */
+  pinned_tab?: string | null;
   category: { slug: string; name: string };
   nickname: string;
   title: string;

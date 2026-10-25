@@ -35,6 +35,8 @@ export const CHECK_TABLES = [
   "kids_program_alerts",
   // 10/24 🥗 오늘 식단 인증 (연속 일수)
   "meal_logs",
+  "shop_queue",
+  "shop_title_overrides",
 ];
 
 type Manifest = {

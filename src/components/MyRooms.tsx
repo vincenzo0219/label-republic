@@ -12,6 +12,7 @@ import {
   MY_ROOMS_KEY,
   onMyRoomsChange,
   roomEmoji,
+  roomPlainName,
   roomShortName,
   seedMyRooms,
   toggleMyRoom,
@@ -143,7 +144,7 @@ export function MyRoomsBar({ rooms, initial, legacy, filtered, redirect }: { roo
           {sorted.map((r) => (
             <li key={r.slug}>
               <Link href={`/c/${encodeURIComponent(r.slug)}`}>
-                <span aria-hidden>{roomEmoji(r.slug)}</span> {r.name}
+                <span aria-hidden>{roomEmoji(r.slug)}</span> {roomPlainName(r)}
                 {mine.includes(r.slug) && <span className="my-mark" aria-label="내 방"> ★</span>}
               </Link>
             </li>
