@@ -37,11 +37,14 @@ const base = (over: Partial<GigInput> = {}): GigInput => ({
 });
 
 describe("🧘 강사방 규칙", () => {
-  it("has the board as the default tab and a 수업 팁 tab", () => {
+  it("has the board as the default tab, then 수업 팁 · 행사·할인 tabs ([혜택] 글은 행사·할인 탭에 함께)", () => {
     expect(ROOM_DEFAULT_TAB[ROOM]).toBe("gigs");
     expect(ROOM_CHAT_TABS[ROOM]).toEqual([{ key: "gigs", label: "📋 대강·구인" }]);
-    expect(headsFor(ROOM).map((h) => h.key)).toEqual(["수업팁"]);
-    expect(tabHeadsFor(ROOM)).toEqual([{ key: "수업팁", label: "🧘 수업 팁" }]);
+    expect(headsFor(ROOM).map((h) => h.key)).toEqual(["수업팁", "행사", "혜택"]);
+    expect(tabHeadsFor(ROOM)).toEqual([
+      { key: "수업팁", label: "🧘 수업 팁" },
+      { key: "행사", label: "🎫 행사·할인" },
+    ]);
   });
 
   it("rejects posts that are not a listing (no date, region or class)", () => {
