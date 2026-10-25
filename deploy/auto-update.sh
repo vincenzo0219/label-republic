@@ -58,10 +58,14 @@ elif printf '%s' "$PULL_OUT" | grep -qi 'manifest unknown'; then
   SEEN="$STATE/seen-$REMOTE"
   [ -f "$SEEN" ] || { date +%s > "$SEEN"; log "이미지 기다리는 중 ${REMOTE:0:7} (GitHub Actions 빌드, 최대 ${IMAGE_WAIT_MIN}분)"; }
   if [ $(( $(date +%s) - $(cat "$SEEN") )) -lt $(( IMAGE_WAIT_MIN * 60 )) ]; then exit 0; fi
-  log "이미지가 ${IMAGE_WAIT_MIN}분 넘게 나오지 않아 이 서버에서 빌드합니다"
+  log "이미지가 ${IMAGE_WAIT_MIN}분 넘게 나오지 않음 ${REMOTE:0:7}"
 else
-  # 비공개 패키지(denied)·다른 플랫폼 등 — 예전 방식으로
-  log "이미지를 받지 못해 이 서버에서 빌드합니다 ($(printf '%s' "$PULL_OUT" | tail -1 | cut -c1-120))"
+  log "이미지를 받지 못함 ${REMOTE:0:7} ($(printf '%s' "$PULL_OUT" | tail -1 | cut -c1-120))"
+fi
+# 10/25: 2GB 서버에서 직접 빌드하면 메모리가 바닥나 사이트가 40분 멈췄다 → 기본은 빌드하지 않고 다음 차례(5분 뒤)에 다시 받는다
+if [ -z "$SOURCE" ] && [ "${NOBANGJANG_ALLOW_LOCAL_BUILD:-0}" != "1" ]; then
+  log "이 서버에서는 빌드하지 않습니다 — 다음 차례에 이미지를 다시 받습니다"
+  exit 0
 fi
 rm -f "$STATE"/seen-* 2>/dev/null || true
 
