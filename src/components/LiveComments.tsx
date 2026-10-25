@@ -276,6 +276,21 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
     }
   }
 
+  // 수정 (10/25 대표님 "수정기능도 없고 삭제 기능도 없어"): 쓸 때 정한 비밀번호(이 브라우저는 자동)로 확인
+  async function edit(c: Comment) {
+    const body = window.prompt("고칠 내용", c.body);
+    if (body === null) return;
+    const text = body.trim();
+    if (!text || text === c.body) return;
+    try {
+      const done = await withMyPin((pw) => api(`/api/comments/${c.id}`, "PATCH", { pw, body: text }), "댓글 비밀번호 4자리");
+      if (done === null) return;
+      setComments((list) => list.map((x) => (x.id === c.id ? { ...x, body: text } : x)));
+    } catch (err) {
+      window.alert((err as Error).message);
+    }
+  }
+
   // 👍 공감 (Sprint 78): 누른 댓글은 이 브라우저에만 기억
   const toggleLike = async (c: Comment) => {
     const on = !liked.has(c.id);
@@ -326,6 +341,12 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                   </button>
                   {c.liked_by?.length ? <span className="liked-by">👍 {c.liked_by.join("·")}</span> : null}
                   <button className="linkish" onClick={() => setForm((f) => ({ ...f, body: f.body.includes(`@${c.nickname}`) ? f.body : `@${c.nickname} ${f.body}` }))}>답하기</button>
+                  {!c.is_ai_curated && c.nickname === form.nickname.trim() && (
+                    <>
+                      <button className="linkish" onClick={() => edit(c)}>수정</button>
+                      <button className="linkish" onClick={() => remove(c.id)}>삭제</button>
+                    </>
+                  )}
                 </div>
               )}
             </li>
@@ -381,7 +402,10 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                   {c.liked_by?.length ? <span className="liked-by">👍 {c.liked_by.join("·")}</span> : null}
                   <button className="linkish" onClick={() => startReply(c)} aria-label={`${c.nickname}님 댓글에 답글`}>답글</button>
                   {!c.is_ai_curated && (
-                    <button className="linkish" onClick={() => remove(c.id)}>삭제</button>
+                    <>
+                      {!c.hidden_reason && <button className="linkish" onClick={() => edit(c)}>수정</button>}
+                      <button className="linkish" onClick={() => remove(c.id)}>삭제</button>
+                    </>
                   )}
                 </div>
                 {to && <div className="comment-to">↳ {to.nickname}님에게</div>}
