@@ -7,6 +7,7 @@ import {
   mergeProduct,
   rejectAppeal,
   rejectBoardRequest,
+  purgeAiComments,
   releaseAiHide,
   releaseSuppression,
   voidAlert,
@@ -24,6 +25,7 @@ const note = z.string().trim().max(300).default("");
 
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("void_alert"), alertId: id, note }),
+  z.object({ action: z.literal("purge_ai_comments"), keepSlugs: z.array(z.string().min(1).max(60)).max(20), dryRun: z.boolean() }),
   z.object({ action: z.literal("dismiss_alert"), alertId: id, note }),
   z.object({ action: z.literal("release_suppression"), postId: id, note }),
   // AI 자동 가림 오판 해제 (Sprint 37) — 사유 필수, 공개
@@ -61,6 +63,8 @@ const schema = z.discriminatedUnion("action", [
 export const POST = route(async (req) => {
   const input = await parseBody(req, schema);
   switch (input.action) {
+    case "purge_ai_comments":
+      return json({ ok: true, ...(await purgeAiComments(input.keepSlugs, input.dryRun)) });
     case "void_alert":
       return json({ ok: true, ...(await voidAlert(input.alertId, input.note)) });
     case "dismiss_alert":
