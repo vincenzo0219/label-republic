@@ -8,6 +8,8 @@ import type { Peer } from "../peers";
 
 const LOCK_KEY = 4_823_092;
 const MAX_PER_RUN = 5;
+/** 자동 환영 답글: 10/25 대표님 지시로 기본 꺼짐. 대표님 허락 뒤에만 WELCOME_REPLIES=1 로 켠다 */
+const welcomeOn = () => process.env.WELCOME_REPLIES === "1";
 /** 환영 답글을 번갈아 다는 운영 닉네임 (10/22) */
 export const WELCOME_NAMES = ["노방장", "돈키호테", "덕후1호"] as const;
 
@@ -97,6 +99,8 @@ export function welcomeText(c: Pick<First, "nickname" | "post_id" | "chat"> & { 
  * 첫 반응이 빨리 와야 다시 온다. 이미 운영 계정이 답했거나, 가려졌거나, 30분 넘게 지난 댓글은 건너뛴다.
  */
 export async function runWelcome(now = new Date(), every = 1): Promise<number> {
+  // 10/25 대표님: "앞으로 내 허락없이는 댓글 달지마" → 자동 환영 답글은 끈다 (다시 켜려면 대표님 허락 필요)
+  if (!welcomeOn()) return 0;
   const client = await pool().connect();
   try {
     const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [LOCK_KEY]);
