@@ -10,6 +10,7 @@ import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import type { Comment } from "../types";
 import { assertPin } from "./pin-guard";
+import { ownerAlertAfter } from "./ownerAlert";
 
 /** 글이 있는 방 slug (없으면 null) */
 async function roomOfPost(postId: string): Promise<string | null> {
@@ -61,7 +62,7 @@ export async function createComment(
   const spam = heuristicSpam("", input.body);
   input = { ...input, body: maskPersonalInfo(input.body).text };
   const pwHash = await hashPin(input.pin);
-  return tx(async (client) => {
+  const comment = await tx(async (client) => {
     const post = await client.query<{ is_blinded: boolean }>("SELECT is_blinded FROM posts WHERE id = $1 FOR SHARE", [postId]);
     if (!post.rows[0]) throw notFound();
     if (post.rows[0].is_blinded) throw blinded();
@@ -113,6 +114,9 @@ export async function createComment(
       await client.query("UPDATE post_images SET post_id = $2, comment_id = $3, attached_at = now() WHERE id = $1", [imageId, postId, rows[0]!.id]);
     return rows[0]!;
   });
+  // 🔔 사람이 쓴 댓글이면 운영자 기기로 바로 (기다리지 않음, 10/25). 운영 초안·환영 답글은 지문이 없어 빠진다
+  ownerAlertAfter({ kind: "comment", nickname: input.nickname, fingerprint: input.fingerprint }, { kind: "comment", postId, commentId: String(comment.id), body: input.body });
+  return comment;
 }
 
 export async function deleteComment(id: string, fp: string, pin: string): Promise<void> {

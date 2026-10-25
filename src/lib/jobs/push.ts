@@ -16,6 +16,7 @@ import { TEST_POST_IDS } from "../testPosts";
 import { SAVINGS_ROOM } from "../investRooms";
 import { kstMonth } from "../savingsLog";
 import { runGigPush } from "./gigPush";
+import { flushOwnerAlerts } from "../repo/ownerAlert";
 
 const LOCK_KEY = 4_823_006;
 const BATCH = 500;
@@ -95,8 +96,8 @@ export async function runPushBatch(
     let sent = 0;
     let removed = 0;
     try {
-      // 90일 동안 브라우저가 한 번도 목록을 보내지 않은 구독은 지운다 (브라우저를 안 쓰게 됨)
-      const stale = await client.query("DELETE FROM push_subscriptions WHERE synced_at < $1::timestamptz - make_interval(days => $2)", [now.toISOString(), STALE_DAYS]);
+      // 90일 동안 브라우저가 한 번도 목록을 보내지 않은 구독은 지운다 (브라우저를 안 쓰게 됨). 운영자 알림 기기는 남긴다
+      const stale = await client.query("DELETE FROM push_subscriptions WHERE synced_at < $1::timestamptz - make_interval(days => $2) AND NOT owner_alert", [now.toISOString(), STALE_DAYS]);
       removed += stale.rowCount ?? 0;
       const { rows } = await client.query<Sub>(
         `SELECT id, endpoint, p256dh, auth, fingerprint, products::text[] AS products, posts::text[] AS posts, comments::text[] AS comments, checked_until
@@ -480,6 +481,8 @@ export function startPushScheduler(intervalMs: number): () => void {
     // 📋 대강·구인 지역 알림 (강사방, 10/25) — 당일 급구라 1분마다
     const g = await runGigPush();
     if (g.sent || g.removed) console.log(`[push] 대강·구인 알림 ${g.sent}건 발송, 구독 ${g.removed}개 정리`);
+    // 🔔 사람 글·댓글 알림 (10/25): 쓰자마자 보내고, 60초 안에 묶인 것·놓친 것은 여기서
+    await flushOwnerAlerts();
   });
   const kidsTimer = setInterval(kidsTick, Math.min(intervalMs, KIDS_PUSH_INTERVAL_MS));
   kidsTimer.unref();

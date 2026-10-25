@@ -22,6 +22,7 @@ const NOT_CHECKED: Record<string, string> = {
   page_views: "방문 통계",
   kids_programs: "아이볼 프로그램 캐시 (다시 받아 온다)",
   push_runs: "배치 실행 기록",
+  owner_alerts: "운영자 알림 대기열 (하루 뒤 지운다)",
   renewal_scans: "배치 진행 상태 (없으면 전체를 다시 계산)",
   source_check_runs: "배치 실행 기록",
   trust_batch_runs: "배치 실행 기록",
