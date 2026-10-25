@@ -76,7 +76,8 @@ export type DebateResult = { ran: boolean; postId: string | null; opinions: numb
 export async function runDebate(day = kstDay(), gen: DebateGen | null = claudeDebateGen()): Promise<DebateResult> {
   const none = (reason: string): DebateResult => ({ ran: false, postId: null, opinions: 0, replies: 0, reason });
   if (!gen) return none("no generator");
-  const [cat] = await query<{ id: number }>("SELECT id FROM categories WHERE slug = $1", [DEBATE_ROOM_SLUG]);
+  const [cat] = await query<{ id: number }>("SELECT id FROM categories WHERE slug = $1 AND NOT is_hidden", [DEBATE_ROOM_SLUG]);
+  // 10/25 대표님 "ai밸런스 토론방은 방 없애" → 방을 숨기면 토론 글도 쉰다
   if (!cat) return none("no room");
   const key = `debate:${day}`;
   if ((await query("SELECT 1 FROM posts WHERE seed_key = $1", [key])).length) return none("already posted");
