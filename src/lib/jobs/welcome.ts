@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import { pool } from "../db";
-import { reportError } from "../error-tracking";
+import { guardJob } from "./guard";
 import { createComment } from "../repo/comments";
 import { OPERATOR_NICKS } from "../repo/metrics";
 import { TEST_POST_IDS } from "../testPosts";
@@ -132,11 +132,7 @@ export async function runWelcome(now = new Date(), every = 1): Promise<number> {
 }
 
 export function startWelcomeScheduler(intervalMs = 60_000): () => void {
-  const tick = () =>
-    runWelcome().catch((err) => {
-      console.error("[welcome] failed:", (err as Error).message);
-      reportError(err, { kind: "job", where: "welcome" });
-    });
+  const tick = guardJob("welcome", runWelcome);
   const timer = setInterval(tick, intervalMs);
   timer.unref();
   void tick();

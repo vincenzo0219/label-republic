@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { dbDownSince, query } from "@/lib/db";
 import { snapshotStats } from "@/lib/snapshots";
 import { jobHealth } from "@/lib/repo/metrics";
+import { serverPhase } from "@/lib/lifecycle";
 
 export const dynamic = "force-dynamic";
 
@@ -10,12 +11,14 @@ const startedAt = Date.now();
 /**
  * GET /api/health — 로드밸런서·컨테이너 헬스체크
  * DB 연결과 마이그레이션 적용 여부를 확인하고, 실패하면 503.
+ * 종료(SIGTERM) 중이면 DB 를 보지 않고 바로 503 "draining" — 앞단(프록시·로드밸런서)이 이 서버로 새 요청을 보내지 않게 (무중단 배포 10/25)
  * ?deep=1 — 외부 모니터링용: 배치 작업의 마지막 실행·오류와 열린 서버 오류 수. 배치가 실패했거나 열린 오류가 있으면
  *           status 가 "degraded" (HTTP 는 200 — 로드밸런서가 서버를 빼지 않게)
  */
 export async function GET(req: Request) {
   const deep = new URL(req.url).searchParams.get("deep") === "1";
   const headers = { "Cache-Control": "no-store" };
+  if (serverPhase() === "draining") return NextResponse.json({ status: "draining" }, { status: 503, headers });
   try {
     const t0 = Date.now();
     const [m] = await query<{ latest: string | null; n: number }>(

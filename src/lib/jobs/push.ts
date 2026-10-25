@@ -8,7 +8,7 @@ import { pool } from "../db";
 import { config } from "../config";
 import { sendPush, type PushMessage, type SendResult } from "../push";
 import { postUpdateCount, productUpdateCount, watchUpdates, type WatchUpdates } from "../repo/watch";
-import { reportError } from "../error-tracking";
+import { guardJob } from "./guard";
 import { DAILY_START, dailySet } from "../daily";
 import { debateTopic } from "../debate";
 import { kstDay } from "../metrics";
@@ -459,44 +459,25 @@ export async function runKidsPush(
 export const KIDS_PUSH_INTERVAL_MS = 60_000;
 
 export function startPushScheduler(intervalMs: number): () => void {
-  let running = false;
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      const r = await runPushBatch();
-      if (r.sent || r.removed) console.log(`[push] 알림 ${r.sent}건 발송, 구독 ${r.removed}개 정리 (확인 ${r.checked}개)`);
-      const d = await runDailyPush();
-      if (d.sent || d.removed) console.log(`[push] 오늘의 문제 알림 ${d.sent}건 발송, 구독 ${d.removed}개 정리`);
-      const st = await runStreakPush();
-      if (st.sent || st.removed) console.log(`[push] 연속 기록 알림 ${st.sent}건 발송, 구독 ${st.removed}개 정리`);
-      const ev = await runEventPush();
-      if (ev.sent || ev.removed) console.log(`[push] 행사 알림 ${ev.sent}건 발송, 구독 ${ev.removed}개 정리`);
-      const sv = await runSavingsPush();
-      if (sv.sent || sv.removed) console.log(`[push] 적립일 알림 ${sv.sent}건 발송, 구독 ${sv.removed}개 정리`);
-    } catch (err) {
-      console.error("[push] batch failed:", (err as Error).message);
-      reportError(err, { kind: "job", where: "push" });
-    } finally {
-      running = false;
-    }
-  };
+  const tick = guardJob("push", async () => {
+    const r = await runPushBatch();
+    if (r.sent || r.removed) console.log(`[push] 알림 ${r.sent}건 발송, 구독 ${r.removed}개 정리 (확인 ${r.checked}개)`);
+    const d = await runDailyPush();
+    if (d.sent || d.removed) console.log(`[push] 오늘의 문제 알림 ${d.sent}건 발송, 구독 ${d.removed}개 정리`);
+    const st = await runStreakPush();
+    if (st.sent || st.removed) console.log(`[push] 연속 기록 알림 ${st.sent}건 발송, 구독 ${st.removed}개 정리`);
+    const ev = await runEventPush();
+    if (ev.sent || ev.removed) console.log(`[push] 행사 알림 ${ev.sent}건 발송, 구독 ${ev.removed}개 정리`);
+    const sv = await runSavingsPush();
+    if (sv.sent || sv.removed) console.log(`[push] 적립일 알림 ${sv.sent}건 발송, 구독 ${sv.removed}개 정리`);
+  });
   const timer = setInterval(tick, intervalMs);
   timer.unref();
-  let kidsRunning = false;
-  const kidsTimer = setInterval(async () => {
-    if (kidsRunning) return;
-    kidsRunning = true;
-    try {
-      const k = await runKidsPush();
-      if (k.sent || k.removed) console.log(`[push] 동네 체험 알림 ${k.sent}건 발송, 구독 ${k.removed}개 정리`);
-    } catch (err) {
-      console.error("[push] kids failed:", (err as Error).message);
-      reportError(err, { kind: "job", where: "push-kids" });
-    } finally {
-      kidsRunning = false;
-    }
-  }, Math.min(intervalMs, KIDS_PUSH_INTERVAL_MS));
+  const kidsTick = guardJob("push-kids", async () => {
+    const k = await runKidsPush();
+    if (k.sent || k.removed) console.log(`[push] 동네 체험 알림 ${k.sent}건 발송, 구독 ${k.removed}개 정리`);
+  });
+  const kidsTimer = setInterval(kidsTick, Math.min(intervalMs, KIDS_PUSH_INTERVAL_MS));
   kidsTimer.unref();
   return () => {
     clearInterval(timer);

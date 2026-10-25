@@ -39,6 +39,8 @@ import { startMaintenanceScheduler } from "./src/lib/jobs/maintenance";
 import { startTrustScheduler } from "./src/lib/jobs/trust";
 import { startBusinessReportScheduler } from "./src/lib/jobs/business-report";
 import { requestSnapshot, startSnapshotScheduler } from "./src/lib/jobs/snapshots";
+import { stopAllJobs } from "./src/lib/jobs/guard";
+import { createShutdown, markReady } from "./src/lib/lifecycle";
 import { captureSnapshot, isHtmlNavigation, isRscRequest, onServerError, sendSnapshot } from "./src/lib/snapshot-http";
 import { isSnapshotRequest, SNAPSHOT_HEADER, snapshotKey, snapshotSavedAt } from "./src/lib/snapshots";
 
@@ -150,7 +152,7 @@ function runPrimary(workers: number) {
     stopping = true;
     console.log(`[cluster] ${signal} 수신, 워커 종료 대기…`);
     for (const w of Object.values(cluster.workers ?? {})) w?.process.kill(signal);
-    const force = setTimeout(() => process.exit(1), 12_000);
+    const force = setTimeout(() => process.exit(1), 9_500);
     force.unref();
     const check = setInterval(() => {
       if (Object.keys(cluster.workers ?? {}).length === 0) {
@@ -317,64 +319,71 @@ function startWorker() {
     wss.on("close", () => clearInterval(heartbeat));
 
     await listen();
+    // 배치 스케줄러가 돌려준 중지 함수들 — 종료(SIGTERM) 때 모두 멈춘다
+    const jobStops: Array<() => void> = [];
     // 배치들은 advisory lock으로 여러 인스턴스 중 한 곳에서만 실행된다. cluster 에서는 0번 워커만 스케줄한다.
-    if (workerIndex === 0) {
+    const startJobs = () => {
+      if (shuttingDown || workerIndex !== 0) return;
       // 신뢰도 배지 배치
-      if (config.trustRefreshIntervalSec > 0) startTrustScheduler(config.trustRefreshIntervalSec * 1000);
+      if (config.trustRefreshIntervalSec > 0) jobStops.push(startTrustScheduler(config.trustRefreshIntervalSec * 1000));
       // AI 큐레이터 "활성화 유지" — 사람 글이 늘면 자동으로 물러난다.
-      if (config.curatorIntervalSec > 0) startCuratorScheduler(config.curatorIntervalSec * 1000);
+      if (config.curatorIntervalSec > 0) jobStops.push(startCuratorScheduler(config.curatorIntervalSec * 1000));
       // AI 밸런스 토론방 — 하루 한 번 (Sprint 69). DEBATE_ENABLED=0 이면 끈다
-      if (process.env.DEBATE_ENABLED !== "0") startDebateScheduler();
-      if (process.env.BOOK_POLL_ENABLED !== "0") startBookPollScheduler();
+      if (process.env.DEBATE_ENABLED !== "0") jobStops.push(startDebateScheduler());
+      if (process.env.BOOK_POLL_ENABLED !== "0") jobStops.push(startBookPollScheduler());
       // 방마다 🗳 오늘의 질문 (Sprint 83)
-      if (process.env.ROOM_POLL_ENABLED !== "0") startRoomPollScheduler();
+      if (process.env.ROOM_POLL_ENABLED !== "0") jobStops.push(startRoomPollScheduler());
       // 사람 댓글에 운영 계정 이름으로 👍 (Sprint 79). OPERATOR_LIKES_ENABLED=0 이면 끈다
-      if (process.env.OPERATOR_LIKES_ENABLED !== "0") startOperatorLikesScheduler();
+      if (process.env.OPERATOR_LIKES_ENABLED !== "0") jobStops.push(startOperatorLikesScheduler());
       // 처음 댓글 남긴 사람에게 운영 계정 환영 답글 (Sprint 92). WELCOME_ENABLED=0 이면 끈다
-      if (process.env.WELCOME_ENABLED !== "0") startWelcomeScheduler();
+      if (process.env.WELCOME_ENABLED !== "0") jobStops.push(startWelcomeScheduler());
       // 어뷰징 탐지 · 보류된 보드 승격 · 오래된 지표 정리
-      if (config.maintenanceIntervalSec > 0) startMaintenanceScheduler(config.maintenanceIntervalSec * 1000);
-      if (config.businessReportIntervalSec > 0) startBusinessReportScheduler(config.businessReportIntervalSec * 1000);
+      if (config.maintenanceIntervalSec > 0) jobStops.push(startMaintenanceScheduler(config.maintenanceIntervalSec * 1000));
+      if (config.businessReportIntervalSec > 0) jobStops.push(startBusinessReportScheduler(config.businessReportIntervalSec * 1000));
       // 보드별 주간 다이제스트 (개인화 리포트용, 보드 단위 공유 캐시)
       // 이번 주 요약은 화면에서 뺐다 (10/21) — 서버 .env 에 예전 값이 남아 있어도 DIGEST_ENABLED=1 일 때만
-      if (process.env.DIGEST_ENABLED === "1" && config.digestIntervalSec > 0) startDigestScheduler(config.digestIntervalSec * 1000);
+      if (process.env.DIGEST_ENABLED === "1" && config.digestIntervalSec > 0) jobStops.push(startDigestScheduler(config.digestIntervalSec * 1000));
       // 출처 링크 생존 확인 (외부 사이트에 요청 — 사설 주소는 차단)
-      if (config.sourceCheckIntervalSec > 0) startSourceCheckScheduler(config.sourceCheckIntervalSec * 1000);
-      if (config.pushEnabled && config.pushIntervalSec > 0) startPushScheduler(config.pushIntervalSec * 1000);
+      if (config.sourceCheckIntervalSec > 0) jobStops.push(startSourceCheckScheduler(config.sourceCheckIntervalSec * 1000));
+      if (config.pushEnabled && config.pushIntervalSec > 0) jobStops.push(startPushScheduler(config.pushIntervalSec * 1000));
       // 읽기 전용 모드 저장본 (Sprint 27)
-      if (!dev && config.snapshotIntervalSec > 0) startSnapshotScheduler(config.snapshotIntervalSec * 1000);
-    }
+      if (!dev && config.snapshotIntervalSec > 0) jobStops.push(startSnapshotScheduler(config.snapshotIntervalSec * 1000));
+    };
     // 게시글 조회수 버퍼 반영
     const viewFlush = setInterval(() => flushViewCounts().catch((e) => console.error("[views] flush 실패:", (e as Error).message)), 10_000);
     viewFlush.unref();
     server.listen(port, hostname, () => {
       const who = cluster.isWorker ? ` [워커 ${workerIndex}]` : "";
+      markReady();
       console.log(`> 노방장 ready on http://${hostname}:${port} (${dev ? "dev" : "prod"})${who}`);
+      // 배치는 요청을 받기 시작한 뒤 조금 있다가 (무중단 배포, 10/25): 새로 뜬 직후 첫 요청들과 DB 연결·CPU 를 다투지 않게
+      const t = setTimeout(startJobs, config.jobsStartDelaySec * 1000);
+      t.unref();
     });
 
-    // 컨테이너 종료(SIGTERM) 시: 새 연결 거부 → 웹소켓 정리 → 진행 중 요청 마무리 → DB 풀 종료
-    const shutdown = (signal: string) => {
-      if (shuttingDown) return;
-      shuttingDown = true;
-      console.log(`[shutdown] ${signal} 수신, 정리 중…`);
-      const force = setTimeout(() => {
-        console.error("[shutdown] 10초 안에 끝나지 않아 강제 종료합니다.");
-        process.exit(1);
-      }, 10_000);
-      force.unref();
-      for (const ws of wss.clients) ws.close(1001, "server shutting down");
-      clearInterval(heartbeat);
-      clearInterval(viewFlush);
-      server.close(async () => {
+    // 컨테이너 종료(SIGTERM) 시: 배치 중지 → 새 연결 거부 → 웹소켓 정리 → 진행 중 요청 마무리 → DB 풀 종료 (src/lib/lifecycle.ts)
+    // docker stop 의 유예(기본 10초, docker-compose.yml stop_grace_period 15초)보다 짧게 끝내야 SIGKILL 전에 풀을 닫는다
+    const shutdown = createShutdown({
+      server,
+      timeoutMs: 8_000,
+      stopJobs: () => {
+        shuttingDown = true;
+        stopAllJobs();
+        for (const stop of jobStops) stop();
+      },
+      beforeClose: () => {
+        for (const ws of wss.clients) ws.close(1001, "server shutting down");
+        clearInterval(heartbeat);
+        clearInterval(viewFlush);
+      },
+      afterClose: async () => {
         await flushViewCounts().catch(() => {});
         await flushErrors().catch(() => {});
         await listenClient?.end().catch(() => {});
         await pool().end().catch(() => {});
-        console.log("[shutdown] 완료");
-        process.exit(0);
-      });
-      server.closeIdleConnections?.();
-    };
+      },
+      exit: (code) => process.exit(code),
+    });
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
     // 처리되지 않은 오류: 기록은 남기고, 예외는 상태가 깨졌을 수 있어 기록 후 재시작(프로세스 관리자·cluster 가 다시 띄움)
