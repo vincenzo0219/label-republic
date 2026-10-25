@@ -632,3 +632,14 @@ export async function releaseAiHide(kind: "post" | "comment", id: string, note: 
     return { stillBlinded };
   });
 }
+
+/** AI 표시(🤖) 댓글을 한꺼번에 지운다 (10/25 대표님). AI 밸런스 토론방처럼 AI 캐릭터가 방의 주제인 곳은 남긴다. dryRun 이면 세기만 */
+export async function purgeAiComments(keepSlugs: string[], dryRun: boolean): Promise<{ count: number; byRoom: Record<string, number> }> {
+  const where = `c.is_ai_curated AND NOT (cat.slug = ANY($1::text[]))`;
+  const from = `comments c JOIN posts p ON p.id = c.post_id JOIN categories cat ON cat.id = p.category_id`;
+  const rows = await query<{ name: string; n: string }>(`SELECT cat.name, count(*) AS n FROM ${from} WHERE ${where} GROUP BY cat.name ORDER BY 2 DESC`, [keepSlugs]);
+  const byRoom = Object.fromEntries(rows.map((r) => [r.name, Number(r.n)]));
+  const count = rows.reduce((s, r) => s + Number(r.n), 0);
+  if (!dryRun && count) await query(`DELETE FROM comments WHERE id IN (SELECT c.id FROM ${from} WHERE ${where})`, [keepSlugs]);
+  return { count, byRoom };
+}
