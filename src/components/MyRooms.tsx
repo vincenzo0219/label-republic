@@ -67,14 +67,15 @@ export function MyRoomStar({ slug }: { slug: string }) {
   const click = () => {
     const r = toggleMyRoom(slug);
     if (r !== "full") syncInterest(slug, r === "added");
-    setToast(r === "added" ? "내 방에 추가했어요" : r === "removed" ? "뺐어요" : "8개까지예요");
+    setToast(r === "added" ? "홈 맨 위에 바로가기가 생겼어요" : r === "removed" ? "내 방에서 뺐어요" : "8개까지예요");
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setToast(null), 1500);
   };
   return (
     <>
       <button type="button" className="my-star" aria-pressed={on} aria-label={on ? "내 방에서 빼기" : "내 방에 추가"} onClick={click} disabled={mine === null}>
-        {on ? "★" : "☆"}
+        {/* 별만으로는 뜻을 몰라서 (10/25 대표님) 글자를 같이 쓴다 */}
+        {on ? "★ 내 방" : "☆ 내 방 추가"}
       </button>
       {toast && (
         <span className="nb-toast" role="status">
