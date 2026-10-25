@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { isAiCard } from "@/lib/aiMark";
 import { AutoMyRoom } from "@/components/MyRooms";
 import { abuseLabel } from "@/lib/abuse-labels";
 import { headers } from "next/headers";
@@ -192,7 +193,7 @@ export default async function PostPage({ params }: Props) {
         <h1>{stripsHead(post.category.slug) ? bareTitle(post.title) : post.title}</h1>
         <div className="post-meta">
           {/* AI 글 표시는 작성자 자리 한 곳에 (배지·작성자·안내에 세 번 나오던 것을 줄임) */}
-          {post.is_ai_curated ? <span className="card-author-ai">🤖 AI 큐레이터</span> : <span>{post.nickname}<NickBadge label={badgeOf(badges, post.nickname)} /></span>}
+          <span>{post.nickname}{isAiCard(post) ? <span className="ai-mark" title="AI가 작성한 글입니다." aria-label="AI 작성">🤖</span> : <NickBadge label={badgeOf(badges, post.nickname)} />}</span>
           <time dateTime={post.created_at}>{timeAgo(post.created_at)}</time>
           {post.view_count > 0 && <span aria-label="조회수">👁 {post.view_count}</span>}
           {post.revision_count > 0 ? (

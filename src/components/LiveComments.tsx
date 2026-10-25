@@ -308,7 +308,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
           {shown.map((c) => (
             <li key={c.id} id={`c${c.id}`} className={`chat-msg${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
               <div className="chat-head">
-                {c.is_ai_curated ? <b className="card-author-ai">🤖 {c.nickname}</b> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} /></>}
+                {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} /></>}
                 <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
               </div>
               {c.hidden_reason ? (
@@ -370,7 +370,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
               <div key={c.id} id={`c${c.id}`} className={`comment${c.id !== root.id ? " is-reply" : ""}${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
                 <div className="comment-head">
                   {/* AI 표시는 이름 한 곳에 (이름 + 배지로 두 번 나오던 것) */}
-                  {c.is_ai_curated ? <b className="card-author-ai">🤖 {c.nickname}</b> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} /></>}
+                  {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} /></>}
                   <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
                   <span className="spacer" />
                   {!c.hidden_reason && (
