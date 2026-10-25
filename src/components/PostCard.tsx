@@ -1,4 +1,5 @@
 import { NickBadge } from "./NickBadge";
+import { isAiCard } from "@/lib/aiMark";
 import Link from "next/link";
 import { snippet } from "@/lib/highlight";
 import { smallThumbUrl } from "@/lib/media-url";
@@ -89,14 +90,11 @@ export function PostCard({
           <p className="excerpt">{post.excerpt}</p>
         ) : null}
         <div className="card-meta">
-          {/* AI 글 표시는 아래 작성자 자리 한 곳에만 (위아래 중복이라는 운영자 피드백) — 🤖 표시는 그대로 */}
-          {post.is_ai_curated ? (
-            <span className="card-author-ai" title="AI 큐레이터가 작성한 글입니다.">
-              🤖 AI 큐레이터
-            </span>
-          ) : (
-            <span>{post.nickname}<NickBadge label={badge} /></span>
-          )}
+          {/* AI 글은 작성자 이름 옆에 작은 회색 🤖 (10/25 대표님) */}
+          <span>
+            {post.nickname}
+            {isAiCard(post) ? <span className="ai-mark" title="AI가 작성한 글입니다." aria-label="AI 작성">🤖</span> : <NickBadge label={badge} />}
+          </span>
           <span>{timeAgo(post.created_at)}</span>
           <span className="spacer" />
           <span aria-label="순추천">▲ <b className="num">{net}</b></span>

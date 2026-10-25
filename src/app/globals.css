@@ -831,6 +831,8 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .board-guide:has(.guide-chips) { padding: 10px 12px; }
 .card-top:empty { display: none; }
 .card-author-ai { color: var(--brand); font-weight: 600; }
+/* AI 작성 표시: 이름 옆 작은 회색 🤖 (10/25) */
+.ai-mark { margin-left: 3px; font-size: 0.75em; filter: grayscale(1); opacity: 0.55; vertical-align: 1px; }
 
 /* 황금귀 테스트 (Sprint 59) */
 .ear-banners { display: grid; gap: 8px; margin: 0 0 18px; }
