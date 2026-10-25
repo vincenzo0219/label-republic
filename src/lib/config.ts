@@ -149,6 +149,11 @@ export const config = {
     const n = Math.floor(Number(v ?? 1));
     return Number.isFinite(n) && n >= 1 ? Math.min(n, 16) : 1;
   },
+  /** 서버가 요청을 받기 시작한 뒤 배치 스케줄러를 켜기까지 기다리는 시간(초, JOBS_START_DELAY_SEC, 기본 20) — 무중단 배포 10/25 */
+  get jobsStartDelaySec(): number {
+    const n = Number(process.env.JOBS_START_DELAY_SEC ?? 20);
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, 600) : 20;
+  },
   /** 프로세스당 DB 커넥션 풀 크기 (DB_POOL_MAX, 기본 10). 전체 커넥션 ≈ (풀 + LISTEN 1) × 워커 수 */
   /** DB 연결을 기다리는 최대 시간(ms). DB 서버가 응답하지 않을 때 요청이 끝없이 매달리지 않게 (Sprint 27) */
   get dbConnectTimeoutMs(): number {

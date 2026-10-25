@@ -1,6 +1,6 @@
 import { BOOK_ROOM_SLUG } from "../books";
 import { query } from "../db";
-import { reportError } from "../error-tracking";
+import { guardJob } from "./guard";
 
 /** 책방은 돈키호테, 나머지 방은 노방장 이름으로 */
 export const OPERATOR_NAMES = { [BOOK_ROOM_SLUG]: "돈키호테", default: "노방장" } as const;
@@ -26,11 +26,7 @@ export async function runOperatorLikes(now = new Date()): Promise<number> {
 }
 
 export function startOperatorLikesScheduler(intervalMs = 60_000): () => void {
-  const tick = () =>
-    runOperatorLikes().catch((err) => {
-      console.error("[operator-likes] failed:", (err as Error).message);
-      reportError(err, { kind: "job", where: "operator-likes" });
-    });
+  const tick = guardJob("operator-likes", runOperatorLikes);
   const timer = setInterval(tick, intervalMs);
   timer.unref();
   void tick();

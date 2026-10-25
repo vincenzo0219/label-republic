@@ -1,6 +1,6 @@
 import { pool } from "../db";
 import { getRule } from "../repo/rules";
-import { reportError } from "../error-tracking";
+import { guardJob } from "./guard";
 
 // 여러 서버 인스턴스가 떠 있어도 배치는 한 곳에서만 돌도록 하는 advisory lock 키
 const TRUST_LOCK_KEY = 4_823_001;
@@ -50,20 +50,10 @@ export async function runTrustBatch(): Promise<TrustBatchResult> {
 
 /** server.ts 에서 호출 — 주기적으로 배치를 실행하고 중지 함수를 돌려준다. */
 export function startTrustScheduler(intervalMs: number): () => void {
-  let running = false;
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      const r = await runTrustBatch();
-      if (r.ran && r.changed > 0) console.log(`[trust] ${r.changed} posts re-tiered across ${r.categories} categories`);
-    } catch (err) {
-      console.error("[trust] batch failed:", (err as Error).message);
-      reportError(err, { kind: "job", where: "trust" });
-    } finally {
-      running = false;
-    }
-  };
+  const tick = guardJob("trust", async () => {
+    const r = await runTrustBatch();
+    if (r.ran && r.changed > 0) console.log(`[trust] ${r.changed} posts re-tiered across ${r.categories} categories`);
+  });
   const timer = setInterval(tick, intervalMs);
   timer.unref();
   void tick();

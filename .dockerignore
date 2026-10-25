@@ -8,3 +8,9 @@ db/seed/drafts
 tests
 *.log
 backups
+# 서버에서 쓰지 않는 문서·홍보 원본 — 이것만 바뀐 커밋은 빌드 캐시를 그대로 쓴다 (deploy/auto-update.sh 0단계와 같은 목록)
+docs
+marketing
+.github
+.claude
+*.md

@@ -6,7 +6,7 @@ import { sweepOrphanImages } from "../repo/images";
 import { expireMeetups } from "../repo/meetups";
 import { refreshRenewals } from "../repo/renewals";
 import { closeDueProposals, findRingVotes } from "../repo/rules";
-import { reportError } from "../error-tracking";
+import { guardJob } from "./guard";
 
 const MAINTENANCE_LOCK_KEY = 4_823_003;
 
@@ -287,23 +287,13 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
 }
 
 export function startMaintenanceScheduler(intervalMs: number): () => void {
-  let running = false;
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      const r = await runMaintenance();
-      if (r.promoted.length) console.log(`[maintenance] promoted board requests: ${r.promoted.join(", ")}`);
-      // 스레드·인스타 장기 토큰 갱신 (Sprint 52) — 7일에 한 번, 실패해도 다음에 다시
-      const refreshed = await refreshSocialTokens().catch((e) => (console.error("[social] 갱신 실패:", (e as Error).message), []));
-      if (refreshed.length) console.log(`[social] 토큰 갱신: ${refreshed.join(", ")}`);
-    } catch (err) {
-      console.error("[maintenance] failed:", (err as Error).message);
-      reportError(err, { kind: "job", where: "maintenance" });
-    } finally {
-      running = false;
-    }
-  };
+  const tick = guardJob("maintenance", async () => {
+    const r = await runMaintenance();
+    if (r.promoted.length) console.log(`[maintenance] promoted board requests: ${r.promoted.join(", ")}`);
+    // 스레드·인스타 장기 토큰 갱신 (Sprint 52) — 7일에 한 번, 실패해도 다음에 다시
+    const refreshed = await refreshSocialTokens().catch((e) => (console.error("[social] 갱신 실패:", (e as Error).message), []));
+    if (refreshed.length) console.log(`[social] 토큰 갱신: ${refreshed.join(", ")}`);
+  });
   const timer = setInterval(tick, intervalMs);
   timer.unref();
   void tick();
