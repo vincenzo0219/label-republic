@@ -40,6 +40,8 @@ import { getAppeal } from "@/lib/repo/operator";
 import { getMyVote, getPost as getPostUncached } from "@/lib/repo/posts";
 import { EXTRACTIVE_MODEL } from "@/lib/summary";
 import { typeChip } from "@/lib/adSchedule";
+import { headOf } from "@/lib/heads";
+import { bareTitle, shopHeadLabel, stripsHead } from "@/lib/shopRoom";
 
 export const dynamic = "force-dynamic";
 
@@ -183,8 +185,11 @@ export default async function PostPage({ params }: Props) {
           <Link href={`/c/${encodeURIComponent(post.category.slug)}`} className="badge badge-cat">{post.category.name}</Link>
           <TrustBadge tier={post.trust_tier} categoryName={post.category.name} />
           {typeChip(post.title, post.post_type) && <span className="badge badge-type">{typeChip(post.title, post.post_type)}</span>}
+          {stripsHead(post.category.slug) && headOf(post.title) && (
+            <Link href={`/c/${encodeURIComponent(post.category.slug)}?head=${encodeURIComponent(headOf(post.title)!)}`} className="badge badge-type">{shopHeadLabel(headOf(post.title)!)}</Link>
+          )}
         </div>
-        <h1>{post.title}</h1>
+        <h1>{stripsHead(post.category.slug) ? bareTitle(post.title) : post.title}</h1>
         <div className="post-meta">
           {/* AI 글 표시는 작성자 자리 한 곳에 (배지·작성자·안내에 세 번 나오던 것을 줄임) */}
           {post.is_ai_curated ? <span className="card-author-ai">🤖 AI 큐레이터</span> : <span>{post.nickname}<NickBadge label={badgeOf(badges, post.nickname)} /></span>}

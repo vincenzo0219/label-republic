@@ -144,8 +144,10 @@ export async function deleteFiles(ids: string[]): Promise<void> {
 export async function sweepOrphanImages(now = new Date(), limit = 500): Promise<number> {
   const rows = await query<{ id: string }>(
     `DELETE FROM post_images WHERE id IN (
-       SELECT id FROM post_images WHERE post_id IS NULL AND created_at < $1::timestamptz - make_interval(hours => $2)
-        ORDER BY created_at LIMIT $3)
+       SELECT i.id FROM post_images i WHERE i.post_id IS NULL AND i.created_at < $1::timestamptz - make_interval(hours => $2)
+          -- 🏪 오늘도 장사중 대기열이 정해진 시각에 붙일 그림은 남겨 둔다 (shop_queue, 10/25)
+          AND NOT EXISTS (SELECT 1 FROM shop_queue q WHERE q.published_at IS NULL AND i.id = ANY(q.image_ids))
+        ORDER BY i.created_at LIMIT $3)
      RETURNING id`,
     [now.toISOString(), ORPHAN_TTL_HOURS, limit],
   );

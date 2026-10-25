@@ -187,6 +187,7 @@ const EMOJI: Record<string, string> = {
   "비바리움-덕후방": "🦎",
   "신발-덕후방": "👟",
   "애니-만화-덕후방": "🎨",
+  "오늘도-장사중": "🏪",
   "와인-위스키-덕후방": "🍷",
   "요가-필라테스-덕후방": "🧘",
   "육아-덕후방": "👶",
@@ -214,7 +215,14 @@ const SHORT: Record<string, string> = {
   "읽는-책-제목을-교환해-보자": "책",
   "다이어트-식단-함께해요": "다이어트",
   "ai-밸런스-토론방": "AI 토론",
+  "오늘도-장사중": "장사중",
 };
+
+/** 이모지를 따로 붙이는 자리에서 쓰는 이름 — 방 이름이 그 이모지로 시작하면 뗀다 ("🏪 오늘도 장사중" → "오늘도 장사중") */
+export function roomPlainName(room: { slug: string; name: string }): string {
+  const e = roomEmoji(room.slug);
+  return room.name.startsWith(e) ? room.name.slice(e.length).trim() || room.name : room.name;
+}
 
 /** "육아 덕후방" → "육아", "미국주식방" → "미국주식", "애니·만화 덕후방" → "애니·만화" */
 export function roomShortName(room: { slug: string; name: string }): string {

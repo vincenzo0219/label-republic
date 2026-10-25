@@ -35,6 +35,7 @@ import { startBookPollScheduler } from "./src/lib/jobs/bookPoll";
 import { startRoomPollScheduler } from "./src/lib/jobs/roomPolls";
 import { startOperatorLikesScheduler } from "./src/lib/jobs/operatorLikes";
 import { startWelcomeScheduler } from "./src/lib/jobs/welcome";
+import { startShopRoomScheduler } from "./src/lib/jobs/shopRoom";
 import { startMaintenanceScheduler } from "./src/lib/jobs/maintenance";
 import { startTrustScheduler } from "./src/lib/jobs/trust";
 import { startBusinessReportScheduler } from "./src/lib/jobs/business-report";
@@ -337,6 +338,8 @@ function startWorker() {
       if (process.env.OPERATOR_LIKES_ENABLED !== "0") jobStops.push(startOperatorLikesScheduler());
       // 처음 댓글 남긴 사람에게 운영 계정 환영 답글 (Sprint 92). WELCOME_ENABLED=0 이면 끈다
       if (process.env.WELCOME_ENABLED !== "0") jobStops.push(startWelcomeScheduler());
+      // 🏪 오늘도 장사중: 정해진 시각에 비즈파일럿 글 · 07:30 공지 · 일요일 모아 보기 (10/25). SHOP_ROOM_ENABLED=0 이면 끈다
+      if (process.env.SHOP_ROOM_ENABLED !== "0") jobStops.push(startShopRoomScheduler());
       // 어뷰징 탐지 · 보류된 보드 승격 · 오래된 지표 정리
       if (config.maintenanceIntervalSec > 0) jobStops.push(startMaintenanceScheduler(config.maintenanceIntervalSec * 1000));
       if (config.businessReportIntervalSec > 0) jobStops.push(startBusinessReportScheduler(config.businessReportIntervalSec * 1000));

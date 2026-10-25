@@ -12,6 +12,7 @@ import { PostCard } from "./PostCard";
 import { FilterCount, FilterCountsLoader, MarkSeen } from "./NewMarks";
 import { SortBar } from "./SortBar";
 import { NO_INFO_TAB, ROOM_CHAT_TABS, ROOM_TAB_LINKS, headLabel, tabHeadsFor, type Head } from "@/lib/heads";
+import { pinnedTabFor, stripsHead } from "@/lib/shopRoom";
 import type { Comment } from "@/lib/types";
 import { EventAlert } from "./EventAlert";
 import { LiveComments } from "./LiveComments";
@@ -70,7 +71,7 @@ export async function FeedView({
   const [categories, feed, needs, tools, quiet] = await Promise.all([
     // 방 목록·조용한 방은 홈의 방 탭(CategoryTabs)에만 쓰여서, 방 안에서는 조회하지 않는다
     category ? Promise.resolve([]) : listCategories(),
-    chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, categorySlugs: !category && onlyMine && mine?.length ? mine : undefined, sort, page, type, head, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category }),
+    chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, categorySlugs: !category && onlyMine && mine?.length ? mine : undefined, sort, page, type, head, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category, pinnedTab: pinnedTabFor(category?.slug, { head, type, sourced }) }),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? cachedRoomTools(category.id) : Promise.resolve(null),
     category ? Promise.resolve(new Set<string>()) : cachedQuiet(0).catch(() => new Set<string>()),
@@ -203,7 +204,7 @@ export async function FeedView({
           </div>
         </div>
       ) : (
-        feed.items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head} badge={badgeOf(badges, post.nickname)} />)
+        feed.items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head || stripsHead(category?.slug)} badge={badgeOf(badges, post.nickname)} />)
       )}
       {page === 1 && !type && !sourced && <MarkSeen room={seenRoom} />}
       <SeenTracker key={`${basePath}?${new URLSearchParams(params)}`} />

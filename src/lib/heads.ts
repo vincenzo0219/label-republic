@@ -15,12 +15,23 @@ const BOOK_HEADS = [
   { key: "추천", label: "📚 추천" },
 ] as const;
 
-export const ALL_HEADS = [...BOOK_HEADS, ...HEADS] as const;
+/** 🏪 오늘도 장사중 (10/25, 비즈파일럿 운영): 탭 다섯 개, 이 순서. 제목 앞 [계산]·[직원]… 로 나눈다 (src/lib/shopRoom.ts) */
+export const SHOP_HEADS = [
+  { key: "계산", label: "💸 남는 돈 계산" },
+  { key: "직원", label: "👥 직원·알바" },
+  { key: "상권", label: "📍 상권·자리" },
+  { key: "지원", label: "🎫 지원사업·마감" },
+  { key: "가게", label: "🏆 잘된 가게" },
+] as const;
+
+export const ALL_HEADS = [...BOOK_HEADS, ...HEADS, ...SHOP_HEADS] as const;
 
 export type Head = (typeof ALL_HEADS)[number]["key"];
 
 const BOOK = "읽는-책-제목을-교환해-보자";
 export const BOOK_ROOM = BOOK;
+/** 🏪 오늘도 장사중 주소 (10/25). 이름이 바뀌어도 주소는 그대로 */
+export const SHOP_ROOM = "오늘도-장사중";
 
 /** 투자방 (10/24): 말머리(제목 앞 [행사]·[자랑]·[혜택])는 그대로, 탭 이름만 방에 맞게 */
 const SCHEDULE = { key: "행사", label: "📅 일정" } as const;
@@ -34,9 +45,10 @@ const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
   "적립식-투자방": [{ key: "자랑", label: "📒 적립 인증" }, HEADS[2]],
   // 이용자가 만든 식단방 (10/24): 📸 자랑 탭만 "📸 식단 인증" 으로, 나머지는 그대로
   "다이어트-식단-함께해요": [{ key: "자랑", label: "📸 식단 인증" }, HEADS[1], HEADS[2]],
+  [SHOP_ROOM]: SHOP_HEADS,
 };
 /** 방 전용 이름을 붙인 말머리는 탭에서도 그 이름 (공용 "🎫 행사·할인" 으로 바꾸지 않음) */
-const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방"]);
+const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방", SHOP_ROOM]);
 
 /** 방 탭 줄 끝에 붙는 다른 화면 링크 (책 덕후방 물어보기는 10/23 📚 추천 탭 안으로 합침) */
 export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {};
@@ -48,7 +60,7 @@ export const ROOM_CHAT_TABS: Record<string, { key: string; label: string }[]> = 
 export const roomTabOf = (slug: string, tab: string | undefined) => (tab ? ROOM_CHAT_TABS[slug]?.find((t) => t.key === tab) : undefined);
 
 /** 📋 정보 탭을 따로 두지 않는 방 (전체 탭에만 보인다) */
-export const NO_INFO_TAB = new Set([BOOK]);
+export const NO_INFO_TAB = new Set([BOOK, SHOP_ROOM]);
 
 
 /** 이 방에서 보이는 말머리 (방 전용이 앞) — 글쓰기에서 고르는 목록 */
@@ -79,6 +91,11 @@ export const HEAD_HINTS: Partial<Record<Head, string>> = {
   같이읽기: "같이 읽을 책 · 어디까지 읽었는지 · 모임 날짜",
   밑줄: "좋았던 문장 한 줄과 책 제목 (사진도 좋아요)",
   추천: "이런 상황엔 이 책 · 같은 주제 다른 관점 두 권 · 신간 · 명저",
+  계산: "어떤 숫자가 바뀌었는지 · 한 달에 얼마 덜(더) 남는지",
+  직원: "몇 명 · 몇 시간 · 한 달 인건비",
+  상권: "동 이름까지만 · 층 · 전에 있던 가게",
+  지원: "사업 이름 · 신청 마감일 · 공식 공고 주소",
+  가게: "어떤 가게 · 무엇이 달랐는지 · 출처",
 };
 
 /** 투자방 말머리 예시 (10/24) — 짧게 */
