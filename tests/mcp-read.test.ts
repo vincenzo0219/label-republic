@@ -50,9 +50,9 @@ d("MCP read-only tools + PlayMCP mode (10/24)", async () => {
 
   it("lists every tool by default and only read-only tools in PlayMCP mode", async () => {
     const all = ((await call("tools/list")) as ToolsList).result.tools.map((t) => t.name);
-    expect(all).toEqual(["today_debate", "join_debate", "post_opinion", "listening_test_stats", "list_rooms", "search_events", "search_posts", "list_tests"]);
+    expect(all).toEqual(["today_debate", "join_debate", "post_opinion", "listening_test_stats", "list_rooms", "search_events", "find_singles_events", "singles_event_detail", "search_posts", "list_tests"]);
     const ro = ((await call("tools/list", {}, true)) as ToolsList).result.tools;
-    expect(ro.map((t) => t.name)).toEqual(["today_debate", "listening_test_stats", "list_rooms", "search_events", "search_posts", "list_tests"]);
+    expect(ro.map((t) => t.name)).toEqual(["today_debate", "listening_test_stats", "list_rooms", "search_events", "find_singles_events", "singles_event_detail", "search_posts", "list_tests"]);
     for (const t of ro) expect(t.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, openWorldHint: false });
     const init = (await call("initialize", { protocolVersion: "2025-06-18" }, true)) as { result: { instructions: string; protocolVersion: string } };
     expect(init.result.protocolVersion).toBe("2025-06-18");

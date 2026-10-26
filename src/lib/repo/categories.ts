@@ -1,7 +1,7 @@
 import { query } from "../db";
 import type { Category } from "../types";
 
-const COLS = "id, name, slug, description, post_count, auto_promoted_at";
+const COLS = "id, name, slug, description, post_count, auto_promoted_at, info_only";
 
 /** 숨긴 방(Sprint 81)은 빼고. all 이면 숨긴 방도 (사이트맵·팩트 검색처럼 글 주소가 필요한 곳) */
 export async function listCategories(opts: { all?: boolean } = {}): Promise<Category[]> {

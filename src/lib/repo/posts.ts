@@ -18,6 +18,7 @@ import type { PostCard, PostDetail, PostRevision, PostType } from "../types";
 import { assertCanPropose, insertMeetup, type MeetupInput } from "./meetups";
 import { deleteFiles, listPostImages, setPostImages, type ImageRef } from "./images";
 import { assertPin } from "./pin-guard";
+import { infoOnlyError, isInfoOnlyRoom } from "./infoOnly";
 import { listPostSources, setPostSources, type SourceRef } from "./sources";
 import { getRule } from "./rules";
 import { deleteSnapshot } from "../snapshots";
@@ -392,6 +393,8 @@ export type CreatePostInput = {
 };
 
 export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
+  // 요약(AI)을 만들기 전에 먼저 거른다. 트랜잭션 안에서 한 번 더 본다
+  if (await isInfoOnlyRoom(raw.categorySlug)) throw infoOnlyError();
   // 투자방: 외부 채팅방 링크·리딩방 모집·전화번호는 올리지 않는다 (10/24, src/lib/investRooms.ts)
   const invest = investProblem(raw.categorySlug, raw.title, raw.body, ...(raw.summary?.lines ?? []), ...(raw.sources ?? []).flatMap((x) => [x.url, x.label]));
   if (invest) throw new HttpError(400, "invest_rule", invest);
@@ -410,8 +413,10 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
   const abuse = heuristicAbuse(input.title, input.body) ?? roomHeuristicAbuse(input.categorySlug, input.title, input.body);
 
   const id = await tx(async (client) => {
-    const cat = await client.query<{ id: number }>("SELECT id FROM categories WHERE slug = $1", [input.categorySlug]);
+    const cat = await client.query<{ id: number; info_only: boolean }>("SELECT id, info_only FROM categories WHERE slug = $1", [input.categorySlug]);
     if (!cat.rows[0]) throw new HttpError(400, "invalid_category", "존재하지 않는 카테고리입니다.");
+    // 💌 정보만 보여 주는 방: 운영 초안·에이전트·사람 모두 글을 쓸 수 없다 (092)
+    if (cat.rows[0].info_only) throw infoOnlyError();
     if (postType === "meetup") await assertCanPropose(client, cat.rows[0].id, input.nickname, input.fingerprint);
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO posts (category_id, nickname, pw_hash, title, body, spam_score, is_suppressed, moderation_note, moderated_by,

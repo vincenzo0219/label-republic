@@ -40,6 +40,7 @@ import { KidsTopLine } from "@/components/KidsTopLine";
 import { AdSchedule } from "@/components/AdSchedule";
 import { isAdLanding } from "@/lib/adSchedule";
 import { recentEventPosts } from "@/lib/repo/adSchedule";
+import { InfoOnlyRoom } from "@/components/InfoOnlyRoom";
 
 /** ✍️ 오늘 몇 자 (작가지망생방): 이번 주 순위 + 어제·오늘 인증 + 배지. 실패하면 안 보인다 */
 async function loadWriting(slug: string) {
@@ -70,6 +71,9 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<s
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) return {};
+  // 💌 정보만 보여 주는 방: 설명 그대로 (긴 줄표 없이)
+  if (category.info_only)
+    return { title: category.name, description: category.description, alternates: { canonical: `/c/${encodeURIComponent(category.slug)}` } };
   return {
     title: `${category.name} 방`,
     description: `${category.name} — ${category.description} 방장 없이 검증되는 노방장 정보 아카이브.`,
@@ -106,6 +110,8 @@ const ROOM_LINKS: Record<string, { href: string; label: string }[]> = {
 export default async function CategoryPage({ params, searchParams }: Props) {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) notFound();
+  // 💌 정보만 보여 주는 방 (092): 글 목록·글쓰기·채팅 탭 없이 행사 정보만
+  if (category.info_only) return <InfoOnlyRoom category={category} />;
   const sp = await searchParams;
   // 💬 수다방은 방 탭의 "자유채팅"으로 옮김
   const links = ROOM_LINKS[category.slug] ?? [];

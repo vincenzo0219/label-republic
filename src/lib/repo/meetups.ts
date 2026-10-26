@@ -7,6 +7,7 @@ import { config } from "../config";
 import { query, tx } from "../db";
 import { HttpError, blinded, notFound } from "../errors";
 import type { Meetup } from "../types";
+import { assertPostInteractive } from "./infoOnly";
 
 export type MeetupInput = { meetAt: string; location: string; minParticipants: number; capacity: number };
 
@@ -91,6 +92,7 @@ export type RsvpResult = { meetup: Meetup; attending: boolean; justConfirmed: bo
  */
 export async function toggleRsvp(postId: string, fp: string, nickname: string, now = new Date()): Promise<RsvpResult> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound("정모");
+  await assertPostInteractive(postId);
   return tx(async (client) => {
     const row = await client.query<{ status: string; meet_at: string; capacity: number; rsvp_count: number; is_blinded: boolean }>(
       `SELECT m.status, m.meet_at, m.capacity, m.rsvp_count, p.is_blinded

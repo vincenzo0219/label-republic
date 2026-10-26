@@ -11,6 +11,7 @@ import { hit } from "../rate-limit";
 import type { Comment } from "../types";
 import { assertPin } from "./pin-guard";
 import { ownerAlertAfter } from "./ownerAlert";
+import { infoOnlyError } from "./infoOnly";
 
 /** 글이 있는 방 slug (없으면 null) */
 async function roomOfPost(postId: string): Promise<string | null> {
@@ -63,8 +64,13 @@ export async function createComment(
   input = { ...input, body: maskPersonalInfo(input.body).text };
   const pwHash = await hashPin(input.pin);
   const comment = await tx(async (client) => {
-    const post = await client.query<{ is_blinded: boolean }>("SELECT is_blinded FROM posts WHERE id = $1 FOR SHARE", [postId]);
+    const post = await client.query<{ is_blinded: boolean; info_only: boolean }>(
+      "SELECT p.is_blinded, c.info_only FROM posts p JOIN categories c ON c.id = p.category_id WHERE p.id = $1 FOR SHARE OF p",
+      [postId],
+    );
     if (!post.rows[0]) throw notFound();
+    // 💌 정보만 보여 주는 방: 댓글·방 채팅 없음 (092)
+    if (post.rows[0].info_only) throw infoOnlyError();
     if (post.rows[0].is_blinded) throw blinded();
     let parentId: string | null = null;
     if (input.parentId) {

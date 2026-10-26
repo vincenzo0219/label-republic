@@ -24,6 +24,7 @@ const NOT_CHECKED: Record<string, string> = {
   push_runs: "배치 실행 기록",
   owner_alerts: "운영자 알림 대기열 (하루 뒤 지운다)",
   room_push_log: "내 방 새 글 알림 보낸 기록 (이틀 뒤 지운다)",
+  singles_push_log: "만남 행사 알림 보낸 기록 (중복 발송 방지)",
   event_group_confirms: "도착 확인 창 안의 '만났어요' (결과를 정한 뒤에는 쓰지 않는다)",
   event_group_reports: "동행 모집·채팅 신고 중복 방지 (신고 수는 각 줄에 남는다)",
   renewal_scans: "배치 진행 상태 (없으면 전체를 다시 계산)",

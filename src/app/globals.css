@@ -1323,3 +1323,39 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .report-sheet-body textarea { width: 100%; }
 .report-block { display: flex; gap: 8px; align-items: center; font-size: .95em; }
 .report-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* 💌 미혼남녀 만남 행사 (10/26): 정보만 보여 주는 방 */
+.singles-head { margin: 0 0 12px; }
+.singles-head .room-desc { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+.singles-scope { margin: 6px 0 0; }
+.singles-checker, .singles-alert { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.singles-checker h2, .singles-alert h2 { font-size: 15px; margin: 0 0 8px; }
+.singles-inputs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.singles-inputs select, .singles-region select { min-height: 36px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); padding: 4px 8px; font-size: 14px; max-width: 100%; }
+.singles-region { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.type-filter .linkish-tab { background: none; border: 0; padding: 0; font: inherit; color: var(--muted); cursor: pointer; }
+.type-filter .linkish-tab[aria-current="true"] { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+.singles-list { display: grid; gap: 10px; margin: 0 0 16px; }
+.singles-card { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.singles-card.st-closed, .singles-card.st-ended { opacity: .75; }
+.singles-top { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12px; }
+.singles-org, .singles-dday, .singles-verdict { padding: 2px 8px; border-radius: 999px; font-weight: 700; border: 1px solid var(--line); }
+.singles-org.org-gov, .singles-org.org-public { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.singles-org.org-temple { color: var(--gold); background: var(--gold-bg); border-color: transparent; }
+.singles-org.org-private_paid { color: var(--pending); background: var(--pending-bg); border-color: transparent; }
+.singles-dday.st-open { color: var(--accent); }
+.singles-verdict.v-ok { color: var(--brand-ink); background: var(--brand); border-color: transparent; }
+.singles-verdict.v-maybe { color: var(--gold); background: var(--gold-bg); border-color: transparent; }
+.singles-verdict.v-no { color: var(--pending); background: var(--pending-bg); border-color: transparent; }
+.singles-title { font-size: 16px; margin: 8px 0 6px; overflow-wrap: anywhere; }
+.singles-title a { color: inherit; text-decoration: none; }
+.singles-facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 13.5px; }
+.singles-facts dt { color: var(--muted); }
+.singles-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.singles-why { margin: 8px 0 0; font-size: 13px; }
+.singles-why.v-no { color: var(--danger); }
+.singles-source { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0 0; }
+.singles-notice { margin: 6px 0 0; }
+.singles-rejected { margin: 10px 0 0; }
+.singles-next ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
+.singles-consent { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 10px 0; }

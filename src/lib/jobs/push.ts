@@ -18,6 +18,7 @@ import { kstMonth } from "../savingsLog";
 import { runGigPush } from "./gigPush";
 import { flushOwnerAlerts } from "../repo/ownerAlert";
 import { runRoomPush } from "./roomPush";
+import { runSinglesPush } from "./singlesPush";
 import { runAutoGrouping, runEventReminders, settleGroups } from "../repo/eventGoing";
 
 const LOCK_KEY = 4_823_006;
@@ -477,6 +478,9 @@ export function startPushScheduler(intervalMs: number): () => void {
     // 🆕 내 방 새 글 (10/25): 방마다 6시간에 한 번, 하루 3번까지 (src/lib/jobs/roomPush.ts)
     const rm = await runRoomPush();
     if (rm.sent || rm.removed) console.log(`[push] 내 방 새 글 알림 ${rm.sent}건 발송, 구독 ${rm.removed}개 정리`);
+    // 💌 미혼남녀 만남 행사 (10/26): 맞는 행사 모집 시작·마감 하루 전 (KST 09~21시)
+    const sg1 = await runSinglesPush();
+    if (sg1.sent || sg1.removed) console.log(`[push] 만남 행사 알림 ${sg1.sent}건 발송, 구독 ${sg1.removed}개 정리`);
     // 🙋 같이 갈 사람 (10/26): 3일 전 알림(19~22시), D-3 12시 자동 조 편성, 도착 확인 끝난 모임 결과
     const er = await runEventReminders();
     if (er.sent) console.log(`[push] 행사 3일 전 알림 ${er.sent}건 발송`);

@@ -46,6 +46,7 @@ import { headOf } from "@/lib/heads";
 import { bareTitle, shopHeadLabel, stripsHead } from "@/lib/shopRoom";
 import { EventTogether } from "@/components/EventTogether";
 import { EventGroups } from "@/components/EventGroups";
+import { isInfoOnlyRoom } from "@/lib/repo/infoOnly";
 import { eventSpan } from "@/lib/adSchedule";
 import { afterEvent, firstOfficialUrl, groupsProof, kstToday, penaltyText, poolOpen } from "@/lib/eventGoing";
 import { activePenalty, autoGroupCount, eventDays, goingSummary, listOpenGroups } from "@/lib/repo/eventGoing";
@@ -128,7 +129,9 @@ export default async function PostPage({ params }: Props) {
   }
 
   const fp = fingerprint(await headers());
-  const isEvent = post.title.startsWith("[행사]");
+  // 💌 정보만 보여 주는 방(092)의 글이면 갈 거예요·같이 가요·댓글을 그리지 않는다 (서버도 거절)
+  const infoOnly = await isInfoOnlyRoom(post.category.slug).catch(() => false);
+  const isEvent = post.title.startsWith("[행사]") && !infoOnly;
   const [comments, myVote, participants, attending, appeal, corrections, rules, debate, together] = await Promise.all([
     listComments(id),
     getMyVote(id, fp),
@@ -291,7 +294,7 @@ export default async function PostPage({ params }: Props) {
       )}
 
       {debate && <DebateVote postId={post.id} initial={debate} />}
-      <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} badges={badges} />
+      {!infoOnly && <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} badges={badges} />}
       {isInvestRoom(post.category.slug) && <p className="invest-note">{INVEST_NOTICE}</p>}
     </article>
   );
