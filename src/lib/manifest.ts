@@ -7,7 +7,7 @@ export function siteManifest(): MetadataRoute.Manifest {
     id: "/",
     name: "노방장",
     short_name: "노방장",
-    description: "같은 취향끼리 일정·정보·수다",
+    description: "내 취향 일정, 놓치지 않게",
     lang: "ko",
     dir: "ltr",
     start_url: "/?source=pwa",

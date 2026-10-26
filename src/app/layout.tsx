@@ -17,9 +17,9 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(config.siteUrl),
-  title: { default: "노방장: 같은 취향끼리 일정·정보·수다", template: "%s | 노방장" },
+  title: { default: "노방장: 내 취향 일정, 놓치지 않게", template: "%s | 노방장" },
   description:
-    "노방장: 같은 취향끼리 일정·정보·수다. 가입 없이 쓰고, 행사·발매 일정은 폰 달력으로 챙기고, 러닝·커피·게임·육아·뮤지컬 등 관심사별 방에서 같은 취향끼리 이야기해요.",
+    "노방장: 내 취향 일정, 놓치지 않게. 가입 없이 쓰고, 행사·발매 일정은 폰 달력으로 챙기고, 러닝·커피·게임·육아·뮤지컬 등 관심사별 방에서 같은 취향끼리 이야기해요.",
   applicationName: "노방장",
   // iPhone 홈 화면에 추가했을 때 앱처럼 (푸시 알림도 이 경우에만 받을 수 있다)
   appleWebApp: { capable: true, title: "노방장", statusBarStyle: "default" },

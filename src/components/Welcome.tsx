@@ -35,7 +35,7 @@ export function Welcome({
   return (
     <section className="welcome welcome-compact" aria-labelledby="welcome-h">
       <div className="welcome-head">
-        <h2 id="welcome-h">👋 같은 취향끼리 일정·정보·수다</h2>
+        <h2 id="welcome-h">👋 내 취향 일정, 놓치지 않게</h2>
         <button type="button" className="btn btn-sm btn-ghost" onClick={close} aria-label="안내 닫기">
           닫기
         </button>
