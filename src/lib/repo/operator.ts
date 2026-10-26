@@ -633,6 +633,16 @@ export async function releaseAiHide(kind: "post" | "comment", id: string, note: 
   });
 }
 
+/** 운영 닉네임이 단 댓글 하나를 지운다 (10/26 대표님). 자동 답글은 비밀번호가 무작위라 사이트에서 못 지워서. 사람 댓글은 지우지 못한다 */
+export const OPERATOR_NICKS = ["노방장", "돈키호테", "덕후1호", "AI 큐레이터"];
+export async function deleteOperatorComment(id: string): Promise<{ deleted: boolean; nickname?: string }> {
+  const [row] = await query<{ nickname: string }>(
+    "DELETE FROM comments WHERE id = $1 AND nickname = ANY($2::text[]) RETURNING nickname",
+    [id, OPERATOR_NICKS],
+  );
+  return row ? { deleted: true, nickname: row.nickname } : { deleted: false };
+}
+
 /** AI 표시(🤖) 댓글을 한꺼번에 지운다 (10/25 대표님). AI 밸런스 토론방처럼 AI 캐릭터가 방의 주제인 곳은 남긴다. dryRun 이면 세기만 */
 export async function purgeAiComments(keepSlugs: string[], dryRun: boolean): Promise<{ count: number; byRoom: Record<string, number> }> {
   const where = `c.is_ai_curated AND NOT (cat.slug = ANY($1::text[]))`;
