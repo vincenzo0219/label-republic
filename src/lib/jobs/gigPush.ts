@@ -1,5 +1,5 @@
 /**
- * 📋 대강·구인 🔔 지역 알림 (10/25, 🧘 요가·필라테스 강사방). 1분마다:
+ * 📋 대강 · 💼 구인 🔔 지역 알림 (10/25, 🧘 요가·필라테스 강사방). 1분마다:
  * - 구독마다 지난 확인 이후 올라온, 고른 지역·수업에 맞는 글을 모아 한 번에 보낸다 (한 건이면 그 글로, 여러 건이면 게시판으로)
  * - 한 구독에 15분에 한 번, 하루 20번까지 (그 사이 글은 모였다가 다음에)
  * - 조용한 시간 KST 22:00~08:00: 보내지 않고 모았다가 08시에. 단 06~08시에는 오늘 수업이 남은 당일 급구만 먼저
@@ -68,7 +68,7 @@ export function gigPushMessage(items: GigLine[], subId: string, now: Date): Push
   const urgent = items.some((g) => isUrgent(g, now));
   if (one)
     return {
-      title: `${urgent ? "🔥 오늘 급구" : one.kind === "sub" ? "📋 새 대강" : "📋 새 구인"} · ${place(one)}`,
+      title: `${urgent ? "🔥 오늘 급구" : one.kind === "sub" ? "📋 새 대강" : "💼 새 구인"} · ${place(one)}`,
       body: summary(one),
       url: `/gigs/${one.id}?from=push&u=${u}`,
       tag: `lr-gig-${one.id}`,
@@ -105,6 +105,8 @@ export async function runGigPush(
            FROM gig_listings
           WHERE created_at > $1::timestamptz - make_interval(secs => $2) AND created_at <= $1::timestamptz - make_interval(secs => $3)
             AND closed_at IS NULL AND ai_hidden_reason IS NULL AND expires_on >= $4::date
+            -- 대강과 구인 글만 (강사 구직·1대1 레슨 가능·수강생 레슨 구해요는 알림 대상이 아니다)
+            AND (kind = 'sub' OR (kind = 'job' AND job_type NOT IN ('seek', 'lesson')))
           ORDER BY created_at`,
         [t, LOOKBACK_MS / 1000, SETTLE_MS / 1000, today],
       );

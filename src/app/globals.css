@@ -1231,7 +1231,16 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .gig-form .kids-picker-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .gig-form .kids-picker-row > * { flex: 1 1 140px; min-width: 0; }
 .gig-form .kids-picker-row > .btn { flex: 0 0 auto; }
-.gig-facts > div { grid-template-columns: 52px 1fr; }
+.gig-form .kids-picker-row > span { flex: 0 0 auto; align-self: center; }
+.gig-facts > div { grid-template-columns: 76px 1fr; }
+/* 💼 구인구직 · 🙋 1대1 레슨 (10/26) */
+.gig-check { display: flex; align-items: center; gap: 6px; }
+.gig-check input { width: 18px; height: 18px; }
+.gig-lesson-notice { margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.gig-lesson-notice p { margin: 0; }
+.gig-lesson-notice p + p { margin-top: 4px; }
+.gig-report { margin: 8px 0 14px; }
+.gig-matches { margin: 16px 0; }
 .gig-notes { white-space: pre-line; overflow-wrap: anywhere; margin: 0 0 14px; font-size: 14.5px; line-height: 1.6; }
 .gig-contact { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 0; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
 .gig-cta { align-items: center; }

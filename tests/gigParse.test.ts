@@ -98,7 +98,7 @@ fake@example.com
 문의 010-0000-5555`,
       NOW,
     );
-    expect(g).toMatchObject({ kind: "regular", sido: "인천", sigungu: "연수구", weekdays: [3, 5], times: ["11:00"], classType: "바레", pay: 32000, tax: true });
+    expect(g).toMatchObject({ kind: "job", sido: "인천", sigungu: "연수구", weekdays: [3, 5], times: ["11:00"], classType: "바레", pay: 32000, tax: true });
     expect(g.dates).toEqual([]);
   });
 
@@ -166,7 +166,7 @@ fake@example.com
 📧 fake-yoga@example.com`,
       NOW,
     );
-    expect(g).toMatchObject({ kind: "regular", sido: "경기", sigungu: "구리시", station: "동구릉", classType: "요가", pay: 35000, weekdays: [2, 4] });
+    expect(g).toMatchObject({ kind: "job", sido: "경기", sigungu: "구리시", station: "동구릉", classType: "요가", pay: 35000, weekdays: [2, 4] });
     expect(g.times).toEqual(["19:00", "20:00", "21:00"]);
     expect(g.contact).toBe("fake-yoga@example.com");
   });
@@ -180,7 +180,7 @@ fake@example.com
 ⭐전화번호 : 010-0000-9999`,
       NOW,
     );
-    expect(g).toMatchObject({ kind: "regular", weekdays: [5], times: ["18:30", "19:40"], pay: 35000, sido: "서울", sigungu: "영등포구", station: "영등포", classType: "바레" });
+    expect(g).toMatchObject({ kind: "job", weekdays: [5], times: ["18:30", "19:40"], pay: 35000, sido: "서울", sigungu: "영등포구", station: "영등포", classType: "바레" });
   });
 
   it("reads 오후 7:30 / 오후 8:30 and 타임비 1타임 40,000원 (총 2타임 80,000원)", () => {
@@ -194,7 +194,7 @@ fake@example.com
 이메일:fake-fit@example.com`,
       NOW,
     );
-    expect(g).toMatchObject({ kind: "regular", weekdays: [4], times: ["19:30", "20:30"], pay: 40000, sido: "경기", sigungu: "안양시", classType: "바레" });
+    expect(g).toMatchObject({ kind: "job", weekdays: [4], times: ["19:30", "20:30"], pay: 40000, sido: "경기", sigungu: "안양시", classType: "바레" });
   });
 
   it("reads mixed 오전/오후 in one line", () => {

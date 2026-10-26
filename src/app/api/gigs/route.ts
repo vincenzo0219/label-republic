@@ -7,18 +7,21 @@ import { hit } from "@/lib/rate-limit";
 import { claimNickname } from "@/lib/repo/nicknames";
 import { assertCanWrite } from "@/lib/repo/write-limits";
 import { createGig, listGigs, moderateGig } from "@/lib/repo/gigs";
-import { CLASS_TYPES, SIDOS, gigInputSchema } from "@/lib/instructorRoom";
+import { CLASS_TYPES, JOB_TYPE_KEYS, SIDOS, TIME_BANDS, gigInputSchema, type JobType } from "@/lib/instructorRoom";
 
 const filterSchema = z.object({
   sido: z.string().refine((v) => SIDOS.includes(v)).optional(),
   sigungu: z.string().max(20).optional(),
   when: z.enum(["today", "week"]).optional(),
   classType: z.enum(CLASS_TYPES).optional(),
-  kind: z.enum(["sub", "regular"]).optional(),
+  kind: z.enum(["sub", "job", "ask"]).optional(),
+  jobType: z.enum(JOB_TYPE_KEYS as [JobType, ...JobType[]]).optional(),
+  beginner: z.literal("1").transform(() => true).optional(),
+  band: z.enum(TIME_BANDS).optional(),
   page: z.coerce.number().int().min(1).max(50).optional(),
 });
 
-/** GET /api/gigs?sido=&sigungu=&when=today|week&classType=&kind=&page= — 📋 대강·구인 목록 (연락처 없음) */
+/** GET /api/gigs?kind=sub|job|ask&sido=&sigungu=&when=today|week&classType=&jobType=&beginner=1&band=&page= — 📋 대강 · 💼 구인구직 · 🙋 레슨 목록 (연락처 없음) */
 export const GET = route(async (req) => {
   const sp = Object.fromEntries([...new URL(req.url).searchParams].filter(([, v]) => v !== ""));
   const f = filterSchema.safeParse(sp);
@@ -27,7 +30,7 @@ export const GET = route(async (req) => {
   return new Response(JSON.stringify(r), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
 });
 
-/** POST /api/gigs — 대강·구인 글 올리기 */
+/** POST /api/gigs — 대강 · 구인구직 · 레슨 글 올리기 */
 export const POST = route(async (req) => {
   const fp = fingerprint(req.headers);
   if (!(await hit(`gig:create:${fp}`, 10, 3600_000))) throw tooMany();
