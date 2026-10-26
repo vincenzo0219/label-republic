@@ -25,7 +25,7 @@ d("operator drafts — 승인 대기함 (Sprint 51)", async () => {
     expect(done.status).toBe("posted");
     made.push(done.result_post_id!);
     const [post] = await query<{ nickname: string; title: string; post_type: string; is_ai_curated: boolean }>("SELECT nickname, title, post_type, is_ai_curated FROM posts WHERE id = $1", [done.result_post_id]);
-    expect(post).toEqual({ nickname: "덕후1호", title: "고친 제목", post_type: "chat", is_ai_curated: false });
+    expect(post).toEqual({ nickname: "노방장", title: "고친 제목", post_type: "chat", is_ai_curated: false });
     // 비밀번호는 지워지고, 두 번 승인되지 않는다
     expect((await query<{ pin: string | null }>("SELECT pin FROM operator_drafts WHERE id = $1", [draft.id]))[0]!.pin).toBeNull();
     await expect(drafts.approveDraft(draft.id)).rejects.toMatchObject({ status: 409 });
@@ -52,6 +52,23 @@ d("operator drafts — 승인 대기함 (Sprint 51)", async () => {
     made.push(done.result_post_id!);
     const [post] = await query<{ post_type: string }>("SELECT post_type FROM posts WHERE id = $1", [done.result_post_id]);
     expect(post!.post_type).toBe("info");
+  });
+
+  it("authors every post draft as 노방장, even when automations send old operator names (10/26); replies keep theirs", async () => {
+    for (const nickname of ["돈키호테", "덕후1호", "AI 큐레이터", " 돈키호테 "]) {
+      const draft = await drafts.createDraft({ kind: "post", categorySlug: "perfume-audio", nickname, pin: "8023", title: `통일 ${nickname}`, body: "작성자 통일 확인 본문입니다. 여러분 생각은?" });
+      expect(draft.nickname).toBe("노방장");
+    }
+    const reply = await drafts.createDraft({ kind: "comment", postId: made[0]!, nickname: "돈키호테", pin: "8023", body: "답글은 이름 그대로" });
+    expect(reply.nickname).toBe("돈키호테");
+    // 이미 대기 중이던 예전 이름 글 초안도 올릴 때 노방장으로
+    await query("UPDATE operator_drafts SET nickname = '덕후1호' WHERE title = '통일 돈키호테'");
+    const [old] = await query<{ id: string }>("SELECT id::text FROM operator_drafts WHERE title = '통일 돈키호테'");
+    const done = await drafts.approveDraft(old!.id);
+    made.push(done.result_post_id!);
+    const [post] = await query<{ nickname: string }>("SELECT nickname FROM posts WHERE id = $1", [done.result_post_id]);
+    expect(post!.nickname).toBe("노방장");
+    await query("DELETE FROM operator_drafts WHERE status = 'pending'");
   });
 
   it("refuses operator drafts without the 4-digit pin", async () => {

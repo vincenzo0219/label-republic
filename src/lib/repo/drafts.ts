@@ -1,11 +1,12 @@
 /**
  * 운영자 승인 대기함 (Sprint 51).
  *
- * AI가 운영자 계정(덕후1호)의 글·답글과 스레드·인스타 문구 초안을 넣어 두면, 운영자가 /admin/drafts 에서
+ * AI가 운영자 계정(글은 노방장, 답글은 기본 덕후1호)의 글·답글과 스레드·인스타 문구 초안을 넣어 두면, 운영자가 /admin/drafts 에서
  * 고치고 [승인]을 눌러야 올라간다. 승인한 글은 운영자 본인의 글이다 — 🤖 표시가 붙지 않는 대신,
  * 운영자가 써 보지 않은 제품의 후기처럼 꾸민 초안은 만들지 않는다 (README Sprint 51).
  * 스레드·인스타는 서버에 토큰이 있으면 승인할 때 바로 올리고(Sprint 52), 없으면 [복사] 후 "올렸음"으로 표시만 한다.
  */
+import { cardAuthor } from "../aiMark";
 import { query } from "../db";
 import { config } from "../config";
 import { HttpError, notFound } from "../errors";
@@ -84,7 +85,8 @@ export async function createDraft(input: NewDraft): Promise<Draft> {
       input.categorySlug ?? null,
       input.postId ?? null,
       input.parentId ?? null,
-      input.nickname ?? null,
+      // 글 초안은 작성자를 노방장으로 통일 (10/26 대표님) — 자동화가 돈키호테·덕후1호·AI 큐레이터로 보내도. 답글은 그대로
+      input.kind === "post" ? cardAuthor(input.nickname) : (input.nickname ?? null),
       needsPin ? input.pin : null,
       input.title ?? "",
       input.body,
@@ -147,7 +149,7 @@ export async function approveDraft(id: string, edit: { title?: string; body?: st
   let status: DraftStatus = "posted";
   try {
     if (d.kind === "post") {
-      const post = await createPost({ categorySlug: d.category_slug!, nickname: d.nickname, pin: d.pin!, title, body, summary: null, noSummary: true, postType: d.extra === "info" ? "info" : "chat" });
+      const post = await createPost({ categorySlug: d.category_slug!, nickname: cardAuthor(d.nickname), pin: d.pin!, title, body, summary: null, noSummary: true, postType: d.extra === "info" ? "info" : "chat" });
       postId = post.id;
     } else if (d.kind === "comment") {
       const c = await createComment(d.post_id!, { nickname: d.nickname, pin: d.pin!, body, parentId: d.parent_id ?? undefined });

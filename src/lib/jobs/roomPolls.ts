@@ -1,4 +1,5 @@
 /** 🗳 방마다 오늘의 질문 글을 하루 한 번 올린다 (Sprint 83). 숨긴 방은 쉰다 */
+import { AI_AUTHOR } from "../aiMark";
 import { query } from "../db";
 import { reportError } from "../error-tracking";
 import { kstDay } from "../metrics";
@@ -31,7 +32,7 @@ export async function runRoomPolls(day = kstDay()): Promise<string[]> {
     const rows = await query<{ id: string }>(
       `INSERT INTO posts (category_id, nickname, pw_hash, title, body, seed_key, moderated_by, post_type)
        VALUES ($1, $2, 'room-poll', $3, $4, $5, 'room-poll', 'chat') ON CONFLICT (seed_key) DO NOTHING RETURNING id::text`,
-      [cat.id, set.host, `${set.emoji} ${topic[0]} vs ${topic[1]}`, body, `roompoll:${slug}:${day}`],
+      [cat.id, AI_AUTHOR, `${set.emoji} ${topic[0]} vs ${topic[1]}`, body, `roompoll:${slug}:${day}`],
     );
     if (rows[0]) posted.push(rows[0].id);
   }

@@ -2,11 +2,10 @@
  * 🗳 방마다 매일 버튼 질문 하나 (Sprint 83, "방 기본 세트"). 책방의 오늘의 책 질문(Sprint 76)을 다른 방으로 넓혔다.
  * 글을 쓰지 않는 90%도 버튼 한 번으로 참여하고, 다음 날 또 올 이유가 생긴다. seed_key roompoll:방:날짜 로 하루 한 번.
  */
-export type RoomPollSet = { host: string; emoji: string; start: string; polls: readonly [string, string][] };
+export type RoomPollSet = { emoji: string; start: string; polls: readonly [string, string][] };
 
 export const ROOM_POLLS: Record<string, RoomPollSet> = {
   "k리그-덕후방": {
-    host: "⚽ 오늘의 질문",
     emoji: "⚽",
     start: "2026-10-19",
     polls: [
@@ -28,7 +27,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "반려견-덕후방": {
-    host: "🐶 오늘의 질문",
     emoji: "🐶",
     start: "2026-10-19",
     polls: [
@@ -50,7 +48,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "비건-덕후방": {
-    host: "🌱 오늘의 질문",
     emoji: "🌱",
     start: "2026-10-19",
     polls: [
@@ -72,7 +69,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "비바리움-덕후방": {
-    host: "🦎 오늘의 질문",
     emoji: "🦎",
     start: "2026-10-19",
     polls: [
@@ -94,7 +90,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "perfume-audio": {
-    host: "🎧 오늘의 질문",
     emoji: "🎧",
     start: "2026-10-19",
     polls: [
@@ -116,7 +111,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "애니-만화-덕후방": {
-    host: "🎨 오늘의 질문",
     emoji: "🎨",
     start: "2026-10-21",
     polls: [
@@ -138,7 +132,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "kbo-덕후방": {
-    host: "⚾ 오늘의 질문",
     emoji: "⚾",
     start: "2026-10-22",
     polls: [
@@ -160,7 +153,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "러닝-덕후방": {
-    host: "🏃 오늘의 질문",
     emoji: "🏃",
     start: "2026-10-22",
     polls: [
@@ -182,7 +174,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "요가-필라테스-덕후방": {
-    host: "🧘 오늘의 질문",
     emoji: "🧘",
     start: "2026-10-22",
     polls: [
@@ -204,7 +195,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "드라마-덕후방": {
-    host: "📺 오늘의 질문",
     emoji: "📺",
     start: "2026-10-23",
     polls: [
@@ -226,7 +216,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "신발-덕후방": {
-    host: "👟 오늘의 질문",
     emoji: "👟",
     start: "2026-10-23",
     polls: [
@@ -248,7 +237,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "게임-덕후방": {
-    host: "🎮 오늘의 질문",
     emoji: "🎮",
     start: "2026-10-23",
     polls: [
@@ -270,7 +258,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "커피-덕후방": {
-    host: "☕ 오늘의 질문",
     emoji: "☕",
     start: "2026-10-23",
     polls: [
@@ -292,7 +279,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "와인-위스키-덕후방": {
-    host: "🍷 오늘의 질문",
     emoji: "🍷",
     start: "2026-10-23",
     polls: [
@@ -314,7 +300,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "육아-덕후방": {
-    host: "👶 오늘의 질문",
     emoji: "👶",
     start: "2026-10-24",
     polls: [
@@ -336,7 +321,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   "작가지망생방": {
-    host: "✍️ 오늘의 질문",
     emoji: "✍️",
     start: "2026-10-25",
     polls: [
@@ -359,7 +343,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
   },
   // 💰🇺🇸 투자방 (10/24): 습관·방식만 묻는다. 종목·상품 고르기 질문은 넣지 않는다 (src/lib/investRooms.ts)
   "적립식-투자방": {
-    host: "💰 오늘의 질문",
     emoji: "💰",
     start: "2026-10-25",
     polls: [
@@ -381,7 +364,6 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
     ],
   },
   미국주식방: {
-    host: "🇺🇸 오늘의 질문",
     emoji: "🇺🇸",
     start: "2026-10-25",
     polls: [

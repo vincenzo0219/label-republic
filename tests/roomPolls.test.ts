@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ROOM_POLLS, roomPollTopic } from "@/lib/roomPolls";
+import { isAiCard } from "@/lib/aiMark";
 import { vivPick } from "@/lib/vivariumTest";
 import { veganPick } from "@/lib/veganTest";
 import { fanPick } from "@/lib/fanTest";
@@ -80,5 +81,55 @@ d("room polls (database)", async () => {
     expect(await votes.voteDebate(id!, "v1", "A")).toMatchObject({ a, b, human: { A: 1, B: 0 } });
     expect((await votes.latestRoomPoll("비바리움-덕후방"))?.id).toBe(id);
     expect(await votes.latestRoomPoll("perfume-audio")).toBeNull();
+  });
+
+  it("authors room polls and book polls as 노방장, keeps the emoji title and the AI mark (10/26)", async () => {
+    await query("TRUNCATE posts, categories, debate_votes RESTART IDENTITY CASCADE");
+    await query("INSERT INTO categories (slug, name, description) VALUES ('비바리움-덕후방', '비바리움', ''), ('읽는-책-제목을-교환해-보자', '책방', '')");
+    const [id] = await runRoomPolls("2026-10-20");
+    const { runBookPoll } = await import("@/lib/jobs/bookPoll");
+    const bookId = await runBookPoll("2026-10-20");
+    const rows = await query<{ id: string; nickname: string; title: string; moderated_by: string; is_ai_curated: boolean }>(
+      "SELECT id::text, nickname, title, moderated_by, is_ai_curated FROM posts WHERE id = ANY($1::bigint[]) ORDER BY id",
+      [[id, bookId]],
+    );
+    expect(rows.length).toBe(2);
+    for (const r of rows) {
+      expect(r.nickname).toBe("노방장");
+      expect(isAiCard(r)).toBe(true);
+    }
+    expect(rows[0]).toMatchObject({ moderated_by: "room-poll" });
+    expect(rows[0]!.title.startsWith(ROOM_POLLS["비바리움-덕후방"]!.emoji)).toBe(true);
+    expect(rows[1]).toMatchObject({ moderated_by: "book-poll" });
+  });
+
+  it("096 migration renames only AI/automation card posts to 노방장", async () => {
+    await query("TRUNCATE posts, categories, comments RESTART IDENTITY CASCADE");
+    const [cat] = await query<{ id: number }>("INSERT INTO categories (slug, name, description) VALUES ('비바리움-덕후방', '비바리움', '') RETURNING id");
+    const ins = (nickname: string, opts: { by?: string; ai?: boolean; fp?: string } = {}) =>
+      query<{ id: string }>(
+        "INSERT INTO posts (category_id, nickname, pw_hash, title, body, moderated_by, is_ai_curated, author_fingerprint, post_type) VALUES ($1, $2, 'x', 't', 'b', $3, $4, $5, 'chat') RETURNING id::text",
+        [cat!.id, nickname, opts.by ?? "", opts.ai ?? false, opts.fp ?? null],
+      ).then((r) => r[0]!.id);
+    const op = await ins("돈키호테");
+    const op2 = await ins("덕후1호");
+    const cur = await ins("AI 큐레이터", { ai: true, by: "ai-curator" });
+    const poll = await ins("🐶 오늘의 질문", { by: "room-poll" });
+    const book = await ins("📚 오늘의 질문", { by: "book-poll" });
+    const human = await ins("덕후1호", { fp: "f".repeat(64) });
+    const humanQ = await ins("내 오늘의 질문", { fp: "e".repeat(64) });
+    const debate = await ins("토론 사회자", { ai: true, by: "ai-debate" });
+    const shop = await ins("비즈파일럿", { by: "shop-room" });
+    await query("INSERT INTO comments (post_id, nickname, pw_hash, body) VALUES ($1, '덕후1호', 'x', '댓글')", [op]);
+    await query(readFileSync(path.join(process.cwd(), "db", "migrations", "096_unify_ai_authors.sql"), "utf8"));
+    const names = Object.fromEntries(
+      (await query<{ id: string; nickname: string }>("SELECT id::text, nickname FROM posts")).map((r) => [r.id, r.nickname]),
+    );
+    for (const id of [op, op2, cur, poll, book]) expect(names[id]).toBe("노방장");
+    expect(names[human]).toBe("덕후1호");
+    expect(names[humanQ]).toBe("내 오늘의 질문");
+    expect(names[debate]).toBe("토론 사회자");
+    expect(names[shop]).toBe("비즈파일럿");
+    expect((await query<{ nickname: string }>("SELECT nickname FROM comments"))[0]!.nickname).toBe("덕후1호");
   });
 });
