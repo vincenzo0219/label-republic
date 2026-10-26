@@ -22,6 +22,7 @@ import {
 import { cleanChat } from "../eventChat";
 import { GEO_RADIUS_M, distanceM, matchVenue } from "../venues";
 import { sendPush, type PushMessage, type SendResult } from "../push";
+import { assertGroupInteractive, infoOnlyError } from "./infoOnly";
 
 const ID = /^\d{1,18}$/;
 
@@ -29,10 +30,14 @@ export type EventPost = { id: string; title: string; body: string; created_at: s
 
 export async function loadEventPost(postId: string, c?: PoolClient): Promise<EventPost> {
   if (!ID.test(postId)) throw notFound();
-  const sql = `SELECT p.id::text, p.title, p.body, p.created_at, p.is_blinded, c.slug, c.name AS room
+  const sql = `SELECT p.id::text, p.title, p.body, p.created_at, p.is_blinded, c.slug, c.name AS room, c.info_only
                  FROM posts p JOIN categories c ON c.id = p.category_id WHERE p.id = $1`;
-  const row = c ? (await c.query<EventPost>(sql, [postId])).rows[0] : (await query<EventPost>(sql, [postId]))[0];
-  if (!row) throw notFound();
+  type Row = EventPost & { info_only: boolean };
+  const found = c ? (await c.query<Row>(sql, [postId])).rows[0] : (await query<Row>(sql, [postId]))[0];
+  if (!found) throw notFound();
+  // 💌 정보만 보여 주는 방(미혼남녀 만남 행사 등): 갈 거예요·같이 가요·조 짜기 모두 거절 (092)
+  if (found.info_only) throw infoOnlyError();
+  const { info_only: _io, ...row } = found;
   if (row.is_blinded) throw blinded();
   if (!row.title.startsWith("[행사]")) throw new HttpError(400, "not_event", "행사 글에서만 쓸 수 있어요.");
   return row;
@@ -232,6 +237,7 @@ export const showAutoProof = (n: number) => n >= GROUPS_SHOW_MIN;
  */
 export async function joinGroup(groupId: string, fp: string, nickname: string, pin: string, now = new Date(), agree = true): Promise<{ token: string }> {
   if (!ID.test(groupId)) throw notFound("모집");
+  await assertGroupInteractive(groupId);
   const [existing] = await query<{ id: string; pin_hash: string; left_at: string | null; is_hidden: boolean }>(
     "SELECT id::text, pin_hash, left_at, is_hidden FROM event_group_members WHERE group_id = $1 AND nickname = $2",
     [groupId, nickname],
@@ -552,7 +558,7 @@ export async function runAutoGrouping(now = new Date(), opts: { send?: Send } = 
   let sent = 0;
   const today = kstToday(now);
   for (const { post_id } of posts) {
-    const [post] = await query<{ title: string; body: string; created_at: string; is_blinded: boolean }>("SELECT title, body, created_at, is_blinded FROM posts WHERE id = $1", [post_id]);
+    const [post] = await query<{ title: string; body: string; created_at: string; is_blinded: boolean }>("SELECT p.title, p.body, p.created_at, (p.is_blinded OR c.info_only) AS is_blinded FROM posts p JOIN categories c ON c.id = p.category_id WHERE p.id = $1", [post_id]);
     const span = post ? eventSpan({ id: post_id, ...post }) : null;
     if (post && span && !post.is_blinded && !poolDue(span.start, now)) continue;
     const name = post ? eventName(post.title) : "행사";
@@ -630,7 +636,8 @@ export async function runEventReminders(now = new Date(), opts: { send?: Send } 
   const posts = await query<{ id: string; title: string; body: string; created_at: string }>(
     `SELECT p.id::text, p.title, left(p.body, 4000) AS body, p.created_at FROM posts p
       WHERE p.id IN (SELECT post_id FROM event_going WHERE reminded_at IS NULL AND subscription_id IS NOT NULL)
-        AND p.title LIKE '[행사]%' AND NOT p.is_blinded AND p.created_at > $1::timestamptz - interval '150 days'`,
+        AND p.title LIKE '[행사]%' AND NOT p.is_blinded
+        AND NOT EXISTS (SELECT 1 FROM categories c WHERE c.id = p.category_id AND c.info_only) AND p.created_at > $1::timestamptz - interval '150 days'`,
     [now.toISOString()],
   );
   let sent = 0;

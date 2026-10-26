@@ -7,6 +7,8 @@ export type Category = {
   description: string;
   post_count: number;
   auto_promoted_at: string | null;
+  /** 정보만 보여 주는 방 (092, 💌 미혼남녀 만남 행사): 글쓰기·댓글·채팅·동행 기능 없음 */
+  info_only?: boolean;
 };
 
 export type Summary = {
