@@ -6,10 +6,12 @@ import { useState } from "react";
  * 카드뷰 공유: 모바일은 Web Share API로 3줄 요약 이미지를 바로 보내고,
  * 지원하지 않는 환경은 링크 복사 / X 공유 / 이미지 저장으로 대체한다.
  */
-export function ShareButton({ postId, title }: { postId: string; title: string }) {
+export function ShareButton({ postId, title, from }: { postId: string; title: string; from?: string }) {
   const [open, setOpen] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const url = typeof window === "undefined" ? `/posts/${postId}` : `${window.location.origin}/posts/${postId}`;
+  // 🙋 행사 글 (10/26): 공유 링크에 ?from=share, 관리자 유입 경로에 "공유 링크"로 잡힌다
+  const path = `/posts/${postId}${from ? `?from=${encodeURIComponent(from)}` : ""}`;
+  const url = typeof window === "undefined" ? path : `${window.location.origin}${path}`;
   const imageUrl = `/posts/${postId}/card?format=square`;
 
   async function shareImage() {

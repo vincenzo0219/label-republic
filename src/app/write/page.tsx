@@ -20,8 +20,10 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
   const template = findTemplate(sp.template);
   // 방의 탭(자랑·질문… / 정보·정모)에서 누른 글쓰기 — 그 탭으로 미리 맞춘다
   const head = parseHead(sp.head);
-  const tabType: PostType | undefined = head ? "chat" : sp.type === "info" || sp.type === "meetup" ? sp.type : undefined;
-  const tab = tabType && { title: head ? `[${head}] ` : "", body: "", postType: tabType };
+  // 🙋 행사 다음 날 "방에 후기 남겨도 좋아요" (10/26): ?type=review → 잡담 "[후기] "
+  const review = !head && sp.type === "review";
+  const tabType: PostType | undefined = head || review ? "chat" : sp.type === "info" || sp.type === "meetup" ? sp.type : undefined;
+  const tab = tabType && { title: head ? `[${head}] ` : review ? "[후기] " : "", body: "", postType: tabType };
   return (
     <>
       <h1 style={{ fontSize: 20, margin: "4px 0 12px" }}>글쓰기</h1>

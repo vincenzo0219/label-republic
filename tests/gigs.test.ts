@@ -2,8 +2,26 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { dupText, expiresOn, gigProblem, isUrgent, nearlySame, quietNow, urgentWindowNow, type GigInput } from "@/lib/instructorRoom";
-import { ROOM_CHAT_TABS, ROOM_DEFAULT_TAB, headsFor, tabHeadsFor } from "@/lib/heads";
+import {
+  MEDICAL_MESSAGE,
+  areaOverlap,
+  areasOverlap,
+  bandsOverlap,
+  dupText,
+  expiresOn,
+  gigInputSchema,
+  gigProblem,
+  isUrgent,
+  jobPayLabel,
+  lessonMatches,
+  medicalWordIn,
+  nearlySame,
+  quietNow,
+  urgentWindowNow,
+  type GigInput,
+  type GigInputRaw,
+} from "@/lib/instructorRoom";
+import { ROOM_CHAT_TABS, ROOM_DEFAULT_TAB, headsFor, roomTabsAround, tabHeadsFor } from "@/lib/heads";
 
 const vapid = webpush.generateVAPIDKeys();
 process.env.VAPID_PUBLIC_KEY = vapid.publicKey;
@@ -13,7 +31,7 @@ const ROOM = "요가-필라테스-강사방";
 // 2026-10-25(일) 12:00 KST
 const NOW = new Date("2026-10-25T03:00:00Z");
 
-const base = (over: Partial<GigInput> = {}): GigInput => ({
+const base = (over: Partial<GigInputRaw> = {}): GigInput => gigInputSchema.parse({
   nickname: "테스트센터",
   pw: "1234",
   kind: "sub",
@@ -36,10 +54,29 @@ const base = (over: Partial<GigInput> = {}): GigInput => ({
   ...over,
 });
 
+/** 💼 구인구직 글 (센터 정규) */
+const job = (over: Partial<GigInputRaw> = {}): GigInput =>
+  base({ kind: "job", jobType: "center", dates: [], weekdays: [1, 3], timeBands: ["저녁"], times: [], pay: 30000, noshowPay: "노쇼도 100%", ...over });
+
+/** 🙋 강사 1대1 레슨 가능 */
+const lesson = (over: Partial<GigInputRaw> = {}): GigInput =>
+  base({ kind: "job", jobType: "lesson", studio: "", sido: "", sigungu: "", dates: [], times: [], weekdays: [2, 4], timeBands: ["저녁"], areas: ["서울 마포구", "서울 서대문구"], pay: 60000, payMax: 80000, places: ["rent"], career: "강사 5년", notes: "", ...over });
+
+/** 🙋 수강생 레슨 구해요 */
+const ask = (over: Partial<GigInputRaw> = {}): GigInput =>
+  base({ kind: "ask", studio: "", sido: "", sigungu: "", dates: [], times: [], weekdays: [4], timeBands: ["저녁"], areas: ["서울 마포구"], classType: "기타", goal: "posture", level: "none", pay: null, notes: "", ...over });
+
 describe("🧘 강사방 규칙", () => {
-  it("has the board as the default tab, then 수업 팁 · 행사·할인 tabs ([혜택] 글은 행사·할인 탭에 함께)", () => {
+  it("shows 📋 대강 · 💼 구인구직 before 💬 채팅, then 수업 팁 · 행사·할인 ([혜택] 글은 행사·할인 탭에 함께)", () => {
     expect(ROOM_DEFAULT_TAB[ROOM]).toBe("gigs");
-    expect(ROOM_CHAT_TABS[ROOM]).toEqual([{ key: "gigs", label: "📋 대강·구인" }]);
+    expect(ROOM_CHAT_TABS[ROOM]).toEqual([
+      { key: "gigs", label: "📋 대강" },
+      { key: "jobs", label: "💼 구인구직" },
+    ]);
+    expect(roomTabsAround(ROOM)).toEqual({ before: ROOM_CHAT_TABS[ROOM], after: [] });
+    // 기본 탭이 없는 방은 그대로 💬 채팅 뒤
+    expect(roomTabsAround("육아-덕후방")).toEqual({ before: [], after: [{ key: "near", label: "📍동네 체험" }] });
+    expect(roomTabsAround("요가-필라테스-덕후방")).toEqual({ before: [], after: [{ key: "lesson", label: "🙋 1대1 레슨 구해요" }] });
     expect(headsFor(ROOM).map((h) => h.key)).toEqual(["수업팁", "행사", "혜택"]);
     expect(tabHeadsFor(ROOM)).toEqual([
       { key: "수업팁", label: "🧘 수업 팁" },
@@ -51,16 +88,67 @@ describe("🧘 강사방 규칙", () => {
     expect(gigProblem(base(), "2026-10-25")).toBeNull();
     expect(gigProblem(base({ sido: "" }), "2026-10-25")).toMatch(/지역/);
     expect(gigProblem(base({ dates: [] }), "2026-10-25")).toMatch(/날짜/);
-    expect(gigProblem(base({ kind: "regular", dates: [], weekdays: [] }), "2026-10-25")).toMatch(/요일/);
-    expect(gigProblem(base({ kind: "regular", dates: [], weekdays: [1, 3] }), "2026-10-25")).toBeNull();
     expect(gigProblem(base({ dates: ["2026-10-20"] }), "2026-10-25")).toMatch(/지난/);
     expect(gigProblem(base({ sigungu: "강남시" }), "2026-10-25")).toMatch(/지역/);
     expect(gigProblem(base({ contact: "문자 주세요" }), "2026-10-25")).toMatch(/연락처/);
   });
 
-  it("expires 대강 after the last date and 정규 after 30 days", () => {
+  it("validates 💼 구인구직: 구분, 요일·시간대, and 회당 금액 or 기본급 (required)", () => {
+    expect(gigProblem(job(), "2026-10-25")).toBeNull();
+    expect(gigProblem(job({ jobType: null }), "2026-10-25")).toMatch(/구분/);
+    expect(gigProblem(job({ weekdays: [], timeBands: [] }), "2026-10-25")).toMatch(/요일이나 시간대/);
+    expect(gigProblem(job({ weekdays: [], timeBands: ["오전"] }), "2026-10-25")).toBeNull();
+    expect(gigProblem(job({ pay: null }), "2026-10-25")).toBe("회당 금액이나 기본급을 넣어 주세요");
+    expect(gigProblem(job({ pay: null, payBase: 1_500_000 }), "2026-10-25")).toBeNull();
+    expect(gigProblem(job({ jobType: "seek", studio: "", pay: null }), "2026-10-25")).toMatch(/희망 회당 금액/);
+    expect(gigProblem(job({ sido: "" }), "2026-10-25")).toMatch(/지역/);
+    expect(jobPayLabel({ pay: 30000, payBase: 1_500_000 })).toBe("회당 3만 · 기본급 150만");
+    expect(jobPayLabel({ pay: 60000, payMax: 80000, payBase: null })).toBe("회당 6~8만");
+    expect(jobPayLabel({ pay: null, payBase: null })).toBe("금액 협의");
+  });
+
+  it("expires 대강 after the last date and 구인구직·레슨 글 after 30 days (start date does not extend it)", () => {
     expect(expiresOn("sub", ["2026-10-27", "2026-10-29"], "2026-10-25")).toBe("2026-10-29");
-    expect(expiresOn("regular", [], "2026-10-25")).toBe("2026-11-24");
+    expect(expiresOn("job", [], "2026-10-25")).toBe("2026-11-24");
+    expect(expiresOn("job", ["2027-01-10"], "2026-10-25")).toBe("2026-11-24");
+    expect(expiresOn("ask", [], "2026-10-25")).toBe("2026-11-24");
+  });
+
+  it("validates 1대1 레슨 posts and blocks medical words", () => {
+    expect(gigProblem(lesson(), "2026-10-25")).toBeNull();
+    expect(gigProblem(ask(), "2026-10-25")).toBeNull();
+    expect(gigProblem(lesson({ areas: [] }), "2026-10-25")).toMatch(/지역을 하나 이상/);
+    expect(gigProblem(lesson({ areas: ["서울 강남시"] }), "2026-10-25")).toMatch(/지역/);
+    expect(gigProblem(lesson({ weekdays: [], timeBands: [] }), "2026-10-25")).toMatch(/요일이나 시간대/);
+    expect(gigProblem(lesson({ pay: null }), "2026-10-25")).toMatch(/회당 금액/);
+    expect(gigProblem(lesson({ places: [] }), "2026-10-25")).toMatch(/장소/);
+    expect(gigProblem(lesson({ pay: 80000, payMax: 60000 }), "2026-10-25")).toMatch(/범위/);
+    expect(gigProblem(ask({ goal: null }), "2026-10-25")).toMatch(/목표/);
+    expect(gigProblem(ask({ level: null }), "2026-10-25")).toMatch(/경험/);
+    // 의료 표현: 강사 소개·경력, 수강생 글 모두
+    expect(gigProblem(lesson({ career: "재활 필라테스 전문" }), "2026-10-25")).toBe(MEDICAL_MESSAGE);
+    expect(gigProblem(lesson({ notes: "체형 교정 해 드려요" }), "2026-10-25")).toBe(MEDICAL_MESSAGE);
+    expect(gigProblem(ask({ notes: "허리 디스크가 있어서요" }), "2026-10-25")).toBe(MEDICAL_MESSAGE);
+    expect(medicalWordIn("통증 개선")).toBe(true);
+    expect(medicalWordIn("치 료")).toBe(true);
+    expect(medicalWordIn("자세 관리", "유연성", "산전·산후 운동")).toBe(false);
+    // 대강·구인 글에는 적용하지 않는다 (센터 소개에 "재활센터"가 있을 수 있음)
+    expect(gigProblem(job({ studio: "OO재활센터" }), "2026-10-25")).toBeNull();
+  });
+
+  it("matches lesson posts by overlapping region and time band", () => {
+    expect(areaOverlap("서울 마포구", "서울 마포구")).toBe(true);
+    expect(areaOverlap("서울", "서울 마포구")).toBe(true);
+    expect(areaOverlap("서울 마포구", "서울")).toBe(true);
+    expect(areaOverlap("서울 마포구", "서울 강남구")).toBe(false);
+    expect(areaOverlap("경기 성남시", "서울")).toBe(false);
+    expect(areasOverlap(["서울 강남구", "경기 성남시"], ["경기"])).toBe(true);
+    expect(bandsOverlap(["저녁"], ["오전", "저녁"])).toBe(true);
+    expect(bandsOverlap(["오전"], ["저녁"])).toBe(false);
+    expect(bandsOverlap([], ["저녁"])).toBe(true);
+    expect(lessonMatches({ areas: ["서울 마포구"], timeBands: ["저녁"] }, { areas: ["서울"], timeBands: ["저녁", "주말"] })).toBe(true);
+    expect(lessonMatches({ areas: ["서울 마포구"], timeBands: ["오전"] }, { areas: ["서울 마포구"], timeBands: ["저녁"] })).toBe(false);
+    expect(lessonMatches({ areas: ["서울 마포구"], timeBands: ["저녁"] }, { areas: ["서울 강남구"], timeBands: ["저녁"] })).toBe(false);
   });
 
   it("compares near-identical text", () => {
@@ -72,7 +160,7 @@ describe("🧘 강사방 규칙", () => {
   it("knows 당일 급구 and quiet hours (KST)", () => {
     expect(isUrgent({ kind: "sub", dates: ["2026-10-25"], times: ["19:00"] }, NOW)).toBe(true);
     expect(isUrgent({ kind: "sub", dates: ["2026-10-25"], times: ["09:00"] }, NOW)).toBe(false);
-    expect(isUrgent({ kind: "regular", dates: ["2026-10-25"], times: ["19:00"] }, NOW)).toBe(false);
+    expect(isUrgent({ kind: "job", dates: ["2026-10-25"], times: ["19:00"] }, NOW)).toBe(false);
     expect(quietNow(new Date("2026-10-25T13:30:00Z"))).toBe(true); // 22:30
     expect(quietNow(new Date("2026-10-25T23:30:00Z"))).toBe(false); // 08:30
     expect(urgentWindowNow(new Date("2026-10-25T21:30:00Z"))).toBe(true); // 06:30
@@ -147,12 +235,13 @@ d("📋 대강·구인 (DB)", async () => {
 
   it("filters by region, today, class and kind; hides past and closed", async () => {
     const t = await gigs.createGig(base({ studio: "오늘요가", classType: "요가", sido: "경기", sigungu: "성남시", dates: ["2026-10-25"], times: ["20:00"], contact: "010-0000-3333" }), who, NOW);
-    const reg = await gigs.createGig(base({ kind: "regular", studio: "정규바레", classType: "바레", sido: "경기", sigungu: "성남시", dates: [], weekdays: [0, 3], contact: "010-0000-4444" }), who, NOW);
+    const reg = await gigs.createGig(job({ studio: "정규바레", classType: "바레", sido: "경기", sigungu: "성남시", weekdays: [0, 3], contact: "010-0000-4444" }), who, NOW);
     const ids = async (f: Parameters<typeof gigs.listGigs>[0], at = NOW) => (await gigs.listGigs(f, at)).items.map((g) => g.id);
     expect(await ids({ sido: "경기", sigungu: "성남시" })).toEqual([reg.id, t.id]);
     expect(await ids({ sido: "경기", when: "today" })).toEqual([reg.id, t.id]); // 정규는 오늘(일) 요일이 맞아서
     expect(await ids({ sido: "경기", classType: "요가" })).toEqual([t.id]);
-    expect(await ids({ sido: "경기", kind: "regular" })).toEqual([reg.id]);
+    expect(await ids({ sido: "경기", kind: "job" })).toEqual([reg.id]);
+    expect(await ids({ sido: "경기", kind: "sub" })).toEqual([t.id]);
     expect((await gigs.listGigs({ sido: "경기" }, NOW)).items.find((g) => g.id === t.id)?.urgent).toBe(true);
     // 다음 날이면 오늘 대강은 빠진다 (DB 에는 남음)
     expect(await ids({ sido: "경기" }, new Date(NOW.getTime() + 86_400_000))).toEqual([reg.id]);
@@ -162,6 +251,76 @@ d("📋 대강·구인 (DB)", async () => {
     await gigs.closeGig(reg.id, "a".repeat(64), "1234");
     expect(await ids({ sido: "경기" })).toEqual([t.id]);
     await expect(gigs.gigContact(reg.id, NOW)).rejects.toMatchObject({ status: 410 });
+  });
+
+  it("💼 구인구직: requires pay, filters by 구분·지역·초보 가능, hides after 마감 or 30 days, keeps 대강 clean", async () => {
+    await expect(gigs.createGig(job({ pay: null, payBase: null, contact: "010-1000-0001" }), who, NOW)).rejects.toMatchObject({ status: 400, message: "회당 금액이나 기본급을 넣어 주세요" });
+    const center = await gigs.createGig(job({ studio: "구인센터", sido: "부산", sigungu: "해운대구", beginnerOk: true, payBase: 1_800_000, contract: "employee", screening: ["시강"], contact: "010-1000-0002" }), who, NOW);
+    const apt = await gigs.createGig(job({ jobType: "apt", studio: "OO아파트 커뮤니티", sido: "부산", sigungu: "수영구", contact: "010-1000-0003" }), who, NOW);
+    const seek = await gigs.createGig(job({ jobType: "seek", studio: "", sido: "부산", sigungu: "", career: "매트 1년", pay: 30000, contact: "010-1000-0004" }), who, NOW);
+    const ids = async (f: Parameters<typeof gigs.listGigs>[0], at = NOW) => (await gigs.listGigs({ kind: "job", sido: "부산", ...f }, at)).items.map((g) => g.id);
+    expect(await ids({})).toEqual([seek.id, apt.id, center.id]);
+    expect(await ids({ jobType: "apt" })).toEqual([apt.id]);
+    expect(await ids({ beginner: true })).toEqual([center.id]);
+    expect(await ids({ sigungu: "해운대구" })).toEqual([center.id]);
+    expect(await ids({ band: "저녁" })).toEqual([seek.id, apt.id, center.id]);
+    expect(await ids({ band: "오전" })).toEqual([]);
+    // 대강 탭에는 안 보인다
+    expect((await gigs.listGigs({ kind: "sub", sido: "부산" }, NOW)).items).toEqual([]);
+    const d = await gigs.getGig(center.id, NOW);
+    expect(d).toMatchObject({ kind: "job", jobType: "center", payBase: 1_800_000, beginnerOk: true, contract: "employee", screening: ["시강"], noshowPay: "노쇼도 100%", timeBands: ["저녁"] });
+    expect(JSON.stringify(d)).not.toContain("010-1000-0002");
+    // 30일째까지 보이고 31일째 내려간다 (DB 에는 남음)
+    expect(await ids({}, new Date(NOW.getTime() + 30 * 86_400_000))).toContain(center.id);
+    expect(await ids({}, new Date(NOW.getTime() + 31 * 86_400_000))).toEqual([]);
+    expect(await gigs.getGig(center.id, new Date(NOW.getTime() + 31 * 86_400_000))).toMatchObject({ expired: true });
+    // 마감
+    await gigs.closeGig(apt.id, "a".repeat(64), "1234");
+    expect(await ids({})).toEqual([seek.id, center.id]);
+    // 대강 글에는 구인구직 칸이 붙지 않는다
+    const sub = await gigs.createGig(base({ studio: "깨끗한대강", sido: "부산", sigungu: "해운대구", payBase: 2_000_000, beginnerOk: true, jobType: "center", timeBands: ["오전"], contact: "010-1000-0005" }), who, NOW);
+    expect(await gigs.getGig(sub.id, NOW)).toMatchObject({ kind: "sub", jobType: null, payBase: null, beginnerOk: false, timeBands: [] });
+    // API: 구인구직 거르기
+    const res = await list.GET(new Request(`http://localhost/api/gigs?kind=job&sido=${encodeURIComponent("부산")}&beginner=1`), { params: Promise.resolve({}) });
+    expect(((await res.json()) as { items: { id: string }[] }).items.map((g) => g.id)).toEqual([center.id]);
+  });
+
+  it("🙋 1대1 레슨: multi-region posts, region/time filters, two-way matches, medical words, report", async () => {
+    const t1 = await gigs.createGig(lesson({ nickname: "강사하나", contact: "010-2000-0001" }), who, NOW);
+    const t2 = await gigs.createGig(lesson({ nickname: "강사둘", areas: ["서울 강남구"], contact: "010-2000-0002" }), who, NOW);
+    const t3 = await gigs.createGig(lesson({ nickname: "강사셋", areas: ["서울 마포구"], timeBands: ["오전"], weekdays: [1], contact: "010-2000-0003" }), who, NOW);
+    const s1 = await gigs.createGig(ask({ nickname: "수강생", contact: "010-2000-0004" }), { fingerprint: "b".repeat(64), net: null }, NOW);
+    const s2 = await gigs.createGig(ask({ nickname: "수강생둘", areas: ["서울"], timeBands: [], goal: "flex", level: "some", pay: 50000, payMax: 70000, contact: "010-2000-0005" }), { fingerprint: "c".repeat(64), net: null }, NOW);
+    // 대표 지역은 첫 지역
+    expect(await gigs.getGig(t1.id, NOW)).toMatchObject({ sido: "서울", sigungu: "마포구", areas: ["서울 마포구", "서울 서대문구"], places: ["rent"], payMax: 80000, career: "강사 5년" });
+    // 두 번째 지역(서대문구)으로도 찾아진다
+    const lessonIds = async (f: Parameters<typeof gigs.listGigs>[0]) => (await gigs.listGigs({ kind: "job", jobType: "lesson", sido: "서울", ...f }, NOW)).items.map((g) => g.id);
+    expect(await lessonIds({ sigungu: "서대문구" })).toEqual([t1.id]);
+    expect(await lessonIds({ sigungu: "마포구", band: "저녁" })).toEqual([t1.id]);
+    // 수강생 탭: "서울" 전체로 올린 글은 마포구에서도 보인다
+    const askIds = async (f: Parameters<typeof gigs.listGigs>[0]) => (await gigs.listGigs({ kind: "ask", ...f }, NOW)).items.map((g) => g.id);
+    expect(await askIds({ sido: "서울", sigungu: "마포구" })).toEqual([s2.id, s1.id]);
+    expect(await askIds({ sido: "서울", sigungu: "강남구" })).toEqual([s2.id]);
+    // 레슨 구해요 글은 강사방 목록(종류 없이)에 섞이지 않는다
+    expect((await gigs.listGigs({ sido: "서울" }, NOW)).items.map((g) => g.id)).not.toContain(s1.id);
+    // 매칭: 수강생(마포·저녁) → 마포 저녁 강사만 / 강사(마포·서대문 저녁) → 두 수강생 / 강남 강사 → "서울" 수강생만
+    const of = async (id: string) => (await gigs.lessonMatchesFor((await gigs.getGig(id, NOW))!, NOW)).map((g) => g.id);
+    expect(await of(s1.id)).toEqual([t1.id]);
+    expect(await of(s2.id)).toEqual([t3.id, t2.id, t1.id]);
+    expect(await of(t1.id)).toEqual([s2.id, s1.id]);
+    expect(await of(t2.id)).toEqual([s2.id]);
+    expect(await of(t3.id)).toEqual([s2.id]);
+    // 의료 표현은 올리지 않는다
+    await expect(gigs.createGig(ask({ notes: "거북목 교정이 목표예요", contact: "010-2000-0006" }), who, NOW)).rejects.toMatchObject({ status: 400, message: MEDICAL_MESSAGE });
+    await expect(gigs.createGig(lesson({ career: "통증 관리 전문", contact: "010-2000-0007" }), who, NOW)).rejects.toMatchObject({ status: 400, message: MEDICAL_MESSAGE });
+    // 🚩 신고: 한 브라우저 한 번, 고유 신고 3건이면 목록에서 가린다
+    expect(await gigs.reportGig(t2.id, "1".repeat(64), "선입금 요구")).toEqual({ is_blinded: false, alreadyReported: false });
+    expect(await gigs.reportGig(t2.id, "1".repeat(64), "또")).toEqual({ is_blinded: false, alreadyReported: true });
+    await gigs.reportGig(t2.id, "2".repeat(64), "");
+    expect(await gigs.reportGig(t2.id, "3".repeat(64), "")).toEqual({ is_blinded: true, alreadyReported: false });
+    expect(await lessonIds({})).not.toContain(t2.id);
+    expect(await of(s2.id)).toEqual([t3.id, t1.id]);
+    await expect(gigs.reportGig("999999", "4".repeat(64), "")).rejects.toMatchObject({ status: 404 });
   });
 
   it("sends regional alerts, respects quiet hours, and one-tap unsubscribes", async () => {

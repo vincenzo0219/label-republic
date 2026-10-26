@@ -40,6 +40,9 @@ export const CHECK_TABLES = [
   // 10/25 🧘 강사방 📋 대강·구인 · 🔔 지역 알림
   "gig_listings",
   "gig_alert_subs",
+  "gig_reports",
+  // 10/26 🙋 같이 갈 사람 (모임·조원·노쇼 기록은 사라지면 안 된다)
+  "event_going", "event_groups", "event_group_members", "event_group_messages", "event_pool", "event_penalties",
 ];
 
 type Manifest = {

@@ -24,7 +24,7 @@ export const SHOP_HEADS = [
   { key: "가게", label: "🏆 잘된 가게" },
 ] as const;
 
-/** 🧘 요가·필라테스 강사방 (10/25): 📋 대강·구인(방 전용 화면) 다음 탭 */
+/** 🧘 요가·필라테스 강사방 (10/25): 📋 대강 · 💼 구인구직(방 전용 화면) · 💬 채팅 다음 탭 */
 const INSTRUCTOR_HEADS = [{ key: "수업팁", label: "🧘 수업 팁" }] as const;
 
 export const ALL_HEADS = [...BOOK_HEADS, ...HEADS, ...SHOP_HEADS, ...INSTRUCTOR_HEADS] as const;
@@ -58,17 +58,33 @@ const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
 const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방", SHOP_ROOM, INSTRUCTOR]);
 
 /** 방 탭 줄 끝에 붙는 다른 화면 링크 (책 덕후방 물어보기는 10/23 📚 추천 탭 안으로 합침) */
-export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {};
+export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {
+  // 10/26: 사진 2장 자세 체크 (브라우저 안에서만 분석, src/lib/posture.ts)
+  [INSTRUCTOR]: [{ href: "/posture-check", label: "📸 자세 체크" }],
+};
 
 /** 💬 채팅 바로 뒤에 붙는 방 전용 탭 (?tab=키, 글 목록 대신 그 화면) — 육아방 📍동네 체험 (10/24) */
 export const ROOM_CHAT_TABS: Record<string, { key: string; label: string }[]> = {
   "육아-덕후방": [{ key: "near", label: "📍동네 체험" }],
-  [INSTRUCTOR]: [{ key: "gigs", label: "📋 대강·구인" }],
+  // 강사방 (10/26): 📋 대강 · 💼 구인구직 두 탭. 기본 탭이 있는 방은 이 탭들이 💬 채팅 앞에 온다
+  [INSTRUCTOR]: [
+    { key: "gigs", label: "📋 대강" },
+    { key: "jobs", label: "💼 구인구직" },
+  ],
+  // 🙋 1대1 레슨 구해요 (10/26, 수강생 쪽. 강사 쪽은 강사방 💼 구인구직의 "1대1 레슨 가능")
+  "요가-필라테스-덕후방": [{ key: "lesson", label: "🙋 1대1 레슨 구해요" }],
 };
-/** 탭 없이 들어오면 이 탭 (강사방: 📋 대강·구인). 이런 방의 "전체" 는 ?tab=all */
+/** 탭 없이 들어오면 이 탭 (강사방: 📋 대강). 이런 방의 "전체" 는 ?tab=all */
 export const ROOM_DEFAULT_TAB: Record<string, string> = { [INSTRUCTOR]: "gigs" };
 export const ALL_TAB = "all";
 export const roomTabOf = (slug: string, tab: string | undefined) => (tab ? ROOM_CHAT_TABS[slug]?.find((t) => t.key === tab) : undefined);
+/** 💬 채팅 앞·뒤에 놓이는 방 전용 탭. 기본 탭이 있는 방(강사방)은 전부 채팅 앞(기본 탭이 맨 앞), 나머지 방은 채팅 뒤 */
+export function roomTabsAround(slug: string): { before: { key: string; label: string }[]; after: { key: string; label: string }[] } {
+  const tabs = ROOM_CHAT_TABS[slug] ?? [];
+  const def = ROOM_DEFAULT_TAB[slug];
+  if (!def) return { before: [], after: tabs };
+  return { before: [...tabs.filter((t) => t.key === def), ...tabs.filter((t) => t.key !== def)], after: [] };
+}
 
 /** 📋 정보 탭을 따로 두지 않는 방 (전체 탭에만 보인다) */
 export const NO_INFO_TAB = new Set([BOOK, SHOP_ROOM, INSTRUCTOR]);

@@ -12,7 +12,7 @@ const TOKEN_LEN = 16;
 const REF = /^(\d{1,18})\.([A-Za-z0-9_-]{16})$/;
 export const COMMENT_REF = REF;
 
-type Scope = "comment-notify" | "feedback";
+type Scope = "comment-notify" | "feedback" | "event-member" | "event-pool";
 
 function token(scope: Scope, id: string): string {
   return createHmac("sha256", config.appSecret).update(`${scope}:${id}`).digest("base64url").slice(0, TOKEN_LEN);
@@ -51,4 +51,19 @@ export function feedbackRef(id: string): string {
 
 export function verifiedFeedbackIds(refs: Iterable<string>, max: number): string[] {
   return verified("feedback", refs, max);
+}
+
+/** 🙋 조·모집 참여 증표 (10/26): 참여(또는 닉네임+PIN 확인) 때만 돌려주고, 조 채팅은 "번호.증표"로만 읽고 쓴다 */
+export function eventMemberRef(id: string): string {
+  return `${id}.${token("event-member", id)}`;
+}
+export function verifiedEventMember(ref: string | null | undefined): string | null {
+  return ref ? (verified("event-member", [ref], 1)[0] ?? null) : null;
+}
+/** 🙌 조 신청 증표: 신청 상태(신청됨·조 편성됨·조 안 됨)를 이 브라우저에서만 본다 */
+export function eventPoolRef(id: string): string {
+  return `${id}.${token("event-pool", id)}`;
+}
+export function verifiedEventPool(ref: string | null | undefined): string | null {
+  return ref ? (verified("event-pool", [ref], 1)[0] ?? null) : null;
 }
