@@ -137,7 +137,7 @@ export default async function GigPage({ params, searchParams }: Props) {
       {g.notes && <p className="gig-notes">{g.notes}</p>}
       <GigActions id={g.id} done={done} />
       <p className="gig-report">
-        <ReportButton postId={g.id} blindAt={GIG_BLIND_AT} path={`/api/gigs/${g.id}/report`} hint="광고, 허위 글, 선입금 요구, 욕설 등" />
+        <ReportButton postId={g.id} blindAt={GIG_BLIND_AT} path={`/api/gigs/${g.id}/report`} what="글" />
       </p>
       {lesson && !done && (
         <section className="gig-matches" aria-labelledby="gig-matches-h">

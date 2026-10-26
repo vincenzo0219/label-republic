@@ -8,6 +8,7 @@ import { api, isNetworkError, requestKeyFor } from "@/lib/client-api";
 import { splitMentions } from "@/lib/mentions";
 import { addMyComment, watchPost } from "@/lib/watchlist";
 import { timeAgo } from "@/lib/format";
+import { blockedNicknames } from "@/lib/blocked";
 import type { Comment } from "@/lib/types";
 import { abuseLabel } from "@/lib/abuse-labels";
 import { imageUrl, thumbUrl } from "@/lib/media-url";
@@ -62,7 +63,11 @@ function thread(comments: Comment[]): { root: Comment; replies: Comment[] }[] {
 /** ensurePost: 아직 글이 없는 화면(📍 동네 체험)에서 첫 댓글을 보낼 때 글을 만들고 번호를 돌려준다. postId 는 "" */
 export function LiveComments({ postId: initialPostId, initial, casual = false, chat = false, badges, ensurePost }: { postId: string; initial: Comment[]; casual?: boolean; chat?: boolean; badges?: BadgeMap; ensurePost?: () => Promise<string> }) {
   const [postId, setPostId] = useState(initialPostId);
-  const [comments, setComments] = useState<Comment[]>(() => initial.map(norm));
+  const [allComments, setComments] = useState<Comment[]>(() => initial.map(norm));
+  // 🚫 이 기기에서 차단한 닉네임은 숨긴다 (10/26, 신고 창에서 차단)
+  const [blocked, setBlocked] = useState<string[]>([]);
+  useEffect(() => setBlocked(blockedNicknames()), []);
+  const comments = useMemo(() => (blocked.length ? allComments.filter((c) => !blocked.includes(c.nickname)) : allComments), [allComments, blocked]);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [live, setLive] = useState(false);
   const [form, setForm] = useState({ nickname: "", pw: "", body: "" });

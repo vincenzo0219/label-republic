@@ -33,6 +33,9 @@ export function referrerHost(referrer: string | undefined | null): string | null
 /** 우리가 SNS에 단 링크의 ?from= 값 — 앱 안 브라우저가 레퍼러를 지워도 어디서 왔는지 알 수 있게 (정해진 값만) */
 const FROM_TAGS: Record<string, string> = { threads: "threads.com", instagram: "instagram.com" };
 
+/** ?from=share 로 들어온 방문의 유입 호스트 자리 (관리자 SNS별 유입에 이 이름으로) */
+export const SHARE_HOST = "공유 링크(from=share)";
+
 /** 첫 페이지 로드(landing)의 레퍼러로 유입 경로를 분류한다. 이후 사이트 내 이동은 internal. */
 export function classifySource(opts: { landing: boolean; referrer?: string | null; siteHost: string; from?: string | null }): { source: TrafficSource; host: string | null } {
   if (!opts.landing) return { source: "internal", host: null };
@@ -40,6 +43,8 @@ export function classifySource(opts: { landing: boolean; referrer?: string | nul
   if (tagged) return { source: "social", host: tagged };
   // 자매 서비스 아이볼(ibol.kr)의 "후기·수다 → 노방장" 카드 (/kids/<id>?from=ibol, 10/24)
   if (opts.from?.toLowerCase() === "ibol") return { source: "referral", host: "ibol.kr" };
+  // 🙋 행사 글 공유 버튼 (?from=share, 10/26): 카톡 등 앱 안 브라우저가 레퍼러를 지워도 "공유 링크"로 센다
+  if (opts.from?.toLowerCase() === "share") return { source: "social", host: SHARE_HOST };
   const host = referrerHost(opts.referrer);
   if (!host) return { source: "direct", host: null };
   if (host === opts.siteHost.toLowerCase().replace(/:\d+$/, "")) return { source: "internal", host };

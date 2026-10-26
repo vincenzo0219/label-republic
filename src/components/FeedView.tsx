@@ -23,6 +23,7 @@ import { badgesSafe } from "@/lib/repo/badges";
 import { ttlMemo } from "@/lib/ttlMemo";
 import { eventDday, eventDdayLabel, sortByEventDday, type EventDday } from "@/lib/adSchedule";
 import { eventBodies } from "@/lib/repo/adSchedule";
+import { eventCardCounts } from "@/lib/repo/eventGoing";
 
 // 방 상단 도구 유무·조용한 방 목록은 자주 바뀌지 않아 60초씩 재사용 (10/24 속도)
 const cachedRoomTools = ttlMemo(roomTools, 60_000);
@@ -83,7 +84,12 @@ export async function FeedView({
   const showGuide = category && needs && needs.infoPosts < THIN_BOARD_POSTS;
   // 🎫 [행사]·[혜택] 카드에 D-day (10/25): 이 페이지의 그런 글만 번호로 본문을 한 번 더 읽는다
   const eventIds = feed ? feed.items.filter((p) => /^\[(행사|혜택)\]/.test(p.title)).map((p) => p.id) : [];
-  const bodies = eventIds.length ? await eventBodies(eventIds).catch(() => new Map<string, string>()) : null;
+  // 🙋 [행사] 카드: 같이 갈 사람 수 · 열린 동행 모집 수 (10/26)
+  const goingIds = feed ? feed.items.filter((p) => p.title.startsWith("[행사]")).map((p) => p.id) : [];
+  const [bodies, together] = await Promise.all([
+    eventIds.length ? eventBodies(eventIds).catch(() => new Map<string, string>()) : null,
+    goingIds.length ? eventCardCounts(goingIds).catch(() => new Map<string, { going: number; open: number }>()) : new Map<string, { going: number; open: number }>(),
+  ]);
   const ddays = new Map<string, EventDday>(
     feed && bodies ? feed.items.filter((p) => bodies.has(p.id)).map((p) => [p.id, eventDday({ ...p, body: bodies.get(p.id)! })]) : [],
   );
@@ -222,7 +228,7 @@ export async function FeedView({
           </div>
         </div>
       ) : (
-        items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head || stripsHead(category?.slug)} badge={badgeOf(badges, post.nickname)} dday={eventDdayLabel(ddays.get(post.id) ?? null)} />)
+        items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head || stripsHead(category?.slug)} badge={badgeOf(badges, post.nickname)} dday={eventDdayLabel(ddays.get(post.id) ?? null)} together={together.get(post.id)} />)
       )}
       {page === 1 && !type && !sourced && <MarkSeen room={seenRoom} />}
       <SeenTracker key={`${basePath}?${new URLSearchParams(params)}`} />

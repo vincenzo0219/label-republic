@@ -1284,3 +1284,42 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .pc-records summary { cursor: pointer; font-weight: 700; }
 .pc-records ul { margin: 8px 0; padding-left: 18px; color: var(--muted); }
 @media (max-width: 420px) { .pc.ear-card { padding: 20px 16px; } .pc .ear-title { font-size: 24px; } }
+/* 🙋 같이 갈 사람 (10/26) */
+.together { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 14px 16px; margin: 14px 0; display: grid; gap: 10px; min-width: 0; }
+.together-title { font-size: 15px; margin: 0; }
+.together-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.together-row .btn.on { color: var(--muted); }
+.together-count { font-size: 15px; }
+.together-share { margin-left: auto; }
+.together-names, .together-proof, .together-safety { margin: 0; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.together-ask, .together-form { display: grid; gap: 8px; }
+.together-form label { display: grid; gap: 4px; font-size: 14px; color: var(--muted); }
+.together-form label.check { display: flex; color: var(--text); }
+.together-form .seg { display: flex; flex-wrap: wrap; gap: 4px 14px; border: 0; padding: 0; margin: 0; font-size: 14px; }
+.together-form .seg legend { color: var(--muted); padding: 0; margin-bottom: 4px; width: 100%; }
+.together-form .seg label { display: flex; align-items: center; gap: 4px; color: var(--text); }
+.together-official, .together-after { margin: 10px 0 0; font-size: 14.5px; }
+.together-after { color: var(--muted); }
+.pool-status { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 6px; font-size: 14.5px; overflow-wrap: anywhere; }
+.pool-status p { margin: 0; }
+.group-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.group-list > li { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 6px; min-width: 0; }
+.group-line { font-size: 14.5px; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.group-intro { margin: 0; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.group-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.group-room { border: 1px solid var(--brand); border-radius: var(--radius); padding: 12px; display: grid; gap: 8px; min-width: 0; }
+.group-room-head p { margin: 4px 0; font-size: 14px; overflow-wrap: anywhere; }
+.group-members { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 14px; }
+.group-members li { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.group-chat { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 320px; overflow-y: auto; font-size: 14.5px; }
+.group-chat li { overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }
+.group-chat li.mine b { color: var(--brand); }
+
+/* 🚩 신고 사유 고르기 (10/26) */
+.report-sheet { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.45); }
+.report-sheet-body { width: 100%; max-width: 480px; max-height: 85vh; overflow: auto; background: var(--bg, #fff); color: inherit; border-radius: 16px 16px 0 0; padding: 18px 16px 20px; display: grid; gap: 10px; }
+.report-reasons { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.report-reasons label { display: flex; gap: 8px; align-items: center; padding: 8px 4px; cursor: pointer; }
+.report-sheet-body textarea { width: 100%; }
+.report-block { display: flex; gap: 8px; align-items: center; font-size: .95em; }
+.report-actions { display: flex; gap: 8px; justify-content: flex-end; }

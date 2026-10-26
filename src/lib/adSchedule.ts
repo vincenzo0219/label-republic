@@ -201,6 +201,24 @@ export function sortByEventDday<T extends { id: string }>(items: readonly T[], d
     .map((x) => x.item);
 }
 
+/** 행사 이름 (🙋 같이 갈 사람 알림·공유 카드, 10/26): "[행사] 제15회 서울레코드페어 · 10/31(토)~11/1(일) 성수" → "제15회 서울레코드페어" */
+export const eventName = (title: string): string => titleName(title);
+
+/**
+ * 🙋 행사 기간 (10/26): 제목의 첫 날짜(기간), 제목에 없으면 본문의 첫 날짜. KST 일 번호 {start, end}, 못 찾으면 null.
+ * "~10/31" 처럼 마감만 있는 날짜는 행사일로 보지 않는다.
+ */
+export function eventSpan(post: SchedulePost): { start: number; end: number } | null {
+  const refDay = kstDayNumber(new Date(post.created_at));
+  const pick = (list: Found[]) => list.find((f) => f.start !== null && f.end !== null && !/마감$/.test(f.when));
+  const f = pick(findDates(bare(post.title), refDay)) ?? pick(findDates(post.body ?? "", refDay));
+  return f ? { start: f.start!, end: f.end! } : null;
+}
+
+/** 일 번호 ↔ "YYYY-MM-DD" */
+export const dayIso = (n: number): string => new Date(n * DAY).toISOString().slice(0, 10);
+export const isoDayNumber = (s: string): number => Date.parse(`${s}T00:00:00Z`) / DAY;
+
 /** 목록 칩: 제목 말머리가 [행사]/[혜택]이면 그걸로, 아니면 잡담 (홈·검색 목록) */
 export function typeChip(title: string, postType: string): string | null {
   if (title.startsWith("[행사]")) return "🎫 행사";

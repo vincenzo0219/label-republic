@@ -18,6 +18,7 @@ import { kstMonth } from "../savingsLog";
 import { runGigPush } from "./gigPush";
 import { flushOwnerAlerts } from "../repo/ownerAlert";
 import { runRoomPush } from "./roomPush";
+import { runAutoGrouping, runEventReminders, settleGroups } from "../repo/eventGoing";
 
 const LOCK_KEY = 4_823_006;
 const BATCH = 500;
@@ -476,6 +477,13 @@ export function startPushScheduler(intervalMs: number): () => void {
     // 🆕 내 방 새 글 (10/25): 방마다 6시간에 한 번, 하루 3번까지 (src/lib/jobs/roomPush.ts)
     const rm = await runRoomPush();
     if (rm.sent || rm.removed) console.log(`[push] 내 방 새 글 알림 ${rm.sent}건 발송, 구독 ${rm.removed}개 정리`);
+    // 🙋 같이 갈 사람 (10/26): 3일 전 알림(19~22시), D-3 12시 자동 조 편성, 도착 확인 끝난 모임 결과
+    const er = await runEventReminders();
+    if (er.sent) console.log(`[push] 행사 3일 전 알림 ${er.sent}건 발송`);
+    const ag = await runAutoGrouping();
+    if (ag.groups || ag.unmatched) console.log(`[push] 자동 조 ${ag.groups}개 편성, 조 없음 ${ag.unmatched}명, 알림 ${ag.sent}건`);
+    const sg = await settleGroups();
+    if (sg.settled) console.log(`[push] 모임 ${sg.settled}개 결과 정리, 노쇼·늦은 취소 ${sg.penalties}건`);
   });
   const timer = setInterval(tick, intervalMs);
   timer.unref();
