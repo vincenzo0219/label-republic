@@ -14,7 +14,7 @@ import { investProblem } from "../investRooms";
 import { roomAbuseOpts, roomHeuristicAbuse } from "../roomModeration";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
-import type { PostCard, PostDetail, PostRevision, PostType } from "../types";
+import type { CardKind, PostCard, PostDetail, PostRevision, PostType } from "../types";
 import { assertCanPropose, insertMeetup, type MeetupInput } from "./meetups";
 import { deleteFiles, listPostImages, setPostImages, type ImageRef } from "./images";
 import { assertPin } from "./pin-guard";
@@ -50,7 +50,9 @@ const CARD_SELECT = `
   coalesce((SELECT json_agg(json_build_object('id', pr.id::text, 'brand', pr.brand, 'name', pr.name) ORDER BY pp.position)
               FROM post_products pp JOIN products pr ON pr.id = pp.product_id WHERE pp.post_id = p.id), '[]'::json) AS products,
   p.correction_count, p.disputed_count,
-  ${HUMAN_COMMENTS_SQL} AS human_comment_count`;
+  ${HUMAN_COMMENTS_SQL} AS human_comment_count,
+  p.card_kind,
+  CASE WHEN p.card_kind IS NOT NULL THEN (SELECT count(*)::int FROM post_cheers pc WHERE pc.post_id = p.id) ELSE 0 END AS cheer_count`;
 
 const FROM = `
   FROM posts p
@@ -390,6 +392,8 @@ export type CreatePostInput = {
   products?: ProductRef[];
   /** 제품 수치 — product 는 products 의 순서 */
   facts?: FactInput[];
+  /** 🎉 덕질 기념일 카드 · 💪 모두의 응원 카드 (10/26). 공개 글쓰기 API 로는 못 넣는다 (src/lib/repo/cards.ts 만) */
+  cardKind?: CardKind;
 };
 
 export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
@@ -441,6 +445,7 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
       ],
     );
     if (summary) await insertSummary(client, rows[0]!.id, summary);
+    if (input.cardKind) await client.query("UPDATE posts SET card_kind = $2 WHERE id = $1", [rows[0]!.id, input.cardKind]);
     if (input.images?.length) await setPostImages(client, rows[0]!.id, input.images);
     if (input.sources?.length) await setPostSources(client, rows[0]!.id, input.sources);
     if (input.products?.length) {
@@ -479,6 +484,8 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
     if (!post) throw notFound();
     if (post.is_blinded) throw blinded();
     await assertPin(`post:${id}`, fp, pin, post.pw_hash);
+    // 🎉 기념일·💪 응원 카드는 정해진 틀 그대로 (글을 고쳐 다른 내용을 싣지 못하게). 지우기는 된다
+    if (post.card_kind) throw new HttpError(403, "card_locked", "카드는 고칠 수 없어요. 지우고 다시 올려 주세요.");
     const invest = investProblem(post.category.slug, input.title, input.body, ...(input.summary?.lines ?? []), ...(input.sources ?? []).flatMap((x) => [x.url, x.label]));
     if (invest) throw new HttpError(400, "invest_rule", invest);
     // 휴대전화·이메일·주민등록번호는 지운 판으로 저장 (Sprint 37)

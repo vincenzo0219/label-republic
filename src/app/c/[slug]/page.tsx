@@ -32,6 +32,8 @@ import { RadarCard } from "@/components/RadarCard";
 import { RADAR_ROOMS } from "@/lib/marketRadar";
 import { getRadar } from "@/lib/repo/marketRadar";
 import { ALL_TAB, ROOM_DEFAULT_TAB, roomTabOf } from "@/lib/heads";
+import { FanDays } from "@/components/FanDays";
+import { TodayCards } from "@/components/TodayCards";
 import { GIG_TAB, JOB_TAB, LESSON_TAB } from "@/lib/instructorRoom";
 import { GigBoard } from "@/components/GigBoard";
 import { KIDS_ROOM, KIDS_TAB } from "@/lib/kidsPrograms";
@@ -165,10 +167,15 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             ? { key: LESSON_TAB, node: <GigBoard kind="ask" /> }
         : undefined;
   const kidsLine = !ad && category.slug === KIDS_ROOM && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? <KidsTopLine /> : null;
+  // 🎉 내 덕질 기념일 (10/26): 📸 자랑 탭에는 카드, 전체 탭 첫 페이지에는 작게. 숨긴 방은 빼고 (정보만 보여 주는 방은 위에서 이미 끝)
+  const fanDays = (compact: boolean) => (category.is_hidden ? null : <FanDays slug={category.slug} roomName={category.name} compact={compact} />);
+  const fanLine = !kidsLine && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? fanDays(true) : null;
   return (
     <>
       <RoomMemory slug={category.slug} />
       {adTop}
+      {/* 🎉 오늘 축하할 덕후 (10/26): 오늘 올라온 기념일·응원 카드, 줄 안에서 바로 누른다 */}
+      {!sp.tab && !sp.type && !head && (Number(sp.page) || 1) === 1 && <TodayCards rooms={[category.slug]} />}
       {links.length > 0 && <nav className="room-links" aria-label="바로가기">
         {links.map((l) =>
           l.href.endsWith(".md") ? (
@@ -183,7 +190,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         )}
       </nav>}
       {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
-      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? roomBox : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : kidsLine} roomTab={roomTabProps} />
+      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? (head === "자랑" ? <>{roomBox}{fanDays(false)}</> : roomBox) : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : (kidsLine ?? fanLine)} roomTab={roomTabProps} />
     </>
   );
 }

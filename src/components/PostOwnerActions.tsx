@@ -6,7 +6,8 @@ import { api } from "@/lib/client-api";
 import { withMyPin } from "@/lib/me";
 
 /** 회원 없음: 작성 시 입력한 4자리 비밀번호로 수정/삭제 */
-export function PostOwnerActions({ postId }: { postId: string }) {
+/** noEdit: 🎉 기념일·💪 응원 카드는 정해진 틀이라 고칠 수 없다 (지우기만, 10/26) */
+export function PostOwnerActions({ postId, noEdit = false }: { postId: string; noEdit?: boolean }) {
   const router = useRouter();
 
   async function remove() {
@@ -23,7 +24,7 @@ export function PostOwnerActions({ postId }: { postId: string }) {
 
   return (
     <>
-      <Link className="btn btn-sm" href={`/posts/${postId}/edit`}>수정</Link>
+      {!noEdit && <Link className="btn btn-sm" href={`/posts/${postId}/edit`}>수정</Link>}
       <button className="btn btn-sm" onClick={remove}>삭제</button>
     </>
   );

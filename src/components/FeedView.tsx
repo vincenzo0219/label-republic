@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { listPosts } from "@/lib/repo/posts";
 import { INGREDIENT_ROOMS, listCategories, quietRoomSlugs, roomTools } from "@/lib/repo/categories";
 import type { Category, PostType } from "@/lib/types";
@@ -15,6 +16,8 @@ import { ALL_TAB, NO_INFO_TAB, ROOM_DEFAULT_TAB, ROOM_TAB_LINKS, headLabel, room
 import { pinnedTabFor, stripsHead } from "@/lib/shopRoom";
 import type { Comment } from "@/lib/types";
 import { EventAlert } from "./EventAlert";
+import { CalendarSubscribe } from "./CalendarSubscribe";
+import { CheerButton } from "./CheerButton";
 import { LiveComments } from "./LiveComments";
 import { RoomVisitors } from "./RoomVisitors";
 import { SeenTracker } from "./SeenTracker";
@@ -204,6 +207,8 @@ export async function FeedView({
         </Link>
       )}
       {category && head === "행사" && <EventAlert slug={category.slug} />}
+      {/* 📅 웹 푸시가 안 닿는 폰도 달력 앱이 알려 주게 (10/26). 숨긴 방은 구독 달력에서 빠지므로 버튼도 없다 */}
+      {category && head === "행사" && !category.is_hidden && <CalendarSubscribe room={category.slug} />}
       {/* 방 안에서는 정렬 버튼 없이 최신순 (10/21 단순화) */}
       {!category && <SortBar basePath={basePath} params={typeParam} sort={sort} total={feed.total} />}
       {items.length === 0 ? (
@@ -228,7 +233,13 @@ export async function FeedView({
           </div>
         </div>
       ) : (
-        items.map((post) => <PostCard key={post.id} post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head || stripsHead(category?.slug)} badge={badgeOf(badges, post.nickname)} dday={eventDdayLabel(ddays.get(post.id) ?? null)} together={together.get(post.id)} />)
+        items.map((post) => (
+          <Fragment key={post.id}>
+            <PostCard post={post} showCategory={!category} seenRoom={seenRoom} inHead={!!head || stripsHead(category?.slug)} badge={badgeOf(badges, post.nickname)} dday={eventDdayLabel(ddays.get(post.id) ?? null)} together={together.get(post.id)} />
+            {/* 🎉 기념일·💪 응원 카드: 카드 바로 아래 버튼 하나 (카드 전체가 링크라 그 밖에 둔다, 10/26) */}
+            {post.card_kind && <CheerButton postId={post.id} initial={post.cheer_count ?? 0} kind={post.card_kind} variant="card" />}
+          </Fragment>
+        ))
       )}
       {page === 1 && !type && !sourced && <MarkSeen room={seenRoom} />}
       <SeenTracker key={`${basePath}?${new URLSearchParams(params)}`} />

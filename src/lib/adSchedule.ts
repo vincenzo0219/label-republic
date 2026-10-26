@@ -46,7 +46,7 @@ const DATE_RE = new RegExp(
   "g",
 );
 
-type Found = { start: number | null; end: number | null; when: string };
+export type Found = { start: number | null; end: number | null; when: string };
 
 const md = (n: number) => {
   const d = new Date(n * DAY);
@@ -85,7 +85,7 @@ function keyDay(f: Found, today: number): number | null {
   return null;
 }
 
-const bare = (title: string) => title.replace(HEAD_PREFIX, "").trim();
+export const bare = (title: string) => title.replace(HEAD_PREFIX, "").trim();
 
 const LEAD = /^[\s\p{Extended_Pictographic}\uFE0F\u200D•·\-–—:]+/u;
 const STARTS_WITH_DATE = /^~?\s*\d{1,2}\s*(\/|월)/;
@@ -95,7 +95,7 @@ const cut = (name: string) => (name.length > 36 ? `${name.slice(0, 35)}…` : na
  * 행사 칸 하나 "📍 가민 런 코리아 · 11/15(일) 고양…" → "가민 런 코리아".
  * "이름 · …" 꼴이 아니거나(설명 문장), 이름 자리가 날짜로 시작하면("📅 10/31(토)…") 빈 문자열
  */
-function segmentName(seg: string): string {
+export function segmentName(seg: string): string {
   const parts = seg.replace(LEAD, "").split(/\s+·\s+/);
   if (parts.length < 2) return "";
   const first = parts[0]!.trim();
@@ -104,14 +104,14 @@ function segmentName(seg: string): string {
 }
 
 /** 제목 → 행사 이름: "[행사] 제15회 서울레코드페어 · 10/31(토)~11/1(일) 성수" → "제15회 서울레코드페어", "원두 할인 (~10/31)" → "원두 할인" */
-function titleName(title: string): string {
+export function titleName(title: string): string {
   const b = bare(title);
   const first = b.split(/\s+·\s+/)[0]!.replace(/\s*\([^)]*\d{1,2}\s*\/\s*\d{1,2}[^)]*\)\s*$/, "").trim();
   return cut(first && !STARTS_WITH_DATE.test(first) ? first : b);
 }
 
 /** 본문을 행사 하나씩으로 (📍·🎁 머리표나 줄바꿈) */
-const segments = (body: string) => body.split(/(?=📍|🎁)|\n+/u).map((s) => s.trim()).filter(Boolean);
+export const segments = (body: string) => body.split(/(?=📍|🎁)|\n+/u).map((s) => s.trim()).filter(Boolean);
 
 /**
  * 가까운 일정 최대 n줄. 글마다 행사 칸(📍 …)을 따로 보고, 칸이 없으면 제목의 날짜를 쓴다.

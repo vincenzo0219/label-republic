@@ -20,6 +20,7 @@ import { getBusinessMetrics } from "@/lib/repo/business";
 import { earFunnel } from "@/lib/repo/earTest";
 import { dailyPlayers } from "@/lib/repo/daily";
 import { pushStats } from "@/lib/repo/push";
+import { calendarFetchStats } from "@/lib/repo/roomCalendar";
 import { ownerAlertDevices } from "@/lib/repo/ownerAlert";
 import { OwnerAlertCard } from "@/components/admin/OwnerAlertCard";
 import { firstLineFunnel } from "@/lib/repo/firstLineTest";
@@ -476,6 +477,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </section>
 
       <PushPanel />
+      <CalendarPanel />
 
       <section className="panel" aria-labelledby="errors-h">
         <h2 id="errors-h">
@@ -561,6 +563,8 @@ function PeopleReactions({ rows }: { rows: m.PeopleDay[] }) {
             <th>사람↔사람</th>
             <th>사람 답 받음</th>
             <th>사람 👍</th>
+            <th>🎉 축하</th>
+            <th>💪 응원 탭</th>
             <th>운영·AI</th>
           </tr>
         </thead>
@@ -572,12 +576,14 @@ function PeopleReactions({ rows }: { rows: m.PeopleDay[] }) {
               <td>{r.h2h}</td>
               <td>{r.answered == null ? "—" : `${r.answered}%`}</td>
               <td>{r.likes}</td>
+              <td>{r.cheers}</td>
+              <td>{r.cheer_taps}</td>
               <td>{r.ops}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="hint">사람↔사람: 사람 댓글에 단 답글 + 사람 글에 단 댓글 + 수다방에서 30분 안에 다른 사람 말에 이어 말한 것 · 운영 닉네임·AI 제외</p>
+      <p className="hint">사람↔사람: 사람 댓글에 단 답글 + 사람 글에 단 댓글 + 수다방에서 30분 안에 다른 사람 말에 이어 말한 것 + 사람 덕질 기념일 카드에 다른 사람이 누른 🎉 축하 · 운영 닉네임·AI 제외 · 💪 응원 탭(운영 응원 카드)은 따로 세고 더하지 않음</p>
     </section>
   );
 }
@@ -689,6 +695,26 @@ function MonthGoal({ today, visitors, returning, daily, range }: { today: string
       <p className="hint">
         📅 오늘의 문제 (최근 {range}일): 푼 사람 {daily.players}명 · 그중 2일 이상 {daily.repeat}명
       </p>
+    </section>
+  );
+}
+
+/** 📅 달력 구독 (10/26) — /cal/rooms.ics 를 가져간 횟수. 달력 앱은 몇 시간마다 다시 가져가므로 사람 수가 아니다 */
+async function CalendarPanel() {
+  const c = await calendarFetchStats().catch(() => null);
+  return (
+    <section className="panel" aria-labelledby="cal-h">
+      <h2 id="cal-h">📅 달력 구독</h2>
+      <p className="hint">방 행사 달력(/cal/rooms.ics)을 가져간 횟수예요. 구독한 달력 앱이 몇 시간마다 다시 가져가서 사람 수보다 많아요.</p>
+      {c ? (
+        <div className="stat-row small">
+          <StatTile label="📅 달력 구독 (오늘)" value={c.today} />
+          <StatTile label="최근 7일" value={c.week} />
+          <StatTile label="최근 30일" value={c.month} />
+        </div>
+      ) : (
+        <p className="hint">불러오지 못했어요.</p>
+      )}
     </section>
   );
 }

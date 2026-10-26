@@ -19,6 +19,7 @@ import { runGigPush } from "./gigPush";
 import { flushOwnerAlerts } from "../repo/ownerAlert";
 import { runRoomPush } from "./roomPush";
 import { runSinglesPush } from "./singlesPush";
+import { runCheerPush } from "./cheerPush";
 import { runAutoGrouping, runEventReminders, settleGroups } from "../repo/eventGoing";
 
 const LOCK_KEY = 4_823_006;
@@ -481,6 +482,9 @@ export function startPushScheduler(intervalMs: number): () => void {
     // 💌 미혼남녀 만남 행사 (10/26): 맞는 행사 모집 시작·마감 하루 전 (KST 09~21시)
     const sg1 = await runSinglesPush();
     if (sg1.sent || sg1.removed) console.log(`[push] 만남 행사 알림 ${sg1.sent}건 발송, 구독 ${sg1.removed}개 정리`);
+    // 🎉 덕질 기념일 축하 (10/26): 글쓴이에게 하루 한 번 (KST 09~21시)
+    const ch = await runCheerPush();
+    if (ch.sent || ch.removed) console.log(`[push] 기념일 축하 알림 ${ch.sent}건 발송, 구독 ${ch.removed}개 정리`);
     // 🙋 같이 갈 사람 (10/26): 3일 전 알림(19~22시), D-3 12시 자동 조 편성, 도착 확인 끝난 모임 결과
     const er = await runEventReminders();
     if (er.sent) console.log(`[push] 행사 3일 전 알림 ${er.sent}건 발송`);

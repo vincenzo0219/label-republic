@@ -9,6 +9,8 @@ export type Category = {
   auto_promoted_at: string | null;
   /** 정보만 보여 주는 방 (092, 💌 미혼남녀 만남 행사): 글쓰기·댓글·채팅·동행 기능 없음 */
   info_only?: boolean;
+  /** 숨긴 방 (Sprint 81): 홈 목록에 안 나오고 주소로만 */
+  is_hidden?: boolean;
 };
 
 export type Summary = {
@@ -18,6 +20,9 @@ export type Summary = {
 };
 
 export type PostType = "info" | "chat" | "meetup";
+
+/** 'fanday' 사람이 고른 기념일로 만든 카드 · 'cheer' 운영자 "모두의 응원" 카드 */
+export type CardKind = "fanday" | "cheer";
 
 export type Meetup = {
   meet_at: string;
@@ -64,6 +69,9 @@ export type PostCard = {
   disputed_count: number;
   /** 사람(AI·운영 닉네임 아님)이 단 댓글 수 */
   human_comment_count?: number;
+  /** 🎉 덕질 기념일 카드 · 💪 모두의 응원 카드 (10/26) · 받은 축하·응원 수 */
+  card_kind?: CardKind | null;
+  cheer_count?: number;
 };
 
 export type ProductTag = { id: string; brand: string; name: string };
