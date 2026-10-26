@@ -121,7 +121,7 @@ export async function FeedView({
   const ruleNotice = category ? roomRuleNotice(category.slug) : null;
   return (
     <>
-      <h1 className="sr-only">{category ? `${category.name} 방` : "노방장 — 방장 없는 덕후 커뮤니티"}</h1>
+      <h1 className="sr-only">{category ? `${category.name} 방` : "노방장: 같은 취향끼리 일정·정보·수다"}</h1>
       {/* 방 안에서는 다른 방 목록을 숨긴다 — 방 이름과 홈으로 가는 길만 */}
       {!category && !onlyMine && <CategoryTabs categories={categories} active={undefined} quiet={[...quiet]} mine={mine} />}
       {category && (

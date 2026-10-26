@@ -11,7 +11,7 @@ export async function GET() {
     buildAtom({
       id: `${config.siteUrl}/feed.xml`,
       title: "노방장 — 전체 방",
-      subtitle: "방장 없는 덕후 커뮤니티의 새 글",
+      subtitle: "같은 취향끼리 일정·정보·수다, 노방장의 새 글",
       selfUrl: `${config.siteUrl}/feed.xml`,
       siteUrl: config.siteUrl,
       alternateUrl: `${config.siteUrl}/`,
