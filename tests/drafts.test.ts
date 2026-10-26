@@ -59,7 +59,9 @@ d("operator drafts — 승인 대기함 (Sprint 51)", async () => {
       const draft = await drafts.createDraft({ kind: "post", categorySlug: "perfume-audio", nickname, pin: "8023", title: `통일 ${nickname}`, body: "작성자 통일 확인 본문입니다. 여러분 생각은?" });
       expect(draft.nickname).toBe("노방장");
     }
-    const reply = await drafts.createDraft({ kind: "comment", postId: made[0]!, nickname: "돈키호테", pin: "8023", body: "답글은 이름 그대로" });
+    const base = await drafts.approveDraft((await drafts.createDraft({ kind: "post", categorySlug: "perfume-audio", pin: "8023", title: "답글 받을 글", body: "답글 이름 확인용 본문입니다." })).id);
+    made.push(base.result_post_id!);
+    const reply = await drafts.createDraft({ kind: "comment", postId: base.result_post_id!, nickname: "돈키호테", pin: "8023", body: "답글은 이름 그대로" });
     expect(reply.nickname).toBe("돈키호테");
     // 이미 대기 중이던 예전 이름 글 초안도 올릴 때 노방장으로
     await query("UPDATE operator_drafts SET nickname = '덕후1호' WHERE title = '통일 돈키호테'");
