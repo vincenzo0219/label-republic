@@ -32,7 +32,7 @@ import { RadarCard } from "@/components/RadarCard";
 import { RADAR_ROOMS } from "@/lib/marketRadar";
 import { getRadar } from "@/lib/repo/marketRadar";
 import { ALL_TAB, ROOM_DEFAULT_TAB, roomTabOf } from "@/lib/heads";
-import { GIG_TAB } from "@/lib/instructorRoom";
+import { GIG_TAB, JOB_TAB, LESSON_TAB } from "@/lib/instructorRoom";
 import { GigBoard } from "@/components/GigBoard";
 import { KIDS_ROOM, KIDS_TAB } from "@/lib/kidsPrograms";
 import { KidsTab } from "@/components/KidsTab";
@@ -152,7 +152,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     roomTab?.key === KIDS_TAB
       ? { key: KIDS_TAB, node: <KidsTab /> }
       : roomTab?.key === GIG_TAB
-        ? { key: GIG_TAB, node: <GigBoard offToken={sp.u?.slice(0, 60)} /> }
+        ? { key: GIG_TAB, node: <GigBoard kind="sub" offToken={sp.u?.slice(0, 60)} /> }
+        : roomTab?.key === JOB_TAB
+          ? { key: JOB_TAB, node: <GigBoard kind="job" offToken={sp.u?.slice(0, 60)} /> }
+          : roomTab?.key === LESSON_TAB
+            ? { key: LESSON_TAB, node: <GigBoard kind="ask" /> }
         : undefined;
   const kidsLine = !ad && category.slug === KIDS_ROOM && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? <KidsTopLine /> : null;
   return (

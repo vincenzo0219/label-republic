@@ -530,7 +530,7 @@ export function parseGig(raw: string, now = new Date()): GigDraft {
     }
   }
   const regWord = /정규|고정|채용|장기|정기|구인|모집|오픈\s*멤버/.test(text);
-  const kind: GigKind | null = subWord && dates.length ? "sub" : regWord && !subWord ? "regular" : dates.length ? "sub" : weekdays.length ? "regular" : subWord ? "sub" : null;
+  const kind: GigKind | null = subWord && dates.length ? "sub" : regWord && !subWord ? "job" : dates.length ? "sub" : weekdays.length ? "job" : subWord ? "sub" : null;
 
   const address = (get("where")[0] ?? "").slice(0, 120);
   const notes = findNotes(get("note"), lines.filter((l) => !LABEL.test(l) || /요청|특이|기타/.test(l)));
@@ -542,7 +542,7 @@ export function parseGig(raw: string, now = new Date()): GigDraft {
     sigungu: reg.sigungu,
     station: reg.station,
     address: address && !contacts(address).length ? address : "",
-    dates: kind === "regular" ? dates.filter((d) => d >= today).slice(0, 1) : dates,
+    dates: kind === "job" ? dates.filter((d) => d >= today).slice(0, 1) : dates,
     // 대강은 날짜가 있으면 요일은 비운다
     weekdays: kind === "sub" && dates.length ? [] : weekdays,
     times,

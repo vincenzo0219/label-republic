@@ -11,7 +11,7 @@ import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
 import { FilterCount, FilterCountsLoader, MarkSeen } from "./NewMarks";
 import { SortBar } from "./SortBar";
-import { ALL_TAB, NO_INFO_TAB, ROOM_CHAT_TABS, ROOM_DEFAULT_TAB, ROOM_TAB_LINKS, headLabel, tabHeadsFor, type Head } from "@/lib/heads";
+import { ALL_TAB, NO_INFO_TAB, ROOM_DEFAULT_TAB, ROOM_TAB_LINKS, headLabel, roomTabsAround, tabHeadsFor, type Head } from "@/lib/heads";
 import { pinnedTabFor, stripsHead } from "@/lib/shopRoom";
 import type { Comment } from "@/lib/types";
 import { EventAlert } from "./EventAlert";
@@ -146,8 +146,8 @@ export async function FeedView({
         <FilterCountsLoader room={category.slug} />
         {/* 방 탭 (10/21 단순화): 전체 · 채팅 · 말머리 · (정보) — 정모·잡담 탭은 없음. 손가락이 닿는 순간 탭 내용을 미리 받는다 (10/24 속도) */}
         {/* 강사방처럼 기본 탭이 따로 있는 방은 그 탭이 맨 앞(주소 그대로), 전체는 맨 뒤 ?tab=all (10/25) */}
-        {defaultTab && (ROOM_CHAT_TABS[category.slug] ?? []).filter((t) => t.key === defaultTab).map((t) => (
-          <Link key={t.key} href={basePath} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
+        {roomTabsAround(category.slug).before.map((t) => (
+          <Link key={t.key} href={t.key === defaultTab ? basePath : `${basePath}?tab=${t.key}`} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
             {t.label}
           </Link>
         ))}
@@ -156,7 +156,7 @@ export async function FeedView({
           💬 채팅
           <FilterCount k="chat" />
         </Link>
-        {(ROOM_CHAT_TABS[category.slug] ?? []).filter((t) => t.key !== defaultTab).map((t) => (
+        {roomTabsAround(category.slug).after.map((t) => (
           <Link key={t.key} href={`${basePath}?tab=${t.key}`} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
             {t.label}
           </Link>

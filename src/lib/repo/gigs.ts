@@ -1,12 +1,13 @@
 /**
- * 📋 대강·구인 (🧘 요가·필라테스 강사방, 10/25). src/lib/instructorRoom.ts
+ * 📋 대강 · 💼 구인구직 (🧘 요가·필라테스 강사방, 10/25~26) · 🙋 1대1 레슨 구해요 (덕후방). src/lib/instructorRoom.ts
  * 연락처(contact)는 목록·상세 기본 응답에 넣지 않고 gigContact 로만 꺼낸다.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { query } from "../db";
 import { config } from "../config";
-import { HttpError, notFound } from "../errors";
+import { HttpError, notFound, tooMany } from "../errors";
 import { hashPin } from "../password";
+import { hit } from "../rate-limit";
 import { assertPin } from "./pin-guard";
 import { subscriptionIdFor } from "./push";
 import { ownerAlertAfter } from "./ownerAlert";
@@ -17,20 +18,30 @@ import {
   CLASS_TYPES,
   DUP_MESSAGE,
   DUP_WINDOW_MS,
+  MAX_AREAS,
   addDays,
   contactKey,
   dupText,
   expiresOn,
+  gigInputSchema,
   gigProblem,
+  isLessonPost,
   isUrgent,
   isValidArea,
   kstDow,
   kstYmd,
+  lessonMatches,
   nearlySame,
   weekEnd,
   type ClassType,
+  type Contract,
   type GigInput,
+  type GigInputRaw,
   type GigKind,
+  type Goal,
+  type JobType,
+  type Level,
+  type Place,
 } from "../instructorRoom";
 
 export type GigCard = {
@@ -50,12 +61,28 @@ export type GigCard = {
   nickname: string;
   createdAt: string;
   urgent: boolean;
+  // 💼 구인구직 · 🙋 레슨
+  jobType: JobType | null;
+  payBase: number | null;
+  payMax: number | null;
+  beginnerOk: boolean;
+  timeBands: string[];
+  areas: string[];
+  places: Place[];
+  goal: Goal | null;
+  level: Level | null;
 };
 
 export type GigDetail = GigCard & {
   address: string;
   payday: string;
   notes: string;
+  payTiers: string;
+  noshowPay: string;
+  contract: Contract | null;
+  career: string;
+  period: string;
+  screening: string[];
   closed: boolean;
   expired: boolean;
   hidden: boolean;
@@ -83,10 +110,26 @@ type Row = {
   expires_on: string;
   closed_at: string | null;
   ai_hidden_reason: string | null;
+  job_type: JobType | null;
+  pay_base: number | null;
+  pay_max: number | null;
+  pay_tiers: string;
+  noshow_pay: string;
+  contract: Contract | null;
+  career: string;
+  beginner_ok: boolean;
+  time_bands: string[];
+  period: string;
+  screening: string[];
+  areas: string[];
+  places: Place[];
+  goal: Goal | null;
+  level: Level | null;
 };
 
 const COLS = `id::text, kind, studio, sido, sigungu, station, address, dates::text[] AS dates, weekdays::int[] AS weekdays, times, class_type, equipment,
-  pay, tax_deducted, payday, notes, nickname, created_at, expires_on::text AS expires_on, closed_at, ai_hidden_reason`;
+  pay, tax_deducted, payday, notes, nickname, created_at, expires_on::text AS expires_on, closed_at, ai_hidden_reason,
+  job_type, pay_base, pay_max, pay_tiers, noshow_pay, contract, career, beginner_ok, time_bands, period, screening, areas, places, goal, level`;
 
 function card(r: Row, now: Date): GigCard {
   return {
@@ -106,12 +149,31 @@ function card(r: Row, now: Date): GigCard {
     nickname: r.nickname,
     createdAt: r.created_at,
     urgent: isUrgent({ kind: r.kind, dates: r.dates, times: r.times }, now),
+    jobType: r.job_type,
+    payBase: r.pay_base,
+    payMax: r.pay_max,
+    beginnerOk: r.beginner_ok,
+    timeBands: r.time_bands,
+    areas: r.areas,
+    places: r.places,
+    goal: r.goal,
+    level: r.level,
   };
 }
 
 /** 같은 글 비교용: "지역·날짜·시간 열쇠#글자" — 열쇠가 같고 글자(업체·수업·페이·요청사항)가 거의 같으면 같은 글 */
 const canonical = (g: GigInput) =>
-  `${[g.kind, g.sido, g.sigungu, [...g.dates].sort().join(","), [...g.weekdays].sort().join(""), [...g.times].sort().join(",")].join("|")}#${dupText([g.studio, g.classType, g.pay ?? "", g.notes].join("|"))}`;
+  `${[
+    g.kind,
+    g.jobType ?? "",
+    g.sido,
+    g.sigungu,
+    [...g.areas].sort().join(","),
+    [...g.dates].sort().join(","),
+    [...g.weekdays].sort().join(""),
+    [...g.times].sort().join(","),
+    [...g.timeBands].sort().join(","),
+  ].join("|")}#${dupText([g.studio, g.classType, g.pay ?? "", g.payBase ?? "", g.notes].join("|"))}`;
 const sameGig = (a: string, b: string) => {
   const [ka, ta = ""] = a.split("#");
   const [kb, tb = ""] = b.split("#");
@@ -120,23 +182,53 @@ const sameGig = (a: string, b: string) => {
 
 /** 공개 글에 두지 않을 표현 (욕설·혐오·위협). 연락처는 일부러 받는 칸이라 개인정보 규칙은 빼고 본다 */
 function abuseIn(g: GigInput): string | null {
-  const v = heuristicAbuse(maskPersonalInfo([g.studio, g.address, g.payday, g.notes].join("\n")).text);
+  const v = heuristicAbuse(maskPersonalInfo([g.studio, g.address, g.payday, g.notes, g.payTiers, g.noshowPay, g.career, g.period].join("\n")).text);
   return v && v.category !== "personal_info" ? v.category : null;
 }
 
+/** 종류에 맞는 칸만 남긴다 (대강 글에 구인구직 칸이 섞여 들어오지 않게) */
+export function normalizeGig(g: GigInput): GigInput {
+  const job = g.kind === "job";
+  const lesson = isLessonPost(g);
+  const listing = job && !lesson;
+  const areas = lesson ? [...new Set(g.areas)].slice(0, MAX_AREAS) : [];
+  // 레슨 글은 지역 여러 곳: 첫 지역을 대표 지역(sido·sigungu)으로
+  const [firstSido = "", firstGu = ""] = (areas[0] ?? "").split(" ");
+  return {
+    ...g,
+    sido: lesson ? firstSido : g.sido,
+    sigungu: lesson ? firstGu : g.sigungu,
+    dates: g.kind === "sub" ? [...new Set(g.dates)].sort() : listing ? [...new Set(g.dates)].sort().slice(0, 1) : [],
+    weekdays: [...new Set(g.weekdays)].sort((a, b) => a - b),
+    times: [...new Set(g.times)].sort(),
+    equipment: [...new Set(g.equipment)],
+    jobType: job ? g.jobType : null,
+    payBase: listing ? g.payBase : null,
+    payMax: lesson ? g.payMax : null,
+    payTiers: listing ? g.payTiers : "",
+    noshowPay: listing ? g.noshowPay : "",
+    contract: listing ? g.contract : null,
+    career: job ? g.career : "",
+    beginnerOk: listing ? g.beginnerOk : false,
+    timeBands: g.kind === "sub" ? [] : [...new Set(g.timeBands)],
+    period: listing ? g.period : "",
+    screening: listing ? [...new Set(g.screening)] : [],
+    areas,
+    places: job && lesson ? [...new Set(g.places)] : [],
+    goal: g.kind === "ask" ? g.goal : null,
+    level: g.kind === "ask" ? g.level : null,
+  };
+}
+
 export async function createGig(
-  g: GigInput,
+  raw: GigInputRaw,
   who: { fingerprint: string; net: string | null },
   now = new Date(),
 ): Promise<{ id: string }> {
   const today = kstYmd(now);
-  const input: GigInput = {
-    ...g,
-    dates: [...new Set(g.dates)].sort(),
-    weekdays: [...new Set(g.weekdays)].sort((a, b) => a - b),
-    times: [...new Set(g.times)].sort(),
-    equipment: [...new Set(g.equipment)],
-  };
+  const parsed = gigInputSchema.safeParse(raw);
+  if (!parsed.success) throw new HttpError(400, "invalid_gig", "입력값을 다시 확인해 주세요");
+  const input = normalizeGig(parsed.data);
   const problem = gigProblem(input, today);
   if (problem) throw new HttpError(400, "invalid_gig", problem);
   if (abuseIn(input)) throw new HttpError(400, "abuse", "올릴 수 없는 표현이 있어요");
@@ -156,8 +248,11 @@ export async function createGig(
 
   const [row] = await query<{ id: string }>(
     `INSERT INTO gig_listings (kind, studio, sido, sigungu, station, address, dates, weekdays, times, class_type, equipment, pay, tax_deducted,
-                               payday, contact, notes, nickname, pw_hash, author_fingerprint, author_net, dup_text, contact_key, expires_on, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::date[], $8::smallint[], $9::text[], $10, $11::text[], $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23::date, $24, $24)
+                               payday, contact, notes, nickname, pw_hash, author_fingerprint, author_net, dup_text, contact_key, expires_on, created_at, updated_at,
+                               job_type, pay_base, pay_tiers, noshow_pay, contract, career, beginner_ok, time_bands, period, screening,
+                               areas, pay_max, places, goal, level)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::date[], $8::smallint[], $9::text[], $10, $11::text[], $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23::date, $24, $24,
+             $25, $26, $27, $28, $29, $30, $31, $32::text[], $33, $34::text[], $35::text[], $36, $37::text[], $38, $39)
      RETURNING id::text`,
     [
       input.kind,
@@ -184,6 +279,21 @@ export async function createGig(
       ck,
       expiresOn(input.kind, input.dates, today),
       now.toISOString(),
+      input.jobType,
+      input.payBase,
+      input.payTiers,
+      input.noshowPay,
+      input.contract,
+      input.career,
+      input.beginnerOk,
+      input.timeBands,
+      input.period,
+      input.screening,
+      input.areas,
+      input.payMax,
+      input.places,
+      input.goal,
+      input.level,
     ],
   );
   // 🔔 운영자 기기로 바로 (10/25)
@@ -202,21 +312,43 @@ export async function moderateGig(id: string): Promise<void> {
   if (reason) await query("UPDATE gig_listings SET ai_hidden_reason = $2, ai_hidden_note = $3 WHERE id = $1 AND ai_hidden_reason IS NULL", [id, reason, (abuse?.evidence ?? verdict?.reasons.join(", ") ?? "").slice(0, 200)]);
 }
 
-export type GigFilter = { sido?: string; sigungu?: string; when?: "today" | "week"; classType?: ClassType; kind?: GigKind; page?: number };
+export type GigFilter = {
+  sido?: string;
+  sigungu?: string;
+  when?: "today" | "week";
+  classType?: ClassType;
+  kind?: GigKind;
+  /** 💼 구분 */
+  jobType?: JobType;
+  /** 💼 초보 가능만 */
+  beginner?: boolean;
+  /** 시간대 (오전·오후·저녁·주말). 시간대를 비워 둔 글도 함께 */
+  band?: string;
+  page?: number;
+};
 export const GIG_PAGE = 30;
 
-/** 공개 목록: 마감·가림·날짜 지난 글 빼고 최신순 */
+/** 공개 목록: 마감·가림·날짜 지난 글(구인구직·레슨은 30일 지난 글) 빼고 최신순. kind 를 비우면 대강+구인구직 (레슨 구해요는 빼고) */
 export async function listGigs(f: GigFilter, now = new Date()): Promise<{ items: GigCard[]; total: number; page: number }> {
   const today = kstYmd(now);
   const where = ["closed_at IS NULL", "ai_hidden_reason IS NULL", "expires_on >= $1::date"];
   const params: unknown[] = [today];
   const p = (v: unknown) => (params.push(v), `$${params.length}`);
-  if (f.sido) where.push(`sido = ${p(f.sido)}`);
-  if (f.sido && f.sigungu) where.push(`sigungu = ${p(f.sigungu)}`);
+  // 지역: 대표 지역이 맞거나, 레슨 글의 여러 지역 중 하나가 겹치면 ("서울" 전체로 올린 글은 마포구에서도 보인다)
+  if (f.sido && f.sigungu) {
+    const [s, g] = [p(f.sido), p(f.sigungu)];
+    where.push(`((sido = ${s} AND sigungu = ${g}) OR ${s} || ' ' || ${g} = ANY(areas) OR ${s} = ANY(areas))`);
+  } else if (f.sido) {
+    const s = p(f.sido);
+    where.push(`(sido = ${s} OR EXISTS (SELECT 1 FROM unnest(areas) a WHERE split_part(a, ' ', 1) = ${s}))`);
+  }
   if (f.classType) where.push(`class_type = ${p(f.classType)}`);
-  if (f.kind) where.push(`kind = ${p(f.kind)}`);
-  if (f.when === "today") where.push(`($1::date = ANY(dates) OR (kind = 'regular' AND ${p(kstDow(now))}::smallint = ANY(weekdays)))`);
-  if (f.when === "week") where.push(`(EXISTS (SELECT 1 FROM unnest(dates) d WHERE d BETWEEN $1::date AND ${p(weekEnd(today))}::date) OR kind = 'regular')`);
+  where.push(f.kind ? `kind = ${p(f.kind)}` : "kind <> 'ask'");
+  if (f.jobType) where.push(`job_type = ${p(f.jobType)}`);
+  if (f.beginner) where.push("beginner_ok");
+  if (f.band) where.push(`(cardinality(time_bands) = 0 OR ${p(f.band)} = ANY(time_bands))`);
+  if (f.when === "today") where.push(`($1::date = ANY(dates) OR (kind <> 'sub' AND ${p(kstDow(now))}::smallint = ANY(weekdays)))`);
+  if (f.when === "week") where.push(`(EXISTS (SELECT 1 FROM unnest(dates) d WHERE d BETWEEN $1::date AND ${p(weekEnd(today))}::date) OR kind <> 'sub')`);
   const page = Math.max(1, Math.min(50, f.page ?? 1));
   const w = where.join(" AND ");
   const [rows, [count]] = await Promise.all([
@@ -235,6 +367,12 @@ export async function getGig(id: string, now = new Date()): Promise<GigDetail | 
     address: r.address,
     payday: r.payday,
     notes: r.notes,
+    payTiers: r.pay_tiers,
+    noshowPay: r.noshow_pay,
+    contract: r.contract,
+    career: r.career,
+    period: r.period,
+    screening: r.screening,
     closed: !!r.closed_at,
     expired: r.expires_on < kstYmd(now),
     hidden: !!r.ai_hidden_reason,
@@ -257,6 +395,47 @@ export async function closeGig(id: string, fp: string, pin: string): Promise<voi
   if (!r) throw notFound("글");
   await assertPin(`gig:${id}`, fp, pin, r.pw_hash);
   await query("UPDATE gig_listings SET closed_at = COALESCE(closed_at, now()), updated_at = now() WHERE id = $1", [id]);
+}
+
+/**
+ * 🙋 1대1 레슨 매칭: 강사 "1대1 레슨 가능" 글이면 수강생 "구해요" 글을, 수강생 글이면 강사 글을.
+ * 지역이 겹치고 시간대가 맞는 열린 글만, 최신순 limit 개 (lessonMatches)
+ */
+export async function lessonMatchesFor(g: Pick<GigCard, "id" | "kind" | "jobType" | "areas" | "timeBands">, now = new Date(), limit = 6): Promise<GigCard[]> {
+  if (!isLessonPost(g) || !g.areas.length) return [];
+  const other = g.kind === "ask" ? "kind = 'job' AND job_type = 'lesson'" : "kind = 'ask'";
+  const sidos = [...new Set(g.areas.map((a) => a.split(" ")[0]!))];
+  const rows = await query<Row>(
+    `SELECT ${COLS} FROM gig_listings
+      WHERE ${other} AND closed_at IS NULL AND ai_hidden_reason IS NULL AND expires_on >= $1::date AND id <> $2
+        AND EXISTS (SELECT 1 FROM unnest(areas) a WHERE split_part(a, ' ', 1) = ANY($3::text[]))
+      ORDER BY created_at DESC, id DESC LIMIT 200`,
+    [kstYmd(now), g.id, sidos],
+  );
+  return rows.filter((r) => lessonMatches(g, { areas: r.areas, timeBands: r.time_bands })).slice(0, limit).map((r) => card(r, now));
+}
+
+// ---------------------------------------------------------------------------
+// 🚩 신고 (글 신고와 같은 방식: 한 브라우저 한 번). 고유 신고 GIG_BLIND_AT 건이면 목록에서 가린다
+// ---------------------------------------------------------------------------
+export const GIG_BLIND_AT = 3;
+
+export async function reportGig(id: string, fp: string, reason: string): Promise<{ is_blinded: boolean; alreadyReported: boolean }> {
+  if (!/^\d{1,18}$/.test(id)) throw notFound("글");
+  const [g] = await query<{ id: string }>("SELECT id::text FROM gig_listings WHERE id = $1", [id]);
+  if (!g) throw notFound("글");
+  if (!(await hit(`report:${fp}`, 20, 3600_000))) throw tooMany();
+  const ins = await query<{ gig_id: string }>(
+    "INSERT INTO gig_reports (gig_id, reporter_fingerprint, reason) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING gig_id::text",
+    [id, fp, reason.slice(0, 200)],
+  );
+  const [r] = await query<{ hidden: boolean }>(
+    `UPDATE gig_listings
+        SET ai_hidden_reason = COALESCE(ai_hidden_reason, CASE WHEN (SELECT count(*) FROM gig_reports WHERE gig_id = $1) >= $2 THEN 'reported' END)
+      WHERE id = $1 RETURNING ai_hidden_reason IS NOT NULL AS hidden`,
+    [id, GIG_BLIND_AT],
+  );
+  return { is_blinded: !!r?.hidden, alreadyReported: ins.length === 0 };
 }
 
 // ---------------------------------------------------------------------------

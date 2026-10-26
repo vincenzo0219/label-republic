@@ -40,6 +40,7 @@ export const CHECK_TABLES = [
   // 10/25 🧘 강사방 📋 대강·구인 · 🔔 지역 알림
   "gig_listings",
   "gig_alert_subs",
+  "gig_reports",
 ];
 
 type Manifest = {
