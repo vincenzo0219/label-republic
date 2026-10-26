@@ -37,6 +37,8 @@ export const BOOK_ROOM = BOOK;
 export const SHOP_ROOM = "오늘도-장사중";
 /** 🧘 요가·필라테스 강사방 주소 (10/25, src/lib/instructorRoom.ts 와 같은 값) */
 const INSTRUCTOR = "요가-필라테스-강사방";
+/** 💌 미혼남녀 만남 행사 주소 (src/lib/singlesEvents.ts SINGLES_ROOM 과 같은 값) */
+const SINGLES = "미혼남녀-만남-행사";
 
 /** 투자방 (10/24): 말머리(제목 앞 [행사]·[자랑]·[혜택])는 그대로, 탭 이름만 방에 맞게 */
 const SCHEDULE = { key: "행사", label: "📅 일정" } as const;
@@ -73,9 +75,11 @@ export const ROOM_CHAT_TABS: Record<string, { key: string; label: string }[]> = 
   ],
   // 🙋 1대1 레슨 구해요 (10/26, 수강생 쪽. 강사 쪽은 강사방 💼 구인구직의 "1대1 레슨 가능")
   "요가-필라테스-덕후방": [{ key: "lesson", label: "🙋 1대1 레슨 구해요" }],
+  // 💌 만남 행사 (10/26): 행사 카드·나 신청 가능?·알림은 이 탭, 글·💬 채팅은 다른 방처럼 (098)
+  [SINGLES]: [{ key: "meet", label: "💌 만남 행사" }],
 };
-/** 탭 없이 들어오면 이 탭 (강사방: 📋 대강). 이런 방의 "전체" 는 ?tab=all */
-export const ROOM_DEFAULT_TAB: Record<string, string> = { [INSTRUCTOR]: "gigs" };
+/** 탭 없이 들어오면 이 탭 (강사방: 📋 대강, 💌 만남 행사 방: 💌 만남 행사). 이런 방의 "전체" 는 ?tab=all */
+export const ROOM_DEFAULT_TAB: Record<string, string> = { [INSTRUCTOR]: "gigs", [SINGLES]: "meet" };
 export const ALL_TAB = "all";
 export const roomTabOf = (slug: string, tab: string | undefined) => (tab ? ROOM_CHAT_TABS[slug]?.find((t) => t.key === tab) : undefined);
 /** 💬 채팅 앞·뒤에 놓이는 방 전용 탭. 기본 탭이 있는 방(강사방)은 전부 채팅 앞(기본 탭이 맨 앞), 나머지 방은 채팅 뒤 */

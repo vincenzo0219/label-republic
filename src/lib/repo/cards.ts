@@ -20,9 +20,9 @@ export const CHEER_CARD_NICK = "노방장";
 
 type Room = { id: number; slug: string; name: string };
 
-/** 카드를 올릴 수 있는 방 (숨긴 방·정보만 보여 주는 방 제외) */
+/** 카드를 올릴 수 있는 방 (숨긴 방·정보만 보여 주는 방·만남 연결 기능 없는 방 제외) */
 export async function cardRoom(slug: string): Promise<Room> {
-  const [r] = await query<Room>("SELECT id, slug, name FROM categories WHERE slug = $1 AND NOT is_hidden AND NOT info_only", [slug]);
+  const [r] = await query<Room>("SELECT id, slug, name FROM categories WHERE slug = $1 AND NOT is_hidden AND NOT info_only AND NOT no_matching", [slug]);
   if (!r) throw new HttpError(400, "invalid_category", "카드를 올릴 수 없는 방이에요.");
   return r;
 }
@@ -84,7 +84,7 @@ export async function todayCards(slugs: readonly string[], limit = 10): Promise<
             (SELECT count(*)::int FROM post_cheers pc WHERE pc.post_id = p.id) AS cheers
        FROM posts p JOIN categories c ON c.id = p.category_id
       WHERE c.slug = ANY($1::text[]) AND p.card_kind IS NOT NULL AND NOT p.is_blinded AND NOT p.is_suppressed
-        AND NOT c.is_hidden AND NOT c.info_only
+        AND NOT c.is_hidden AND NOT c.info_only AND NOT c.no_matching
         AND p.created_at >= (date_trunc('day', now() AT TIME ZONE 'Asia/Seoul') AT TIME ZONE 'Asia/Seoul')
       ORDER BY p.created_at DESC
       LIMIT $2`,
@@ -107,7 +107,7 @@ export async function cheerCard(postId: string, visitorHash: string, fingerprint
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
   const [p] = await query<{ id: string }>(
     `SELECT p.id::text FROM posts p JOIN categories c ON c.id = p.category_id
-      WHERE p.id = $1 AND p.card_kind IS NOT NULL AND NOT p.is_blinded AND NOT c.info_only`,
+      WHERE p.id = $1 AND p.card_kind IS NOT NULL AND NOT p.is_blinded AND NOT c.info_only AND NOT c.no_matching`,
     [postId],
   );
   if (!p) throw notFound("카드");

@@ -2,6 +2,7 @@
 
 import { addMyPost, myNick, myPin, saveNick } from "@/lib/me";
 import { NickCheck } from "./NickCheck";
+import { roomRuleNotice } from "@/lib/singlesRules";
 import { NO_INFO_TAB, headHint, headOf, headsFor, withHead, type Head } from "@/lib/heads";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -435,6 +436,8 @@ export function PostEditor(props: Props) {
       ) : (
         <p className="hint">방: {props.categoryName}</p>
       )}
+      {/* 💌 만남 행사 방 (098): 연락처·SNS 교환·만남 주선·금전 요구 금지 안내 */}
+      {roomRuleNotice(boardSlug) && <p className="room-rule-note" role="note">{roomRuleNotice(boardSlug)}</p>}
 
       {!editing && postType === "meetup" && (
         <div className="field meetup-fields">

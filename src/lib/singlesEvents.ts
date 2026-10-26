@@ -1,7 +1,7 @@
 /**
  * 💌 미혼남녀 만남 행사 (10/26 운영자 승인, 2주 시험 운영). 정보만 모아 보여 주는 방.
  * - 지자체·사찰·공공(·민간 유료) 행사를 운영자가 원문 공지를 보고 한 건씩 넣는다 (POST /api/admin/singles-events)
- * - 사람과 사람을 이어 주는 기능은 없다: 글쓰기·댓글·채팅·갈 거예요·같이 가요·조 짜기·프로필·사진 모두 없음 (결혼중개업법)
+ * - 사람과 사람을 이어 주는 기능은 없다: 갈 거예요·같이 가요·조 짜기·정모·프로필 모두 없음, 연락처·SNS 교환 금지 (결혼중개업법, 098 부터 글·댓글·채팅은 됨)
  * - "나 신청 가능?": 출생연도·성별·거주·직장 지역·초혼 여부 → 가능 / 조건부 / 불가 + 이유. 입력값은 브라우저에만
  * - "떨어졌어요": 가까운 지역의 다음 행사
  * 서버·브라우저 공용 순수 함수.
@@ -12,6 +12,8 @@ export const SINGLES_ROOM = "미혼남녀-만남-행사";
 export const SINGLES_ROOM_NAME = "💌 미혼남녀 만남 행사";
 export const SINGLES_ROOM_DESC = "지자체·사찰·공공 만남 행사 모음. 만 19세 이상";
 export const SINGLES_PATH = `/c/${encodeURIComponent(SINGLES_ROOM)}`;
+/** 방 안 💌 만남 행사 탭 (098, 기본 탭이라 주소는 SINGLES_PATH 그대로. src/lib/heads.ts) */
+export const SINGLES_TAB = "meet";
 export const singlesEventPath = (id: string) => `/singles/${id}`;
 /** 카드·상세·MCP 결과마다 붙는 고지 */
 export const SINGLES_NOTICE = "최종 기준은 원문 공지예요. 신청은 원문에서 직접 해 주세요.";

@@ -11,10 +11,12 @@ import { timeAgo } from "@/lib/format";
 import { blockedNicknames } from "@/lib/blocked";
 import type { Comment } from "@/lib/types";
 import { abuseLabel } from "@/lib/abuse-labels";
+import { COMMENT_REPORT_HIDE } from "@/lib/commentReport";
 import { imageUrl, thumbUrl } from "@/lib/media-url";
 import { shrinkIfNeeded, upload } from "./ImagePicker";
 import { myNick, myPin, saveNick, withMyPin } from "@/lib/me";
 import { NickCheck } from "./NickCheck";
+import { ReportButton } from "./ReportButton";
 import { EAR_BRAG_POST_ID, earBragLine } from "@/lib/earTest";
 import { HEARING_BRAG_POST_ID, hearingBragLine } from "@/lib/hearingTest";
 
@@ -25,6 +27,8 @@ type Event =
   | { type: "hidden"; comment: { id: string | number; body: string; hidden_reason: string | null; image_id?: string | null } };
 
 const LIKES_KEY = "lr:likes";
+/** 🚩 신고가 쌓여 가린 말 (098) */
+const REPORTED_TEXT = "🚩 신고가 쌓여 가렸어요. 운영자가 확인해요.";
 
 /** 소켓·예전 응답에서 온 댓글의 번호를 문자열로, 답글 필드는 빈 값으로 맞춘다 */
 const norm = (c: Comment): Comment => ({
@@ -61,7 +65,8 @@ function thread(comments: Comment[]): { root: Comment; replies: Comment[] }[] {
  */
 /** casual: 잡담·정모 글 — 출처·측정값을 요구하지 않는 말투로 안내한다 */
 /** ensurePost: 아직 글이 없는 화면(📍 동네 체험)에서 첫 댓글을 보낼 때 글을 만들고 번호를 돌려준다. postId 는 "" */
-export function LiveComments({ postId: initialPostId, initial, casual = false, chat = false, badges, ensurePost }: { postId: string; initial: Comment[]; casual?: boolean; chat?: boolean; badges?: BadgeMap; ensurePost?: () => Promise<string> }) {
+/** notice: 쓰는 칸 위 안내 한 줄 · report: 댓글·채팅 한 줄마다 🚩 신고 (💌 만남 행사 방, 098) */
+export function LiveComments({ postId: initialPostId, initial, casual = false, chat = false, badges, ensurePost, notice, report = false }: { postId: string; initial: Comment[]; casual?: boolean; chat?: boolean; badges?: BadgeMap; ensurePost?: () => Promise<string>; notice?: string | null; report?: boolean }) {
   const [postId, setPostId] = useState(initialPostId);
   const [allComments, setComments] = useState<Comment[]>(() => initial.map(norm));
   // 🚫 이 기기에서 차단한 닉네임은 숨긴다 (10/26, 신고 창에서 차단)
@@ -332,7 +337,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                 <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
               </div>
               {c.hidden_reason ? (
-                <div className="chat-bubble comment-hidden">🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가렸어요.</div>
+                <div className="chat-bubble comment-hidden">{c.hidden_reason === "reported" ? REPORTED_TEXT : <>🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가렸어요.</>}</div>
               ) : (
                 <div className="chat-bubble">
                   <Photo id={c.image_id} />
@@ -352,12 +357,16 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                       <button className="linkish" onClick={() => remove(c.id)}>삭제</button>
                     </>
                   )}
+                  {report && !c.is_ai_curated && c.nickname !== form.nickname.trim() && (
+                    <ReportButton blindAt={COMMENT_REPORT_HIDE} path={`/api/comments/${c.id}/report`} label="🚩" what="말" blockName={c.nickname} onHidden={() => setBlocked(blockedNicknames())} />
+                  )}
                 </div>
               )}
             </li>
           ))}
         </ul>
         <div ref={endRef} />
+        {notice && <p className="room-rule-note" role="note">{notice}</p>}
         <form className="chat-form" onSubmit={submit}>
           <span className={`live-dot${live ? " on" : ""}`} title={live ? "실시간 연결됨" : "연결 중…"} />
           {!savedNick && (
@@ -412,11 +421,14 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                       <button className="linkish" onClick={() => remove(c.id)}>삭제</button>
                     </>
                   )}
+                  {report && !c.is_ai_curated && !c.hidden_reason && c.nickname !== form.nickname.trim() && (
+                    <ReportButton blindAt={COMMENT_REPORT_HIDE} path={`/api/comments/${c.id}/report`} label="🚩" what="댓글" blockName={c.nickname} onHidden={() => setBlocked(blockedNicknames())} />
+                  )}
                 </div>
                 {to && <div className="comment-to">↳ {to.nickname}님에게</div>}
                 {c.hidden_reason ? (
                   <div className="comment-body comment-hidden">
-                    🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가린 댓글입니다.
+                    {c.hidden_reason === "reported" ? REPORTED_TEXT : <>🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가린 댓글입니다.</>}
                   </div>
                 ) : (
                   <div className="comment-body">
@@ -430,7 +442,8 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
         </div>
       ))}
 
-      <form id="write" className="form" onSubmit={submit} style={{ marginTop: 16 }}>
+      {notice && <p className="room-rule-note" role="note" style={{ marginTop: 16 }}>{notice}</p>}
+      <form id="write" className="form" onSubmit={submit} style={{ marginTop: notice ? 8 : 16 }}>
         {/* 닉네임은 처음 한 번만, 비밀번호는 자동 (Sprint 96) */}
         {!savedNick && (
           <>

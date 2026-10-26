@@ -42,7 +42,8 @@ import { KidsTopLine } from "@/components/KidsTopLine";
 import { AdSchedule } from "@/components/AdSchedule";
 import { isAdLanding } from "@/lib/adSchedule";
 import { recentEventPosts } from "@/lib/repo/adSchedule";
-import { InfoOnlyRoom } from "@/components/InfoOnlyRoom";
+import { InfoOnlyRoom, SinglesTab } from "@/components/InfoOnlyRoom";
+import { SINGLES_TAB } from "@/lib/singlesEvents";
 
 /** ✍️ 오늘 몇 자 (작가지망생방): 이번 주 순위 + 어제·오늘 인증 + 배지. 실패하면 안 보인다 */
 async function loadWriting(slug: string) {
@@ -73,7 +74,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<s
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) return {};
-  // 💌 정보만 보여 주는 방: 설명 그대로 (긴 줄표 없이)
+  // 정보만 보여 주는 방: 설명 그대로 (긴 줄표 없이)
   if (category.info_only)
     return { title: category.name, description: category.description, alternates: { canonical: `/c/${encodeURIComponent(category.slug)}` } };
   return {
@@ -112,7 +113,7 @@ const ROOM_LINKS: Record<string, { href: string; label: string }[]> = {
 export default async function CategoryPage({ params, searchParams }: Props) {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) notFound();
-  // 💌 정보만 보여 주는 방 (092): 글 목록·글쓰기·채팅 탭 없이 행사 정보만
+  // 정보만 보여 주는 방 (092): 글 목록·글쓰기·채팅 탭 없이 정보만. 💌 미혼남녀 만남 행사 방은 098 부터 다른 방처럼 (💌 만남 행사 탭이 기본)
   if (category.info_only) return <InfoOnlyRoom category={category} />;
   const sp = await searchParams;
   // 💬 수다방은 방 탭의 "자유채팅"으로 옮김
@@ -165,10 +166,12 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           ? { key: JOB_TAB, node: <GigBoard kind="job" offToken={sp.u?.slice(0, 60)} /> }
           : roomTab?.key === LESSON_TAB
             ? { key: LESSON_TAB, node: <GigBoard kind="ask" /> }
+            : roomTab?.key === SINGLES_TAB
+              ? { key: SINGLES_TAB, node: <SinglesTab /> }
         : undefined;
   const kidsLine = !ad && category.slug === KIDS_ROOM && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? <KidsTopLine /> : null;
-  // 🎉 내 덕질 기념일 (10/26): 📸 자랑 탭에는 카드, 전체 탭 첫 페이지에는 작게. 숨긴 방은 빼고 (정보만 보여 주는 방은 위에서 이미 끝)
-  const fanDays = (compact: boolean) => (category.is_hidden ? null : <FanDays slug={category.slug} roomName={category.name} compact={compact} />);
+  // 🎉 내 덕질 기념일 (10/26): 📸 자랑 탭에는 카드, 전체 탭 첫 페이지에는 작게. 숨긴 방·만남 연결 기능 없는 방(098)은 빼고 (정보만 보여 주는 방은 위에서 이미 끝)
+  const fanDays = (compact: boolean) => (category.is_hidden || category.no_matching ? null : <FanDays slug={category.slug} roomName={category.name} compact={compact} />);
   const fanLine = !kidsLine && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? fanDays(true) : null;
   return (
     <>

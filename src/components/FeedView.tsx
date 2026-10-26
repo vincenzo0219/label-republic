@@ -12,6 +12,7 @@ import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
 import { FilterCount, FilterCountsLoader, MarkSeen } from "./NewMarks";
 import { SortBar } from "./SortBar";
+import { roomRuleNotice } from "@/lib/singlesRules";
 import { ALL_TAB, NO_INFO_TAB, ROOM_DEFAULT_TAB, ROOM_TAB_LINKS, headLabel, roomTabsAround, tabHeadsFor, type Head } from "@/lib/heads";
 import { pinnedTabFor, stripsHead } from "@/lib/shopRoom";
 import type { Comment } from "@/lib/types";
@@ -116,6 +117,8 @@ export async function FeedView({
     : type === "info" ? "📋 정보 글쓰기" : type === "meetup" ? "📅 정모 제안하기" : "✍️ 글쓰기";
   const seenRoom = category?.slug ?? "all";
   const defaultTab = category ? ROOM_DEFAULT_TAB[category.slug] : undefined;
+  // 💌 만남 행사 방 (098): 글쓰기·채팅 위 안전 안내 + 채팅 한 줄마다 🚩 신고
+  const ruleNotice = category ? roomRuleNotice(category.slug) : null;
   return (
     <>
       <h1 className="sr-only">{category ? `${category.name} 방` : "노방장 — 방장 없는 덕후 커뮤니티"}</h1>
@@ -194,13 +197,14 @@ export async function FeedView({
       </nav>
       )}
       {chat ? (
-        <LiveComments postId={chat.postId} initial={chat.initial} casual chat badges={chat.badges} />
+        <LiveComments postId={chat.postId} initial={chat.initial} casual chat badges={chat.badges} notice={ruleNotice} report={!!ruleNotice} />
       ) : roomTab ? (
         roomTab.node
       ) : feed && (
       <>
       {lead}
       {/* 머리글에 글쓰기가 없어서 (어제 방문자 자리) 목록 위 이 버튼 하나가 글쓰기 */}
+      {ruleNotice && <p className="room-rule-note" role="note">{ruleNotice}</p>}
       {(
         <Link className="btn btn-primary tab-write" href={writeHref}>
           {writeLabel}

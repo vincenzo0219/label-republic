@@ -7,8 +7,10 @@ export type Category = {
   description: string;
   post_count: number;
   auto_promoted_at: string | null;
-  /** 정보만 보여 주는 방 (092, 💌 미혼남녀 만남 행사): 글쓰기·댓글·채팅·동행 기능 없음 */
+  /** 정보만 보여 주는 방 (092): 글쓰기·댓글·채팅·동행 기능 없음 (💌 미혼남녀 만남 행사 방은 098 부터 no_matching) */
   info_only?: boolean;
+  /** 만남 연결 기능 없는 방 (098, 💌 미혼남녀 만남 행사): 글·댓글·채팅은 되고 갈 거예요·같이 가요·조 짜기·정모 참가는 없음 */
+  no_matching?: boolean;
   /** 숨긴 방 (Sprint 81): 홈 목록에 안 나오고 주소로만 */
   is_hidden?: boolean;
 };

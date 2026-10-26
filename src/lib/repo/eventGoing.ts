@@ -22,7 +22,7 @@ import {
 import { cleanChat } from "../eventChat";
 import { GEO_RADIUS_M, distanceM, matchVenue } from "../venues";
 import { sendPush, type PushMessage, type SendResult } from "../push";
-import { assertGroupInteractive, infoOnlyError } from "./infoOnly";
+import { assertGroupInteractive, matchingError } from "./infoOnly";
 
 const ID = /^\d{1,18}$/;
 
@@ -30,14 +30,15 @@ export type EventPost = { id: string; title: string; body: string; created_at: s
 
 export async function loadEventPost(postId: string, c?: PoolClient): Promise<EventPost> {
   if (!ID.test(postId)) throw notFound();
-  const sql = `SELECT p.id::text, p.title, p.body, p.created_at, p.is_blinded, c.slug, c.name AS room, c.info_only
+  const sql = `SELECT p.id::text, p.title, p.body, p.created_at, p.is_blinded, c.slug, c.name AS room, c.info_only, c.no_matching
                  FROM posts p JOIN categories c ON c.id = p.category_id WHERE p.id = $1`;
-  type Row = EventPost & { info_only: boolean };
+  type Row = EventPost & { info_only: boolean; no_matching: boolean };
   const found = c ? (await c.query<Row>(sql, [postId])).rows[0] : (await query<Row>(sql, [postId]))[0];
   if (!found) throw notFound();
-  // 💌 정보만 보여 주는 방(미혼남녀 만남 행사 등): 갈 거예요·같이 가요·조 짜기 모두 거절 (092)
-  if (found.info_only) throw infoOnlyError();
-  const { info_only: _io, ...row } = found;
+  // 정보만 보여 주는 방(092)·만남 연결 기능 없는 방(098, 💌 미혼남녀 만남 행사): 갈 거예요·같이 가요·조 짜기 모두 거절
+  const blocked = matchingError(found);
+  if (blocked) throw blocked;
+  const { info_only: _io, no_matching: _nm, ...row } = found;
   if (row.is_blinded) throw blinded();
   if (!row.title.startsWith("[행사]")) throw new HttpError(400, "not_event", "행사 글에서만 쓸 수 있어요.");
   return row;
@@ -558,7 +559,7 @@ export async function runAutoGrouping(now = new Date(), opts: { send?: Send } = 
   let sent = 0;
   const today = kstToday(now);
   for (const { post_id } of posts) {
-    const [post] = await query<{ title: string; body: string; created_at: string; is_blinded: boolean }>("SELECT p.title, p.body, p.created_at, (p.is_blinded OR c.info_only) AS is_blinded FROM posts p JOIN categories c ON c.id = p.category_id WHERE p.id = $1", [post_id]);
+    const [post] = await query<{ title: string; body: string; created_at: string; is_blinded: boolean }>("SELECT p.title, p.body, p.created_at, (p.is_blinded OR c.info_only OR c.no_matching) AS is_blinded FROM posts p JOIN categories c ON c.id = p.category_id WHERE p.id = $1", [post_id]);
     const span = post ? eventSpan({ id: post_id, ...post }) : null;
     if (post && span && !post.is_blinded && !poolDue(span.start, now)) continue;
     const name = post ? eventName(post.title) : "행사";
@@ -637,7 +638,7 @@ export async function runEventReminders(now = new Date(), opts: { send?: Send } 
     `SELECT p.id::text, p.title, left(p.body, 4000) AS body, p.created_at FROM posts p
       WHERE p.id IN (SELECT post_id FROM event_going WHERE reminded_at IS NULL AND subscription_id IS NOT NULL)
         AND p.title LIKE '[행사]%' AND NOT p.is_blinded
-        AND NOT EXISTS (SELECT 1 FROM categories c WHERE c.id = p.category_id AND c.info_only) AND p.created_at > $1::timestamptz - interval '150 days'`,
+        AND NOT EXISTS (SELECT 1 FROM categories c WHERE c.id = p.category_id AND (c.info_only OR c.no_matching)) AND p.created_at > $1::timestamptz - interval '150 days'`,
     [now.toISOString()],
   );
   let sent = 0;
