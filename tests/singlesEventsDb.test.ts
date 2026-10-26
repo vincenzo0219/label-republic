@@ -1,7 +1,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+// 라우트의 after() (AI 운영·알림) 는 요청 밖이라 건너뛴다
+vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), after: () => {} }));
 
 const vapid = webpush.generateVAPIDKeys();
 process.env.VAPID_PUBLIC_KEY = vapid.publicKey;
@@ -16,7 +19,7 @@ const kday = (n: number) => new Date(Date.now() + 9 * 3600_000 + n * DAY).toISOS
 const fp = (c: string) => c.repeat(64);
 const ROOM = "미혼남녀-만남-행사";
 
-d("💌 미혼남녀 만남 행사 (DB): 정보만 보여 주는 방", async () => {
+d("💌 미혼남녀 만남 행사 (DB): 커뮤니티는 열고 만남 연결·연락처 교환은 막는 방", async () => {
   process.env.DATABASE_URL = url;
   process.env.SITE_URL = "https://nobangjang.com";
   const { pool, query } = await import("@/lib/db");
@@ -24,6 +27,8 @@ d("💌 미혼남녀 만남 행사 (DB): 정보만 보여 주는 방", async () 
   const comments = await import("@/lib/repo/comments");
   const eg = await import("@/lib/repo/eventGoing");
   const meetups = await import("@/lib/repo/meetups");
+  const cards = await import("@/lib/repo/cards");
+  const { ensureRoomChat } = await import("@/lib/repo/roomChat");
   const push = await import("@/lib/repo/push");
   const singles = await import("@/lib/repo/singlesEvents");
   const { listCategories, getCategoryBySlug } = await import("@/lib/repo/categories");
@@ -35,6 +40,7 @@ d("💌 미혼남녀 만남 행사 (DB): 정보만 보여 주는 방", async () 
   const commentsRoute = await import("@/app/api/posts/[id]/comments/route");
   const adminRoute = await import("@/app/api/admin/singles-events/route");
   const pushRoute = await import("@/app/api/push/singles/route");
+  const reportRoute = await import("@/app/api/comments/[id]/report/route");
 
   const dir = path.join(process.cwd(), "db", "migrations");
   beforeAll(async () => {
@@ -50,53 +56,101 @@ d("💌 미혼남녀 만남 행사 (DB): 정보만 보여 주는 방", async () 
   const json = (u: string, body: unknown) =>
     new Request(`http://localhost${u}`, { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.9" }, body: JSON.stringify(body) });
 
-  it("092 adds the room only on the operating DB: hidden from room lists, low sort, info_only, reachable by slug", async () => {
+  it("092 adds the room on the operating DB; 097 lists it; 098 opens community features but keeps matching off", async () => {
     expect(await getCategoryBySlug(ROOM)).toBeNull();
     await query("INSERT INTO categories (slug, name, description) VALUES ('반려견-덕후방', '반려견', '') ON CONFLICT DO NOTHING");
     await query(readFileSync(path.join(dir, "092_singles_events.sql"), "utf8"));
-    const room = await getCategoryBySlug(ROOM);
-    expect(room).toMatchObject({ name: "💌 미혼남녀 만남 행사", description: "지자체·사찰·공공 만남 행사 모음. 만 19세 이상", info_only: true });
+    expect(await getCategoryBySlug(ROOM)).toMatchObject({ name: "💌 미혼남녀 만남 행사", description: "지자체·사찰·공공 만남 행사 모음. 만 19세 이상", info_only: true });
     expect((await listCategories()).map((c) => c.slug)).not.toContain(ROOM);
+    for (const f of readdirSync(dir).filter((f) => f >= "097" && f.endsWith(".sql")).sort()) await query(readFileSync(path.join(dir, f), "utf8"));
+    expect(await getCategoryBySlug(ROOM)).toMatchObject({ info_only: false, no_matching: true, is_hidden: false });
+    expect((await listCategories()).map((c) => c.slug)).toContain(ROOM);
     const [r] = await query<{ is_hidden: boolean; sort_order: number }>("SELECT is_hidden, sort_order FROM categories WHERE slug = $1", [ROOM]);
-    expect(r).toEqual({ is_hidden: true, sort_order: 9999 });
+    expect(r).toEqual({ is_hidden: false, sort_order: 100 });
   });
 
-  it("rejects posting into the room (repo and API)", async () => {
-    const input = { categorySlug: ROOM, nickname: "누구", pin: "1234", title: "[행사] 같이 가실 분", body: "같이 가요 연락 주세요", summary: { lines: ["a", "b", "c"] as [string, string, string], model: "author", isAuthorEdited: true } };
-    await expect(posts.createPost(input)).rejects.toMatchObject({ status: 403, code: "info_only_room" });
-    const res = await postsRoute.POST(json("/api/posts", { category: ROOM, postType: "info", nickname: "누구2", pw: "1234", title: "[행사] 같이 가실 분", body: "같이 가요 연락 주세요 열 글자 넘게" }), { params: Promise.resolve({}) });
-    expect(res.status).toBe(403);
-    expect(await res.text()).toContain("info_only_room");
-    const [{ n }] = await query<{ n: number }>("SELECT count(*)::int AS n FROM posts p JOIN categories c ON c.id = p.category_id WHERE c.slug = $1", [ROOM]);
-    expect(n).toBe(0);
+  const summary = { lines: ["a", "b", "c"] as [string, string, string], model: "author", isAuthorEdited: true };
+  let roomPostId = "";
+
+  it("allows posting into the room (repo and API) but rejects 정모 proposals and contact info", async () => {
+    const created = await posts.createPost({ categorySlug: ROOM, nickname: "누구", pin: "1234", title: "[자랑] 창원 행사 당첨됐어요", body: "추첨 결과 나왔어요. 다들 화이팅", summary });
+    expect(created.category.slug).toBe(ROOM);
+    roomPostId = created.id;
+    const res = await postsRoute.POST(json("/api/posts", { category: ROOM, postType: "chat", nickname: "누구2", pw: "1234", title: "다들 어디 신청했어요?", body: "이번 달 마감인 행사 정리해 봐요 열 글자 넘게" }), { params: Promise.resolve({}) });
+    expect(res.status).toBe(201);
+    // 연락처·SNS 아이디: 글·수정 모두 거절
+    for (const body of ["010-1234-5678 로 연락 주세요", "카톡 아이디 abc123", "https://open.kakao.com/o/abcd", "인스타 @minji.kim", "minji@naver.com", "관심 있으면 DM 주세요"])
+      await expect(posts.createPost({ categorySlug: ROOM, nickname: "누구", pin: "1234", title: "같이 가실 분", body, summary })).rejects.toMatchObject({ status: 400, code: "contact_rule", message: "이 방에서는 연락처·SNS 아이디를 주고받을 수 없어요" });
+    const bad = await postsRoute.POST(json("/api/posts", { category: ROOM, postType: "chat", nickname: "누구3", pw: "1234", title: "번호 좀 주세요", body: "같이 가요 연락처 교환해요 열 글자 넘게" }), { params: Promise.resolve({}) });
+    expect(bad.status).toBe(400);
+    expect(await bad.text()).toContain("contact_rule");
+    await expect(posts.updatePost(created.id, "", "1234", { body: "제 카톡: abc123" })).rejects.toMatchObject({ code: "contact_rule" });
+    // 정모 제안 (사람끼리 만나기) 은 거절
+    await expect(
+      posts.createPost({ categorySlug: ROOM, nickname: "정모", pin: "1234", title: "정모 해요", body: "모여요", summary, postType: "meetup", meetup: { meetAt: new Date(Date.now() + 5 * DAY).toISOString(), location: "창원역", minParticipants: 2, capacity: 4 } }),
+    ).rejects.toMatchObject({ status: 403, code: "no_matching_room" });
+    // 다른 방은 연락처 규칙이 없다 (휴대전화는 기존처럼 가려서 저장)
+    await query("INSERT INTO categories (slug, name, description) VALUES ('러닝-덕후방', '러닝', '') ON CONFLICT DO NOTHING");
+    await expect(posts.createPost({ categorySlug: "러닝-덕후방", nickname: "러너", pin: "1234", title: "카톡 아이디 abc123", body: "같이 뛰어요", summary })).resolves.toBeTruthy();
   });
 
-  it("rejects comments, room chat, 갈 거예요, 같이 가요, 조 짜기, 정모 참가 and group joins on any post in the room", async () => {
-    // 운영 실수 등으로 글이 생겨도 사람끼리 잇는 기능은 모두 막힌다
+  it("allows comments and room chat, rejects contact info there, and blocks 갈 거예요, 같이 가요, 조 짜기, 정모 참가 and group joins", async () => {
     const [p] = await query<{ id: string }>(
-      `INSERT INTO posts (category_id, nickname, pw_hash, title, body, post_type, seed_key)
-       SELECT id, '운영', 'x', '[행사] 창원 미혼남녀 만남 ' || to_char(now() + interval '10 days', 'FMMM/FMDD'), '원문 https://example.go.kr', 'info', 'roomchat:' || slug FROM categories WHERE slug = $1 RETURNING id::text`,
+      `INSERT INTO posts (category_id, nickname, pw_hash, title, body, post_type)
+       SELECT id, '운영', 'x', '[행사] 창원 미혼남녀 만남 ' || to_char(now() + interval '10 days', 'FMMM/FMDD'), '원문 https://example.go.kr', 'info' FROM categories WHERE slug = $1 RETURNING id::text`,
       [ROOM],
     );
     const id = p!.id;
-    await expect(comments.createComment(id, { nickname: "댓글러", pin: "1234", body: "저도 가요" })).rejects.toMatchObject({ code: "info_only_room" });
-    await expect(eg.toggleGoing(id, fp("a"))).rejects.toMatchObject({ code: "info_only_room" });
-    await expect(eg.joinPool(id, fp("a"), { day: kday(10), slot: "am", age: "adult", nickname: "혼자", pin: "1234" })).rejects.toMatchObject({ code: "info_only_room" });
-    await expect(eg.createOpenGroup(id, fp("a"), { day: kday(10), meetTime: "10:00", place: "창원역", capacity: 4, intro: "", nickname: "모집", pin: "1234" })).rejects.toMatchObject({ code: "info_only_room" });
-    await expect(meetups.toggleRsvp(id, fp("a"), "참가")).rejects.toMatchObject({ code: "info_only_room" });
+    const c = await comments.createComment(id, { nickname: "댓글러", pin: "1234", body: "저도 신청했어요" });
+    expect(c.body).toBe("저도 신청했어요");
+    const chat = await ensureRoomChat(ROOM);
+    await expect(comments.createComment(chat!.postId, { nickname: "수다", pin: "1234", body: "다들 반가워요" })).resolves.toMatchObject({ body: "다들 반가워요" });
+    for (const body of ["010 1234 5678", "카톡 주세요", "인스타 아이디 알려 주세요", "번호 좀 주세요", "디엠 보낼게요"]) {
+      await expect(comments.createComment(id, { nickname: "댓글러", pin: "1234", body })).rejects.toMatchObject({ status: 400, code: "contact_rule" });
+      await expect(comments.createComment(chat!.postId, { nickname: "수다", pin: "1234", body })).rejects.toMatchObject({ code: "contact_rule" });
+    }
+    await expect(comments.updateComment(String(c.id), "", "1234", "제 카톡: abc123")).rejects.toMatchObject({ code: "contact_rule" });
+
+    await expect(eg.toggleGoing(id, fp("a"))).rejects.toMatchObject({ code: "no_matching_room" });
+    await expect(eg.joinPool(id, fp("a"), { day: kday(10), slot: "am", age: "adult", nickname: "혼자", pin: "1234" })).rejects.toMatchObject({ code: "no_matching_room" });
+    await expect(eg.createOpenGroup(id, fp("a"), { day: kday(10), meetTime: "10:00", place: "창원역", capacity: 4, intro: "", nickname: "모집", pin: "1234" })).rejects.toMatchObject({ code: "no_matching_room" });
+    await expect(meetups.toggleRsvp(id, fp("a"), "참가")).rejects.toMatchObject({ code: "no_matching_room" });
     const [g] = await query<{ id: string }>("INSERT INTO event_groups (post_id, kind, day, meet_time, place, capacity) VALUES ($1, 'open', $2, '10:00', '창원역', 4) RETURNING id::text", [id, kday(10)]);
-    await expect(eg.joinGroup(g!.id, fp("b"), "참여", "1234")).rejects.toMatchObject({ code: "info_only_room" });
+    await expect(eg.joinGroup(g!.id, fp("b"), "참여", "1234")).rejects.toMatchObject({ code: "no_matching_room" });
+    // 🎉 덕질 기념일·💪 응원 카드도 이 방에는 없다
+    await expect(cards.cardRoom(ROOM)).rejects.toMatchObject({ code: "invalid_category" });
 
     const going = await goingRoute.POST(json(`/api/posts/${id}/going`, {}), { params: Promise.resolve({ id }) });
     expect(going.status).toBe(403);
     const cm = await commentsRoute.POST(json(`/api/posts/${id}/comments`, { nickname: "댓글러2", pw: "1234", body: "저도 가요" }), { params: Promise.resolve({ id }) });
-    expect(cm.status).toBe(403);
+    expect(cm.status).toBe(201);
+    const cmBad = await commentsRoute.POST(json(`/api/posts/${id}/comments`, { nickname: "댓글러3", pw: "1234", body: "오픈채팅 들어오세요" }), { params: Promise.resolve({ id }) });
+    expect(cmBad.status).toBe(400);
     const [{ n }] = await query<{ n: number }>(
-      "SELECT (SELECT count(*) FROM comments WHERE post_id = $1) + (SELECT count(*) FROM event_going WHERE post_id = $1) + (SELECT count(*) FROM event_pool WHERE post_id = $1) AS n",
+      "SELECT (SELECT count(*) FROM event_going WHERE post_id = $1) + (SELECT count(*) FROM event_pool WHERE post_id = $1) + (SELECT count(*) FROM event_group_members m JOIN event_groups g ON g.id = m.group_id WHERE g.post_id = $1) AS n",
       [id],
     );
     expect(Number(n)).toBe(0);
+    expect((await comments.listComments(id)).map((x) => x.body)).toEqual(["저도 신청했어요", "저도 가요"]);
     await query("DELETE FROM posts WHERE id = $1", [id]);
+  });
+
+  it("🚩 comment and chat-line reports: one per person, hidden after 3 distinct reports", async () => {
+    const chat = await ensureRoomChat(ROOM);
+    const c = await comments.createComment(chat!.postId, { nickname: "이상한", pin: "1234", body: "선입금하면 소개해 줄게요" });
+    const id = String(c.id);
+    expect(await comments.reportComment(id, fp("1"), "사기·금전 요구 (선입금, 계좌 등)")).toEqual({ hidden: false, already: false });
+    expect(await comments.reportComment(id, fp("1"), "사기·금전 요구 (선입금, 계좌 등)")).toEqual({ hidden: false, already: true });
+    expect(await comments.reportComment(id, fp("2"), "성희롱·불쾌한 연락")).toEqual({ hidden: false, already: false });
+    const res = await reportRoute.POST(
+      new Request(`http://localhost/api/comments/${id}/report`, { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.77", "user-agent": "other" }, body: JSON.stringify({ reason: "미성년자에게 부적절" }) }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ hidden: true });
+    const [row] = (await comments.listComments(chat!.postId)).filter((x) => String(x.id) === id);
+    expect(row).toMatchObject({ body: "", hidden_reason: "reported" });
+    await expect(comments.reportComment("999999999", fp("3"), "")).rejects.toMatchObject({ status: 404 });
   });
 
   const event = (over: Record<string, unknown> = {}) => ({

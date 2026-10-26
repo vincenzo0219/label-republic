@@ -327,6 +327,10 @@ export type PeopleDay = {
   answered: number | null;
   /** 사람 댓글에 사람이 누른 👍 */
   likes: number;
+  /** 사람이 올린 덕질 기념일 카드에 다른 사람이 누른 🎉 축하 (10/26, h2h 에도 들어간다) */
+  cheers: number;
+  /** 운영자 "모두의 응원" 카드에 누른 💪 응원 (사람끼리 반응이 아니라 따로) */
+  cheer_taps: number;
   /** 운영·AI가 쓴 댓글·글 */
   ops: number;
 };
@@ -336,7 +340,7 @@ export type PeopleDay = {
  * 사람이 사람에게 반응한 수가 커뮤니티의 북극성 지표다.
  */
 export async function peopleReactions(today: string, days = 7): Promise<PeopleDay[]> {
-  return query<PeopleDay>(
+  const rows = await query<PeopleDay>(
     `WITH ds AS (SELECT generate_series($1::date - ($2::int - 1), $1::date, interval '1 day')::date AS t),
           c AS (SELECT c.id, c.post_id, c.parent_id, c.author_fingerprint AS fp, c.created_at,
                        (c.created_at AT TIME ZONE 'Asia/Seoul')::date AS day,
@@ -360,12 +364,20 @@ export async function peopleReactions(today: string, days = 7): Promise<PeopleDa
             (SELECT round(100.0 * count(*) FILTER (WHERE got_reply) / nullif(count(*), 0), 1)::float FROM hc WHERE hc.day = ds.t) AS answered,
             (SELECT count(*)::int FROM comment_likes l JOIN hc ON hc.id = l.comment_id
               WHERE l.by_name IS NULL AND (l.created_at AT TIME ZONE 'Asia/Seoul')::date = ds.t) AS likes,
+            (SELECT count(*)::int FROM post_cheers pc JOIN posts cp ON cp.id = pc.post_id
+              WHERE (pc.created_at AT TIME ZONE 'Asia/Seoul')::date = ds.t AND cp.card_kind = 'fanday'
+                AND NOT cp.is_ai_curated AND cp.author_fingerprint IS NOT NULL AND cp.nickname <> ALL($3::text[])
+                AND (pc.fingerprint IS NULL OR pc.fingerprint <> cp.author_fingerprint)) AS cheers,
+            (SELECT count(*)::int FROM post_cheers pc JOIN posts cp ON cp.id = pc.post_id
+              WHERE (pc.created_at AT TIME ZONE 'Asia/Seoul')::date = ds.t AND cp.card_kind = 'cheer') AS cheer_taps,
             (SELECT count(*)::int FROM c WHERE c.day = ds.t AND NOT c.human)
               + (SELECT count(*)::int FROM posts op WHERE (op.created_at AT TIME ZONE 'Asia/Seoul')::date = ds.t
                    AND (op.is_ai_curated OR op.author_fingerprint IS NULL OR op.nickname = ANY($3::text[]))) AS ops
        FROM ds ORDER BY ds.t DESC`,
     [today, days, OPERATOR_NICKS],
   );
+  // 🎉 기념일 축하도 사람이 다른 사람에게 보낸 반응이라 사람↔사람에 더한다 (10/26)
+  return rows.map((r) => ({ ...r, h2h: r.h2h + r.cheers }));
 }
 
 /** 지금까지 이 방(방 화면 + 방 글)을 본 고유 방문자 수 — 방 머리의 "👥 n" (카톡 오픈채팅 인원처럼 숫자만) */

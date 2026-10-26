@@ -72,7 +72,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "past", label: "지난 행사" },
 ];
 
-/** 💌 방 화면: 나 신청 가능? · 탭(모집 중·예정·지난) · 카드 · 알림. 글쓰기·채팅·댓글 없음 */
+/** 💌 방 화면: 나 신청 가능? · 탭(모집 중·예정·지난) · 카드 · 알림. 글·댓글·💬 채팅은 방의 다른 탭 (098) */
 export function SinglesRoom({ events, today }: { events: SinglesEvent[]; today: string }) {
   const { profile, update, clear } = useSinglesProfile(today);
   const [tab, setTab] = useState<Tab>("open");

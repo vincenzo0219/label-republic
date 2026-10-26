@@ -8,6 +8,7 @@ import { CRAWLER_HEADER } from "@/lib/fingerprint";
 import { EarTestBanner } from "@/components/EarTestBanner";
 import { HomeNews } from "@/components/ReportLink";
 import { MyRoomEvents } from "@/components/MyRoomEvents";
+import { TodayCards } from "@/components/TodayCards";
 import { RoomOpenedNotice } from "@/components/RoomOpenedNotice";
 import { OpenVotesBanner } from "@/components/OpenVotesBanner";
 import { RenewalsBanner } from "@/components/RenewalsBanner";
@@ -60,6 +61,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       {!crawler && !sp.page && <HomeNews />}
       {onlyMine && !sp.page && mine && <MyRoomEvents rooms={mine} />}
+      {!crawler && !sp.page && !!mine?.length && <TodayCards rooms={mine} showRoom={mine.length > 1} />}
       {!sp.page && <EarTestBanner />}
       {!crawler && <RoomOpenedNotice />}
       <OpenVotesBanner />

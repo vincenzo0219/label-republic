@@ -7,9 +7,13 @@
  */
 import type { PoolClient } from "pg";
 import { z } from "zod";
+import { AI_AUTHOR } from "./aiMark";
 import { curatorSafetyProblems } from "./curator-ai";
 
+/** 큐레이터 댓글 닉네임 (댓글은 그대로) */
 export const CURATOR_NICKNAME = "AI 큐레이터";
+/** 큐레이터 글 작성자 — 10/26부터 노방장으로 통일. 🤖 표시는 is_ai_curated 로 붙는다 */
+export const CURATOR_POST_NICKNAME = AI_AUTHOR;
 export const CURATOR_MODEL = "ai-curator";
 /** scrypt 형식이 아니므로 verifyPin 이 항상 false 를 돌려준다 */
 export const CURATOR_PW_HASH = "!ai-curator";
@@ -67,7 +71,7 @@ export async function publishSeed(client: PoolClient, categoryId: number, seed: 
     `INSERT INTO posts (category_id, nickname, pw_hash, title, body, is_ai_curated, seed_key, moderated_by, ai_reviewed, post_type)
      VALUES ($1, $2, $3, $4, $5, true, $6, 'ai-curator', $7, $8::post_type)
      ON CONFLICT (seed_key) DO NOTHING RETURNING id`,
-    [categoryId, CURATOR_NICKNAME, CURATOR_PW_HASH, seed.title, seed.body, seed.key, Boolean(seed.reviewed), seed.postType ?? "info"],
+    [categoryId, CURATOR_POST_NICKNAME, CURATOR_PW_HASH, seed.title, seed.body, seed.key, Boolean(seed.reviewed), seed.postType ?? "info"],
   );
   const postId = ins.rows[0]?.id;
   if (!postId) return null;

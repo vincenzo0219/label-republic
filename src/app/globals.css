@@ -1328,6 +1328,8 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .singles-head { margin: 0 0 12px; }
 .singles-head .room-desc { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
 .singles-scope { margin: 6px 0 0; }
+/* 098: 글쓰기·댓글·채팅 위 안전 안내 한 줄 */
+.room-rule-note { margin: 0 0 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 13px; line-height: 1.5; }
 .singles-checker, .singles-alert { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .singles-checker h2, .singles-alert h2 { font-size: 15px; margin: 0 0 8px; }
 .singles-inputs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -1359,3 +1361,45 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .singles-rejected { margin: 10px 0 0; }
 .singles-next ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
 .singles-consent { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 10px 0; }
+/* 📅 내 폰 달력에 추가 (10/26) */
+.cal-sub { margin: 0 0 10px; }
+.cal-sub.compact { margin: 0; }
+.my-events .cal-sub.compact:has(.cal-sub-panel) { flex-basis: 100%; }
+.cal-sub-toggle { border: 0; background: none; padding: 0; font: inherit; font-size: 14px; color: var(--brand); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.cal-sub-panel { margin-top: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); font-size: 14px; line-height: 1.5; }
+.cal-sub-panel p { margin: 0 0 6px; }
+.cal-sub-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.cal-sub-actions .btn { text-decoration: none; }
+.cal-sub-url { width: 100%; box-sizing: border-box; font-size: 12px; padding: 6px 8px; margin-bottom: 6px; }
+/* 🎉 내 덕질 기념일 (10/26) */
+.fan-days-open { display: inline-block; margin: 0 0 10px; border: 1px dashed var(--line); border-radius: 999px; background: var(--surface); padding: 6px 12px; font: inherit; font-size: 13.5px; color: var(--text); cursor: pointer; }
+.fan-days { margin: 0 0 12px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line)); border-radius: var(--radius); background: color-mix(in srgb, var(--brand) 5%, var(--surface)); font-size: 14px; }
+.fan-days-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.fan-day { padding: 8px 0; border-top: 1px solid var(--line); }
+.fan-day:first-of-type { border-top: 0; }
+.fan-day-main { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.fan-day-count { font-size: 17px; font-weight: 700; }
+.fan-day-next, .fan-day-cheers { margin: 4px 0; color: var(--muted); font-size: 13.5px; }
+.fan-day-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.fan-day-actions .btn { text-decoration: none; }
+.fan-day-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.fan-day-form input { min-width: 0; flex: 1 1 8em; padding: 6px 8px; font: inherit; }
+/* 🎉 축하해요 (10/26) */
+.cheer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 14px; }
+.cheer.cheer-card { margin: -6px 0 12px; padding: 0 4px; }
+.cheer-btn { min-height: 44px; padding: 0 18px; font-size: 16px; font-weight: 700; }
+.cheer-btn.on { color: var(--muted); font-weight: 600; }
+.cheer-count { font-size: 14px; color: var(--muted); }
+/* 🎉 오늘 축하할 덕후 (10/26) */
+.today-cards { margin: 0 0 12px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line)); border-radius: var(--radius); background: color-mix(in srgb, var(--brand) 5%, var(--surface)); }
+.today-cards-title { display: block; font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+.today-cards ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.today-cards li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.today-cards li > a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; font-size: 14px; }
+.cheer.cheer-strip { margin: 0; flex-wrap: nowrap; gap: 4px; }
+.cheer-strip .cheer-btn { min-height: 36px; padding: 0 10px; font-size: 14px; }
+.cheer-strip .cheer-count { min-width: 1.5em; }
+.fan-day-presets { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
+.fan-day-presets .chip.on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, var(--surface)); font-weight: 700; }
+.fan-day-field { display: flex; align-items: center; gap: 6px; flex: 1 1 12em; font-size: 13.5px; }
+.fan-day-share { display: flex; align-items: center; gap: 6px; flex-basis: 100%; font-size: 14px; }

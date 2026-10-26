@@ -3,7 +3,6 @@
  * 글을 쓰지 않는 90%도 참여할 수 있게 (독서 단톡방 분석: 말하는 사람은 10%도 안 됨).
  */
 export const BOOK_POLL_START = "2026-10-17";
-export const BOOK_POLL_HOST = "📚 오늘의 질문";
 
 export const BOOK_POLLS: readonly [string, string][] = [
   ["종이책", "전자책"],

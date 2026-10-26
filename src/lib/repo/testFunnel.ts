@@ -1,3 +1,4 @@
+import { AI_OPS_NICKS } from "../aiMark";
 import { query } from "../db";
 import type { EarFunnel } from "../earTest";
 
@@ -17,7 +18,7 @@ export async function markBrag(table: TestTable, visitorHash: string): Promise<b
 
 /**
  * 테스트 → 인증 버튼 → 인증 댓글 깔때기 (Sprint 60). from·to 는 KST 날짜(포함).
- * 인증 댓글은 글쓴이(덕후1호)·AI 댓글을 뺀다.
+ * 인증 댓글은 글쓴이·운영 계정(노방장·덕후1호 등, 10/26 글쓴이가 노방장으로 바뀜)·AI 댓글을 뺀다.
  */
 export async function testFunnel(table: TestTable, bragPostId: string, from: string, to: string): Promise<EarFunnel> {
   const rows = await query<{ finished: number; clicks: number; comments: number }>(
@@ -26,8 +27,8 @@ export async function testFunnel(table: TestTable, bragPostId: string, from: str
      SELECT (SELECT count(*)::int FROM firsts, win WHERE created_at >= lo AND created_at < hi) AS finished,
             (SELECT count(DISTINCT visitor_hash)::int FROM ${table}, win WHERE bragged_at >= lo AND bragged_at < hi) AS clicks,
             (SELECT count(*)::int FROM comments c, win WHERE c.post_id = $3 AND NOT c.is_ai_curated
-                AND c.nickname IS DISTINCT FROM (SELECT nickname FROM posts WHERE id = $3) AND c.created_at >= lo AND c.created_at < hi) AS comments`,
-    [from, to, bragPostId],
+                AND c.nickname IS DISTINCT FROM (SELECT nickname FROM posts WHERE id = $3) AND c.nickname <> ALL($4::text[]) AND c.created_at >= lo AND c.created_at < hi) AS comments`,
+    [from, to, bragPostId, [...AI_OPS_NICKS]],
   );
   const r = rows[0]!;
   return { finished: Number(r.finished), bragClicks: Number(r.clicks), bragComments: Number(r.comments) };

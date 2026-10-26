@@ -21,7 +21,8 @@ export const INVEST_ERRORS = {
   phone: "투자방에는 전화번호를 올릴 수 없어요",
 } as const;
 
-const LINKS: RegExp[] = [
+/** 외부 메신저·단체방 링크 (💌 만남 행사 방 연락처 규칙도 같이 쓴다, src/lib/singlesRules.ts) */
+export const MESSENGER_LINKS: RegExp[] = [
   /open\s*\.\s*kakao\s*\.\s*com|pf\s*\.\s*kakao\s*\.\s*com|qr\s*\.\s*kakao\s*\.\s*com/i,
   /(?<![a-z0-9])t\s*\.\s*me\s*\/|telegram\s*\.\s*(?:me|org|dog)|tg:\/\//i,
   /텔레\s*(?:그램)?\s*(?:방|채널|그룹|아이디|id|주소|링크|[:@])/i,
@@ -40,13 +41,13 @@ const LEADING: RegExp[] = [
 ];
 
 /** 휴대전화·지역번호·인터넷전화 (날짜·금액과 헷갈리지 않게 0으로 시작하는 번호만) */
-const PHONE = /(?<![\d.,])(?:01[016789]|02|0[3-6][1-5]|070|050\d?|080)[-.\s)]{0,2}\d{3,4}[-.\s]?\d{4}(?![\d.,])/;
+export const PHONE = /(?<![\d.,])(?:01[016789]|02|0[3-6][1-5]|070|050\d?|080)[-.\s)]{0,2}\d{3,4}[-.\s]?\d{4}(?![\d.,])/;
 
 /** 투자방에 올릴 수 없는 내용이면 짧은 이유, 아니면 null. 다른 방은 언제나 null */
 export function investProblem(slug: string | null | undefined, ...texts: (string | null | undefined)[]): string | null {
   if (!isInvestRoom(slug)) return null;
   const text = texts.filter(Boolean).join("\n").normalize("NFKC");
-  if (LINKS.some((re) => re.test(text))) return INVEST_ERRORS.link;
+  if (MESSENGER_LINKS.some((re) => re.test(text))) return INVEST_ERRORS.link;
   if (LEADING.some((re) => re.test(text))) return INVEST_ERRORS.leading;
   if (PHONE.test(text)) return INVEST_ERRORS.phone;
   return null;

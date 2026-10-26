@@ -14,11 +14,12 @@ import { investProblem } from "../investRooms";
 import { roomAbuseOpts, roomHeuristicAbuse } from "../roomModeration";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
-import type { PostCard, PostDetail, PostRevision, PostType } from "../types";
+import type { CardKind, PostCard, PostDetail, PostRevision, PostType } from "../types";
 import { assertCanPropose, insertMeetup, type MeetupInput } from "./meetups";
 import { deleteFiles, listPostImages, setPostImages, type ImageRef } from "./images";
 import { assertPin } from "./pin-guard";
-import { infoOnlyError, isInfoOnlyRoom } from "./infoOnly";
+import { infoOnlyError, isInfoOnlyRoom, noMatchingError } from "./infoOnly";
+import { contactProblem } from "../singlesRules";
 import { listPostSources, setPostSources, type SourceRef } from "./sources";
 import { getRule } from "./rules";
 import { deleteSnapshot } from "../snapshots";
@@ -50,7 +51,9 @@ const CARD_SELECT = `
   coalesce((SELECT json_agg(json_build_object('id', pr.id::text, 'brand', pr.brand, 'name', pr.name) ORDER BY pp.position)
               FROM post_products pp JOIN products pr ON pr.id = pp.product_id WHERE pp.post_id = p.id), '[]'::json) AS products,
   p.correction_count, p.disputed_count,
-  ${HUMAN_COMMENTS_SQL} AS human_comment_count`;
+  ${HUMAN_COMMENTS_SQL} AS human_comment_count,
+  p.card_kind,
+  CASE WHEN p.card_kind IS NOT NULL THEN (SELECT count(*)::int FROM post_cheers pc WHERE pc.post_id = p.id) ELSE 0 END AS cheer_count`;
 
 const FROM = `
   FROM posts p
@@ -390,6 +393,8 @@ export type CreatePostInput = {
   products?: ProductRef[];
   /** 제품 수치 — product 는 products 의 순서 */
   facts?: FactInput[];
+  /** 🎉 덕질 기념일 카드 · 💪 모두의 응원 카드 (10/26). 공개 글쓰기 API 로는 못 넣는다 (src/lib/repo/cards.ts 만) */
+  cardKind?: CardKind;
 };
 
 export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
@@ -398,6 +403,9 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
   // 투자방: 외부 채팅방 링크·리딩방 모집·전화번호는 올리지 않는다 (10/24, src/lib/investRooms.ts)
   const invest = investProblem(raw.categorySlug, raw.title, raw.body, ...(raw.summary?.lines ?? []), ...(raw.sources ?? []).flatMap((x) => [x.url, x.label]));
   if (invest) throw new HttpError(400, "invest_rule", invest);
+  // 💌 만남 행사 방: 연락처·SNS 아이디는 올리지 않는다 (098, src/lib/singlesRules.ts)
+  const contact = contactProblem(raw.categorySlug, raw.title, raw.body, ...(raw.summary?.lines ?? []), ...(raw.sources ?? []).flatMap((x) => [x.url, x.label]));
+  if (contact) throw new HttpError(400, "contact_rule", contact);
   // 광고 판단은 원문으로 (연락처 자체가 광고 신호), 저장은 휴대전화·이메일·주민등록번호를 지운 판으로 (Sprint 37)
   const spam = heuristicSpam(raw.title, raw.body);
   const input = { ...raw, title: maskPersonalInfo(raw.title).text.slice(0, 120), body: maskPersonalInfo(raw.body).text };
@@ -413,10 +421,12 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
   const abuse = heuristicAbuse(input.title, input.body) ?? roomHeuristicAbuse(input.categorySlug, input.title, input.body);
 
   const id = await tx(async (client) => {
-    const cat = await client.query<{ id: number; info_only: boolean }>("SELECT id, info_only FROM categories WHERE slug = $1", [input.categorySlug]);
+    const cat = await client.query<{ id: number; info_only: boolean; no_matching: boolean }>("SELECT id, info_only, no_matching FROM categories WHERE slug = $1", [input.categorySlug]);
     if (!cat.rows[0]) throw new HttpError(400, "invalid_category", "존재하지 않는 카테고리입니다.");
-    // 💌 정보만 보여 주는 방: 운영 초안·에이전트·사람 모두 글을 쓸 수 없다 (092)
+    // 정보만 보여 주는 방: 운영 초안·에이전트·사람 모두 글을 쓸 수 없다 (092)
     if (cat.rows[0].info_only) throw infoOnlyError();
+    // 💌 만남 연결 기능 없는 방: 글은 되고 정모 제안은 안 된다 (098)
+    if (postType === "meetup" && cat.rows[0].no_matching) throw noMatchingError();
     if (postType === "meetup") await assertCanPropose(client, cat.rows[0].id, input.nickname, input.fingerprint);
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO posts (category_id, nickname, pw_hash, title, body, spam_score, is_suppressed, moderation_note, moderated_by,
@@ -441,6 +451,7 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
       ],
     );
     if (summary) await insertSummary(client, rows[0]!.id, summary);
+    if (input.cardKind) await client.query("UPDATE posts SET card_kind = $2 WHERE id = $1", [rows[0]!.id, input.cardKind]);
     if (input.images?.length) await setPostImages(client, rows[0]!.id, input.images);
     if (input.sources?.length) await setPostSources(client, rows[0]!.id, input.sources);
     if (input.products?.length) {
@@ -479,8 +490,12 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
     if (!post) throw notFound();
     if (post.is_blinded) throw blinded();
     await assertPin(`post:${id}`, fp, pin, post.pw_hash);
+    // 🎉 기념일·💪 응원 카드는 정해진 틀 그대로 (글을 고쳐 다른 내용을 싣지 못하게). 지우기는 된다
+    if (post.card_kind) throw new HttpError(403, "card_locked", "카드는 고칠 수 없어요. 지우고 다시 올려 주세요.");
     const invest = investProblem(post.category.slug, input.title, input.body, ...(input.summary?.lines ?? []), ...(input.sources ?? []).flatMap((x) => [x.url, x.label]));
     if (invest) throw new HttpError(400, "invest_rule", invest);
+    const contact = contactProblem(post.category.slug, input.title, input.body, ...(input.summary?.lines ?? []), ...(input.sources ?? []).flatMap((x) => [x.url, x.label]));
+    if (contact) throw new HttpError(400, "contact_rule", contact);
     // 휴대전화·이메일·주민등록번호는 지운 판으로 저장 (Sprint 37)
     const title = input.title === undefined ? post.title : maskPersonalInfo(input.title).text.slice(0, 120);
     const body = input.body === undefined ? post.body : maskPersonalInfo(input.body).text;

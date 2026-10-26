@@ -285,7 +285,7 @@ d("database rules", async () => {
       client.release();
     }
     const [card] = (await posts.listPosts({ sort: "latest" })).items;
-    expect(card).toMatchObject({ is_ai_curated: true, nickname: curator.CURATOR_NICKNAME, comment_count: 2 });
+    expect(card).toMatchObject({ is_ai_curated: true, nickname: curator.CURATOR_POST_NICKNAME, comment_count: 2 });
     expect(card!.summary).toMatchObject({ model_version: "ai-curator", is_author_edited: false });
     const cs = await comments.listComments(card!.id);
     expect(cs.every((c) => c.is_ai_curated)).toBe(true);

@@ -3,4 +3,4 @@
  * 화면·메타데이터·피드·알림·AI 안내문이 모두 여기서 이름을 가져간다.
  */
 export const SITE_NAME = "노방장";
-export const SITE_TAGLINE = "방장 없는 덕후 커뮤니티";
+export const SITE_TAGLINE = "같은 취향끼리 일정·정보·수다";

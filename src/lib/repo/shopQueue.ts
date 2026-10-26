@@ -228,8 +228,8 @@ export async function refreshNotice(now = new Date()): Promise<"updated" | "same
   const rows = await query<{ publish_at: string; head: string; title: string }>(
     `SELECT publish_at, head, ${TITLE} AS title FROM shop_queue q
       WHERE room_slug = $1 AND NOT pinned AND publish_at >= $2::timestamptz AND publish_at < $3::timestamptz
-        AND (published_at IS NOT NULL OR publish_at > now() - make_interval(hours => ${LATE_LIMIT_HOURS}))`,
-    [SHOP_ROOM, kstDate(day, "00:00").toISOString(), kstDate(addDays(day, 1), "00:00").toISOString()],
+        AND (published_at IS NOT NULL OR publish_at > $4::timestamptz - make_interval(hours => ${LATE_LIMIT_HOURS}))`,
+    [SHOP_ROOM, kstDate(day, "00:00").toISOString(), kstDate(addDays(day, 1), "00:00").toISOString(), now.toISOString()],
   );
   const { title, body } = noticeText(day, lines(rows));
   const r = await query<{ id: string }>(

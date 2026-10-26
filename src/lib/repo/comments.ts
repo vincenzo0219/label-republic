@@ -1,7 +1,7 @@
 import { tokenOk } from "./images";
 import { aiAbuse, aiImageAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
-import { query, tx } from "../db";
-import { blinded, HttpError, notFound } from "../errors";
+import { isUniqueViolation, query, tx } from "../db";
+import { blinded, HttpError, notFound, tooMany } from "../errors";
 import { extractMentions, resolveMentions } from "../mentions";
 import { investProblem } from "../investRooms";
 import { roomAbuseOpts, roomHeuristicAbuse } from "../roomModeration";
@@ -12,6 +12,8 @@ import type { Comment } from "../types";
 import { assertPin } from "./pin-guard";
 import { ownerAlertAfter } from "./ownerAlert";
 import { infoOnlyError } from "./infoOnly";
+import { contactProblem } from "../singlesRules";
+import { COMMENT_REPORT_HIDE } from "../commentReport";
 
 /** 글이 있는 방 slug (없으면 null) */
 async function roomOfPost(postId: string): Promise<string | null> {
@@ -19,11 +21,16 @@ async function roomOfPost(postId: string): Promise<string | null> {
   return r?.slug ?? null;
 }
 
-/** 투자방 규칙 (10/24): 외부 채팅방 링크·리딩방 모집·전화번호는 댓글로도 못 올린다. 글이 있는 방 slug 를 돌려준다 */
+/**
+ * 투자방 규칙 (10/24): 외부 채팅방 링크·리딩방 모집·전화번호는 댓글로도 못 올린다.
+ * 💌 만남 행사 방 (098): 연락처·SNS 아이디는 댓글·💬 채팅으로도 못 올린다. 글이 있는 방 slug 를 돌려준다
+ */
 async function assertInvestOk(postId: string, body: string): Promise<string | null> {
   const slug = await roomOfPost(postId);
   const problem = investProblem(slug, body);
   if (problem) throw new HttpError(400, "invest_rule", problem);
+  const contact = contactProblem(slug, body);
+  if (contact) throw new HttpError(400, "contact_rule", contact);
   return slug;
 }
 
@@ -69,7 +76,7 @@ export async function createComment(
       [postId],
     );
     if (!post.rows[0]) throw notFound();
-    // 💌 정보만 보여 주는 방: 댓글·방 채팅 없음 (092)
+    // 정보만 보여 주는 방: 댓글·방 채팅 없음 (092). 💌 만남 행사 방은 098 부터 댓글·채팅이 된다
     if (post.rows[0].info_only) throw infoOnlyError();
     if (post.rows[0].is_blinded) throw blinded();
     let parentId: string | null = null;
@@ -131,6 +138,33 @@ export async function deleteComment(id: string, fp: string, pin: string): Promis
   if (!rows[0]) throw notFound("댓글");
   await assertPin(`comment:${id}`, fp, pin, rows[0].pw_hash);
   await query("DELETE FROM comments WHERE id = $1", [id]);
+}
+
+export { COMMENT_REPORT_HIDE };
+
+/** 같은 사람은 한 번. 결과의 hidden 이 true 면 화면에서 바로 가린다 (실시간 알림도 간다) */
+export async function reportComment(id: string, fp: string, reason: string): Promise<{ hidden: boolean; already: boolean }> {
+  if (!/^\d{1,18}$/.test(id)) throw notFound("댓글");
+  const [c] = await query<{ id: string }>("SELECT id::text FROM comments WHERE id = $1", [id]);
+  if (!c) throw notFound("댓글");
+  // 글 신고와 같은 한도 (한 사람이 짧은 시간에 몰아서 신고하지 못하게)
+  if (!(await hit(`report:${fp}`, 20, 60 * 60 * 1000))) throw tooMany();
+  let already = false;
+  try {
+    await query("INSERT INTO comment_reports (comment_id, reporter_fingerprint, reason) VALUES ($1, $2, $3)", [id, fp, reason.slice(0, 200)]);
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+    already = true;
+  }
+  // 이미 가려졌거나 🤖 운영 댓글은 그대로
+  await query(
+    `UPDATE comments SET ai_hidden_reason = 'reported', ai_hidden_note = '신고 누적', ai_hidden_model = 'reports', ai_hidden_at = now()
+      WHERE id = $1 AND ai_hidden_reason IS NULL AND NOT is_ai_curated
+        AND (SELECT count(*) FROM comment_reports WHERE comment_id = $1) >= $2`,
+    [id, COMMENT_REPORT_HIDE],
+  );
+  const [r] = await query<{ hidden: boolean }>("SELECT ai_hidden_reason IS NOT NULL AS hidden FROM comments WHERE id = $1", [id]);
+  return { hidden: !!r?.hidden, already };
 }
 
 /** 댓글 본문 고치기 (10/23) — 지울 때와 같은 비번 확인. 개인정보는 등록 때처럼 가린다 */

@@ -25,6 +25,7 @@ import { SourceList } from "@/components/SourceList";
 import { SummaryLines } from "@/components/SummaryLines";
 import { TrustBadge } from "@/components/TrustBadge";
 import { VoteButtons } from "@/components/VoteButtons";
+import { CheerButton } from "@/components/CheerButton";
 import { WatchToggle } from "@/components/WatchToggle";
 import { config } from "@/lib/config";
 import { imageUrl } from "@/lib/media-url";
@@ -46,7 +47,8 @@ import { headOf } from "@/lib/heads";
 import { bareTitle, shopHeadLabel, stripsHead } from "@/lib/shopRoom";
 import { EventTogether } from "@/components/EventTogether";
 import { EventGroups } from "@/components/EventGroups";
-import { isInfoOnlyRoom } from "@/lib/repo/infoOnly";
+import { roomFlags } from "@/lib/repo/infoOnly";
+import { roomRuleNotice } from "@/lib/singlesRules";
 import { eventSpan } from "@/lib/adSchedule";
 import { afterEvent, firstOfficialUrl, groupsProof, kstToday, penaltyText, poolOpen } from "@/lib/eventGoing";
 import { activePenalty, autoGroupCount, eventDays, goingSummary, listOpenGroups } from "@/lib/repo/eventGoing";
@@ -129,9 +131,12 @@ export default async function PostPage({ params }: Props) {
   }
 
   const fp = fingerprint(await headers());
-  // 💌 정보만 보여 주는 방(092)의 글이면 갈 거예요·같이 가요·댓글을 그리지 않는다 (서버도 거절)
-  const infoOnly = await isInfoOnlyRoom(post.category.slug).catch(() => false);
-  const isEvent = post.title.startsWith("[행사]") && !infoOnly;
+  // 정보만 보여 주는 방(092)의 글이면 갈 거예요·같이 가요·댓글을 그리지 않는다.
+  // 💌 만남 연결 기능 없는 방(098)은 댓글은 되고 갈 거예요·같이 가요만 없다 (서버도 거절)
+  const flags = await roomFlags(post.category.slug).catch(() => null);
+  const infoOnly = !!flags?.info_only;
+  const isEvent = post.title.startsWith("[행사]") && !infoOnly && !flags?.no_matching;
+  const ruleNotice = roomRuleNotice(post.category.slug);
   const [comments, myVote, participants, attending, appeal, corrections, rules, debate, together] = await Promise.all([
     listComments(id),
     getMyVote(id, fp),
@@ -272,13 +277,14 @@ export default async function PostPage({ params }: Props) {
         </>
       )}
 
+      {post.card_kind && <CheerButton postId={post.id} initial={post.cheer_count ?? 0} kind={post.card_kind} />}
       <VoteButtons postId={post.id} initial={{ upvotes: post.upvotes, downvotes: post.downvotes, myVote }} />
 
       <div className="post-actions">
         <ShareButton postId={post.id} title={post.title} from={isEvent ? "share" : undefined} />
         <WatchToggle kind="post" id={post.id} name={post.title} />
         <SaveOffline postId={post.id} />
-        {!post.is_ai_curated && <PostOwnerActions postId={post.id} />}
+        {!post.is_ai_curated && <PostOwnerActions postId={post.id} noEdit={!!post.card_kind} />}
         <ReportButton postId={post.id} blindAt={rules.post_blind_reports} />
       </div>
 
@@ -294,7 +300,7 @@ export default async function PostPage({ params }: Props) {
       )}
 
       {debate && <DebateVote postId={post.id} initial={debate} />}
-      {!infoOnly && <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} badges={badges} />}
+      {!infoOnly && <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} badges={badges} notice={ruleNotice} report={!!ruleNotice} />}
       {isInvestRoom(post.category.slug) && <p className="invest-note">{INVEST_NOTICE}</p>}
     </article>
   );
