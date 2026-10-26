@@ -58,7 +58,10 @@ const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
 const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방", SHOP_ROOM, INSTRUCTOR]);
 
 /** 방 탭 줄 끝에 붙는 다른 화면 링크 (책 덕후방 물어보기는 10/23 📚 추천 탭 안으로 합침) */
-export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {};
+export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {
+  // 10/26: 사진 2장 자세 체크 (브라우저 안에서만 분석, src/lib/posture.ts)
+  [INSTRUCTOR]: [{ href: "/posture-check", label: "📸 자세 체크" }],
+};
 
 /** 💬 채팅 바로 뒤에 붙는 방 전용 탭 (?tab=키, 글 목록 대신 그 화면) — 육아방 📍동네 체험 (10/24) */
 export const ROOM_CHAT_TABS: Record<string, { key: string; label: string }[]> = {
