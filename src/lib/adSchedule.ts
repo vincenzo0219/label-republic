@@ -166,6 +166,41 @@ export const latestEventTitles = (posts: readonly SchedulePost[], n = 2): { post
 
 export const ddayLabel = (d: number) => (d <= 0 ? "D-day" : `D-${d}`);
 
+/** 글 하나의 일정: 오늘부터 가장 가까운 기준일까지 남은 날, 날짜는 있는데 모두 지났으면 "ended", 날짜를 못 찾으면 null */
+export type EventDday = number | "ended" | null;
+
+/**
+ * 🎫 행사 카드의 D-day (10/25). 제목의 날짜(운영 글은 제목에 대표 기간을 적는다)와 본문의 날짜 중
+ * 아직 안 지난 가장 가까운 기준일 (시작 전이면 시작일, 진행 중이면 끝나는 날). 본문 날짜는 HORIZON_DAYS 안만 본다.
+ */
+export function eventDday(post: SchedulePost, now = new Date()): EventDday {
+  const today = kstDayNumber(now);
+  const refDay = kstDayNumber(new Date(post.created_at));
+  const title = findDates(bare(post.title), refDay);
+  const body = findDates(post.body ?? "", refDay);
+  let best: number | null = null;
+  for (const [list, horizon] of [[title, Infinity], [body, HORIZON_DAYS]] as const) {
+    for (const f of list) {
+      const k = keyDay(f, today);
+      if (k !== null && k - today <= horizon && (best === null || k < best)) best = k;
+    }
+  }
+  if (best !== null) return best - today;
+  return title.length || body.length ? "ended" : null;
+}
+
+/** 카드 뱃지 글자: D-day · D-3 · 마감 */
+export const eventDdayLabel = (d: EventDday): string | null => (d === null ? null : d === "ended" ? "마감" : ddayLabel(d));
+
+/** 🎫 행사 탭 순서: 가까운 일정 먼저, 날짜 모르는 글은 원래 순서(최신순)대로 그 뒤, 끝난 글은 맨 뒤 */
+export function sortByEventDday<T extends { id: string }>(items: readonly T[], ddays: ReadonlyMap<string, EventDday>): T[] {
+  const rank = (d: EventDday | undefined) => (typeof d === "number" ? 0 : d === "ended" ? 2 : 1);
+  return items
+    .map((item, i) => ({ item, i, d: ddays.get(item.id) }))
+    .sort((a, b) => rank(a.d) - rank(b.d) || (typeof a.d === "number" && typeof b.d === "number" ? a.d - b.d : 0) || a.i - b.i)
+    .map((x) => x.item);
+}
+
 /** 목록 칩: 제목 말머리가 [행사]/[혜택]이면 그걸로, 아니면 잡담 (홈·검색 목록) */
 export function typeChip(title: string, postType: string): string | null {
   if (title.startsWith("[행사]")) return "🎫 행사";

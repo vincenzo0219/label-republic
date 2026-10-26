@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { getMyRooms } from "@/lib/myRooms";
+import { markRead } from "@/lib/readPosts";
 import { markSeen, readSeenAll, seenBefore } from "@/lib/seen";
 
 function useSeenBefore(room: string): number | null | undefined {
@@ -23,6 +24,12 @@ export function MarkSeen({ room }: { room: string }) {
     seenBefore(room);
     markSeen(room);
   }, [room]);
+  return null;
+}
+
+/** 글 화면: 열어 본 글로 기록 — 📬 새 소식에서 뺀다 (10/25, 브라우저에만) */
+export function MarkRead({ postId }: { postId: string }) {
+  useEffect(() => markRead(postId), [postId]);
   return null;
 }
 

@@ -17,6 +17,7 @@ import { SAVINGS_ROOM } from "../investRooms";
 import { kstMonth } from "../savingsLog";
 import { runGigPush } from "./gigPush";
 import { flushOwnerAlerts } from "../repo/ownerAlert";
+import { runRoomPush } from "./roomPush";
 
 const LOCK_KEY = 4_823_006;
 const BATCH = 500;
@@ -472,6 +473,9 @@ export function startPushScheduler(intervalMs: number): () => void {
     if (ev.sent || ev.removed) console.log(`[push] 행사 알림 ${ev.sent}건 발송, 구독 ${ev.removed}개 정리`);
     const sv = await runSavingsPush();
     if (sv.sent || sv.removed) console.log(`[push] 적립일 알림 ${sv.sent}건 발송, 구독 ${sv.removed}개 정리`);
+    // 🆕 내 방 새 글 (10/25): 방마다 6시간에 한 번, 하루 3번까지 (src/lib/jobs/roomPush.ts)
+    const rm = await runRoomPush();
+    if (rm.sent || rm.removed) console.log(`[push] 내 방 새 글 알림 ${rm.sent}건 발송, 구독 ${rm.removed}개 정리`);
   });
   const timer = setInterval(tick, intervalMs);
   timer.unref();

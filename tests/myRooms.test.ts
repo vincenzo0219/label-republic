@@ -203,4 +203,25 @@ d("home feed with my rooms (db)", async () => {
     expect(r.boards[0]!.newCount).toBe(1);
     expect(parseSeen("bad,%E0:1,x:abc").size).toBe(0);
   });
+
+  it("📬 badge and /me list agree, opened posts drop out of new only, 7-day view ignores seen (10/25)", async () => {
+    const { countNew, buildReport, clampSince } = await import("@/lib/repo/report");
+    const ids = (await query<{ id: string; title: string }>("SELECT id::text, title FROM posts ORDER BY id")).map((r) => r);
+    const opened = ids.find((r) => r.title === "new info")!.id;
+    const since = new Date(Date.now() - 24 * 3600_000);
+    // 배지가 센 수 = 목록 개수 = 방별 수
+    const n = await countNew(["러닝-덕후방"], since);
+    const r = await buildReport(["러닝-덕후방"], since);
+    expect(r.total).toBe(n);
+    expect(r.posts).toHaveLength(n);
+    // 열어 본 글은 새 글에서 빠지고, 배지와 목록이 같이 줄어든다
+    expect(await countNew(["러닝-덕후방"], since, undefined, undefined, [opened])).toBe(n - 1);
+    const r2 = await buildReport(["러닝-덕후방"], since, new Date(), undefined, undefined, [opened]);
+    expect(r2.posts.map((p) => p.id)).not.toContain(opened);
+    expect(r2.total).toBe(n - 1);
+    expect(r2.boards[0]!.newCount).toBe(n - 1);
+    // 최근 7일 전체: 기준 시각·본 것 없이 요청 → 모두
+    const week = await buildReport(["러닝-덕후방"], clampSince(null));
+    expect(week.posts.map((p) => p.title).sort()).toEqual(["[행사] 마라톤", "new info", "old info"].sort());
+  });
 });

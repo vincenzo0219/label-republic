@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { onInterestsChange } from "@/lib/interests";
 import { enablePush } from "@/lib/pushClient";
+import { clearRoomAlertsFlag, scheduleRoomAlertsSync } from "@/lib/roomAlerts";
 import { getPushState, setPushState, syncPush } from "@/lib/watchlist";
 
 type Status = "loading" | "unsupported" | "disabled" | "off" | "on" | "blocked";
 
 /**
  * 푸시 알림 켜기/끄기. 켜면 이 브라우저의 푸시 주소와 관심 제품·지켜보는 글·내 댓글 번호가 서버에 저장되고,
- * 끄면 바로 지워진다. 관심 방 새 글은 푸시로 보내지 않는다 (너무 잦음).
+ * 끄면 바로 지워진다. 내 방 새 글은 따로 켠 경우에만 (🔔 내 방 새 글 알림 받기, 10/25 · 방마다 6시간에 한 번, 하루 3번까지).
  */
 export function PushSettings() {
   const [status, setStatus] = useState<Status>("loading");
@@ -32,7 +33,10 @@ export function PushSettings() {
         setKey(d.publicKey);
         refresh();
         // 알림을 켠 브라우저면 들어올 때마다 목록을 한 번 맞춘다 (90일 미사용 자동 삭제 기준도 갱신)
-        if (getPushState()) void syncPush();
+        if (getPushState()) {
+          void syncPush();
+          scheduleRoomAlertsSync();
+        }
       })
       .catch(() => !cancelled && setStatus("disabled"));
     const off = onInterestsChange(() => {
@@ -74,6 +78,7 @@ export function PushSettings() {
       const reg = await navigator.serviceWorker.getRegistration("/sw.js");
       await (await reg?.pushManager.getSubscription())?.unsubscribe();
       setPushState(null);
+      clearRoomAlertsFlag();
       setStatus("off");
       setMsg("알림을 끄고 서버에 있던 알림 정보를 지웠어요.");
     } catch (e) {

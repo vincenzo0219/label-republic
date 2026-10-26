@@ -286,13 +286,16 @@ export const BOARD_NEW_WHERE = `NOT p.is_blinded AND NOT p.is_suppressed
     AND p.category_id = ANY($1::int[])
     AND p.created_at > (SELECT x.s FROM unnest($1::int[], $2::timestamptz[]) AS x(id, s) WHERE x.id = p.category_id LIMIT 1)`;
 
-/** since: 모든 방 공통 기준 또는 categoryIds 와 같은 순서의 방별 기준 */
-export async function listNewPosts(categoryIds: number[], since: Date | Date[], limit = 30): Promise<{ items: PostCard[]; total: number }> {
+/** 위 조건 + 이미 열어 본 글 빼기 ($n: 글 번호들). 새 글 수에만 쓰고 "최근 7일 전체"에는 쓰지 않는다 (10/25) */
+export const boardNewWhere = (readParam?: string) => (readParam ? `${BOARD_NEW_WHERE} AND NOT (p.id = ANY(${readParam}::bigint[]))` : BOARD_NEW_WHERE);
+
+/** since: 모든 방 공통 기준 또는 categoryIds 와 같은 순서의 방별 기준. read: 이미 열어 본 글 번호 (빼고 센다) */
+export async function listNewPosts(categoryIds: number[], since: Date | Date[], limit = 30, read: string[] = []): Promise<{ items: PostCard[]; total: number }> {
   if (!categoryIds.length) return { items: [], total: 0 };
   const per = categoryIds.map((_, i) => (Array.isArray(since) ? since[i]! : since).toISOString());
   const [items, count] = await Promise.all([
-    query<PostCard>(pagedCardsSql(BOARD_NEW_WHERE, ORDER.trust, "$3"), [categoryIds, per, limit]),
-    query<{ total: number }>(`SELECT count(*)::int AS total FROM posts p WHERE ${BOARD_NEW_WHERE}`, [categoryIds, per]),
+    query<PostCard>(pagedCardsSql(boardNewWhere(read.length ? "$4" : undefined), ORDER.trust, "$3"), [categoryIds, per, limit, ...(read.length ? [read] : [])]),
+    query<{ total: number }>(`SELECT count(*)::int AS total FROM posts p WHERE ${boardNewWhere(read.length ? "$3" : undefined)}`, [categoryIds, per, ...(read.length ? [read] : [])]),
   ]);
   return { items, total: count[0]!.total };
 }
