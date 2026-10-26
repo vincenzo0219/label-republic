@@ -1235,3 +1235,34 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .gig-notes { white-space: pre-line; overflow-wrap: anywhere; margin: 0 0 14px; font-size: 14.5px; line-height: 1.6; }
 .gig-contact { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 0; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
 .gig-cta { align-items: center; }
+
+/* 🙋 같이 갈 사람 (10/26) */
+.together { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 14px 16px; margin: 14px 0; display: grid; gap: 10px; min-width: 0; }
+.together-title { font-size: 15px; margin: 0; }
+.together-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.together-row .btn.on { color: var(--muted); }
+.together-count { font-size: 15px; }
+.together-share { margin-left: auto; }
+.together-names, .together-proof, .together-safety { margin: 0; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.together-ask, .together-form { display: grid; gap: 8px; }
+.together-form label { display: grid; gap: 4px; font-size: 14px; color: var(--muted); }
+.together-form label.check { display: flex; color: var(--text); }
+.together-form .seg { display: flex; flex-wrap: wrap; gap: 4px 14px; border: 0; padding: 0; margin: 0; font-size: 14px; }
+.together-form .seg legend { color: var(--muted); padding: 0; margin-bottom: 4px; width: 100%; }
+.together-form .seg label { display: flex; align-items: center; gap: 4px; color: var(--text); }
+.together-official, .together-after { margin: 10px 0 0; font-size: 14.5px; }
+.together-after { color: var(--muted); }
+.pool-status { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 6px; font-size: 14.5px; overflow-wrap: anywhere; }
+.pool-status p { margin: 0; }
+.group-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.group-list > li { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 6px; min-width: 0; }
+.group-line { font-size: 14.5px; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.group-intro { margin: 0; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.group-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.group-room { border: 1px solid var(--brand); border-radius: var(--radius); padding: 12px; display: grid; gap: 8px; min-width: 0; }
+.group-room-head p { margin: 4px 0; font-size: 14px; overflow-wrap: anywhere; }
+.group-members { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 14px; }
+.group-members li { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.group-chat { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 320px; overflow-y: auto; font-size: 14.5px; }
+.group-chat li { overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }
+.group-chat li.mine b { color: var(--brand); }

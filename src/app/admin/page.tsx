@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ResolveError } from "@/components/admin/ResolveError";
 import Link from "next/link";
+import { goingStats, listPenaltyAppeals, listPlaceReports } from "@/lib/repo/eventGoing";
 import { compact, DailyBars, HBarList, StatTile, StatusPill } from "@/components/admin/charts";
 import { config } from "@/lib/config";
 import { getRules, listProposals } from "@/lib/repo/rules";
@@ -99,6 +100,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     m.readerPeriod(today, 7),
     m.readerPeriod(today, 28),
   ]);
+  const [goingS, goingAppeals, goingPlaces] = await Promise.all([
+    goingStats(...cur).catch(() => null),
+    listPenaltyAppeals().catch(() => []),
+    listPlaceReports().catch(() => []),
+  ]);
   const [holds, pending, rules, ruleVotes, feedback, boardT, biz, drafts, ownerDevices] = await Promise.all([
     activeLegalHolds(),
     pendingCounts(),
@@ -139,6 +145,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           </Link>{" "}
           <Link className="btn btn-sm" href="/admin/feedback">
             🛠 제보{feedback.new + feedback.open > 0 ? ` · 새 제보 ${feedback.new} · 처리 중 ${feedback.open}` : ""}
+          </Link>{" "}
+          <Link className="btn btn-sm" href="/admin/event-groups">
+            🙋 동행{goingAppeals.length + goingPlaces.length > 0 ? ` · 이의제기 ${goingAppeals.length} · 장소 신고 ${goingPlaces.length}` : ""}
           </Link>
         </p>
         <nav className="type-filter" aria-label="기간">
@@ -178,6 +187,18 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <HBarList title={`유입 경로 (최근 ${range}일 랜딩)`} unit="회" empty="아직 수집된 방문이 없습니다." rows={sources.map((s) => ({ label: SOURCE_LABEL[s.source] ?? s.source, value: s.landings }))} />
         <HBarList title="검색엔진별 유입" unit="회" empty="검색 유입이 아직 없습니다." rows={searchRefs.map((r) => ({ label: r.host, value: r.landings }))} />
         <HBarList title="SNS별 유입" unit="회" empty="SNS 유입이 아직 없습니다." rows={socialRefs.map((r) => ({ label: r.host, value: r.landings }))} />
+        <HBarList
+          title={`🙋 같이 갈 사람 (최근 ${range}일, 남아 있는 것 기준)`}
+          unit=""
+          empty="아직 없습니다."
+          rows={goingS && goingS.toggles + goingS.groups + goingS.joins + goingS.pool > 0 ? [
+            { label: "갈 거예요 (명)", value: goingS.toggles },
+            { label: "같이 가요 모집 열림 (개)", value: goingS.groups },
+            { label: "모집 참여 (명)", value: goingS.joins },
+            { label: "조 짜 주세요 신청 (명)", value: goingS.pool },
+            { label: "자동 조 편성 (개)", value: goingS.auto },
+          ] : []}
+        />
         {[
           { name: "황금귀 테스트", f: ear },
           { name: "고음 청력 테스트", f: hearing },

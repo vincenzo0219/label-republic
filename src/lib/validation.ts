@@ -238,3 +238,48 @@ export const feedbackSchema = z.object({
 });
 
 export const ruleVoteSchema = z.object({ value: z.union([z.literal(1), z.literal(-1), z.literal(0)], { error: "찬성·반대를 골라주세요." }) });
+
+// 🙋 같이 갈 사람 (10/26)
+const pushRef = z.object({ endpoint: z.string().max(1000), token: z.string().max(200) }).optional().nullable();
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "날짜를 골라 주세요.");
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "만날 시간을 골라 주세요.");
+const agreeRule = z.literal(true, { error: "노쇼 규칙을 확인하고 체크해 주세요." });
+export const goingSchema = z.object({ nickname: nickname.optional().nullable(), push: pushRef });
+export const openGroupSchema = z.object({
+  day: isoDay,
+  meetTime: hhmm,
+  place: trimmed(2, 40, "만날 곳"),
+  capacity: z.coerce.number().int().min(2, "정원은 2~6명이에요.").max(6, "정원은 2~6명이에요."),
+  intro: z.string().trim().max(60, "한 줄 소개는 60자까지예요.").default(""),
+  nickname,
+  pw: pin,
+  agree: agreeRule,
+});
+export const poolSchema = z.object({
+  day: isoDay,
+  slot: z.enum(["am", "pm"], { error: "오전·오후를 골라 주세요." }),
+  age: z.enum(["adult", "teen"], { error: "나이대를 골라 주세요." }),
+  over14: z.literal(true, { error: "만 14세 이상만 신청할 수 있어요." }),
+  agree: agreeRule,
+  nickname,
+  pw: pin,
+  push: pushRef,
+});
+const memberToken = z.string().max(64);
+export const eventGroupActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("join"), nickname, pw: pin, agree: z.boolean().optional() }),
+  z.object({ action: z.literal("message"), token: memberToken, body: trimmed(1, 300, "메시지") }),
+  z.object({ action: z.literal("leave"), token: memberToken }),
+  z.object({ action: z.literal("checkin"), token: memberToken, lat: z.number().min(-90).max(90).optional(), lng: z.number().min(-180).max(180).optional() }),
+  z.object({ action: z.literal("confirm"), token: memberToken, member: z.string().max(20) }),
+  z.object({ action: z.literal("badge"), token: memberToken, on: z.boolean() }),
+  z.object({
+    action: z.literal("report"),
+    target: z.enum(["group", "message", "member", "place"]),
+    targetId: z.string().max(20).optional(),
+    token: memberToken.optional(),
+    reason: z.string().trim().max(200).default(""),
+  }),
+]);
+export const poolRefSchema = z.object({ t: z.string().max(64) });
+export const appealSchema = z.object({ text: trimmed(2, 200, "이의제기") });

@@ -12,6 +12,7 @@ import { TrustBadge } from "./TrustBadge";
 import { NewBadge } from "./NewMarks";
 import { HEAD_PREFIX } from "@/lib/heads";
 import { typeChip } from "@/lib/adSchedule";
+import { GOING_SHOW_MIN } from "@/lib/eventGoing";
 
 /** 이 수를 넘긴 댓글 수는 제목 옆에 크게 */
 const HOT_COMMENTS = 100;
@@ -24,6 +25,7 @@ export function PostCard({
   inHead,
   badge,
   dday,
+  together,
 }: {
   post: PostCardData;
   /** 방 배지 (작가지망생방: 장르 작가 테스트 결과) */
@@ -36,6 +38,8 @@ export function PostCard({
   inHead?: boolean;
   /** 🎫 행사 글의 D-day · 마감 (10/25, 날짜를 찾은 글만) */
   dday?: string | null;
+  /** 🙋 행사 카드 (10/26): 갈 거예요 수(3명부터 보임) · 열린 동행 모집 수 */
+  together?: { going: number; open: number };
 }) {
   const net = post.upvotes - post.downvotes;
   const title = inHead ? post.title.replace(HEAD_PREFIX, "") : post.title;
@@ -52,6 +56,8 @@ export function PostCard({
           <TrustBadge tier={post.trust_tier} />
           {showCategory && chip && <span className="badge badge-type">{chip}</span>}
           {post.meetup && <MeetupBadge meetup={post.meetup} />}
+          {together && together.open > 0 && <span className="badge badge-people">🙋 동행 모집 {together.open}</span>}
+          {together && together.going >= GOING_SHOW_MIN && <span className="badge badge-people" aria-label={`같이 갈 사람 ${together.going}명`}>🙋 {together.going}명</span>}
           {post.source_kinds.includes("paper") ? (
             <span className="badge badge-src badge-src-paper">🎓 논문 출처</span>
           ) : post.source_kinds.includes("gov") ? (

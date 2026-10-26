@@ -44,6 +44,11 @@ import { EXTRACTIVE_MODEL } from "@/lib/summary";
 import { typeChip } from "@/lib/adSchedule";
 import { headOf } from "@/lib/heads";
 import { bareTitle, shopHeadLabel, stripsHead } from "@/lib/shopRoom";
+import { EventTogether } from "@/components/EventTogether";
+import { EventGroups } from "@/components/EventGroups";
+import { eventSpan } from "@/lib/adSchedule";
+import { afterEvent, firstOfficialUrl, groupsProof, kstToday, penaltyText, poolOpen } from "@/lib/eventGoing";
+import { activePenalty, autoGroupCount, eventDays, goingSummary, listOpenGroups } from "@/lib/repo/eventGoing";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +70,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (post.is_blinded) return { title: "블라인드된 게시글", robots: { index: false, follow: false }, other: { "lr-offline": "no-store" } };
   const description = post.summary ? post.summary.lines.join(" ") : post.excerpt.slice(0, 160);
   // 3줄 요약 카드 이미지를 링크 미리보기(OG)로 사용 — 광고 의심 글은 카드 이미지를 만들지 않는다
-  const ogImage = post.is_suppressed ? null : { url: `/posts/${post.id}/card?format=og`, width: 1200, height: 630, alt: post.title };
+  // 🙋 행사 글은 행사명·날짜·D-day·같이 갈 사람 카드 (10/26)
+  const ogFormat = post.title.startsWith("[행사]") ? "event" : "og";
+  const ogImage = post.is_suppressed ? null : { url: `/posts/${post.id}/card?format=${ogFormat}`, width: 1200, height: 630, alt: post.title };
   return {
     title: `${post.title} — ${post.category.name}`,
     description,
@@ -121,7 +128,8 @@ export default async function PostPage({ params }: Props) {
   }
 
   const fp = fingerprint(await headers());
-  const [comments, myVote, participants, attending, appeal, corrections, rules, debate] = await Promise.all([
+  const isEvent = post.title.startsWith("[행사]");
+  const [comments, myVote, participants, attending, appeal, corrections, rules, debate, together] = await Promise.all([
     listComments(id),
     getMyVote(id, fp),
     post.meetup ? listParticipants(id) : Promise.resolve([]),
@@ -130,6 +138,7 @@ export default async function PostPage({ params }: Props) {
     listCorrections(id, fp),
     getRules(),
     post.post_type === "chat" ? debateTally(id).catch(() => null) : Promise.resolve(null),
+    isEvent ? eventTogether(post, fp).catch(() => null) : Promise.resolve(null),
   ]);
   // 방 배지 (작가지망생방: 장르 작가 테스트 결과)
   const badges = await badgesSafe(post.category.slug, [post.nickname, ...comments.map((c) => c.nickname)]);
@@ -243,10 +252,27 @@ export default async function PostPage({ params }: Props) {
       <PostFactsTable products={post.products} facts={post.facts} photos={post.images} />
       <SourceList sources={post.sources} />
 
+      {together && (
+        <>
+          {together.official && (
+            <p className="together-official">
+              <a href={together.official} target="_blank" rel="noopener noreferrer nofollow">🎟 예매·공식 안내</a>
+            </p>
+          )}
+          {together.after && (
+            <p className="together-after">
+              다녀오셨으면 방에 후기 남겨도 좋아요 · <Link href={`/write?category=${encodeURIComponent(post.category.slug)}&type=review`}>후기 쓰기</Link>
+            </p>
+          )}
+          <EventTogether postId={post.id} title={post.title} initial={together.going} days={together.days} poolOpen={together.poolOpen} autoProof={together.proof} penalty={together.penalty} />
+          {!together.after && <EventGroups postId={post.id} initial={together.groups} days={together.days} today={together.today} blocked={!!together.penalty} />}
+        </>
+      )}
+
       <VoteButtons postId={post.id} initial={{ upvotes: post.upvotes, downvotes: post.downvotes, myVote }} />
 
       <div className="post-actions">
-        <ShareButton postId={post.id} title={post.title} />
+        <ShareButton postId={post.id} title={post.title} from={isEvent ? "share" : undefined} />
         <WatchToggle kind="post" id={post.id} name={post.title} />
         <SaveOffline postId={post.id} />
         {!post.is_ai_curated && <PostOwnerActions postId={post.id} />}
@@ -269,4 +295,22 @@ export default async function PostPage({ params }: Props) {
       {isInvestRoom(post.category.slug) && <p className="invest-note">{INVEST_NOTICE}</p>}
     </article>
   );
+}
+
+/** 🙋 같이 갈 사람 (10/26): 갈 거예요 수·모집·조 신청 가능 여부·내 제한·후기 안내 */
+async function eventTogether(post: { id: string; title: string; body: string; created_at: string; sources: { url: string }[] }, fp: string) {
+  const now = new Date();
+  const span = eventSpan(post);
+  const [going, groups, autoN, until] = await Promise.all([goingSummary(post.id, fp), listOpenGroups(post.id, now), autoGroupCount(post.id), activePenalty(fp, undefined, now)]);
+  return {
+    going,
+    groups,
+    days: eventDays(post, now),
+    poolOpen: !!span && poolOpen(span.start, now),
+    proof: groupsProof(autoN),
+    penalty: until ? penaltyText(until) : null,
+    after: !!span && afterEvent(span.end, now),
+    today: kstToday(now),
+    official: post.sources[0]?.url ?? firstOfficialUrl(post.body),
+  };
 }
