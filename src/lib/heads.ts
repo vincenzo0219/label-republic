@@ -27,7 +27,13 @@ export const SHOP_HEADS = [
 /** 🧘 요가·필라테스 강사방 (10/25): 📋 대강 · 💼 구인구직(방 전용 화면) · 💬 채팅 다음 탭 */
 const INSTRUCTOR_HEADS = [{ key: "수업팁", label: "🧘 수업 팁" }] as const;
 
-export const ALL_HEADS = [...BOOK_HEADS, ...HEADS, ...SHOP_HEADS, ...INSTRUCTOR_HEADS] as const;
+/** 💌 미혼남녀 만남 행사 (10/27 대표님): 💌 만남 행사 · 💬 채팅 다음 탭. 행사는 만남 행사 탭과 겹쳐서, 자랑은 외모·연락처로 흐르기 쉬워서 뺀다 */
+const SINGLES_HEADS = [
+  { key: "꿀팁", label: "📋 신청 꿀팁" },
+  { key: "참가후기", label: "🗣️ 후기·질문" },
+] as const;
+
+export const ALL_HEADS = [...BOOK_HEADS, ...HEADS, ...SHOP_HEADS, ...INSTRUCTOR_HEADS, ...SINGLES_HEADS] as const;
 
 export type Head = (typeof ALL_HEADS)[number]["key"];
 
@@ -55,9 +61,10 @@ const ROOM_HEADS: Record<string, readonly { key: Head; label: string }[]> = {
   [SHOP_ROOM]: SHOP_HEADS,
   // 10/25 대표님: 강사방에도 행사·할인 → 워크숍·자격과정·박람회(🎫), 강사 할인·무료 세미나(🎁)
   [INSTRUCTOR]: [...INSTRUCTOR_HEADS, { key: "행사", label: "🎫 행사·할인" }, HEADS[2]],
+  [SINGLES]: SINGLES_HEADS,
 };
 /** 방 전용 이름을 붙인 말머리는 탭에서도 그 이름 (공용 "🎫 행사·할인" 으로 바꾸지 않음) */
-const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방", SHOP_ROOM, INSTRUCTOR]);
+const ROOM_LABELED = new Set(["미국주식방", "주식", "적립식-투자방", SHOP_ROOM, INSTRUCTOR, SINGLES]);
 
 /** 방 탭 줄 끝에 붙는 다른 화면 링크 (책 덕후방 물어보기는 10/23 📚 추천 탭 안으로 합침) */
 export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> = {
@@ -91,7 +98,7 @@ export function roomTabsAround(slug: string): { before: { key: string; label: st
 }
 
 /** 📋 정보 탭을 따로 두지 않는 방 (전체 탭에만 보인다) */
-export const NO_INFO_TAB = new Set([BOOK, SHOP_ROOM, INSTRUCTOR]);
+export const NO_INFO_TAB = new Set([BOOK, SHOP_ROOM, INSTRUCTOR, SINGLES]);
 
 
 /** 이 방에서 보이는 말머리 (방 전용이 앞) — 글쓰기에서 고르는 목록 */
@@ -128,6 +135,8 @@ export const HEAD_HINTS: Partial<Record<Head, string>> = {
   지원: "사업 이름 · 신청 마감일 · 공식 공고 주소",
   가게: "어떤 가게 · 무엇이 달랐는지 · 출처",
   수업팁: "어떤 수업 · 무엇을 바꿨는지 · 회원 반응",
+  꿀팁: "어떤 서류·제도·요령인지 · 공식 안내 링크",
+  참가후기: "어떤 행사 · 언제 · 좋았던 점·아쉬운 점 (연락처·실명·사진 속 얼굴은 빼고)",
 };
 
 /** 투자방 말머리 예시 (10/24) — 짧게 */
