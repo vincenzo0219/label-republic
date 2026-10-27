@@ -29,6 +29,8 @@ export const CHECK_TABLES = [
   // 10/24 작가지망생방 ✍️ 오늘 몇 자 (연속 일수가 사라지면 안 된다)
   "writing_logs",
   "savings_logs",
+  // 10/27 💳 넣어둬 (지킨 돈 합계가 여기서 나온다)
+  "neo_items",
   "market_events",
   "market_radar",
   // 10/24 📍 동네 체험 🔔 알림

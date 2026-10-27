@@ -34,6 +34,8 @@ const TESTS = [
 export async function EarTestBanner() {
   const [debate, poll] = await Promise.all([latestDebate().catch(() => null), latestBookPoll().catch(() => null)]);
   const today = [
+    // 💳 넣어둬 (10/27 대표님): 오늘의 문제 왼쪽 맨 앞
+    { href: "/neo", label: "💳 넣어둬" },
     { href: "/daily", label: `📅 오늘의 문제 #${dailySet(kstDay()).no}` },
     ...(poll ? [{ href: `/posts/${poll.id}`, label: "📚 오늘의 투표" }] : []),
     ...(debate ? [{ href: `/posts/${debate.post.id}`, label: "⚖️ AI 토론" }] : []),
