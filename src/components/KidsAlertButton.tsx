@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { applyHref, programStatus, type KidsProgram } from "@/lib/kidsPrograms";
 import { getAlerts, getArea, setAlert, trackOut } from "@/lib/kidsClient";
-import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
+import { enablePush, pushGranted, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { getPushState } from "@/lib/watchlist";
 
 let keyPromise: Promise<string | null> | null = null;
@@ -49,7 +49,7 @@ export function KidsAlertButton({ program, bellOnly = false }: { program: P; bel
     setBusy(true);
     setMsg(null);
     try {
-      if (!on && (!getPushState() || Notification.permission !== "granted")) {
+      if (!on && (!getPushState() || !pushGranted())) {
         const r = await enablePush(key);
         if (r !== "on") return setMsg("브라우저 설정에서 알림을 허용해 주세요.");
       }

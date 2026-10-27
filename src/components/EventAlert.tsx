@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
+import { enablePush, pushGranted, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { getPushState } from "@/lib/watchlist";
 import { KAKAO_ADD_URL } from "./FollowLinks";
 
@@ -26,7 +26,7 @@ export function EventAlert({ slug }: { slug: string }) {
 
   useEffect(() => {
     try {
-      setOn(Notification.permission === "granted" && !!getPushState() && readRooms().includes(slug));
+      setOn(pushGranted() && !!getPushState() && readRooms().includes(slug));
     } catch {}
     if (!pushSupported()) return setKey(null);
     void pushPublicKey().then(setKey);
@@ -44,7 +44,7 @@ export function EventAlert({ slug }: { slug: string }) {
     setBusy(true);
     setMsg(null);
     try {
-      if (!on && (!getPushState() || Notification.permission !== "granted")) {
+      if (!on && (!getPushState() || !pushGranted())) {
         const r = await enablePush(key);
         if (r !== "on") {
           setMsg("브라우저 설정에서 알림을 허용해 주세요.");

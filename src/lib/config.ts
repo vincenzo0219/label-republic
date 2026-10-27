@@ -231,6 +231,29 @@ export const config = {
     const n = Number(process.env.PUSH_MIN_GAP_SEC ?? 3600);
     return Number.isFinite(n) && n >= 0 ? n : 3600;
   },
+  /**
+   * iOS 앱 푸시(APNs, 10/27). 애플 개발자 계정의 APNs 인증 키(.p8)와 키 ID. 둘 다 있어야 앱 알림을 켤 수 있다.
+   * APNS_PRIVATE_KEY 는 .p8 파일 내용 그대로 (줄바꿈을 \\n 으로 써도 된다)
+   */
+  get apnsKeyId() {
+    return process.env.APNS_KEY_ID ?? "";
+  },
+  get apnsPrivateKey() {
+    return (process.env.APNS_PRIVATE_KEY ?? "").replace(/\\n/g, "\n");
+  },
+  get apnsTeamId() {
+    return process.env.APNS_TEAM_ID ?? "GJK5YFK5ZW";
+  },
+  get apnsBundleId() {
+    return process.env.APNS_BUNDLE_ID ?? "com.nobangjang.app";
+  },
+  /** 테스트에서만 바꾼다 (운영 APNs: TestFlight·App Store 빌드) */
+  get apnsOrigin() {
+    return (process.env.APNS_ORIGIN ?? "https://api.push.apple.com").replace(/\/+$/, "");
+  },
+  get apnsEnabled() {
+    return Boolean(process.env.APNS_KEY_ID && process.env.APNS_PRIVATE_KEY);
+  },
   /** 테스트용: 알려진 푸시 서비스 외에 허용할 호스트 (쉼표 구분, https 만). 운영에서는 비워 둘 것 */
   get pushExtraHosts(): string[] {
     return (process.env.PUSH_EXTRA_HOSTS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);

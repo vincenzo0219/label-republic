@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
+import { enablePush, pushGranted, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { getPushState } from "@/lib/watchlist";
 import { ALERT_CONSENT_TEXT, ALERT_CONSENT_VERSION, GENDERS, type AlertCriteria, type SinglesProfile } from "@/lib/singlesEvents";
 
@@ -43,7 +43,7 @@ export function SinglesAlert({ profile }: { profile: SinglesProfile }) {
     setBusy(true);
     setMsg(null);
     try {
-      if (on && (!getPushState() || Notification.permission !== "granted")) {
+      if (on && (!getPushState() || !pushGranted())) {
         const r = await enablePush(key);
         if (r !== "on") return setMsg("브라우저 설정에서 알림을 허용해 주세요.");
       }

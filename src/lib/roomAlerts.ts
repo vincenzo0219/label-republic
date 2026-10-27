@@ -5,7 +5,7 @@
  * 켜기는 버튼을 눌렀을 때만 (권한 창을 먼저 띄우지 않는다). 푸시 알림을 끄면(PushSettings) 서버 구독과 함께 지워진다.
  */
 import { getMyRooms } from "./myRooms";
-import { enablePush } from "./pushClient";
+import { enablePush, pushGranted } from "./pushClient";
 import { getPushState } from "./watchlist";
 
 const KEY = "lr:roomAlerts";
@@ -13,7 +13,7 @@ export const ROOM_ALERTS_EVENT = "lr:roomAlerts-changed";
 
 export function roomAlertsOn(): boolean {
   try {
-    return window.localStorage.getItem(KEY) === "1" && !!getPushState() && Notification.permission === "granted";
+    return window.localStorage.getItem(KEY) === "1" && !!getPushState() && pushGranted();
   } catch {
     return false;
   }
@@ -44,7 +44,7 @@ async function post(on: boolean): Promise<boolean> {
 
 /** 버튼을 눌렀을 때: 푸시가 아직 꺼져 있으면 권한부터 받고, 내 방 목록과 함께 켠다 */
 export async function enableRoomAlerts(publicKey: string): Promise<"on" | NotificationPermission | "failed"> {
-  if (!getPushState() || Notification.permission !== "granted") {
+  if (!getPushState() || !pushGranted()) {
     const r = await enablePush(publicKey);
     if (r !== "on") return r;
   }

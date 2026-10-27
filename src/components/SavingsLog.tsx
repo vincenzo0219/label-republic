@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, requestKeyFor } from "@/lib/client-api";
 import { myNick, myPin, saveNick } from "@/lib/me";
-import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
+import { enablePush, pushGranted, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import type { SavingsEntry } from "@/lib/repo/savingsLog";
 import { BUCKETS, SAVINGS_NOTE_MAX, savingsLine, type Bucket } from "@/lib/savingsLog";
 import { getPushState } from "@/lib/watchlist";
@@ -29,7 +29,7 @@ function ReminderDay() {
   const change = async (v: string) => {
     setMsg(null);
     try {
-      if (v && (!getPushState() || Notification.permission !== "granted")) {
+      if (v && (!getPushState() || !pushGranted())) {
         if ((await enablePush(key)) !== "on") return setMsg("알림 허용 필요");
       }
       const s = getPushState();
