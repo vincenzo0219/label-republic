@@ -120,7 +120,7 @@ d("🎉 덕질 기념일 카드 · 💪 응원 카드 · 📅 달력 구독 (DB)
     const noon = new Date(`${kstDay()}T12:00:00+09:00`);
     expect(await runCheerPush(new Date(`${kstDay()}T22:00:00+09:00`), { send })).toEqual({ sent: 0, removed: 0 });
     expect(await runCheerPush(noon, { send })).toEqual({ sent: 1, removed: 0 });
-    expect(sent).toEqual([{ endpoint: "https://fcm.googleapis.com/x", title: "🎉 3명이 내 덕질 기념일을 축하했어요" }]);
+    expect(sent).toEqual([{ endpoint: "https://fcm.googleapis.com/x", title: "🎉 3명이 내 기념일을 축하했어요" }]);
     await cheerRoute.POST(post(`/api/cards/${cardId}/cheer`, {}, "198.51.100.9", vid(9)), ctx({ id: cardId }));
     expect(await runCheerPush(new Date(noon.getTime() + 3600_000), { send })).toEqual({ sent: 0, removed: 0 });
   });

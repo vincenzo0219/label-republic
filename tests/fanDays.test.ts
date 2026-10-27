@@ -142,13 +142,35 @@ describe("덕질 기념일: 세는 법 (고른 날짜 = 1일째)", () => {
       "https://nobangjang.com",
       at("2026-10-26"),
     ).replace(/\r\n[ \t]/g, "");
-    expect(ics).toContain("X-WR-CALNAME:노방장 · 내 덕질 기념일");
+    expect(ics).toContain("X-WR-CALNAME:노방장 · 내 기념일");
     expect(ics).toContain("SUMMARY:🎉 입덕 10일째");
     expect(ics).toContain("DTSTART;VALUE=DATE:20261029");
     expect(ics).toContain("SUMMARY:🎉 입덕 100일째");
     expect(ics).toContain("DTSTART;VALUE=DATE:20270127");
-    expect(ics).toContain("SUMMARY:🎂 최애 생일");
+    expect(ics).toContain("SUMMARY:🎂 최애 선수 생일");
     expect(ics).toContain("DTSTART;VALUE=DATE:20270228");
     expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(7);
+  });
+});
+
+// 방마다 다른 기념일 (10/27 대표님 "육아방은 아이 관련 기념일로, 각 방마다 특징에 맞게")
+describe("room day themes", async () => {
+  const { dayTheme, themePresets, themeHint } = await import("@/lib/dayThemes");
+  const fd = await import("@/lib/fanDays");
+  it("육아방은 아이 기념일", () => {
+    expect(dayTheme("육아-덕후방").title).toBe("👶 우리 아이 기념일");
+    expect(themePresets("육아-덕후방").map((p) => p.label)).toEqual(["태어난 날", "첫 등원", "첫걸음", "아이 생일"]);
+    expect(fd.cardTitle("하늘", "ipduk", "육아", { unit: "days", n: 100 }, "육아-덕후방")).toBe("🎉 하늘님 아이 태어난 지 100일째");
+    expect(fd.cardTitle("하늘", "bday", "육아", { unit: "bday" }, "육아-덕후방")).toBe("🎂 오늘 하늘님 아이 생일");
+    expect(fd.cardBody("하늘", "bday", "육아", { unit: "until", n: 3 }, "육아-덕후방")).toMatch(/^하늘님 아이의 생일이 3일 남았어요/);
+    expect(themeHint("육아-덕후방")).toBe("고른 날짜가 1일째예요. 1일·10일·100일마다(아이 생일은 해마다) 카드를 올릴 수 있어요.");
+  });
+  it("방 특징에 맞는 이름, 없는 방은 덕질 기본값", () => {
+    expect(fd.countText({ preset: "start", date: "2026-10-01", room: "오늘도-장사중" }, "장사중", new Date("2026-10-10T03:00:00Z"))).toBe("개업 10일째");
+    expect(fd.cardTitle("하늘", "bday", "장사중", { unit: "bday" }, "오늘도-장사중")).toBe("🎂 오늘 하늘님 개업 기념일");
+    expect(themePresets("러닝-덕후방").map((p) => p.key)).toEqual(["start", "first"]);
+    expect(themePresets("적립식-투자방").some((p) => p.key === "bday")).toBe(false);
+    expect(dayTheme("없는-방").title).toBe("🎉 내 덕질 기념일");
+    expect(themeHint("러닝-덕후방")).toBe("고른 날짜가 1일째예요. 1일·10일·100일마다 카드를 올릴 수 있어요.");
   });
 });
