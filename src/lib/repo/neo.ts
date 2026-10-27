@@ -18,6 +18,8 @@ export type NeoItem = {
   title: string;
   price: number;
   reason: string;
+  /** 대안 (예: 중고로, 세일 기다리기) */
+  alt: string;
   created_at: string;
   closes_at: string;
   closed: boolean;
@@ -29,18 +31,18 @@ export type NeoItem = {
 };
 
 type Row = {
-  id: string; title: string; price: number; reason: string; created_at: string; closes_at: string; closed: boolean;
+  id: string; title: string; price: number; reason: string; alt: string; created_at: string; closes_at: string; closed: boolean;
   outcome: NeoOutcome | null; buy_count: number; keep_count: number; mine: NeoChoice | null; owner: boolean;
 };
 
-const COLS = (v: string) => `i.id::text, i.title, i.price, i.reason, i.created_at, i.closes_at, (i.closes_at <= now()) AS closed,
+const COLS = (v: string) => `i.id::text, i.title, i.price, i.reason, i.alt, i.created_at, i.closes_at, (i.closes_at <= now()) AS closed,
   i.outcome, i.buy_count, i.keep_count, i.owner_hash = ${v} AS owner,
   (SELECT choice FROM neo_votes nv WHERE nv.item_id = i.id AND nv.visitor_hash = ${v}) AS mine`;
 
 function shape(r: Row): NeoItem {
   const show = r.closed || !!r.mine || r.owner;
   return {
-    id: r.id, title: r.title, price: r.price, reason: r.reason, created_at: r.created_at, closes_at: r.closes_at, closed: r.closed,
+    id: r.id, title: r.title, price: r.price, reason: r.reason, alt: r.alt, created_at: r.created_at, closes_at: r.closes_at, closed: r.closed,
     outcome: r.outcome, tally: show ? { buy: r.buy_count, keep: r.keep_count } : null, mine: r.mine, owner: r.owner,
   };
 }
@@ -54,8 +56,8 @@ export function neoTextProblem(...texts: string[]): string | null {
   return null;
 }
 
-export async function createNeo(input: { title: string; price: number; reason: string; owner: string; fingerprint: string }): Promise<NeoItem> {
-  const problem = neoTextProblem(input.title, input.reason);
+export async function createNeo(input: { title: string; price: number; reason: string; alt?: string; owner: string; fingerprint: string }): Promise<NeoItem> {
+  const problem = neoTextProblem(input.title, input.reason, input.alt ?? "");
   if (problem) throw new HttpError(400, "invalid_input", problem);
   const [{ n }] = (await query<{ n: number }>(
     "SELECT count(*)::int AS n FROM neo_items WHERE (owner_hash = $1 OR fingerprint = $2) AND created_at > now() - interval '24 hours'",
@@ -63,8 +65,8 @@ export async function createNeo(input: { title: string; price: number; reason: s
   )) as [{ n: number }];
   if (n >= NEO_DAILY_POSTS) throw new HttpError(429, "rate_limited", `하루에 ${NEO_DAILY_POSTS}개까지 올릴 수 있어요.`);
   const [row] = await query<{ id: string }>(
-    "INSERT INTO neo_items (title, price, reason, owner_hash, fingerprint) VALUES ($1, $2, $3, $4, $5) RETURNING id::text",
-    [input.title, input.price, input.reason, input.owner, input.fingerprint],
+    "INSERT INTO neo_items (title, price, reason, alt, owner_hash, fingerprint) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id::text",
+    [input.title, input.price, input.reason, input.alt ?? "", input.owner, input.fingerprint],
   );
   return (await getNeo(row!.id, input.owner))!;
 }
@@ -117,15 +119,18 @@ export async function voteNeo(id: string, visitor: string, choice: NeoChoice): P
   return (await getNeo(id, visitor))!;
 }
 
-/** 마감 뒤 글쓴이가 고른다: 샀어요 / 넣어뒀어요 (바꾸기 가능) */
+/**
+ * 글쓴이가 고른다: 마감 뒤 샀어요 / 넣어뒀어요 (바꾸기 가능).
+ * 투표 중 "안 살래요"(kept)는 바로 마감하고 넣어둔 것으로 (중국 「真要买吗」처럼 기다리다 마음이 식으면 스스로 철회)
+ */
 export async function setNeoOutcome(id: string, visitor: string, outcome: NeoOutcome): Promise<NeoItem> {
   const rows = await query<{ closed: boolean }>(
     "SELECT closes_at <= now() AS closed FROM neo_items WHERE id = $1 AND owner_hash = $2 AND NOT is_hidden",
     [id, visitor],
   );
   if (!rows[0]) throw notFound("내 넣어둬 글");
-  if (!rows[0].closed) throw new HttpError(409, "not_closed", "투표가 끝난 뒤에 고를 수 있어요.");
-  await query("UPDATE neo_items SET outcome = $2, outcome_at = now() WHERE id = $1", [id, outcome]);
+  if (!rows[0].closed && outcome === "bought") throw new HttpError(409, "not_closed", "투표가 끝난 뒤에 고를 수 있어요.");
+  await query("UPDATE neo_items SET outcome = $2, outcome_at = now(), closes_at = LEAST(closes_at, now()) WHERE id = $1", [id, outcome]);
   return (await getNeo(id, visitor))!;
 }
 

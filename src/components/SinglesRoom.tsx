@@ -13,6 +13,8 @@ import {
   type SinglesEvent,
   type SinglesProfile,
 } from "@/lib/singlesEvents";
+import type { SinglesTalk } from "@/lib/repo/singlesTalk";
+import { SeenTracker } from "./SeenTracker";
 import { SinglesAlert } from "./SinglesAlert";
 import { SinglesChecker } from "./SinglesChecker";
 import { SinglesEventCard } from "./SinglesEventCard";
@@ -73,7 +75,18 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 /** 💌 방 화면: 나 신청 가능? · 탭(모집 중·예정·지난) · 카드 · 알림. 글·댓글·💬 채팅은 방의 다른 탭 (098) */
-export function SinglesRoom({ events, today }: { events: SinglesEvent[]; today: string }) {
+/** 👁 본 사람 · 💬 댓글 (10/27): 상세 화면 댓글로 */
+export function SinglesTalkLine({ eventId, talk }: { eventId: string; talk?: SinglesTalk }) {
+  if (!talk) return null;
+  return (
+    <p className="singles-talk-line">
+      <span>👁 {talk.views.toLocaleString("ko-KR")}명 봤어요</span>
+      <Link href={`${singlesEventPath(eventId)}#talk`}>💬 댓글 {talk.comments.toLocaleString("ko-KR")}{talk.comments ? "" : " · 첫 댓글 쓰기"}</Link>
+    </p>
+  );
+}
+
+export function SinglesRoom({ events, today, talks = {} }: { events: SinglesEvent[]; today: string; talks?: Record<string, SinglesTalk> }) {
   const { profile, update, clear } = useSinglesProfile(today);
   const [tab, setTab] = useState<Tab>("open");
   const sorted = useMemo(() => sortForList(events, today), [events, today]);
@@ -99,10 +112,14 @@ export function SinglesRoom({ events, today }: { events: SinglesEvent[]; today: 
       ) : (
         <div className="singles-list">
           {shown.map((e) => (
-            <SinglesEventCard key={e.id} event={e} today={today} eligibility={judged ? checkEligibility(e, profile, today) : null}>
-              {tab !== "past" && <SinglesRejected event={e} events={events} profile={profile} today={today} />}
-            </SinglesEventCard>
+            <div key={e.id} data-post-id={talks[e.id]?.postId}>
+              <SinglesEventCard event={e} today={today} eligibility={judged ? checkEligibility(e, profile, today) : null}>
+                {tab !== "past" && <SinglesRejected event={e} events={events} profile={profile} today={today} />}
+                <SinglesTalkLine eventId={e.id} talk={talks[e.id]} />
+              </SinglesEventCard>
+            </div>
           ))}
+          <SeenTracker key={tab} />
         </div>
       )}
       <SinglesAlert profile={profile} />

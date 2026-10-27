@@ -61,6 +61,7 @@ export function NeoCard({ initial, now, onChange }: { initial: NeoItem; now: num
         <span className="neo-price">{won(it.price)}</span>
       </div>
       {it.reason && <p className="neo-reason">{it.reason}</p>}
+      {it.alt && <p className="neo-reason hint">대안: {it.alt}</p>}
       <p className="hint neo-meta">
         {closed ? "투표 마감" : left(it.closes_at, now)}
         {it.owner && " · 내 고민"}
@@ -89,6 +90,13 @@ export function NeoCard({ initial, now, onChange }: { initial: NeoItem; now: num
           ) : (
             <p className="hint">아직 투표가 없어요. 공유해서 물어보세요.</p>
           )}
+        </div>
+      )}
+      {it.owner && !closed && (
+        <div className="neo-vote neo-vote-one">
+          <button type="button" className="btn btn-sm" onClick={() => outcome("kept")} disabled={busy}>
+            🙅 안 살래요
+          </button>
         </div>
       )}
       {it.owner && closed && (
@@ -122,6 +130,7 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [reason, setReason] = useState("");
+  const [alt, setAlt] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const priceNum = Number(price.replace(/[^\d]/g, ""));
@@ -131,12 +140,13 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
     setBusy(true);
     setMsg(null);
     try {
-      const { item } = await api<{ item: NeoItem }>("/api/neo", "POST", { title, price: priceNum, reason });
+      const { item } = await api<{ item: NeoItem }>("/api/neo", "POST", { title, price: priceNum, reason, alt });
       setItems((cur) => [item, ...cur]);
       setTitle("");
       setPrice("");
       setReason("");
-      setMsg("올렸어요. 24시간 동안 모르는 사람들이 정해 줘요. 친구한테도 공유해 보세요.");
+      setAlt("");
+      setMsg("올렸어요. 공유하면 표가 빨리 모여요.");
     } catch (err) {
       setMsg((err as Error).message);
     } finally {
@@ -148,7 +158,7 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
     <div className="neo">
       <header className="neo-hero">
         <h1>💳 넣어둬</h1>
-        <p>살까 말까 고민될 때, 모르는 사람들이 대신 정해 줘요.</p>
+        <p>살까 말까, 모르는 사람들이 정해 줘요.</p>
         <p className="neo-saved">
           넣어둬로 지킨 돈 <b>{won(saved.won)}</b>
           {saved.count > 0 && <span className="hint"> · {saved.count.toLocaleString("ko-KR")}건</span>}
@@ -166,11 +176,12 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
           onChange={(e) => setPrice(e.target.value)}
           aria-label="가격"
         />
-        <input className="input" placeholder="한 줄 이유 (선택, 예: 지금 거 멀쩡함)" value={reason} maxLength={120} onChange={(e) => setReason(e.target.value)} aria-label="이유" />
+        <input className="input" placeholder="이유 (선택)" value={reason} maxLength={120} onChange={(e) => setReason(e.target.value)} aria-label="이유" />
+        <input className="input" placeholder="대안 (선택, 예: 중고로, 세일 기다리기)" value={alt} maxLength={60} onChange={(e) => setAlt(e.target.value)} aria-label="대안" />
         <button type="submit" className="btn btn-primary" disabled={busy || title.trim().length < 2 || priceNum < 1000}>
           24시간 투표 올리기
         </button>
-        <p className="hint">가입 없이 익명이에요. 링크·연락처는 넣을 수 없어요. 24시간 뒤 샀는지 넣어뒀는지 고르면, 넣어둔 금액이 모두의 &lsquo;지킨 돈&rsquo;에 쌓여요.</p>
+        <p className="hint">익명 · 24시간 투표 · 안 사면 &lsquo;지킨 돈&rsquo;에 쌓여요</p>
         {msg && <p className="hint">{msg}</p>}
       </form>
 
