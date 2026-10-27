@@ -114,7 +114,11 @@ export async function readServableImage(id: string, variant: "full" | "thumb" | 
   if (!UUID.test(id)) return null;
   const rows = await query<{ ok: boolean }>(
     `SELECT true AS ok FROM post_images i JOIN posts p ON p.id = i.post_id WHERE i.id = $1 AND NOT p.is_blinded
-        AND (i.comment_id IS NULL OR EXISTS (SELECT 1 FROM comments c WHERE c.id = i.comment_id AND c.ai_hidden_at IS NULL))`,
+        AND (i.comment_id IS NULL OR EXISTS (SELECT 1 FROM comments c WHERE c.id = i.comment_id AND c.ai_hidden_at IS NULL))
+     UNION ALL
+     -- 💳 넣어둬 사진 (101): 가려지지 않은 넣어둬 글에 붙은 것
+     SELECT true FROM post_images i JOIN neo_items n ON n.id = i.neo_id WHERE i.id = $1 AND NOT n.is_hidden
+     LIMIT 1`,
     [id],
   );
   if (!rows[0]) return null;
@@ -144,7 +148,7 @@ export async function deleteFiles(ids: string[]): Promise<void> {
 export async function sweepOrphanImages(now = new Date(), limit = 500): Promise<number> {
   const rows = await query<{ id: string }>(
     `DELETE FROM post_images WHERE id IN (
-       SELECT i.id FROM post_images i WHERE i.post_id IS NULL AND i.created_at < $1::timestamptz - make_interval(hours => $2)
+       SELECT i.id FROM post_images i WHERE i.post_id IS NULL AND i.neo_id IS NULL AND i.created_at < $1::timestamptz - make_interval(hours => $2)
           -- 🏪 오늘도 장사중 대기열이 정해진 시각에 붙일 그림은 남겨 둔다 (shop_queue, 10/25)
           AND NOT EXISTS (SELECT 1 FROM shop_queue q WHERE q.published_at IS NULL AND i.id = ANY(q.image_ids))
         ORDER BY i.created_at LIMIT $3)

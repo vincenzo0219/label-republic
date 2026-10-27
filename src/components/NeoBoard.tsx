@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { api } from "@/lib/client-api";
+import { thumbUrl } from "@/lib/media-url";
+import { shrinkIfNeeded, upload } from "./ImagePicker";
 import type { NeoChoice, NeoItem, NeoOutcome } from "@/lib/repo/neo";
 
 const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
@@ -54,9 +56,15 @@ export function NeoCard({ initial, now, onChange }: { initial: NeoItem; now: num
   const closed = it.closed || Date.parse(it.closes_at) <= now;
   return (
     <article className="neo-card">
+      {it.photo_id && (
+        <Link href={`/neo/${it.id}`} className="neo-photo">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={thumbUrl(it.photo_id)} alt={it.title || "올린 물건 사진"} loading="lazy" />
+        </Link>
+      )}
       <div className="neo-head">
         <Link href={`/neo/${it.id}`} className="neo-title">
-          {it.title}
+          {it.title || "이거"}
         </Link>
         <span className="neo-price">{won(it.price)}</span>
       </div>
@@ -131,6 +139,11 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
   const [price, setPrice] = useState("");
   const [reason, setReason] = useState("");
   const [alt, setAlt] = useState("");
+  const [more, setMore] = useState(false);
+  const [photo, setPhoto] = useState<{ id: string; token: string } | null>(null);
+  // 첨부 전 사진은 서버가 내주지 않아(/media) 미리보기는 이 기기 파일로
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const priceNum = Number(price.replace(/[^\d]/g, ""));
@@ -140,8 +153,11 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
     setBusy(true);
     setMsg(null);
     try {
-      const { item } = await api<{ item: NeoItem }>("/api/neo", "POST", { title, price: priceNum, reason, alt });
+      const { item } = await api<{ item: NeoItem }>("/api/neo", "POST", { title, price: priceNum, reason, alt, photo });
       setItems((cur) => [item, ...cur]);
+      setPhoto(null);
+      setPreview(null);
+      setMore(false);
       setTitle("");
       setPrice("");
       setReason("");
@@ -153,6 +169,23 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
       setBusy(false);
     }
   };
+
+  const pick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    setUploading(true);
+    setMsg(null);
+    try {
+      setPhoto(await upload(await shrinkIfNeeded(f)));
+      setPreview(URL.createObjectURL(f));
+    } catch (err) {
+      setMsg((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
+  const ready = (!!photo || title.trim().length >= 2) && priceNum >= 1000;
 
   return (
     <div className="neo">
@@ -167,21 +200,42 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
 
       <form className="neo-form card" onSubmit={submit}>
         <strong>🤔 살까 말까 올리기</strong>
-        <input className="input" placeholder="물건 (예: 무선 이어폰)" value={title} maxLength={40} onChange={(e) => setTitle(e.target.value)} aria-label="물건" />
-        <input
+        <div className="neo-photo-row">
+          <label className="neo-photo-pick">
+            {photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview ?? ""} alt="올릴 사진" />
+            ) : (
+              <span>{uploading ? "올리는 중…" : "📷 사진"}</span>
+            )}
+            <input type="file" accept="image/*" onChange={pick} hidden />
+          </label>
+          <input
           className="input"
           inputMode="numeric"
           placeholder="가격 (원)"
           value={price ? priceNum.toLocaleString("ko-KR") : ""}
           onChange={(e) => setPrice(e.target.value)}
           aria-label="가격"
-        />
-        <input className="input" placeholder="이유 (선택)" value={reason} maxLength={120} onChange={(e) => setReason(e.target.value)} aria-label="이유" />
-        <input className="input" placeholder="대안 (선택, 예: 중고로, 세일 기다리기)" value={alt} maxLength={60} onChange={(e) => setAlt(e.target.value)} aria-label="대안" />
-        <button type="submit" className="btn btn-primary" disabled={busy || title.trim().length < 2 || priceNum < 1000}>
+          />
+        </div>
+        {more || !photo ? (
+          <input className="input" placeholder={photo ? "물건 이름 (선택)" : "물건 이름 (사진 없으면 필수)"} value={title} maxLength={40} onChange={(e) => setTitle(e.target.value)} aria-label="물건" />
+        ) : null}
+        {more ? (
+          <>
+            <input className="input" placeholder="이유 (선택)" value={reason} maxLength={120} onChange={(e) => setReason(e.target.value)} aria-label="이유" />
+            <input className="input" placeholder="대안 (선택, 예: 중고로, 세일 기다리기)" value={alt} maxLength={60} onChange={(e) => setAlt(e.target.value)} aria-label="대안" />
+          </>
+        ) : (
+          <button type="button" className="linkish" onClick={() => setMore(true)}>
+            + 이름·이유·대안 더 쓰기
+          </button>
+        )}
+        <button type="submit" className="btn btn-primary" disabled={busy || uploading || !ready}>
           24시간 투표 올리기
         </button>
-        <p className="hint">익명 · 24시간 투표 · 안 사면 &lsquo;지킨 돈&rsquo;에 쌓여요</p>
+        <p className="hint">사진 또는 이름 + 가격이면 끝 · 사진은 물건만 · 익명</p>
         {msg && <p className="hint">{msg}</p>}
       </form>
 

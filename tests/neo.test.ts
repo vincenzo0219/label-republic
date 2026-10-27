@@ -76,6 +76,28 @@ d("💳 넣어둬 (DB)", async () => {
     await expect(neo.createNeo({ title: "여섯 번째", price: 1000, reason: "", owner: "own3", fingerprint: "fp3" })).rejects.toMatchObject({ status: 429 });
   });
 
+  it("사진만 있으면 이름 없이 올라가고, 사진은 넣어둬 글이 보일 때만 내준다", async () => {
+    const { imageToken, readServableImage, sweepOrphanImages } = await import("@/lib/repo/images");
+    const [img] = await query<{ id: string }>(
+      "INSERT INTO post_images (width, height, bytes, thumb_width, thumb_height, sha256) VALUES (10, 10, 10, 10, 10, repeat('a', 64)) RETURNING id::text",
+    );
+    await expect(neo.createNeo({ title: "", price: 50000, reason: "", owner: "ph", fingerprint: "fph" })).rejects.toMatchObject({ status: 400 });
+    await expect(neo.createNeo({ title: "", price: 50000, reason: "", owner: "ph", fingerprint: "fph", photo: { id: img!.id, token: "wrong-token-x" } })).rejects.toMatchObject({ code: "invalid_image" });
+    const it3 = await neo.createNeo({ title: "", price: 50000, reason: "", owner: "ph", fingerprint: "fph", photo: { id: img!.id, token: imageToken(img!.id) } });
+    expect(it3).toMatchObject({ title: "", photo_id: img!.id });
+    // 같은 사진을 다른 글에 또 붙일 수 없다
+    await expect(neo.createNeo({ title: "", price: 50000, reason: "", owner: "ph", fingerprint: "fph", photo: { id: img!.id, token: imageToken(img!.id) } })).rejects.toMatchObject({ code: "invalid_image" });
+    const [row] = await query<{ ok: boolean }>("SELECT neo_id IS NOT NULL AS ok FROM post_images WHERE id = $1", [img!.id]);
+    expect(row!.ok).toBe(true);
+    // 고아 정리에서 지우지 않는다
+    await query("UPDATE post_images SET created_at = now() - interval '3 days' WHERE id = $1", [img!.id]);
+    await sweepOrphanImages();
+    expect((await query("SELECT 1 FROM post_images WHERE id = $1", [img!.id])).length).toBe(1);
+    // 가려지면 내주지 않는다 (파일 저장소는 비어 있어 null 이지만 쿼리 경로를 탄다)
+    await query("UPDATE neo_items SET is_hidden = true WHERE id = $1", [it3.id]);
+    expect(await readServableImage(img!.id, "thumb")).toBeNull();
+  });
+
   it("API: 가격·이름 검사, 방문자 쿠키를 붙인다", async () => {
     const req = (body: unknown) =>
       new Request("http://localhost/api/neo", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.77" }, body: JSON.stringify(body) });
