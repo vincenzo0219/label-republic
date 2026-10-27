@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
 import { ErrorReporter } from "@/components/ErrorReporter";
 import { ReadOnlyWatcher } from "@/components/ReadOnlyWatcher";
+import { IosAppPush } from "@/components/IosAppPush";
 import { InAppBrowserTip } from "@/components/InAppBrowserTip";
 import { MetaPixel } from "@/components/MetaPixel";
 import { NavCounter } from "@/components/MyRooms";
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ServiceWorker disabled={process.env.SW_DISABLED === "1"} />
         <ReadOnlyWatcher />
         <InAppBrowserTip />
+        <IosAppPush />
         <header className="site-header">
           <div className="container">
             <Link href="/" className="logo" aria-label="노방장 홈">

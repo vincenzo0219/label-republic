@@ -26,8 +26,10 @@ const subscribeSchema = z.object({
 const updateSchema = z.object({ endpoint, token, products: ids, posts: ids, comments: commentIds, daily: z.boolean().optional() });
 const deleteSchema = z.object({ endpoint, token });
 
-/** GET /api/push — 이 서버에서 푸시를 쓸 수 있는지 + VAPID 공개키 */
-export const GET = route(async () => json({ enabled: config.pushEnabled, publicKey: config.pushEnabled ? config.vapidPublicKey : null }));
+/** GET /api/push — 이 서버에서 푸시를 쓸 수 있는지 + VAPID 공개키 + iOS 앱 알림(APNs)이 준비됐는지 */
+export const GET = route(async () =>
+  json({ enabled: config.pushEnabled, publicKey: config.pushEnabled ? config.vapidPublicKey : null, apns: config.pushEnabled && config.apnsEnabled }),
+);
 
 /** POST /api/push — 알림 켜기 {subscription, products, posts} → {token} */
 export const POST = route(async (req) => {

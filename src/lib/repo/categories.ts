@@ -1,3 +1,4 @@
+import { appHiddenSlugs } from "../appMode";
 import { query } from "../db";
 import type { Category } from "../types";
 
@@ -5,7 +6,10 @@ const COLS = "id, name, slug, description, post_count, auto_promoted_at, info_on
 
 /** 숨긴 방(Sprint 81)은 빼고. all 이면 숨긴 방도 (사이트맵·팩트 검색처럼 글 주소가 필요한 곳) */
 export async function listCategories(opts: { all?: boolean } = {}): Promise<Category[]> {
-  return query<Category>(`SELECT ${COLS} FROM categories ${opts.all ? "" : "WHERE NOT is_hidden "}ORDER BY sort_order, id`);
+  const rows = await query<Category>(`SELECT ${COLS} FROM categories ${opts.all ? "" : "WHERE NOT is_hidden "}ORDER BY sort_order, id`);
+  // 스토어 앱 안에서는 19+ 방을 뺀다 (appMode)
+  const hide = opts.all ? [] : await appHiddenSlugs();
+  return hide.length ? rows.filter((r) => !hide.includes(r.slug)) : rows;
 }
 
 /** 사람(🤖 아닌) 글·댓글이 이 기간 동안 없으면 "조용한 방" — 홈 탭·첫 방문 안내에서 뒤로 보낸다 */
@@ -39,6 +43,7 @@ export function activeRoomsFirst<T extends { slug: string }>(rooms: T[], quiet: 
 }
 
 export async function getCategoryBySlug(slug: string): Promise<Category | null> {
+  if ((await appHiddenSlugs()).includes(slug)) return null;
   const rows = await query<Category>(`SELECT ${COLS} FROM categories WHERE slug = $1`, [slug]);
   return rows[0] ?? null;
 }

@@ -3,6 +3,7 @@
  * 알려진 푸시 서비스(https)로만 보낸다 — 임의 주소를 넣어 서버가 내부망으로 요청하게 만들 수 없다.
  */
 import webpush from "web-push";
+import { apnsTokenOf, sendApns } from "./apns";
 import { config } from "./config";
 
 const KNOWN_PUSH_HOSTS = [
@@ -14,6 +15,8 @@ const KNOWN_PUSH_HOSTS = [
 ];
 
 export function isAllowedEndpoint(raw: string): boolean {
+  // iOS 앱 기기 토큰 (apns://<hex>): 애플 서버로만 보낸다
+  if (raw.startsWith("apns://")) return apnsTokenOf(raw) !== null;
   let u: URL;
   try {
     u = new URL(raw);
@@ -40,6 +43,8 @@ function setup() {
 /** agent: 테스트에서 자체 서명 인증서 서버로 보낼 때만 */
 export async function sendPush(target: PushTarget, msg: PushMessage, agent?: import("node:https").Agent): Promise<SendResult> {
   if (!isAllowedEndpoint(target.endpoint)) return "gone";
+  const apns = apnsTokenOf(target.endpoint);
+  if (apns) return sendApns(apns, msg);
   setup();
   try {
     await webpush.sendNotification(

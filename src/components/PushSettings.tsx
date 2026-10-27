@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { onInterestsChange } from "@/lib/interests";
-import { enablePush } from "@/lib/pushClient";
+import { enablePush, isIosApp, pushDenied, pushSupported } from "@/lib/pushClient";
 import { clearRoomAlertsFlag, scheduleRoomAlertsSync } from "@/lib/roomAlerts";
 import { getPushState, setPushState, syncPush } from "@/lib/watchlist";
 
@@ -21,8 +21,8 @@ export function PushSettings() {
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return setStatus("unsupported");
-      if (Notification.permission === "denied") return setStatus("blocked");
+      if (!pushSupported()) return setStatus("unsupported");
+      if (pushDenied()) return setStatus("blocked");
       setStatus(getPushState() ? "on" : "off");
     };
     fetch("/api/push")
@@ -75,8 +75,12 @@ export function PushSettings() {
       if (s) {
         await fetch("/api/push", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify(s) });
       }
-      const reg = await navigator.serviceWorker.getRegistration("/sw.js");
-      await (await reg?.pushManager.getSubscription())?.unsubscribe();
+      if (isIosApp()) {
+        // 앱: 서버 구독은 위에서 지웠다. iOS 권한 자체는 설정 앱에서만 끌 수 있다
+      } else {
+        const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+        await (await reg?.pushManager.getSubscription())?.unsubscribe();
+      }
       setPushState(null);
       clearRoomAlertsFlag();
       setStatus("off");
@@ -93,7 +97,7 @@ export function PushSettings() {
     <section className="push-settings" aria-labelledby="push-h">
       <h2 id="push-h" className="section-title">📲 푸시 알림</h2>
       {status === "unsupported" && <p className="hint">이 브라우저는 푸시 알림을 지원하지 않아요. iPhone은 홈 화면에 추가한 뒤 열면 쓸 수 있어요.</p>}
-      {status === "blocked" && <p className="hint">브라우저 설정에서 이 사이트의 알림이 차단되어 있어요. 설정에서 허용한 뒤 다시 시도하세요.</p>}
+      {status === "blocked" && <p className="hint">{isIosApp() ? "아이폰 설정 > 노방장 > 알림에서 허용한 뒤 다시 시도하세요." : "브라우저 설정에서 이 사이트의 알림이 차단되어 있어요. 설정에서 허용한 뒤 다시 시도하세요."}</p>}
       {(status === "off" || status === "on") && (
         <>
           <p className="hint" style={{ marginTop: 0 }}>

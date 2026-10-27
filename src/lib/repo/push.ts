@@ -7,6 +7,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { query } from "../db";
 import { config } from "../config";
 import { HttpError, notFound } from "../errors";
+import { apnsEndpoint, apnsTokenOf, APNS_KEYS } from "../apns";
 import { isAllowedEndpoint } from "../push";
 import { MAX_MY_COMMENTS, MAX_WATCH_POSTS, MAX_WATCH_PRODUCTS } from "./watch";
 
@@ -40,6 +41,7 @@ function lists(w: WatchLists) {
 export async function subscribe(sub: SubscriptionInput, watch: WatchLists, fp: string, token?: string, daily?: boolean): Promise<{ token: string }> {
   if (!config.pushEnabled) throw new HttpError(503, "push_disabled", "이 서버에서는 푸시 알림을 쓸 수 없습니다.");
   if (!isAllowedEndpoint(sub.endpoint)) throw new HttpError(400, "invalid_endpoint", "지원하지 않는 푸시 서비스입니다.");
+  if (apnsTokenOf(sub.endpoint) && !config.apnsEnabled) throw new HttpError(503, "push_disabled", "앱 알림은 준비 중이에요.");
   const [products, posts, comments] = lists(watch);
   await query(
     `INSERT INTO push_subscriptions (endpoint, p256dh, auth, fingerprint, products, posts, comments, daily)
@@ -157,4 +159,22 @@ export async function pushStats(): Promise<PushStats> {
     "SELECT r AS slug, count(*)::int AS n FROM push_subscriptions, unnest(event_rooms) AS r GROUP BY r ORDER BY n DESC, r",
   );
   return { total: row?.total ?? 0, daily: row?.daily ?? 0, eventSubs: row?.event_subs ?? 0, rooms };
+}
+
+/**
+ * iOS 앱이 기기 토큰을 보낼 때 (POST /api/push/apns, 앱을 열 때마다): 없으면 관심 목록 없이 만들어 두고, 있으면 살아 있다고 표시만.
+ * 알림 종류(내 방 새 글 등)는 웹 화면이 /api/push 로 같은 주소를 등록하며 정한다.
+ */
+export async function registerApnsDevice(token: string, fp: string): Promise<void> {
+  if (!config.apnsEnabled) throw new HttpError(503, "push_disabled", "앱 알림은 준비 중이에요.");
+  await query(
+    `INSERT INTO push_subscriptions (endpoint, p256dh, auth, fingerprint) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (endpoint) DO UPDATE SET synced_at = now(), fail_count = 0`,
+    [apnsEndpoint(token), APNS_KEYS.p256dh, APNS_KEYS.auth, fp],
+  );
+}
+
+/** 앱에서 알림 끄기: 기기 토큰을 가진 쪽(그 기기)만 알 수 있으므로 토큰으로 지운다 */
+export async function removeApnsDevice(token: string): Promise<void> {
+  await query("DELETE FROM push_subscriptions WHERE endpoint = $1", [apnsEndpoint(token)]);
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
+import { enablePush, pushGranted, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { getPushState } from "@/lib/watchlist";
 
 /**
@@ -17,7 +17,7 @@ export function PushButton({ label, onLabel, daily, fallback = null }: { label: 
 
   useEffect(() => {
     try {
-      const granted = Notification.permission === "granted" && !!getPushState();
+      const granted = pushGranted() && !!getPushState();
       setOn(granted && (!flag || window.localStorage.getItem(flag) === "1"));
     } catch {}
     if (!pushSupported()) return setKey(null);

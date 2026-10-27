@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
 import { isIos } from "@/lib/kidsClient";
-import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
+import { enablePush, pushGranted, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { getPushState } from "@/lib/watchlist";
 
 type Res = { on: boolean; result?: string };
@@ -29,7 +29,7 @@ export function OwnerAlertCard({ devices }: { devices: number }) {
     setBusy(true);
     setMsg(null);
     try {
-      if (action === "on" && key && (!getPushState() || Notification.permission !== "granted")) {
+      if (action === "on" && key && (!getPushState() || !pushGranted())) {
         const r = await enablePush(key);
         if (r !== "on") return setMsg("브라우저 설정에서 이 사이트 알림을 허용해 주세요.");
       }

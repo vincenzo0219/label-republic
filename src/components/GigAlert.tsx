@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { CLASS_TYPES, regionLabel } from "@/lib/instructorRoom";
 import { KIDS_IOS_HINT } from "@/lib/kidsPrograms";
 import { isIos } from "@/lib/kidsClient";
-import { enablePush, pushPublicKey, pushSupported } from "@/lib/pushClient";
+import { enablePush, pushGranted, pushPublicKey, pushSupported } from "@/lib/pushClient";
 import { getPushState } from "@/lib/watchlist";
 
 type Alert = { areas: string[]; classes: string[] };
@@ -44,7 +44,7 @@ export function GigAlert({ sido, sigungu }: { sido: string; sigungu: string }) {
     setBusy(true);
     setMsg(null);
     try {
-      if (!getPushState() || Notification.permission !== "granted") {
+      if (!getPushState() || !pushGranted()) {
         const r = await enablePush(key);
         if (r !== "on") return setMsg("브라우저 설정에서 알림을 허용해 주세요.");
       }

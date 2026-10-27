@@ -21,6 +21,7 @@ import { runRoomPush } from "./roomPush";
 import { runSinglesPush } from "./singlesPush";
 import { runCheerPush } from "./cheerPush";
 import { runAutoGrouping, runEventReminders, settleGroups } from "../repo/eventGoing";
+import { roomsForEndpoint } from "../appMode";
 
 const LOCK_KEY = 4_823_006;
 const BATCH = 500;
@@ -301,7 +302,7 @@ export async function runEventPush(
             WHERE c.slug = ANY($1::text[]) AND p.title LIKE '[행사]%' AND NOT p.is_blinded
               AND p.created_at > $2::timestamptz AND p.created_at <= $3::timestamptz
             ORDER BY p.created_at DESC LIMIT 10`,
-          [s.event_rooms, s.event_checked_until, now.toISOString()],
+          [roomsForEndpoint(s.endpoint, s.event_rooms), s.event_checked_until, now.toISOString()],
         );
         if (posts.rows.length === 0) {
           await client.query("UPDATE push_subscriptions SET event_checked_until = $2 WHERE id = $1", [s.id, now.toISOString()]);

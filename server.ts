@@ -43,6 +43,7 @@ import { requestSnapshot, startSnapshotScheduler } from "./src/lib/jobs/snapshot
 import { stopAllJobs } from "./src/lib/jobs/guard";
 import { createShutdown, markReady } from "./src/lib/lifecycle";
 import { captureSnapshot, isHtmlNavigation, isRscRequest, onServerError, sendSnapshot } from "./src/lib/snapshot-http";
+import { isAndroidAppReferrer } from "./src/lib/appMode";
 import { isSnapshotRequest, SNAPSHOT_HEADER, snapshotKey, snapshotSavedAt } from "./src/lib/snapshots";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -265,6 +266,10 @@ function startWorker() {
             });
           }
         }
+      }
+      // 안드로이드 앱(TWA)은 첫 화면에만 referrer 가 붙는다 → 이 탭 동안 앱 모드로 기억 (appMode, 10/27)
+      if (isAndroidAppReferrer(req.headers.referer) && !/(?:^|;\s*)nb_app=1/.test(req.headers.cookie ?? "")) {
+        res.setHeader("Set-Cookie", "nb_app=1; Path=/; SameSite=Lax; Secure");
       }
       handle(req, res);
     });
