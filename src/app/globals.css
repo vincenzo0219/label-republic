@@ -1403,3 +1403,23 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .fan-day-presets .chip.on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, var(--surface)); font-weight: 700; }
 .fan-day-field { display: flex; align-items: center; gap: 6px; flex: 1 1 12em; font-size: 13.5px; }
 .fan-day-share { display: flex; align-items: center; gap: 6px; flex-basis: 100%; font-size: 14px; }
+
+/* 💳 넣어둬 (10/27) */
+.neo-hero { margin: 4px 0 14px; }
+.neo-hero h1 { margin: 0 0 4px; font-size: 26px; }
+.neo-hero p { margin: 0 0 4px; }
+.neo-saved b { color: var(--brand); font-size: 18px; }
+.neo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.neo-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; background: var(--surface); }
+.neo-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.neo-title { font-weight: 800; font-size: 17px; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.neo-price { flex: none; font-weight: 800; font-size: 17px; color: var(--brand); }
+.neo-reason { margin: 6px 0 0; }
+.neo-meta { margin: 6px 0 0; }
+.neo-vote { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.neo-vote .btn { font-weight: 800; }
+.neo-result { margin-top: 10px; }
+.neo-result p { margin: 6px 0 0; font-weight: 700; }
+.neo-bar { height: 10px; border-radius: 999px; background: #1f5f4a33; overflow: hidden; }
+.neo-bar-buy { display: block; height: 100%; background: #e4572e; }
+.neo-actions { display: flex; gap: 6px; margin-top: 8px; }
