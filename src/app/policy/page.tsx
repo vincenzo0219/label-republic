@@ -177,7 +177,7 @@ export default async function PolicyPage() {
         </li>
       </ul>
       <p>
-        문의: <a href={`mailto:${config.contactEmail}`}>{config.contactEmail}</a>
+        문의: <a href={`mailto:${config.publicContactEmail}`}>{config.publicContactEmail}</a>
       </p>
     </LegalPage>
   );

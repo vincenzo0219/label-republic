@@ -46,7 +46,7 @@ export default function TermsPage() {
       <p>
         권리를 침해당한 분이 소명 자료와 함께 요청하면, 운영자는 정보통신망법 제44조의2에 따라 해당 게시물을 최대 30일간 임시조치할 수 있습니다. 이 조치는 방장
         권한이 아니라 법적 의무이며, 모든 조치는 <Link href="/transparency">투명성 기록</Link>에 공개됩니다. 요청:{" "}
-        <a href={`mailto:${config.contactEmail}`}>{config.contactEmail}</a>
+        <a href={`mailto:${config.publicContactEmail}`}>{config.publicContactEmail}</a>
       </p>
 
       <h2>6. 책임의 한계</h2>

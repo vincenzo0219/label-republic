@@ -135,7 +135,12 @@ export const config = {
   },
   /** 법률 검토를 마친 약관·방침의 시행일 (YYYY-MM-DD). 비우면 "검토 중 초안" 배너가 표시된다 */
   get legalEffectiveDate() {
-    return process.env.LEGAL_EFFECTIVE_DATE || null;
+    // 10/27 대표님 결정: 2026-10-28 시행 (서버 .env 로 바꿀 수 있음)
+    return process.env.LEGAL_EFFECTIVE_DATE || "2026-10-28";
+  },
+  /** 약관·방침·운영 원칙에 보이는 문의 메일 (고객센터와 같은 주소로, 10/27). CONTACT_EMAIL(발송·알림용)과 따로 */
+  get publicContactEmail() {
+    return process.env.PUBLIC_CONTACT_EMAIL || "keynes30@naver.com";
   },
   /** 서버·DB 호스팅 사업자 (개인정보 처리위탁 고지) */
   get hostingProvider() {

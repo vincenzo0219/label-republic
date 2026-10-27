@@ -232,7 +232,7 @@ export default function PrivacyPage() {
 
       <h2>7. 개인정보 보호책임자</h2>
       <p>
-        {config.operatorName} · <a href={`mailto:${config.contactEmail}`}>{config.contactEmail}</a>
+        {config.operatorName} · <a href={`mailto:${config.publicContactEmail}`}>{config.publicContactEmail}</a>
       </p>
       <p className="hint">개인정보 침해 신고·상담: 개인정보침해신고센터(privacy.kisa.or.kr, 국번없이 118)</p>
     </LegalPage>
