@@ -7,10 +7,11 @@ import { hit } from "@/lib/rate-limit";
 import { createNeo, listNeo, neoSaved } from "@/lib/repo/neo";
 
 const schema = z.object({
-  title: z.string().trim().min(2, "물건 이름을 2자 이상 적어 주세요.").max(40, "물건 이름은 40자까지예요."),
+  title: z.string().trim().max(40, "물건 이름은 40자까지예요.").default(""),
   price: z.number().int().min(1000, "가격은 1,000원 이상으로 적어 주세요.").max(50_000_000, "가격이 너무 커요."),
   reason: z.string().trim().max(120, "이유는 120자까지예요.").default(""),
   alt: z.string().trim().max(60, "대안은 60자까지예요.").default(""),
+  photo: z.object({ id: z.string().uuid(), token: z.string().min(10).max(64) }).nullish(),
 });
 
 /** GET /api/neo — 💳 넣어둬 목록 (진행 중·최근 마감) + 지킨 돈 */

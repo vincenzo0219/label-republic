@@ -1429,3 +1429,10 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .singles-talk-line { display: flex; gap: 14px; align-items: center; margin: 10px 0 0; font-size: 14px; font-weight: 700; color: var(--muted, #666); }
 .singles-talk-line a { color: var(--brand); text-decoration: none; }
 .singles-talk { margin-top: 18px; }
+.neo-photo-row { display: flex; gap: 8px; align-items: stretch; }
+.neo-photo-row .input { flex: 1; min-width: 0; }
+.neo-photo-pick { flex: none; width: 76px; min-height: 48px; border: 1px dashed var(--line); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer; overflow: hidden; background: var(--surface); }
+.neo-photo-pick img { width: 100%; height: 100%; object-fit: cover; }
+.neo-photo { display: block; margin: -2px 0 10px; }
+.neo-photo img { width: 100%; max-height: 260px; object-fit: cover; border-radius: 10px; display: block; }
+.neo-form .linkish { align-self: flex-start; background: none; border: 0; padding: 0; color: var(--brand); font-weight: 700; font-size: 14px; }

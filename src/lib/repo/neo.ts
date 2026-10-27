@@ -7,6 +7,7 @@
 import { heuristicAbuse } from "../abuse";
 import { query, tx } from "../db";
 import { HttpError, notFound } from "../errors";
+import { tokenOk } from "./images";
 
 export type NeoChoice = "buy" | "keep";
 export type NeoOutcome = "bought" | "kept";
@@ -20,6 +21,8 @@ export type NeoItem = {
   reason: string;
   /** 대안 (예: 중고로, 세일 기다리기) */
   alt: string;
+  /** 사진 1장 (101) */
+  photo_id: string | null;
   created_at: string;
   closes_at: string;
   closed: boolean;
@@ -31,18 +34,18 @@ export type NeoItem = {
 };
 
 type Row = {
-  id: string; title: string; price: number; reason: string; alt: string; created_at: string; closes_at: string; closed: boolean;
+  id: string; title: string; price: number; reason: string; alt: string; photo_id: string | null; created_at: string; closes_at: string; closed: boolean;
   outcome: NeoOutcome | null; buy_count: number; keep_count: number; mine: NeoChoice | null; owner: boolean;
 };
 
-const COLS = (v: string) => `i.id::text, i.title, i.price, i.reason, i.alt, i.created_at, i.closes_at, (i.closes_at <= now()) AS closed,
+const COLS = (v: string) => `i.id::text, i.title, i.price, i.reason, i.alt, i.photo_id::text, i.created_at, i.closes_at, (i.closes_at <= now()) AS closed,
   i.outcome, i.buy_count, i.keep_count, i.owner_hash = ${v} AS owner,
   (SELECT choice FROM neo_votes nv WHERE nv.item_id = i.id AND nv.visitor_hash = ${v}) AS mine`;
 
 function shape(r: Row): NeoItem {
   const show = r.closed || !!r.mine || r.owner;
   return {
-    id: r.id, title: r.title, price: r.price, reason: r.reason, alt: r.alt, created_at: r.created_at, closes_at: r.closes_at, closed: r.closed,
+    id: r.id, title: r.title, price: r.price, reason: r.reason, alt: r.alt, photo_id: r.photo_id, created_at: r.created_at, closes_at: r.closes_at, closed: r.closed,
     outcome: r.outcome, tally: show ? { buy: r.buy_count, keep: r.keep_count } : null, mine: r.mine, owner: r.owner,
   };
 }
@@ -56,7 +59,13 @@ export function neoTextProblem(...texts: string[]): string | null {
   return null;
 }
 
-export async function createNeo(input: { title: string; price: number; reason: string; alt?: string; owner: string; fingerprint: string }): Promise<NeoItem> {
+export async function createNeo(input: {
+  title: string; price: number; reason: string; alt?: string; owner: string; fingerprint: string;
+  /** /api/uploads 가 준 id·token (사진이 있으면 이름은 비워도 된다) */
+  photo?: { id: string; token: string } | null;
+}): Promise<NeoItem> {
+  if (input.title.trim().length < 2 && !input.photo) throw new HttpError(400, "invalid_input", "사진을 넣거나 물건 이름을 2자 이상 적어 주세요.");
+  if (input.photo && !tokenOk(input.photo.id, input.photo.token)) throw new HttpError(400, "invalid_image", "사진을 다시 올려 주세요.");
   const problem = neoTextProblem(input.title, input.reason, input.alt ?? "");
   if (problem) throw new HttpError(400, "invalid_input", problem);
   const [{ n }] = (await query<{ n: number }>(
@@ -64,11 +73,19 @@ export async function createNeo(input: { title: string; price: number; reason: s
     [input.owner, input.fingerprint],
   )) as [{ n: number }];
   if (n >= NEO_DAILY_POSTS) throw new HttpError(429, "rate_limited", `하루에 ${NEO_DAILY_POSTS}개까지 올릴 수 있어요.`);
-  const [row] = await query<{ id: string }>(
-    "INSERT INTO neo_items (title, price, reason, alt, owner_hash, fingerprint) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id::text",
-    [input.title, input.price, input.reason, input.alt ?? "", input.owner, input.fingerprint],
-  );
-  return (await getNeo(row!.id, input.owner))!;
+  const id = await tx(async (c) => {
+    const { rows } = await c.query<{ id: string }>(
+      "INSERT INTO neo_items (title, price, reason, alt, owner_hash, fingerprint, photo_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id::text",
+      [input.title.trim(), input.price, input.reason, input.alt ?? "", input.owner, input.fingerprint, input.photo?.id ?? null],
+    );
+    if (input.photo) {
+      // 아직 아무 데도 안 붙은 내 업로드만
+      const got = await c.query("UPDATE post_images SET neo_id = $2, attached_at = now() WHERE id = $1 AND post_id IS NULL AND neo_id IS NULL RETURNING id", [input.photo.id, rows[0]!.id]);
+      if (!got.rowCount) throw new HttpError(400, "invalid_image", "사진을 다시 올려 주세요.");
+    }
+    return rows[0]!.id;
+  });
+  return (await getNeo(id, input.owner))!;
 }
 
 export async function getNeo(id: string, visitor: string): Promise<NeoItem | null> {
