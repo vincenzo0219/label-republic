@@ -7,6 +7,7 @@
  * 서버·브라우저·테스트 공용 순수 함수. 날짜는 KST 달력 기준 일 번호 (src/lib/adSchedule.ts 의 kstDayNumber).
  */
 import { dayIso, isoDayNumber, kstDayNumber } from "./adSchedule";
+import { themeBday, themeItem } from "./dayThemes";
 import { buildIcs, shortHash, type IcsEvent } from "./ics";
 
 export const FAN_DAYS_KEY = "nb:fanDays";
@@ -177,19 +178,19 @@ export function todayOccasion(f: Pick<FanDay, "preset" | "date">, now = new Date
 
 export const occasionKey = (o: Occasion): string => (o.unit === "bday" ? "bday" : `${o.unit}${o.n}`);
 
-/** "1일" · "100일" · "1,000일" · "최애 생일" */
-export const milestoneLabel = (m: Milestone): string => (m.kind === "bday" ? "최애 생일" : `${m.n.toLocaleString("ko-KR")}일`);
+/** "1일" · "100일" · "1,000일" · "최애 생일" (방마다: "아이 생일" · "개업 기념일") */
+export const milestoneLabel = (m: Milestone, slug = ""): string => (m.kind === "bday" ? themeBday(slug).phrase : `${m.n.toLocaleString("ko-KR")}일`);
 
 export const ddayText = (d: number): string => (d === 0 ? "오늘!" : `D-${d}`);
 
-/** 카드·화면 문구의 기념일 이름: "입덕" · "첫 직관·참가" · "러닝 시작" · "최애 생일" */
-export function presetPhrase(p: FanPreset, roomShort: string): string {
-  return p === "ipduk" ? "입덕" : p === "first" ? "첫 직관·참가" : p === "start" ? `${roomShort} 시작` : "최애 생일";
+/** 카드·화면 문구의 기념일 이름: "입덕" · "첫 직관·참가" · "러닝 시작" · "최애 생일". 방마다 다르다 (dayThemes: 육아방 "아이 태어난 지") */
+export function presetPhrase(p: FanPreset, roomShort: string, slug = ""): string {
+  return themeItem(slug, p, roomShort).phrase;
 }
 
 /** 화면에 보이는 오늘 숫자: "입덕 1,234일째" · "최애 생일 D-12" · "입덕 D-3" */
-export function countText(f: Pick<FanDay, "preset" | "date">, roomShort: string, now = new Date()): string {
-  const phrase = presetPhrase(f.preset, roomShort);
+export function countText(f: Pick<FanDay, "preset" | "date"> & { room?: string }, roomShort: string, now = new Date()): string {
+  const phrase = presetPhrase(f.preset, roomShort, f.room);
   if (f.preset === "bday") {
     const d = nextBirthday(f.date, now).dday;
     return d === 0 ? `오늘은 ${phrase}!` : `${phrase} D-${d}`;
@@ -199,17 +200,19 @@ export function countText(f: Pick<FanDay, "preset" | "date">, roomShort: string,
 }
 
 /** 방에 올라가는 카드 제목 (서버가 만든다): "🎉 하늘하늘님 러닝 시작 100일째" · "🎂 오늘 하늘하늘님 최애 생일" */
-export function cardTitle(nick: string, preset: FanPreset, roomShort: string, o: Occasion): string {
-  if (o.unit === "bday") return `🎂 오늘 ${nick}님 최애 생일`;
-  if (o.unit === "until") return `🎂 ${nick}님 최애 생일까지 ${o.n.toLocaleString("ko-KR")}일`;
-  return `🎉 ${nick}님 ${presetPhrase(preset, roomShort)} ${o.n.toLocaleString("ko-KR")}일째`;
+export function cardTitle(nick: string, preset: FanPreset, roomShort: string, o: Occasion, slug = ""): string {
+  const b = themeBday(slug).phrase;
+  if (o.unit === "bday") return `🎂 오늘 ${nick}님 ${b}`;
+  if (o.unit === "until") return `🎂 ${nick}님 ${b}까지 ${o.n.toLocaleString("ko-KR")}일`;
+  return `🎉 ${nick}님 ${presetPhrase(preset, roomShort, slug)} ${o.n.toLocaleString("ko-KR")}일째`;
 }
 
 /** 카드 본문 (정해진 틀, 자유 입력 없음) */
-export function cardBody(nick: string, preset: FanPreset, roomShort: string, o: Occasion): string {
-  if (o.unit === "bday") return `오늘은 ${nick}님 최애의 생일이에요.\n🎉 축하해요 버튼으로 같이 축하해 주세요.`;
-  if (o.unit === "until") return `${nick}님 최애의 생일이 ${o.n.toLocaleString("ko-KR")}일 남았어요.\n🎉 축하해요 버튼으로 미리 축하해 주세요.`;
-  return `오늘은 ${nick}님의 ${presetPhrase(preset, roomShort)} ${o.n.toLocaleString("ko-KR")}일째예요.\n🎉 축하해요 버튼으로 같이 축하해 주세요.`;
+export function cardBody(nick: string, preset: FanPreset, roomShort: string, o: Occasion, slug = ""): string {
+  const owner = themeBday(slug).owner;
+  if (o.unit === "bday") return `오늘은 ${nick}님 ${owner}이에요.\n🎉 축하해요 버튼으로 같이 축하해 주세요.`;
+  if (o.unit === "until") return `${nick}님 ${owner}이 ${o.n.toLocaleString("ko-KR")}일 남았어요.\n🎉 축하해요 버튼으로 미리 축하해 주세요.`;
+  return `오늘은 ${nick}님의 ${presetPhrase(preset, roomShort, slug)} ${o.n.toLocaleString("ko-KR")}일째예요.\n🎉 축하해요 버튼으로 같이 축하해 주세요.`;
 }
 
 /** 닉네임이 없을 때 쓰는 친근한 이름: "반짝이는 덕후 27" */
@@ -227,19 +230,19 @@ export function fanDaysIcs(list: readonly FanDay[], room: (slug: string) => { na
   const events: IcsEvent[] = [];
   for (const f of list) {
     const r = room(f.room);
-    const phrase = presetPhrase(f.preset, r.short);
+    const phrase = f.preset === "bday" ? themeBday(f.room).phrase : presetPhrase(f.preset, r.short, f.room);
     const url = `${siteUrl}/c/${encodeURIComponent(f.room)}`;
     for (const m of nextMilestones(f, now, f.preset === "bday" ? 3 : 4))
       events.push({
         uid: `fanday-${shortHash(`${f.id}|${f.preset}|${f.date}|${f.room}`)}-${m.kind}${m.n}@nobangjang.com`,
         summary: m.kind === "bday" ? `🎂 ${phrase}` : `🎉 ${phrase} ${m.n.toLocaleString("ko-KR")}일째`,
-        description: `${presetLabel(f.preset)} ${f.date} · ${r.name}\n${url}`,
+        description: `${themeItem(f.room, f.preset, r.short).label} ${f.date} · ${r.name}\n${url}`,
         url,
         allDay: { start: m.day, end: m.day },
         alarm: true,
       });
   }
-  return buildIcs({ name: "노방장 · 내 덕질 기념일", events, now });
+  return buildIcs({ name: "노방장 · 내 기념일", events, now });
 }
 
 export const todayIso = (now = new Date()): string => dayIso(kstDayNumber(now));
@@ -254,7 +257,7 @@ export const reactionCountText = (kind: "fanday" | "cheer", n: number): string =
   n > 0 ? `${kind === "cheer" ? "💪" : "🎉"} ${n.toLocaleString("ko-KR")}명이 ${kind === "cheer" ? "응원했어요" : "축하했어요"}` : kind === "cheer" ? "첫 응원을 보내 주세요" : "첫 축하를 보내 주세요";
 
 /** 카드 주인 알림 문구 */
-export const cheerPushTitle = (n: number): string => `🎉 ${n.toLocaleString("ko-KR")}명이 내 덕질 기념일을 축하했어요`;
+export const cheerPushTitle = (n: number): string => `🎉 ${n.toLocaleString("ko-KR")}명이 내 기념일을 축하했어요`;
 
 const POSTS_KEY = "nb:fanDayPosts";
 const CHEERED_KEY = "nb:cheered";

@@ -10,7 +10,6 @@ import {
   ddayText,
   FAN_DAYS_EVENT,
   FAN_DAYS_MAX,
-  FAN_PRESETS,
   fanDayPosts,
   fanDaysIcs,
   friendlyNickname,
@@ -26,11 +25,12 @@ import {
   type FanPreset,
   type PostedCard,
 } from "@/lib/fanDays";
+import { dayTheme, themeHint, themeItem, themePresets } from "@/lib/dayThemes";
 import { myNick, myPin, saveNick } from "@/lib/me";
 import { roomShortName } from "@/lib/myRooms";
 
 /**
- * 🎉 내 덕질 기념일 (10/26). 날짜는 이 브라우저에만 (src/lib/fanDays.ts). 저장소를 못 쓰면 등록만 안 된다.
+ * 🎉 내 기념일 (10/26, 방마다 이름이 다름: src/lib/dayThemes.ts). 날짜는 이 브라우저에만 (src/lib/fanDays.ts). 저장소를 못 쓰면 등록만 안 된다.
  * 대표님 "어차피 글을 안 쓰니까 아주 쉽게": 종류·날짜·닉네임만 고른다. "방에서 축하받기"(기본 켜짐)면 등록한 날 카드가 바로 올라가고,
  * 그 뒤 기념일(1·10·100일 단위, 최애 생일) 당일에는 "오늘 카드 올리기" 한 번. 카드 글은 서버가 정해진 틀로 만든다.
  * compact: 전체 탭 — 이 방 기념일이 없으면 작은 버튼 하나. 📸 자랑 탭에서는 카드로.
@@ -38,12 +38,15 @@ import { roomShortName } from "@/lib/myRooms";
 export function FanDays({ slug, roomName, compact = false }: { slug: string; roomName: string; compact?: boolean }) {
   const router = useRouter();
   const short = roomShortName({ slug, name: roomName });
+  // 방마다 다른 기념일 (dayThemes, 10/27): 육아방은 "👶 우리 아이 기념일"
+  const theme = dayTheme(slug);
+  const presets = themePresets(slug);
   const [all, setAll] = useState<FanDay[] | null>(null);
   const [posts, setPosts] = useState<Record<string, PostedCard>>({});
   const [cheers, setCheers] = useState<Record<string, number>>({});
   const [now, setNow] = useState<Date | null>(null);
   const [adding, setAdding] = useState(false);
-  const [preset, setPreset] = useState<FanPreset>("ipduk");
+  const [preset, setPreset] = useState<FanPreset>(() => themePresets(slug)[0]?.key ?? "ipduk");
   const [date, setDate] = useState("");
   const [nick, setNick] = useState("");
   const [share, setShare] = useState(true);
@@ -82,7 +85,7 @@ export function FanDays({ slug, roomName, compact = false }: { slug: string; roo
   if (compact && !mine.length && !adding)
     return (
       <button type="button" className="fan-days-open" onClick={() => setAdding(true)}>
-        🎉 내 덕질 기념일
+        {theme.title}
       </button>
     );
 
@@ -147,9 +150,9 @@ export function FanDays({ slug, roomName, compact = false }: { slug: string; roo
   };
 
   return (
-    <section className="fan-days" aria-label="내 덕질 기념일">
+    <section className="fan-days" aria-label={theme.title.replace(/^\S+\s/, "")}>
       <div className="fan-days-head">
-        <strong>🎉 내 덕질 기념일</strong>
+        <strong>{theme.title}</strong>
         <span className="hint">날짜는 이 기기에만 저장돼요</span>
       </div>
       {mine.map((f) => {
@@ -161,9 +164,9 @@ export function FanDays({ slug, roomName, compact = false }: { slug: string; roo
           <div key={f.id} className="fan-day">
             <div className="fan-day-main">
               <span className="fan-day-count">{countText(f, short, now)}</span>
-              <span className="hint">{FAN_PRESETS.find((p) => p.key === f.preset)!.label} {f.date}</span>
+              <span className="hint">{themeItem(f.room, f.preset, short).label} {f.date}</span>
             </div>
-            <p className="fan-day-next">{next.map((m) => `${milestoneLabel(m)} ${ddayText(m.dday)}`).join(" · ")}</p>
+            <p className="fan-day-next">{next.map((m) => `${milestoneLabel(m, f.room)} ${ddayText(m.dday)}`).join(" · ")}</p>
             {posted && (
               <p className="fan-day-cheers">
                 <Link href={`/posts/${posted.postId}`}>
@@ -187,7 +190,7 @@ export function FanDays({ slug, roomName, compact = false }: { slug: string; roo
       {adding || !mine.length ? (
         <div className="fan-day-form">
           <div className="fan-day-presets" role="radiogroup" aria-label="기념일 종류">
-            {FAN_PRESETS.map((p) => (
+            {presets.map((p) => (
               <button key={p.key} type="button" role="radio" aria-checked={preset === p.key} className={`chip${preset === p.key ? " on" : ""}`} onClick={() => setPreset(p.key)}>
                 {p.label}
               </button>
@@ -214,7 +217,7 @@ export function FanDays({ slug, roomName, compact = false }: { slug: string; roo
               </button>
             )}
           </div>
-          <p className="hint">고른 날짜가 1일째예요. 1일·10일·100일마다(최애 생일은 해마다) 카드를 올릴 수 있어요.</p>
+          <p className="hint">{themeHint(slug)}</p>
         </div>
       ) : (
         <div className="fan-day-actions">
