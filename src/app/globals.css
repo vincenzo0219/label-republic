@@ -1418,8 +1418,14 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .neo-meta { margin: 6px 0 0; }
 .neo-vote { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .neo-vote .btn { font-weight: 800; }
+.neo-vote-one { grid-template-columns: 1fr; }
 .neo-result { margin-top: 10px; }
 .neo-result p { margin: 6px 0 0; font-weight: 700; }
 .neo-bar { height: 10px; border-radius: 999px; background: #1f5f4a33; overflow: hidden; }
 .neo-bar-buy { display: block; height: 100%; background: #e4572e; }
 .neo-actions { display: flex; gap: 6px; margin-top: 8px; }
+
+/* 💌 만남 행사 카드: 👁 본 사람 · 💬 댓글 (10/27) */
+.singles-talk-line { display: flex; gap: 14px; align-items: center; margin: 10px 0 0; font-size: 14px; font-weight: 700; color: var(--muted, #666); }
+.singles-talk-line a { color: var(--brand); text-decoration: none; }
+.singles-talk { margin-top: 18px; }

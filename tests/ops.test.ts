@@ -199,7 +199,7 @@ d("launch hardening (database)", async () => {
     writeFileSync(path.join(uploads, "a.webp"), "fake-image");
     const m = await bk.backup({ url: url!, dir, uploadDir: uploads, keep: 2 });
     expect(m.rows).toMatchObject({ posts: 2, products: 1, product_facts: 2 });
-    expect(m.latest_migration).toMatch(/^0\d\d_/);
+    expect(m.latest_migration).toMatch(/^\d{3}_/);
     const dump = path.join(dir, m.dump);
     expect(await bk.verify(dump, url!)).toEqual({ ok: true, problems: [] });
 

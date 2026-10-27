@@ -42,7 +42,13 @@ d("💳 넣어둬 (DB)", async () => {
     // 마음 바꾸기
     expect(await neo.voteNeo(it0.id, "v2", "keep")).toMatchObject({ tally: { buy: 0, keep: 2 } });
     await expect(neo.voteNeo(it0.id, "own", "buy")).rejects.toMatchObject({ status: 403 });
-    await expect(neo.setNeoOutcome(it0.id, "own", "kept")).rejects.toMatchObject({ status: 409 });
+    await expect(neo.setNeoOutcome(it0.id, "own", "bought")).rejects.toMatchObject({ status: 409 });
+    // 투표 중 "안 살래요": 바로 마감하고 넣어둔 것으로
+    const quit = await neo.createNeo({ title: "게임기", price: 400000, reason: "", alt: "중고로", owner: "own", fingerprint: "fp1" });
+    expect(quit.alt).toBe("중고로");
+    expect(await neo.setNeoOutcome(quit.id, "own", "kept")).toMatchObject({ outcome: "kept", closed: true });
+    expect(await neo.neoSaved()).toEqual({ won: 400000, count: 1 });
+    await query("DELETE FROM neo_items WHERE id = $1", [quit.id]);
   });
 
   it("24시간 뒤 마감, 넣어뒀어요를 고르면 지킨 돈에 쌓인다", async () => {

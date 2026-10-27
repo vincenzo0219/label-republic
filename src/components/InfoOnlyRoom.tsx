@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Category } from "@/lib/types";
 import { listSinglesEvents } from "@/lib/repo/singlesEvents";
+import { ensureSinglesTalks } from "@/lib/repo/singlesTalk";
 import { SINGLES_ROOM, SINGLES_SCOPE_NOTE, todayKst } from "@/lib/singlesEvents";
 import { SinglesRoom } from "./SinglesRoom";
 
@@ -8,11 +9,12 @@ import { SinglesRoom } from "./SinglesRoom";
 export async function SinglesTab() {
   const today = todayKst();
   const events = await listSinglesEvents({ today }).catch(() => []);
+  const talks = await ensureSinglesTalks(events).catch(() => ({}));
   return (
     <>
       <p className="hint singles-scope">{SINGLES_SCOPE_NOTE}</p>
       {/* hidden 필드는 화면에 넘기지 않는다 */}
-      <SinglesRoom events={events.map(({ hidden: _h, ...e }) => e)} today={today} />
+      <SinglesRoom events={events.map(({ hidden: _h, ...e }) => e)} today={today} talks={talks} />
     </>
   );
 }

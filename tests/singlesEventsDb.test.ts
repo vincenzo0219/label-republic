@@ -227,6 +227,27 @@ d("💌 미혼남녀 만남 행사 (DB): 커뮤니티는 열고 만남 연결·�
     expect(n).toBe(0);
   });
 
+  it("행사 카드마다 댓글 글 하나 (목록에 안 나옴, 연락처 막힘, 본 사람 수)", async () => {
+    const { ensureSinglesTalks } = await import("@/lib/repo/singlesTalk");
+    const ev = await singles.createSinglesEvent(singles.singlesEventInput.parse(event({ title: "댓글 테스트 행사" })));
+    const t1 = await ensureSinglesTalks([{ id: ev.id, title: ev.title }]);
+    const t2 = await ensureSinglesTalks([{ id: ev.id, title: ev.title }]);
+    expect(t1[ev.id]!.postId).toBe(t2[ev.id]!.postId);
+    expect(t1[ev.id]).toMatchObject({ comments: 0, views: 0 });
+    const postId = t1[ev.id]!.postId;
+    await expect(comments.createComment(postId, { nickname: "질문러", pin: "1234", body: "서류는 언제까지 내요?" })).resolves.toMatchObject({ body: "서류는 언제까지 내요?" });
+    await expect(comments.createComment(postId, { nickname: "질문러", pin: "1234", body: "카톡 주세요" })).rejects.toMatchObject({ code: "contact_rule" });
+    expect((await ensureSinglesTalks([{ id: ev.id, title: ev.title }]))[ev.id]!.comments).toBe(1);
+    const { addSeen, flushViewCounts } = await import("@/lib/metrics");
+    addSeen([postId]);
+    await flushViewCounts();
+    expect((await ensureSinglesTalks([{ id: ev.id, title: ev.title }]))[ev.id]!.views).toBe(1);
+    const cat = await getCategoryBySlug(ROOM);
+    const list = await posts.listPosts({ categoryId: cat!.id, sort: "latest" });
+    expect(list.items.some((p) => p.id === postId)).toBe(false);
+    await singles.setSinglesEventHidden(ev.id, true);
+  });
+
   it("MCP find_singles_events and singles_event_detail are read-only and carry the original link and notice", async () => {
     const call = async (name: string, args: Record<string, unknown>) =>
       ((await handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, "fp", { readOnly: true })) as {
