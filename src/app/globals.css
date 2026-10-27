@@ -1436,3 +1436,9 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .neo-photo { display: block; margin: -2px 0 10px; }
 .neo-photo img { width: 100%; max-height: 260px; object-fit: cover; border-radius: 10px; display: block; }
 .neo-form .linkish { align-self: flex-start; background: none; border: 0; padding: 0; color: var(--brand); font-weight: 700; font-size: 14px; }
+
+/* 📰 오늘 브리핑 (10/27) */
+.briefing-strip { display: flex; gap: 6px; align-items: center; overflow-x: auto; scrollbar-width: none; margin: 0 0 12px; padding-bottom: 2px; }
+.briefing-strip strong { flex: none; font-size: 13px; }
+.briefing-strip a { flex: none; font-size: 13.5px; font-weight: 700; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted, #666); text-decoration: none; }
+.briefing-strip a.on { color: var(--text); border-color: var(--brand); background: #1f5f4a14; }
