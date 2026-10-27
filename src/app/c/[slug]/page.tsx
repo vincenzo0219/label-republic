@@ -43,6 +43,8 @@ import { AdSchedule } from "@/components/AdSchedule";
 import { isAdLanding } from "@/lib/adSchedule";
 import { recentEventPosts } from "@/lib/repo/adSchedule";
 import { InfoOnlyRoom, SinglesTab } from "@/components/InfoOnlyRoom";
+import { BriefingStrip } from "@/components/BriefingStrip";
+import { BRIEFING_KINDS, roomBriefings } from "@/lib/repo/briefings";
 import { SINGLES_TAB } from "@/lib/singlesEvents";
 
 /** ✍️ 오늘 몇 자 (작가지망생방): 이번 주 순위 + 어제·오늘 인증 + 배지. 실패하면 안 보인다 */
@@ -151,7 +153,17 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       {marketBox}
     </>
   );
-  const roomBox = writingBox || savingsBox || mealBox || marketBoxes;
+  // 📰 오늘 브리핑 (10/27): 주식·미국주식·적립식 방 맨 위 한 줄
+  const briefings = plain && BRIEFING_KINDS[category.slug] ? await roomBriefings(category.slug).catch(() => []) : [];
+  const baseBox = writingBox || savingsBox || mealBox || marketBoxes;
+  const roomBox = briefings.length ? (
+    <>
+      <BriefingStrip items={briefings} />
+      {baseBox}
+    </>
+  ) : (
+    baseBox
+  );
   // 📍 동네 체험 (육아방): 💬 채팅 뒤 탭 + 전체 탭 맨 위 한 줄. 지역은 브라우저에 저장돼 있어 화면에서 불러온다
   // 강사방: 탭 없이 들어오면 📋 대강·구인, 전체 글은 ?tab=all (10/25)
   const defaultTab = ROOM_DEFAULT_TAB[category.slug];
