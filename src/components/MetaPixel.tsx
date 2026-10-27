@@ -13,7 +13,7 @@ type Fbq = ((...args: unknown[]) => void) & { queue?: unknown[][]; loaded?: bool
  */
 function inStoreApp(): boolean {
   try {
-    if (isIosApp()) return true;
+    if (isIosApp() || /(?:^|;\s*)nb_app=1/.test(document.cookie)) return true;
     if (document.referrer.startsWith("android-app://com.nobangjang.app")) sessionStorage.setItem("nb:twa", "1");
     return sessionStorage.getItem("nb:twa") === "1";
   } catch {

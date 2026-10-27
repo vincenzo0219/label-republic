@@ -59,6 +59,7 @@ export async function runSinglesPush(
       );
       const send = opts.send ?? ((s: Sub, m: PushMessage) => sendPush(s, m));
       for (const s of subs) {
+        if (s.endpoint.startsWith("apns://")) continue; // 앱에서는 이 방을 숨긴다 (appMode)
         const c: AlertCriteria = { birthYear: s.birth_year, gender: s.gender, areas: s.areas };
         for (const kind of ["open", "closing"] as const) {
           const pick = due.filter((e) => (kind === "open" ? opensNow(e, today) : closesTomorrow(e, today)) && alertMatches(e, c, today));

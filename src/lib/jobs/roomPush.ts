@@ -8,6 +8,7 @@
  */
 import { pool } from "../db";
 import { sendPush, type PushMessage, type SendResult } from "../push";
+import { roomsForEndpoint } from "../appMode";
 
 const LOCK_KEY = 4_823_120;
 export const ROOM_GAP_HOURS = 6;
@@ -86,7 +87,7 @@ export async function runRoomPush(
                                     AND l.sent_at > $3::timestamptz - make_interval(hours => $8))
                 ORDER BY c.slug, p.created_at DESC
              ) x ORDER BY created_at DESC`,
-            [s.my_rooms, from, t, SETTLE_MS / 1000, AUTO_POST_SOURCES, s.fingerprint, s.id, ROOM_GAP_HOURS],
+            [roomsForEndpoint(s.endpoint, s.my_rooms), from, t, SETTLE_MS / 1000, AUTO_POST_SOURCES, s.fingerprint, s.id, ROOM_GAP_HOURS],
           )
         ).rows;
         if (!cands.length) {

@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { appHiddenSlugs } from "../appMode";
 import { isQueryCanceled, isUniqueViolation, query, queryWithTimeout, tx } from "../db";
 import { PAGE_SIZE } from "../config";
 import { HttpError, blinded, notFound, tooMany } from "../errors";
@@ -217,6 +218,11 @@ export async function listPosts(
   }
   if (params.sourced) where.push("p.source_count > 0");
   if (params.hideHiddenRooms) where.push("NOT EXISTS (SELECT 1 FROM categories hc WHERE hc.id = p.category_id AND hc.is_hidden)");
+  const appHidden = await appHiddenSlugs();
+  if (appHidden.length) {
+    args.push(appHidden);
+    where.push(`p.category_id NOT IN (SELECT id FROM categories WHERE slug = ANY($${args.length}::text[]))`);
+  }
   if (params.productId) {
     args.push(params.productId);
     where.push(`EXISTS (SELECT 1 FROM post_products pp WHERE pp.post_id = p.id AND pp.product_id = $${args.length})`);
@@ -354,7 +360,11 @@ export async function getPost(id: string): Promise<PostDetail | null> {
   const [row, images, sources, facts, dates] = await Promise.all([
     loadPost(id), listPostImages(id), listPostSources(id), listPostFacts(id), listPostProductDates(id),
   ]);
-  return row ? publicPost(row, images, sources, facts, dates) : null;
+  if (!row) return null;
+  const post = publicPost(row, images, sources, facts, dates);
+  // 스토어 앱 안에서는 19+ 방 글을 열지 않는다 (appMode)
+  if ((await appHiddenSlugs()).includes(post.category.slug)) return null;
+  return post;
 }
 
 async function insertSummary(client: PoolClient, postId: string, s: ResolvedSummary) {

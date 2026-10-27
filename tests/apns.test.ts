@@ -62,6 +62,7 @@ describe("APNs (iOS 앱 푸시)", () => {
     });
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     process.env.APNS_ORIGIN = `https://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    process.env.APNS_SANDBOX_ORIGIN = process.env.APNS_ORIGIN;
     const ca = readFileSync(`${dir}/c.pem`);
 
     expect(await apns.sendApns(TOKEN, msg, { ca })).toBe("sent");
@@ -76,6 +77,10 @@ describe("APNs (iOS 앱 푸시)", () => {
     answer = { status: 410, reason: "Unregistered" };
     expect(await apns.sendApns(TOKEN, msg, { ca })).toBe("gone");
     answer = { status: 400, reason: "BadDeviceToken" };
+    const before = hits.length;
+    expect(await apns.sendApns(TOKEN, msg, { ca })).toBe("gone");
+    expect(hits.length - before).toBe(2); // 운영에서 거절 → 개발용 APNs 로 한 번 더 물어본 뒤
+    answer = { status: 400, reason: "DeviceTokenNotForTopic" };
     expect(await apns.sendApns(TOKEN, msg, { ca })).toBe("gone");
     answer = { status: 403, reason: "InvalidProviderToken" }; // 키 문제: 구독은 지우지 않는다
     expect(await apns.sendApns(TOKEN, msg, { ca })).toBe("failed");
@@ -85,6 +90,7 @@ describe("APNs (iOS 앱 푸시)", () => {
     // 서버가 없으면 실패 (기다리다 멈추지 않는다)
     expect(await apns.sendApns(TOKEN, msg, { ca })).toBe("failed");
     delete process.env.APNS_ORIGIN;
+    delete process.env.APNS_SANDBOX_ORIGIN;
   });
 
   it("sendPush hands apns:// subscriptions to APNs (bad tokens are dropped without a request)", async () => {

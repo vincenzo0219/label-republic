@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isAndroidAppReferrer } from "@/lib/appMode";
 import { getMyRooms, MY_ROOMS_EVENT } from "@/lib/myRooms";
 import { isIosApp, nativeBridge, pushPublicKey } from "@/lib/pushClient";
 import { enableRoomAlerts, roomAlertsOn } from "@/lib/roomAlerts";
@@ -17,6 +18,10 @@ export function IosAppPush() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // 안드로이드 앱(TWA) 첫 화면: 서버가 못 붙였을 때를 대비해 앱 모드 쿠키 (appMode)
+    try {
+      if (isAndroidAppReferrer(document.referrer) && !/(?:^|;\s*)nb_app=1/.test(document.cookie)) document.cookie = "nb_app=1; path=/; samesite=lax; secure";
+    } catch {}
     if (!isIosApp()) return;
     (window as unknown as { nobangjangNativeAutoPrompt?: boolean }).nobangjangNativeAutoPrompt = false;
     let asked = false;

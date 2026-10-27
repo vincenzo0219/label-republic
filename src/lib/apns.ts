@@ -61,21 +61,30 @@ export async function sendApns(token: string, msg: PushMessage, opts: { ca?: Buf
     return "failed"; // 키 형식이 잘못됨 (운영 설정 문제) — 구독은 지우지 않는다
   }
   const body = JSON.stringify(apnsPayload(msg));
-  return new Promise<SendResult>((resolve) => {
+  const first = await post(config.apnsOrigin, token, auth, body, msg.tag, opts.ca);
+  // 개발용(Xcode) 빌드 토큰은 운영 APNs 가 BadDeviceToken 으로 돌려보낸다 → 개발용 APNs 로 한 번 더
+  const r = first.status === 400 && first.reason === "BadDeviceToken" ? await post(config.apnsSandboxOrigin, token, auth, body, msg.tag, opts.ca) : first;
+  if (r.status === 200) return "sent";
+  if (r.status === 410) return "gone";
+  return r.status === 400 && GONE_REASONS.has(r.reason) ? "gone" : "failed";
+}
+
+function post(origin: string, token: string, auth: string, body: string, tag: string, ca?: Buffer): Promise<{ status: number; reason: string }> {
+  return new Promise((resolve) => {
     let settled = false;
-    const done = (r: SendResult) => {
+    const done = (status: number, reason = "") => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       session.close();
-      resolve(r);
+      resolve({ status, reason });
     };
-    const session = http2.connect(config.apnsOrigin, opts.ca ? { ca: opts.ca } : {});
+    const session = http2.connect(origin, ca ? { ca } : {});
     const timer = setTimeout(() => {
       session.destroy();
-      done("failed");
+      done(0);
     }, 10_000);
-    session.on("error", () => done("failed"));
+    session.on("error", () => done(0));
     const req = session.request({
       ":method": "POST",
       ":path": `/3/device/${token}`,
@@ -84,7 +93,7 @@ export async function sendApns(token: string, msg: PushMessage, opts: { ca?: Buf
       "apns-push-type": "alert",
       "apns-priority": "10",
       "apns-expiration": String(Math.floor(Date.now() / 1000) + 12 * 3600),
-      "apns-collapse-id": msg.tag.slice(0, 64),
+      "apns-collapse-id": tag.slice(0, 64),
       "content-type": "application/json",
     });
     let status = 0;
@@ -92,15 +101,13 @@ export async function sendApns(token: string, msg: PushMessage, opts: { ca?: Buf
     req.setEncoding("utf8");
     req.on("response", (h) => (status = Number(h[":status"] ?? 0)));
     req.on("data", (c: string) => (text += c));
-    req.on("error", () => done("failed"));
+    req.on("error", () => done(0));
     req.on("end", () => {
-      if (status === 200) return done("sent");
-      if (status === 410) return done("gone");
       let reason = "";
       try {
         reason = String((JSON.parse(text) as { reason?: string }).reason ?? "");
       } catch {}
-      done(status === 400 && GONE_REASONS.has(reason) ? "gone" : "failed");
+      done(status, reason);
     });
     req.end(body);
   });

@@ -251,6 +251,10 @@ export const config = {
   get apnsOrigin() {
     return (process.env.APNS_ORIGIN ?? "https://api.push.apple.com").replace(/\/+$/, "");
   },
+  /** 개발용(Xcode) 빌드 토큰이 운영 APNs 에서 BadDeviceToken 이면 여기로 한 번 더 */
+  get apnsSandboxOrigin() {
+    return (process.env.APNS_SANDBOX_ORIGIN ?? "https://api.sandbox.push.apple.com").replace(/\/+$/, "");
+  },
   get apnsEnabled() {
     return Boolean(process.env.APNS_KEY_ID && process.env.APNS_PRIVATE_KEY);
   },
