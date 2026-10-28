@@ -69,6 +69,20 @@ function run(cmd: string, args: string[], opts: { env?: NodeJS.ProcessEnv; input
   return r.stdout.toString();
 }
 
+/**
+ * pg_restore 로 복원. 클라이언트(pg_restore 17+)가 서버(16)보다 새 버전이면 덤프 앞의 "SET transaction_timeout = 0;" 을
+ * 서버가 몰라 실패한다 (10/28 CI 러너 업데이트). 그때만 SQL 로 풀어 그 줄을 빼고 psql 로 넣는다.
+ */
+function pgRestore(args: string[], dbname: string, dump: string) {
+  try {
+    run("pg_restore", [...args, "--dbname", dbname, dump]);
+  } catch (err) {
+    if (!/transaction_timeout/.test((err as Error).message)) throw err;
+    const sql = run("pg_restore", [...args, "--file", "-", dump]).replace(/^SET transaction_timeout = 0;$/gm, "");
+    run("psql", ["--no-psqlrc", "--quiet", "-v", "ON_ERROR_STOP=1", "--dbname", dbname], { input: sql });
+  }
+}
+
 async function sha256(file: string): Promise<string> {
   const h = createHash("sha256");
   await new Promise<void>((resolve, reject) => createReadStream(file).on("data", (c) => h.update(c)).on("end", () => resolve()).on("error", reject));
@@ -163,7 +177,7 @@ export async function restoreToScratch(anyUrl: string, dump: string) {
   try {
     await admin.query(create.rows[0]?.sql ?? `CREATE DATABASE ${scratch}`);
     try {
-      run("pg_restore", ["--no-owner", "--no-privileges", "--exit-on-error", "--dbname", withDb(anyUrl, scratch), dump]);
+      pgRestore(["--no-owner", "--no-privileges", "--exit-on-error"], withDb(anyUrl, scratch), dump);
       return await snapshot(withDb(anyUrl, scratch));
     } finally {
       await dropScratch(admin, scratch);
@@ -220,7 +234,7 @@ export async function restore(dump: string, target: string, opts: { force?: bool
   if (tables > 0 && !opts.force) {
     throw new Error(`대상 DB 에 이미 테이블 ${tables}개가 있습니다. 비어 있는 DB 에 복원하거나, 덮어쓰려면 --force (기존 데이터는 지워집니다)`);
   }
-  run("pg_restore", ["--no-owner", "--no-privileges", "--exit-on-error", ...(tables > 0 ? ["--clean", "--if-exists"] : []), "--dbname", target, dump]);
+  pgRestore(["--no-owner", "--no-privileges", "--exit-on-error", ...(tables > 0 ? ["--clean", "--if-exists"] : [])], target, dump);
   const manifestFile = dump.replace(/\.dump$/, ".json");
   if (opts.uploads && existsSync(manifestFile)) {
     const m: Manifest = JSON.parse(readFileSync(manifestFile, "utf8"));

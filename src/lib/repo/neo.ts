@@ -210,3 +210,17 @@ export async function neoNewCount(since: Date, visitor: string): Promise<number>
   );
   return r?.n ?? 0;
 }
+
+/**
+ * 🔴 로고 옆 새 소식 점 (10/28 대표님): since 뒤에 첫 화면에 새로 생긴 게 있는지.
+ * 넣어둬 새 고민 · 오늘의 문제 새 회차(한국 날짜가 바뀜) · 새 책 투표
+ */
+export async function homeHasNew(since: Date, visitor: string, todayStartMs: number): Promise<boolean> {
+  if (since.getTime() < todayStartMs) return true;
+  if ((await neoNewCount(since, visitor)) > 0) return true;
+  const [r] = await query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM posts WHERE seed_key LIKE 'bookpoll:%' AND NOT is_blinded AND created_at > $1",
+    [since.toISOString()],
+  );
+  return (r?.n ?? 0) > 0;
+}
