@@ -17,7 +17,7 @@ export function NtrpTest() {
         <p className="ear-kicker">🎾 NTRP 1분 자가진단 · {step + 1}/{NTRP_QUESTIONS.length}</p>
         <h1 className="ear-title">{step === 0 ? "내 테니스 NTRP는?" : q.q}</h1>
         {step === 0 && <p className="hint">{q.q}</p>}
-        <div className="ear-choices" style={{ display: "grid", gap: 8 }}>
+        <div className="ear-choices ear-long">
           {q.options.map((o, i) => (
             <button key={o.label} type="button" className="btn ear-choice" onClick={() => setPicks([...picks, i])}>
               {o.label}

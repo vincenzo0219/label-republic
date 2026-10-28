@@ -862,6 +862,8 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .ear-letter { font-size: 40px; font-weight: 800; line-height: 1; }
 .ear-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
 .ear-choice { height: 50px; font-size: 16px; font-weight: 800; }
+.ear-choices.ear-long { grid-template-columns: 1fr; }
+.ear-long .ear-choice { height: auto; min-height: 50px; padding: 12px 16px; white-space: normal; line-height: 1.35; word-break: keep-all; }
 .ear-tier { font-size: 40px; font-weight: 800; margin: 0 0 6px; }
 .ear-score { font-size: 18px; margin: 0 0 6px; }
 .ear-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
@@ -917,6 +919,7 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .daily-cta:empty { display: none; }
 .daily-cta .btn { width: 100%; padding: 12px; font-weight: 700; border: 2px solid var(--brand); }
 .come-back { display: grid; gap: 8px; margin: 12px 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.come-back > * { min-width: 0; overflow-wrap: anywhere; word-break: keep-all; }
 .come-back p { margin: 0; }
 .come-back .debate-vote { margin: 0; padding: 0; border: 0; background: none; }
 .ear-brag-hint { text-align: center; margin: 4px 0 10px; font-size: 13px; }
@@ -968,6 +971,9 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .debate-vote { margin: 16px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .debate-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .debate-sides .btn { font-size: 16px; font-weight: 800; padding: 12px; }
+/* 보기 글이 길면 버튼 안에서 줄을 바꾼다 (10/29 폰에서 화면 밖으로 밀림) */
+.debate-sides > * { min-width: 0; }
+.debate-sides .btn { height: auto; min-height: 44px; white-space: normal; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
 .debate-result { margin-top: 12px; font-size: 14.5px; display: grid; gap: 6px; }
 .debate-result p { margin: 0; }
 .vs-banner { margin: 0 0 12px; padding: 10px 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--brand) 12%, var(--surface)); font-size: 15px; }

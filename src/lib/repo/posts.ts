@@ -91,6 +91,8 @@ export type ListParams = {
   type?: PostType;
   /** 말머리 "[질문]" 등으로 시작하는 글만 (Sprint 86) */
   head?: string;
+  /** 이 말머리로 시작하는 글은 빼고 (📋 정보 탭: 🎫 행사·자랑 탭 글과 겹치지 않게, 10/29 대표님) */
+  notHeads?: readonly string[];
   /** 출처가 달린 글만 */
   sourced?: boolean;
   /** 사람이 쓴 글을 최신순으로 AI 큐레이터 글보다 먼저 (홈, Sprint 72) */
@@ -215,6 +217,10 @@ export async function listPosts(
       return `p.title LIKE $${args.length}`;
     });
     where.push(`(${likes.join(" OR ")})`);
+  }
+  if (params.notHeads?.length) {
+    args.push(params.notHeads.map((h) => `[${h}]%`));
+    where.push(`NOT (p.title LIKE ANY($${args.length}::text[]))`);
   }
   if (params.sourced) where.push("p.source_count > 0");
   if (params.hideHiddenRooms) where.push("NOT EXISTS (SELECT 1 FROM categories hc WHERE hc.id = p.category_id AND hc.is_hidden)");
