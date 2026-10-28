@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { SINGLES_PATH } from "@/lib/singlesEvents";
+import { markSimDone } from "./SinglesBingo";
 import { SIM_HIGH, SIM_MIN_PARTICIPANTS, SIM_SCENES, SIM_TYPES, type SimStats, type SimType } from "@/lib/someSim";
 
 const TYPING_MS = 900;
@@ -55,6 +56,7 @@ export function SomeSim() {
     setStep(SIM_SCENES.length);
     try {
       setResult(await api<Result>("/api/some-sim", "POST", { picks: nextPicks }));
+      markSimDone();
     } catch (e) {
       setErr((e as Error).message);
     }

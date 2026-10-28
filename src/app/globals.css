@@ -1484,3 +1484,16 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .sim-bar-track { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .sim-bar-track span { display: block; height: 100%; background: var(--brand); }
 .sim-actions { display: flex; gap: 8px; margin: 14px 0; }
+/* 🎯 행사 빙고 (10/28) */
+.bingo { margin: 0 0 14px; padding: 14px; }
+.bingo-head { display: flex; justify-content: space-between; align-items: baseline; }
+.bingo-done { color: #e4572e; }
+.bingo-how { margin: 4px 0 10px; }
+.bingo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.bingo-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 76px; padding: 6px 4px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 700; line-height: 1.25; text-align: center; cursor: pointer; }
+.bingo-cell > span:first-child { font-size: 22px; }
+.bingo-cell.on { background: color-mix(in srgb, var(--brand) 16%, var(--surface)); border-color: var(--brand); }
+.bingo-cell.sel { outline: 2px solid var(--brand); }
+.bingo-pick { margin-top: 10px; font-size: 14px; }
+.bingo-pick ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.bingo-reward { margin: 10px 0 0; font-weight: 700; }
