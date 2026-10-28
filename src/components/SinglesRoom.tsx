@@ -15,6 +15,7 @@ import {
 } from "@/lib/singlesEvents";
 import type { SinglesTalk } from "@/lib/repo/singlesTalk";
 import { SeenTracker } from "./SeenTracker";
+import { SinglesBingo } from "./SinglesBingo";
 import { SinglesAlert } from "./SinglesAlert";
 import { SinglesChecker } from "./SinglesChecker";
 import { SinglesEventCard } from "./SinglesEventCard";
@@ -108,6 +109,8 @@ export function SinglesRoom({ events, today, talks = {} }: { events: SinglesEven
           솔로인 지금, 다음 썸에서 나는? 답장만 고르면 나오는 썸 날씨 ☀️🌧🌫🌪
         </span>
       </Link>
+      {/* 🎯 행사 빙고 (10/28): 행사를 하나씩 열어 볼 이유 */}
+      <SinglesBingo events={events} today={today} />
       <SinglesChecker profile={profile} onChange={update} onClear={clear} thisYear={Number(today.slice(0, 4))} />
       <nav className="type-filter" aria-label="모집 상태">
         {TABS.map((t) => (

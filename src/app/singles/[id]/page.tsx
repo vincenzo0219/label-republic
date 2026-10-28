@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { SinglesSeenMark } from "@/components/SinglesBingo";
 import { SinglesDetail } from "@/components/SinglesRoom";
 import { LiveComments } from "@/components/LiveComments";
 import { addSeen } from "@/lib/metrics";
@@ -35,6 +36,8 @@ export default async function SinglesEventPage({ params }: Props) {
   const comments = talk ? await listComments(talk.postId).catch(() => []) : [];
   return (
     <article className="singles-page">
+      {/* 🎯 행사 빙고: 이 행사를 본 것으로 (이 브라우저에만) */}
+      <SinglesSeenMark id={e.id} />
       <p className="hint">
         <Link href={SINGLES_PATH}>← {SINGLES_ROOM_NAME}</Link>
       </p>
