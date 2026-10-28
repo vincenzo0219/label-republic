@@ -5,7 +5,9 @@ import { useState } from "react";
 import { api } from "@/lib/client-api";
 import { thumbUrl } from "@/lib/media-url";
 import { shrinkIfNeeded, upload } from "./ImagePicker";
+import { SeenTracker } from "./SeenTracker";
 import type { NeoChoice, NeoItem, NeoOutcome } from "@/lib/repo/neo";
+import type { NeoTalk } from "@/lib/repo/neoTalk";
 
 const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
 const pct = (x: number, n: number) => (n ? Math.round((x / n) * 100) : 0);
@@ -18,7 +20,7 @@ function left(closesAt: string, now: number): string {
 }
 
 /** 💳 넣어둬 카드 하나: 투표 → 결과, 내 글이면 마감 뒤 샀어요/넣어뒀어요 */
-export function NeoCard({ initial, now, onChange, onRemove }: { initial: NeoItem; now: number; onChange?: (it: NeoItem) => void; onRemove?: () => void }) {
+export function NeoCard({ initial, now, talk, onChange, onRemove }: { initial: NeoItem; now: number; talk?: NeoTalk; onChange?: (it: NeoItem) => void; onRemove?: () => void }) {
   const [it, setIt] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -95,7 +97,7 @@ export function NeoCard({ initial, now, onChange, onRemove }: { initial: NeoItem
   const n = t ? t.buy + t.keep : 0;
   const closed = it.closed || Date.parse(it.closes_at) <= now;
   return (
-    <article className="neo-card">
+    <article className="neo-card" data-post-id={talk?.postId}>
       {it.photo_id && (
         <Link href={`/neo/${it.id}`} className="neo-photo">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -183,6 +185,14 @@ export function NeoCard({ initial, now, onChange, onRemove }: { initial: NeoItem
           </button>
         </div>
       )}
+      {talk && (
+        <p className="singles-talk-line">
+          <span aria-label={`${talk.views}명 봤어요`}>👁 {talk.views.toLocaleString("ko-KR")}</span>
+          <Link href={`/neo/${it.id}#talk`} aria-label={`댓글 ${talk.comments}개`}>
+            💬 {talk.comments.toLocaleString("ko-KR")}
+          </Link>
+        </p>
+      )}
       <div className="neo-actions">
         <button type="button" className="btn btn-sm btn-ghost" onClick={share}>
           공유
@@ -209,7 +219,7 @@ export function NeoCard({ initial, now, onChange, onRemove }: { initial: NeoItem
 }
 
 /** 💳 넣어둬 (10/27): 올리기 + 진행 중 + 마감 */
-export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed: NeoItem[]; saved: { won: number; count: number }; now: number }) {
+export function NeoBoard({ open, closed, saved, now, talks = {} }: { open: NeoItem[]; closed: NeoItem[]; saved: { won: number; count: number }; now: number; talks?: Record<string, NeoTalk> }) {
   const [items, setItems] = useState(open);
   const [done, setDone] = useState(closed);
   const [title, setTitle] = useState("");
@@ -319,7 +329,7 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
       <section aria-label="투표 중">
         <h2 className="section-title">🗳 지금 투표 중</h2>
         {items.length ? (
-          items.map((it) => <NeoCard key={it.id} initial={it} now={now} onRemove={() => setItems((cur) => cur.filter((x) => x.id !== it.id))} />)
+          items.map((it) => <NeoCard key={it.id} initial={it} now={now} talk={talks[it.id]} onRemove={() => setItems((cur) => cur.filter((x) => x.id !== it.id))} />)
         ) : (
           <p className="hint">아직 올라온 고민이 없어요. 첫 고민을 올려 보세요.</p>
         )}
@@ -329,10 +339,11 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
         <section aria-label="마감">
           <h2 className="section-title">⏰ 마감된 고민</h2>
           {done.map((it) => (
-            <NeoCard key={it.id} initial={it} now={now} onRemove={() => setDone((cur) => cur.filter((x) => x.id !== it.id))} />
+            <NeoCard key={it.id} initial={it} now={now} talk={talks[it.id]} onRemove={() => setDone((cur) => cur.filter((x) => x.id !== it.id))} />
           ))}
         </section>
       )}
+      <SeenTracker />
     </div>
   );
 }

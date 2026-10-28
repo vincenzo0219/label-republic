@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LiveComments } from "@/components/LiveComments";
 import { NeoCard } from "@/components/NeoBoard";
+import { addSeen } from "@/lib/metrics";
+import { listComments } from "@/lib/repo/comments";
+import { ensureNeoTalks, type NeoTalk } from "@/lib/repo/neoTalk";
 import { getNeo } from "@/lib/repo/neo";
 import { pageVisitor } from "@/lib/neoServer";
 
@@ -26,13 +30,23 @@ export default async function NeoItemPage({ params }: Props) {
   const { id } = await params;
   const it = await getNeo(id, await pageVisitor());
   if (!it) notFound();
+  const talk = ((await ensureNeoTalks([it]).catch(() => ({}))) as Record<string, NeoTalk>)[it.id];
+  // 상세를 연 것도 본 사람으로 센다 (목록에서 이미 센 브라우저는 목록이 막는다)
+  if (talk) addSeen([talk.postId]);
+  const comments = talk ? await listComments(talk.postId).catch(() => []) : [];
   return (
     <div className="neo">
       <header className="neo-hero">
         <h1>💳 넣어둬</h1>
         <p>살까 말까, 한 표 보태 주세요.</p>
       </header>
-      <NeoCard initial={it} now={Date.now()} />
+      <NeoCard initial={it} now={Date.now()} talk={talk} />
+      {talk && (
+        <section id="talk" className="singles-talk" aria-label="댓글">
+          <h2 className="section-title">💬 한마디</h2>
+          <LiveComments postId={talk.postId} initial={comments} casual report />
+        </section>
+      )}
       <p>
         <Link href="/neo" className="btn">
           🤔 나도 살까 말까 올리기

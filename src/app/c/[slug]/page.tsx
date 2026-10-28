@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
@@ -115,6 +115,8 @@ const ROOM_LINKS: Record<string, { href: string; label: string }[]> = {
 export default async function CategoryPage({ params, searchParams }: Props) {
   const category = await getCategoryBySlug(decodeSlug((await params).slug));
   if (!category) notFound();
+  // 💳 넣어둬 댓글이 사는 숨은 방 (102): 방 화면 대신 넣어둬로
+  if (category.slug === "neo") redirect("/neo");
   // 정보만 보여 주는 방 (092): 글 목록·글쓰기·채팅 탭 없이 정보만. 💌 미혼남녀 만남 행사 방은 098 부터 다른 방처럼 (💌 만남 행사 탭이 기본)
   if (category.info_only) return <InfoOnlyRoom category={category} />;
   const sp = await searchParams;

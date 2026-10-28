@@ -169,6 +169,8 @@ export async function updateNeo(id: string, visitor: string, input: { title: str
 export async function deleteNeo(id: string, visitor: string): Promise<void> {
   const rows = await query("DELETE FROM neo_items WHERE id = $1 AND owner_hash = $2 RETURNING id", [id, visitor]);
   if (!rows.length) throw notFound("내 넣어둬 글");
+  // 댓글 글도 함께 (neoTalk)
+  await query("DELETE FROM posts WHERE seed_key = $1", [`roomchat:neo:${id}`]);
 }
 
 /** 신고: 한 사람 한 번, NEO_HIDE_REPORTS 번이면 가린다 */
@@ -185,6 +187,8 @@ export async function reportNeo(id: string, visitor: string): Promise<{ hidden: 
        WHERE id = $1 RETURNING is_hidden`,
       [id, NEO_HIDE_REPORTS],
     );
+    // 가려지면 댓글 글도 가린다 (neoTalk)
+    if (r.rows[0]?.is_hidden) await c.query("UPDATE posts SET is_blinded = true WHERE seed_key = $1", [`roomchat:neo:${id}`]);
     return { hidden: !!r.rows[0]?.is_hidden };
   });
 }
