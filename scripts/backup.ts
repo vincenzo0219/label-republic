@@ -45,6 +45,9 @@ export const CHECK_TABLES = [
   "singles_events",
   "singles_alert_subs",
   "gig_reports",
+  // 10/29 🎾 테니스방 게임 모집
+  "tennis_games",
+  "tennis_game_reports",
   // 10/26 🙋 같이 갈 사람 (모임·조원·노쇼 기록은 사라지면 안 된다)
   "event_going", "event_groups", "event_group_members", "event_group_messages", "event_pool", "event_penalties",
   // 098 🚩 댓글·채팅 신고 (가림 근거)
