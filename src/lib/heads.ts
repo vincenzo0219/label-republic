@@ -27,13 +27,14 @@ export const SHOP_HEADS = [
 /** 🧘 요가·필라테스 강사방 (10/25): 📋 대강 · 💼 구인구직(방 전용 화면) · 💬 채팅 다음 탭 */
 const INSTRUCTOR_HEADS = [{ key: "수업팁", label: "🧘 수업 팁" }] as const;
 
-/** 💌 미혼남녀 만남 행사 (10/27 대표님): 💌 만남 행사 · 💬 채팅 다음 탭. 행사는 만남 행사 탭과 겹쳐서, 자랑은 외모·연락처로 흐르기 쉬워서 뺀다 */
-const SINGLES_HEADS = [
-  { key: "꿀팁", label: "📋 신청 꿀팁" },
-  { key: "참가후기", label: "🗣️ 후기·질문" },
-] as const;
+/**
+ * 💌 미혼남녀 만남 행사 (10/27 대표님): 💌 만남 행사 · 💬 채팅 다음 탭. 행사는 만남 행사 탭과 겹쳐서, 자랑은 외모·연락처로 흐르기 쉬워서 뺀다.
+ * 🗣️ 후기·질문 탭은 10/28 대표님 "없앨까?"로 뺐다: 행사 카드마다 댓글이 있어 후기·질문이 거기로 모인다. 말머리 키는 예전 글 때문에 남긴다
+ */
+const SINGLES_HEADS = [{ key: "꿀팁", label: "📋 신청 꿀팁" }] as const;
+const SINGLES_OLD_HEADS = [{ key: "참가후기", label: "🗣️ 후기·질문" }] as const;
 
-export const ALL_HEADS = [...BOOK_HEADS, ...HEADS, ...SHOP_HEADS, ...INSTRUCTOR_HEADS, ...SINGLES_HEADS] as const;
+export const ALL_HEADS = [...BOOK_HEADS, ...HEADS, ...SHOP_HEADS, ...INSTRUCTOR_HEADS, ...SINGLES_HEADS, ...SINGLES_OLD_HEADS] as const;
 
 export type Head = (typeof ALL_HEADS)[number]["key"];
 
