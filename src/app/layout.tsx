@@ -59,8 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <IosAppPush />
         <header className="site-header">
           <div className="container">
-            {/* 로고는 언제나 전체 첫 화면 (10/28 대표님: 내 방만 보이거나 방 하나로 바로 넘어가서 넣어둬를 못 찾음) */}
-            <Link href="/?all=1" className="logo" aria-label="노방장 첫 화면">
+            <Link href="/" className="logo" aria-label="노방장 홈">
               노방장
             </Link>
             <form action="/search" method="get" role="search" aria-label="사이트 검색" className="header-search">
