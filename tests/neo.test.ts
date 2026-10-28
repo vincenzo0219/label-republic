@@ -76,6 +76,15 @@ d("💳 넣어둬 (DB)", async () => {
     expect(await query("SELECT 1 FROM posts WHERE id = $1", [t1.postId])).toHaveLength(0);
   });
 
+  it("넣어둬 버튼 새 글 수: 본 뒤 올라온 투표 중인 남의 글만", async () => {
+    const before = new Date(Date.now() - 1000);
+    const base = await neo.neoNewCount(before, "viewer7");
+    await neo.createNeo({ title: "무선 청소기", price: 300000, reason: "", owner: "own7", fingerprint: "fp7" });
+    await neo.createNeo({ title: "내 고민", price: 10000, reason: "", owner: "viewer7", fingerprint: "fp8" });
+    expect(await neo.neoNewCount(before, "viewer7")).toBe(base + 1);
+    expect(await neo.neoNewCount(new Date(Date.now() + 60_000), "viewer7")).toBe(0);
+  });
+
   it("24시간 뒤 마감, 넣어뒀어요를 고르면 지킨 돈에 쌓인다", async () => {
     const it1 = await neo.createNeo({ title: "패딩", price: 189000, reason: "", owner: "own2", fingerprint: "fp2" });
     await query("UPDATE neo_items SET closes_at = now() - interval '1 minute' WHERE id = $1", [it1.id]);

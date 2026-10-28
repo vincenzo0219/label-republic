@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
 import { thumbUrl } from "@/lib/media-url";
 import { shrinkIfNeeded, upload } from "./ImagePicker";
+import { markNeoSeen } from "./NeoChip";
 import { SeenTracker } from "./SeenTracker";
 import type { NeoChoice, NeoItem, NeoOutcome } from "@/lib/repo/neo";
 import type { NeoTalk } from "@/lib/repo/neoTalk";
@@ -222,6 +223,8 @@ export function NeoCard({ initial, now, talk, onChange, onRemove }: { initial: N
 export function NeoBoard({ open, closed, saved, now, talks = {} }: { open: NeoItem[]; closed: NeoItem[]; saved: { won: number; count: number }; now: number; talks?: Record<string, NeoTalk> }) {
   const [items, setItems] = useState(open);
   const [done, setDone] = useState(closed);
+  // 홈 넣어둬 버튼의 새 글 수를 여기서 0 으로
+  useEffect(() => markNeoSeen(), []);
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [reason, setReason] = useState("");
