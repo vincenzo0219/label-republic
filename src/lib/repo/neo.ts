@@ -200,3 +200,13 @@ export async function neoSaved(): Promise<{ won: number; count: number }> {
   );
   return { won: Number(r?.won ?? 0), count: r?.count ?? 0 };
 }
+
+/** 💳 넣어둬 버튼의 새 글 수 (10/28 대표님): since 뒤에 올라온, 아직 투표 중인 글. 내 글은 빼고, 7일보다 앞은 보지 않는다 */
+export async function neoNewCount(since: Date, visitor: string): Promise<number> {
+  const floor = Math.max(since.getTime(), Date.now() - 7 * 86400_000);
+  const [r] = await query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM neo_items WHERE NOT is_hidden AND closes_at > now() AND created_at > $1 AND owner_hash <> $2",
+    [new Date(floor).toISOString(), visitor],
+  );
+  return r?.n ?? 0;
+}

@@ -1443,3 +1443,4 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .briefing-strip strong { flex: none; font-size: 13px; }
 .briefing-strip a { flex: none; font-size: 13.5px; font-weight: 700; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted, #666); text-decoration: none; }
 .briefing-strip a.on { color: var(--text); border-color: var(--brand); background: #1f5f4a14; }
+.home-tests .neo-new { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 5px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 800; vertical-align: 1px; }
