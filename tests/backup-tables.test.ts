@@ -38,6 +38,7 @@ const NOT_CHECKED: Record<string, string> = {
   pmf_survey: "설문 응답 (사업 지표)",
   ear_test_results: "황금귀 테스트 결과 (익명 참가 통계)",
   hearing_test_results: "고음 청력 테스트 결과 (익명 참가 통계)",
+  some_sim_results: "썸 시뮬레이터 결과 (익명 유형 통계)",
   first_line_test_results: "첫 문장 테스트 결과 (익명 참가 통계)",
   daily_answers: "오늘의 문제 답 (익명 참가 통계)",
   typing_test_results: "타자 테스트 결과 (익명 참가 통계)",

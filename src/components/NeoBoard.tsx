@@ -224,7 +224,9 @@ export function NeoBoard({ open, closed, saved, now, talks = {} }: { open: NeoIt
   const [items, setItems] = useState(open);
   const [done, setDone] = useState(closed);
   // 홈 넣어둬 버튼의 새 글 수를 여기서 0 으로
-  useEffect(() => markNeoSeen(), []);
+  useEffect(() => {
+    markNeoSeen();
+  }, []);
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [reason, setReason] = useState("");

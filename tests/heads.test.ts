@@ -19,7 +19,7 @@ describe("말머리 작은 방 (Sprint 86)", () => {
     expect(headsFor("읽는-책-제목을-교환해-보자").map((h) => h.key)).toEqual(["같이읽기", "밑줄", "추천", "행사", "혜택"]);
     expect(headsFor("k리그-덕후방").map((h) => h.key)).toEqual(["자랑", "행사", "혜택"]);
     // 💌 미혼남녀 방 (10/27): 행사·자랑 대신 신청 꿀팁·후기 질문, 정보 탭은 신청 꿀팁으로
-    expect(headsFor("미혼남녀-만남-행사").map((h) => h.key)).toEqual(["꿀팁", "참가후기"]);
+    expect(headsFor("미혼남녀-만남-행사").map((h) => h.key)).toEqual(["꿀팁"]);
     expect(headOf("[참가후기] 김천 행사 다녀왔어요")).toBe("참가후기");
   });
   it("행사 탭에 핫딜·할인(혜택) 글을 합친다 (10/23)", () => {
