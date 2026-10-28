@@ -31,7 +31,11 @@ const INSTRUCTOR_HEADS = [{ key: "수업팁", label: "🧘 수업 팁" }] as con
  * 💌 미혼남녀 만남 행사 (10/27 대표님): 💌 만남 행사 · 💬 채팅 다음 탭. 행사는 만남 행사 탭과 겹쳐서, 자랑은 외모·연락처로 흐르기 쉬워서 뺀다.
  * 🗣️ 후기·질문 탭은 10/28 대표님 "없앨까?"로 뺐다: 행사 카드마다 댓글이 있어 후기·질문이 거기로 모인다. 말머리 키는 예전 글 때문에 남긴다
  */
-const SINGLES_HEADS = [{ key: "꿀팁", label: "📋 신청 꿀팁" }] as const;
+const SINGLES_HEADS = [
+  // 💘 매일 3개 (10/28 대표님 "매일 3개씩 글 올라오는 탭"): 08시 썸 카톡 투표 · 12시 끌림 심리 · 22시 썸 날씨
+  { key: "심리", label: "💘 썸·연애 심리" },
+  { key: "꿀팁", label: "📋 신청 꿀팁" },
+] as const;
 const SINGLES_OLD_HEADS = [{ key: "참가후기", label: "🗣️ 후기·질문" }] as const;
 
 export const ALL_HEADS = [...BOOK_HEADS, ...HEADS, ...SHOP_HEADS, ...INSTRUCTOR_HEADS, ...SINGLES_HEADS, ...SINGLES_OLD_HEADS] as const;
@@ -136,6 +140,7 @@ export const HEAD_HINTS: Partial<Record<Head, string>> = {
   지원: "사업 이름 · 신청 마감일 · 공식 공고 주소",
   가게: "어떤 가게 · 무엇이 달랐는지 · 출처",
   수업팁: "어떤 수업 · 무엇을 바꿨는지 · 회원 반응",
+  심리: "썸·연애 심리 이야기 (연락처·만남 연결은 빼고)",
   꿀팁: "어떤 서류·제도·요령인지 · 공식 안내 링크",
   참가후기: "어떤 행사 · 언제 · 좋았던 점·아쉬운 점 (연락처·실명·사진 속 얼굴은 빼고)",
 };

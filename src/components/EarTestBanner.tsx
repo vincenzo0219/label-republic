@@ -24,6 +24,7 @@ const TESTS = [
   { href: "/kbo-test", label: "⚾ 야구 팬" },
   { href: "/fan-test", label: "⚽ 축구 팬" },
   { href: "/dog-test", label: "🐶 견주" },
+  { href: "/ntrp-test", label: "🎾 NTRP" },
   { href: "/ear-test", label: "🎧 황금귀" },
   { href: "/first-line-test", label: "📜 첫 문장" },
   { href: "/ai-test", label: "🤖 AI 판별" },
