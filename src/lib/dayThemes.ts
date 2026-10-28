@@ -94,6 +94,11 @@ const THEMES: Record<string, DayTheme> = {
     start: { label: "입문한 날", phrase: "입문" },
     first: { label: "첫 시음회", phrase: "첫 시음회" },
   },
+  "테니스-덕후방": {
+    title: "🎾 내 테니스 기념일",
+    start: { label: "테니스 시작한 날", phrase: "테니스" },
+    first: { label: "첫 대회 나간 날", phrase: "첫 대회" },
+  },
   "캠핑-덕후방": {
     title: "⛺ 내 캠핑 기념일",
     start: { label: "캠핑 시작한 날", phrase: "캠핑" },
