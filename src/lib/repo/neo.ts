@@ -1,5 +1,5 @@
 /**
- * 💳 넣어둬 (10/27 대표님). 살까 말까 고민되는 물건을 익명으로 올리면 모르는 사람들이 24시간 동안 "🛒 사라 / 💳 넣어둬" 투표.
+ * 💳 넣어둬 (10/27 대표님). 살까 말까 고민되는 물건을 익명으로 올리면 모르는 사람들이 2일 동안 (10/29 대표님 24시간 → 2일) "🛒 사라 / 💳 넣어둬" 투표.
  * 방 밖에 있다 (홈 맨 앞 버튼, /neo). AI 판결 없음. 결과는 내가 투표했거나 마감된 뒤에만 보인다 (먼저 본 숫자에 휩쓸리지 않게).
  * 마감 뒤 올린 사람이 "샀어요 / 넣어뒀어요"를 고르면 넣어둔 금액이 모두의 "넣어둬로 지킨 돈"에 쌓인다.
  * 가입 없이 방문자 쿠키(해시)로 글쓴이·투표자를 알아본다. 신고 3번이면 가린다.
@@ -171,6 +171,37 @@ export async function deleteNeo(id: string, visitor: string): Promise<void> {
   if (!rows.length) throw notFound("내 넣어둬 글");
   // 댓글 글도 함께 (neoTalk)
   await query("DELETE FROM posts WHERE seed_key = $1", [`roomchat:neo:${id}`]);
+}
+
+/** 🛠 운영자 삭제 (10/29 대표님 "이상한 글 잔뜩, 전부 삭제"): 이 글, sameOwner 면 같은 사람이 올린 넣어둬 글 전부. 댓글 글도 함께 */
+export async function adminDeleteNeo(id: string, sameOwner = false): Promise<string[]> {
+  const rows = await query<{ id: string }>(
+    sameOwner
+      ? "DELETE FROM neo_items WHERE owner_hash = (SELECT owner_hash FROM neo_items WHERE id = $1) RETURNING id::text"
+      : "DELETE FROM neo_items WHERE id = $1 RETURNING id::text",
+    [id],
+  );
+  if (!rows.length) throw notFound("넣어둬 글");
+  const ids = rows.map((r) => r.id);
+  await query("DELETE FROM posts WHERE seed_key = ANY($1::text[])", [ids.map((i) => `roomchat:neo:${i}`)]);
+  return ids;
+}
+
+/** 🛠 운영자 목록: 가려진 글까지 (신고 수·같은 사람 표시용 짧은 owner) */
+export async function adminListNeo(): Promise<{ id: string; title: string; created_at: string; closes_at: string; is_hidden: boolean; report_count: number; owner: string }[]> {
+  return query(
+    "SELECT id::text, title, created_at, closes_at, is_hidden, report_count, left(owner_hash, 8) AS owner FROM neo_items ORDER BY id DESC LIMIT 200",
+  );
+}
+
+/** 🛠 운영자 복원 (10/29 대표님 "기존 글들 그대로 복원"): 신고로 가려진 글을 다시 보이게, 신고 기록·댓글 글 가림도 풀기 */
+export async function adminRestoreNeo(id: string): Promise<void> {
+  await tx(async (c) => {
+    const r = await c.query("UPDATE neo_items SET is_hidden = false, report_count = 0 WHERE id = $1 RETURNING id", [id]);
+    if (!r.rowCount) throw notFound("넣어둬 글");
+    await c.query("DELETE FROM neo_reports WHERE item_id = $1", [id]);
+    await c.query("UPDATE posts SET is_blinded = false WHERE seed_key = $1", [`roomchat:neo:${id}`]);
+  });
 }
 
 /** 신고: 한 사람 한 번, NEO_HIDE_REPORTS 번이면 가린다 */

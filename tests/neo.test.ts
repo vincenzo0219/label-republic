@@ -76,6 +76,28 @@ d("💳 넣어둬 (DB)", async () => {
     expect(await query("SELECT 1 FROM posts WHERE id = $1", [t1.postId])).toHaveLength(0);
   });
 
+  it("운영자 삭제: 한 글, 또는 같은 사람이 올린 글 전부 (10/29)", async () => {
+    const a = await neo.createNeo({ title: "도배1", price: 1000, reason: "", owner: "spam", fingerprint: "fps" });
+    const b = await neo.createNeo({ title: "도배2", price: 1000, reason: "", owner: "spam", fingerprint: "fps" });
+    const keep = await neo.createNeo({ title: "멀쩡한 글", price: 1000, reason: "", owner: "okk", fingerprint: "fpk" });
+    expect((await neo.adminDeleteNeo(a.id, true)).sort()).toEqual([a.id, b.id].sort());
+    expect(await query("SELECT 1 FROM neo_items WHERE id = $1", [keep.id])).toHaveLength(1);
+    expect(await neo.adminDeleteNeo(keep.id)).toEqual([keep.id]);
+    await expect(neo.adminDeleteNeo(keep.id)).rejects.toThrow();
+  });
+
+  it("운영자 복원: 신고로 가려진 글이 다시 보인다, 투표는 2일 (10/29)", async () => {
+    const x = await neo.createNeo({ title: "가려질 글", price: 5000, reason: "", owner: "own10", fingerprint: "fp10" });
+    for (const v of ["r1", "r2", "r3"]) await neo.reportNeo(x.id, v);
+    expect((await neo.listNeo("v10")).open.some((i) => i.id === x.id)).toBe(false);
+    await neo.adminRestoreNeo(x.id);
+    const back = (await neo.listNeo("v10")).open.find((i) => i.id === x.id);
+    expect(back).toBeTruthy();
+    const hours = (Date.parse(back!.closes_at) - Date.parse(back!.created_at)) / 3600_000;
+    expect(Math.round(hours)).toBe(48);
+    expect((await neo.adminListNeo()).find((i) => i.id === x.id)?.report_count).toBe(0);
+  });
+
   it("넣어둬 버튼 새 글 수: 본 뒤 올라온 투표 중인 남의 글만", async () => {
     const before = new Date(Date.now() - 1000);
     const base = await neo.neoNewCount(before, "viewer7");
