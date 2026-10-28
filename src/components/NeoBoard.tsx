@@ -325,7 +325,7 @@ export function NeoBoard({ open, closed, saved, now, talks = {} }: { open: NeoIt
           </button>
         )}
         <button type="submit" className="btn btn-primary" disabled={busy || uploading || !ready}>
-          24시간 투표 올리기
+          2일 투표 올리기
         </button>
         <p className="hint">사진 또는 이름 + 가격이면 끝 · 사진은 물건만 · 익명</p>
         {msg && <p className="hint">{msg}</p>}

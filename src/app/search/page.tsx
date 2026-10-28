@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { FactSearchPanel } from "@/components/FactSearchPanel";
@@ -46,6 +47,11 @@ export default async function SearchPage({ searchParams }: Props) {
     // 수다방 대화도 검색된다 (Sprint 84) — 날짜별로 나누지 않고 검색으로 찾는다
     terms.length ? searchRoomChat(terms, 10).catch(() => []) : Promise.resolve([]),
   ]);
+  // 🏠 방 이름에 검색어가 들어간 방은 맨 위에 바로가기 (10/29 대표님 "방을 검색해도 방으로 들어갈 방법이 없어")
+  const squash = (s: string) => s.replace(/[\s·-]/g, "").toLowerCase();
+  const roomHits = terms.length
+    ? categories.filter((c) => terms.some((t) => squash(c.name).includes(squash(t)) || squash(c.slug).includes(squash(t)))).slice(0, 6)
+    : [];
   const base: Record<string, string> = { q, ...(category ? { category: category.slug } : {}), ...(sourced ? { sourced: "1" } : {}) };
   const srcParam: Record<string, string> = sourced ? { sourced: "1" } : {};
 
@@ -60,6 +66,15 @@ export default async function SearchPage({ searchParams }: Props) {
           <button className="btn btn-primary" style={{ height: "auto" }}>검색</button>
         </div>
       </form>
+      {(roomHits.length > 0 || category) && (
+        <nav className="room-hits" aria-label="방 바로가기">
+          {(category ? [category] : roomHits).map((c) => (
+            <Link key={c.slug} href={`/c/${encodeURIComponent(c.slug)}`} className="room-hit">
+              🏠 <b>{c.name}</b> 들어가기 →
+            </Link>
+          ))}
+        </nav>
+      )}
       {chats.length > 0 && (
         <section className="chat-hits" aria-label="수다방 대화">
           <b>💬 수다방 대화</b>

@@ -1503,3 +1503,19 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .bingo-pick { margin-top: 10px; font-size: 14px; }
 .bingo-pick ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .bingo-reward { margin: 10px 0 0; font-weight: 700; }
+/* 🎾 테니스방 게임 모집 (10/29) */
+.game-card { gap: 6px; }
+.game-closed { opacity: 0.55; }
+.game-notes { margin: 0; overflow-wrap: anywhere; }
+.game-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.game-actions .gig-contact { font-size: 15px; }
+.game-form { display: grid; gap: 10px; margin: 0 0 14px; }
+.game-paste { display: grid; gap: 6px; }
+.game-nums .game-num { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.game-nums .game-num input { width: 64px; flex: 0 0 64px; }
+.game-form-actions { display: flex; gap: 8px; }
+
+/* 🏠 검색 결과 위 방 바로가기 (10/29) */
+.room-hits { display: grid; gap: 8px; margin: 0 0 12px; }
+.room-hit { display: block; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: inherit; text-decoration: none; font-size: 15px; }
+.room-hit b { color: var(--accent, inherit); }

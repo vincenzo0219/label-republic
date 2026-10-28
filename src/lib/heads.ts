@@ -89,6 +89,8 @@ export const ROOM_CHAT_TABS: Record<string, { key: string; label: string }[]> = 
   "요가-필라테스-덕후방": [{ key: "lesson", label: "🙋 1대1 레슨 구해요" }],
   // 💌 만남 행사 (10/26): 행사 카드·나 신청 가능?·알림은 이 탭, 글·💬 채팅은 다른 방처럼 (098)
   [SINGLES]: [{ key: "meet", label: "💌 만남 행사" }],
+  // 🎾 게임 모집 (10/29 대표님 "카톡 단톡방의 지역별 시합 어딨어?"): 지역·날짜·종목으로 거르는 모집 게시판 (106)
+  "테니스-덕후방": [{ key: "games", label: "🎾 게임 모집" }],
 };
 /** 탭 없이 들어오면 이 탭 (강사방: 📋 대강, 💌 만남 행사 방: 💌 만남 행사). 이런 방의 "전체" 는 ?tab=all */
 export const ROOM_DEFAULT_TAB: Record<string, string> = { [INSTRUCTOR]: "gigs", [SINGLES]: "meet" };

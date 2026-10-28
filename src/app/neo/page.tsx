@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "💳 넣어둬: 살까 말까, 모르는 사람들이 정해 줘요",
-  description: "사고 싶은 물건을 가격과 한 줄 이유로 익명으로 올리면 24시간 동안 '사라 / 넣어둬' 투표. 가입 없이, 합리적 소비러들이 대신 말려 줘요.",
+  description: "사고 싶은 물건을 가격과 한 줄 이유로 익명으로 올리면 2일 동안 '사라 / 넣어둬' 투표. 가입 없이, 합리적 소비러들이 대신 말려 줘요.",
   alternates: { canonical: "/neo" },
   openGraph: {
     title: "💳 넣어둬: 살까 말까, 모르는 사람들이 정해 줘요",

@@ -12,14 +12,14 @@ const LOCK_KEY = 4_823_110;
 let timer: NodeJS.Timeout | null = null;
 const EXISTS_ON = "EXISTS (SELECT 1 FROM push_subscriptions WHERE owner_alert)";
 
-type Target = { kind: "post"; postId: string; title: string } | { kind: "comment"; postId: string; commentId: string; body: string } | { kind: "gig"; gigId: string; text: string };
+type Target = { kind: "post"; postId: string; title: string } | { kind: "comment"; postId: string; commentId: string; body: string } | { kind: "gig"; gigId: string; text: string; room?: string; url?: string };
 
 /** 쓴 글 한 건을 남긴다. 켠 기기가 없으면 아무것도 안 남는다 */
 export async function recordOwnerAlert(w: OwnerWrite, t: Target): Promise<number> {
   if (t.kind === "gig") {
     const rows = await query(
-      `INSERT INTO owner_alerts (kind, room, nickname, excerpt, url) SELECT 'gig', '📋 대강·구인', $1, $2, $3 WHERE ${EXISTS_ON} RETURNING id`,
-      [w.nickname, excerpt(t.text), `/gigs/${t.gigId}`],
+      `INSERT INTO owner_alerts (kind, room, nickname, excerpt, url) SELECT 'gig', $4, $1, $2, $3 WHERE ${EXISTS_ON} RETURNING id`,
+      [w.nickname, excerpt(t.text), t.url ?? `/gigs/${t.gigId}`, t.room ?? "📋 대강·구인"],
     );
     return rows.length;
   }

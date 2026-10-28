@@ -249,6 +249,8 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       await client.query("DELETE FROM ear_test_results WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM hearing_test_results WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM some_sim_results WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
+      // 🎾 게임 모집 (10/29): 게임 날짜가 30일 지난 글은 연락처째 지운다 (목록에서는 그날 다음 날 빠진다)
+      await client.query("DELETE FROM tennis_games WHERE play_date < ($1::timestamptz AT TIME ZONE 'Asia/Seoul')::date - 30", [now.toISOString()]);
       await client.query("DELETE FROM first_line_test_results WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM daily_answers WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       await client.query("DELETE FROM typing_test_results WHERE created_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);

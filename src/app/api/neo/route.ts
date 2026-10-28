@@ -21,7 +21,7 @@ export const GET = route(async (req) => {
   return withVisitor(json({ ...list, saved }), v.fresh);
 });
 
-/** POST /api/neo {title, price, reason} — 살까 말까 올리기 (익명, 24시간 투표) */
+/** POST /api/neo {title, price, reason} — 살까 말까 올리기 (익명, 2일 투표) */
 export const POST = route(async (req) => {
   const fp = fingerprint(req.headers);
   if (!(await hit(`neo:post:${fp}`, 10, 3600_000))) throw tooMany();
