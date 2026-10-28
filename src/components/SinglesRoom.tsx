@@ -105,7 +105,7 @@ export function SinglesRoom({ events, today, talks = {} }: { events: SinglesEven
         <span>
           <b>썸 시뮬레이터: 3일간의 카톡</b>
           <br />
-          답장만 고르면 나오는 나의 연애 날씨 ☀️🌧🌫🌪
+          솔로인 지금, 다음 썸에서 나는? 답장만 고르면 나오는 썸 날씨 ☀️🌧🌫🌪
         </span>
       </Link>
       <SinglesChecker profile={profile} onChange={update} onClear={clear} thisYear={Number(today.slice(0, 4))} />

@@ -152,7 +152,7 @@ export const SIM_TYPES: Record<SimType, { emoji: string; name: string; std: stri
     emoji: "🌫",
     name: "안개형",
     std: "회피형",
-    line: "좋아질수록 한 발 물러나는 타입. 상대는 당신이 식었다고 오해하기 쉬워요. 당신은 그냥 숨 고르는 중인데.",
+    line: "좋아질수록 한 발 물러나는 타입. 썸 상대는 당신이 식었다고 오해하기 쉬워요. 당신은 그냥 숨 고르는 중인데.",
     strength: "혼자서도 잘 지내고, 관계에 휘둘리지 않아요.",
     watch: "거리 둘 때 \"지금 좀 정리할 시간이 필요해\" 한 줄만 보내 주세요. 안개가 걷혀요.",
     good: "sunny",

@@ -11,7 +11,7 @@ const LIMIT_S = 3;
 
 type Result = { anx: number; avo: number; type: SimType } & SimStats;
 
-/** 💬 썸 시뮬레이터: 카톡 같은 화면에서 답장을 고르면 연애 날씨(애착 4유형)가 나온다 (10/28) */
+/** 💬 썸 시뮬레이터: 카톡 같은 화면에서 답장을 고르면 썸 날씨(애착 4유형)가 나온다. 솔로가 다음 썸을 미리 해 보는 것 (10/28 대표님 "아직 미혼이고 솔로잖아") (10/28) */
 export function SomeSim() {
   const [step, setStep] = useState(-1); // -1 시작 화면, 0~7 장면, 8 결과
   const [picks, setPicks] = useState<number[]>([]);
@@ -66,7 +66,7 @@ export function SomeSim() {
         <header className="sim-hero">
           <p className="sim-kicker">💌 미혼남녀 만남 행사방</p>
           <h1>💬 썸 시뮬레이터</h1>
-          <p>소개팅 다음 날부터 3일간의 카톡. 답장만 고르면 당신의 <b>연애 날씨</b>가 나와요.</p>
+          <p>솔로인 지금, 다음 소개팅이 잡혔다고 상상해 보세요. 소개팅 다음 날부터 3일간의 카톡, 답장만 고르면 당신의 <b>썸 날씨</b>가 나와요.</p>
           <p className="hint">답장마다 3초 타이머가 돌아요. 오래 고민한 장면도 결과에 나와요.</p>
         </header>
         <button type="button" className="btn btn-primary sim-start" onClick={() => { setTyping(true); setStep(0); }}>
@@ -134,7 +134,7 @@ function SimResult({ result, err, waits, onRetry }: { result: Result | null; err
   const max = 16;
   const share = async () => {
     const url = `${window.location.origin}/some-sim`;
-    const text = `내 연애 날씨는 ${t.emoji} ${t.name}! 너는 무슨 날씨야?`;
+    const text = `다음 썸에서 내 날씨는 ${t.emoji} ${t.name}! 너는 무슨 날씨야?`;
     try {
       if (navigator.share) return await navigator.share({ title: "💬 썸 시뮬레이터", text, url });
       await navigator.clipboard.writeText(`${text}\n${url}`);
@@ -144,7 +144,7 @@ function SimResult({ result, err, waits, onRetry }: { result: Result | null; err
   return (
     <div className="sim">
       <div className={`sim-result sim-${result.type}`}>
-        <p className="sim-kicker">당신의 연애 날씨</p>
+        <p className="sim-kicker">다음 썸에서 당신의 날씨</p>
         <h1>
           {t.emoji} {t.name}
         </h1>
