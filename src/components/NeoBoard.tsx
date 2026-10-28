@@ -18,10 +18,12 @@ function left(closesAt: string, now: number): string {
 }
 
 /** 💳 넣어둬 카드 하나: 투표 → 결과, 내 글이면 마감 뒤 샀어요/넣어뒀어요 */
-export function NeoCard({ initial, now, onChange }: { initial: NeoItem; now: number; onChange?: (it: NeoItem) => void }) {
+export function NeoCard({ initial, now, onChange, onRemove }: { initial: NeoItem; now: number; onChange?: (it: NeoItem) => void; onRemove?: () => void }) {
   const [it, setIt] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [edit, setEdit] = useState<{ title: string; price: string; reason: string; alt: string } | null>(null);
+  const [gone, setGone] = useState(false);
   const set = (x: NeoItem) => {
     setIt(x);
     onChange?.(x);
@@ -51,6 +53,44 @@ export function NeoCard({ initial, now, onChange }: { initial: NeoItem; now: num
     } catch {}
   };
 
+  // 내 글: 투표 중엔 고치기, 언제든 지우기 (10/28)
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!edit) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const price = Number(edit.price.replace(/[^\d]/g, ""));
+      const r = await api<{ item: NeoItem }>(`/api/neo/${it.id}`, "PATCH", { title: edit.title, price, reason: edit.reason, alt: edit.alt });
+      set(r.item);
+      setEdit(null);
+    } catch (err) {
+      setMsg((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    if (!window.confirm("이 고민을 지울까요? 투표도 함께 지워져요.")) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api(`/api/neo/${it.id}`, "DELETE");
+      if (onRemove) onRemove();
+      else setGone(true);
+    } catch (err) {
+      setMsg((err as Error).message);
+      setBusy(false);
+    }
+  };
+
+  if (gone)
+    return (
+      <p className="hint">
+        지웠어요. <Link href="/neo">넣어둬로 돌아가기</Link>
+      </p>
+    );
+
   const t = it.tally;
   const n = t ? t.buy + t.keep : 0;
   const closed = it.closed || Date.parse(it.closes_at) <= now;
@@ -62,14 +102,40 @@ export function NeoCard({ initial, now, onChange }: { initial: NeoItem; now: num
           <img src={thumbUrl(it.photo_id)} alt={it.title || "올린 물건 사진"} loading="lazy" />
         </Link>
       )}
-      <div className="neo-head">
-        <Link href={`/neo/${it.id}`} className="neo-title">
-          {it.title || "이거"}
-        </Link>
-        <span className="neo-price">{won(it.price)}</span>
-      </div>
-      {it.reason && <p className="neo-reason">{it.reason}</p>}
-      {it.alt && <p className="neo-reason hint">대안: {it.alt}</p>}
+      {edit ? (
+        <form className="neo-form neo-edit" onSubmit={save}>
+          <input className="input" placeholder={it.photo_id ? "물건 이름 (선택)" : "물건 이름"} value={edit.title} maxLength={40} onChange={(e) => setEdit({ ...edit, title: e.target.value })} aria-label="물건" />
+          <input
+            className="input"
+            inputMode="numeric"
+            placeholder="가격 (원)"
+            value={edit.price ? Number(edit.price.replace(/[^\d]/g, "")).toLocaleString("ko-KR") : ""}
+            onChange={(e) => setEdit({ ...edit, price: e.target.value })}
+            aria-label="가격"
+          />
+          <input className="input" placeholder="이유 (선택)" value={edit.reason} maxLength={120} onChange={(e) => setEdit({ ...edit, reason: e.target.value })} aria-label="이유" />
+          <input className="input" placeholder="대안 (선택)" value={edit.alt} maxLength={60} onChange={(e) => setEdit({ ...edit, alt: e.target.value })} aria-label="대안" />
+          <div className="neo-vote">
+            <button type="button" className="btn btn-sm" onClick={() => setEdit(null)} disabled={busy}>
+              취소
+            </button>
+            <button type="submit" className="btn btn-sm btn-primary" disabled={busy}>
+              저장
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          <div className="neo-head">
+            <Link href={`/neo/${it.id}`} className="neo-title">
+              {it.title || "이거"}
+            </Link>
+            <span className="neo-price">{won(it.price)}</span>
+          </div>
+          {it.reason && <p className="neo-reason">{it.reason}</p>}
+          {it.alt && <p className="neo-reason hint">대안: {it.alt}</p>}
+        </>
+      )}
       <p className="hint neo-meta">
         {closed ? "투표 마감" : left(it.closes_at, now)}
         {it.owner && " · 내 고민"}
@@ -126,6 +192,16 @@ export function NeoCard({ initial, now, onChange }: { initial: NeoItem; now: num
             신고
           </button>
         )}
+        {it.owner && !closed && !edit && (
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEdit({ title: it.title, price: String(it.price), reason: it.reason, alt: it.alt })} disabled={busy}>
+            수정
+          </button>
+        )}
+        {it.owner && (
+          <button type="button" className="btn btn-sm btn-ghost" onClick={remove} disabled={busy}>
+            삭제
+          </button>
+        )}
       </div>
       {msg && <p className="hint">{msg}</p>}
     </article>
@@ -135,6 +211,7 @@ export function NeoCard({ initial, now, onChange }: { initial: NeoItem; now: num
 /** 💳 넣어둬 (10/27): 올리기 + 진행 중 + 마감 */
 export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed: NeoItem[]; saved: { won: number; count: number }; now: number }) {
   const [items, setItems] = useState(open);
+  const [done, setDone] = useState(closed);
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [reason, setReason] = useState("");
@@ -242,17 +319,17 @@ export function NeoBoard({ open, closed, saved, now }: { open: NeoItem[]; closed
       <section aria-label="투표 중">
         <h2 className="section-title">🗳 지금 투표 중</h2>
         {items.length ? (
-          items.map((it) => <NeoCard key={it.id} initial={it} now={now} />)
+          items.map((it) => <NeoCard key={it.id} initial={it} now={now} onRemove={() => setItems((cur) => cur.filter((x) => x.id !== it.id))} />)
         ) : (
           <p className="hint">아직 올라온 고민이 없어요. 첫 고민을 올려 보세요.</p>
         )}
       </section>
 
-      {closed.length > 0 && (
+      {done.length > 0 && (
         <section aria-label="마감">
           <h2 className="section-title">⏰ 마감된 고민</h2>
-          {closed.map((it) => (
-            <NeoCard key={it.id} initial={it} now={now} />
+          {done.map((it) => (
+            <NeoCard key={it.id} initial={it} now={now} onRemove={() => setDone((cur) => cur.filter((x) => x.id !== it.id))} />
           ))}
         </section>
       )}

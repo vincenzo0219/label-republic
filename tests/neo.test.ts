@@ -51,6 +51,18 @@ d("💳 넣어둬 (DB)", async () => {
     await query("DELETE FROM neo_items WHERE id = $1", [quit.id]);
   });
 
+  it("내 글만 고치고(투표 중에만) 지운다", async () => {
+    const x = await neo.createNeo({ title: "안마기", price: 134000, reason: "", owner: "own5", fingerprint: "fp5" });
+    await expect(neo.updateNeo(x.id, "other", { title: "안마기", price: 1000, reason: "", alt: "" })).rejects.toMatchObject({ status: 404 });
+    await expect(neo.updateNeo(x.id, "own5", { title: "x", price: 134100, reason: "", alt: "" })).rejects.toMatchObject({ status: 400 });
+    expect(await neo.updateNeo(x.id, "own5", { title: "목 안마기", price: 134100, reason: "어깨가 아파서", alt: "중고로" })).toMatchObject({ title: "목 안마기", price: 134100, reason: "어깨가 아파서", alt: "중고로", owner: true });
+    await query("UPDATE neo_items SET closes_at = now() - interval '1 minute' WHERE id = $1", [x.id]);
+    await expect(neo.updateNeo(x.id, "own5", { title: "목 안마기", price: 1000, reason: "", alt: "" })).rejects.toMatchObject({ status: 409 });
+    await expect(neo.deleteNeo(x.id, "other")).rejects.toMatchObject({ status: 404 });
+    await neo.deleteNeo(x.id, "own5");
+    expect(await neo.getNeo(x.id, "own5")).toBeNull();
+  });
+
   it("24시간 뒤 마감, 넣어뒀어요를 고르면 지킨 돈에 쌓인다", async () => {
     const it1 = await neo.createNeo({ title: "패딩", price: 189000, reason: "", owner: "own2", fingerprint: "fp2" });
     await query("UPDATE neo_items SET closes_at = now() - interval '1 minute' WHERE id = $1", [it1.id]);

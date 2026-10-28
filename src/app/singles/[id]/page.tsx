@@ -42,7 +42,7 @@ export default async function SinglesEventPage({ params }: Props) {
       <p className="hint singles-scope">{SINGLES_SCOPE_NOTE}</p>
       {talk && (
         <section id="talk" className="singles-talk" aria-label="행사 댓글">
-          <h2 className="section-title">💬 이 행사 이야기 <span className="hint">👁 {talk.views.toLocaleString("ko-KR")}명 봤어요</span></h2>
+          <h2 className="section-title">💬 이 행사 이야기 <span className="hint" aria-label={`${talk.views}명 봤어요`}>👁 {talk.views.toLocaleString("ko-KR")}</span></h2>
           <p className="hint">신청 꿀팁·질문만. 연락처 교환·만남 연결은 할 수 없어요.</p>
           <LiveComments postId={talk.postId} initial={comments} casual report />
         </section>

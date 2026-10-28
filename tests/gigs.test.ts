@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   MEDICAL_MESSAGE,
   areaOverlap,
@@ -215,7 +215,9 @@ d("📋 대강·구인 (DB)", async () => {
     const res = await list.GET(new Request("http://localhost/api/gigs?sido=서울"), { params: Promise.resolve({}) });
     expect(res.headers.get("x-robots-tag")).toBe("noindex");
     expect(await res.text()).not.toContain("010-0000");
-    const c = await contactRoute.GET(new Request(`http://localhost/api/gigs/${id}/contact`), { params: Promise.resolve({ id }) });
+    // 라우트는 실제 시계를 쓴다: 글 날짜(NOW 기준)가 지나도 깨지지 않게 시계를 NOW 로
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+    const c = await contactRoute.GET(new Request(`http://localhost/api/gigs/${id}/contact`), { params: Promise.resolve({ id }) }).finally(() => vi.useRealTimers());
     expect(c.headers.get("x-robots-tag")).toMatch(/noindex/);
   });
 
