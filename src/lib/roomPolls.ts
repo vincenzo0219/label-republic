@@ -8,6 +8,8 @@ export type RoomPollSet = {
   polls: readonly [string, string][];
   /** 질문 앞에 붙는 장면 (💌 미혼남녀 "오늘의 썸 카톡", 10/28). 있으면 제목이 "<이모지> 오늘의 썸 카톡: <장면>" */
   scenes?: readonly string[];
+  /** 이 시각(KST, 시) 이후에 올린다. 없으면 날이 바뀌자마자 (10/28 대표님 "12시 넘어는 자니까 아침 8시로") */
+  hour?: number;
 };
 
 export const ROOM_POLLS: Record<string, RoomPollSet> = {
@@ -15,6 +17,7 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
   "미혼남녀-만남-행사": {
     emoji: "💬",
     start: "2026-10-29",
+    hour: 8,
     scenes: [
       "소개팅 다음 날, 상대가 \"다음에 또 봬요\"만 보냈다",
       "세 번째 만남, 계산서가 나왔다",

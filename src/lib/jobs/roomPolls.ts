@@ -28,10 +28,13 @@ export function pollTitle(slug: string, day: string, emoji: string, topic: [stri
   return scene ? `${emoji} 오늘의 썸 카톡: ${scene}` : `${emoji} ${topic[0]} vs ${topic[1]}`;
 }
 
-export async function runRoomPolls(day = kstDay()): Promise<string[]> {
+export async function runRoomPolls(day = kstDay(), now = new Date()): Promise<string[]> {
   const posted: string[] = [];
+  // 한국 시각 (시). 오늘 날짜를 직접 넘긴 경우(테스트·지난 날)는 시각 제한을 두지 않는다
+  const kstHour = day === kstDay(now) ? (now.getUTCHours() + 9) % 24 : 24;
   for (const [slug, set] of Object.entries(ROOM_POLLS)) {
     if (day < set.start) continue;
+    if (set.hour !== undefined && kstHour < set.hour) continue;
     const [cat] = await query<{ id: number }>("SELECT id FROM categories WHERE slug = $1 AND NOT is_hidden", [slug]);
     const topic = roomPollTopic(slug, day);
     if (!cat || !topic) continue;
