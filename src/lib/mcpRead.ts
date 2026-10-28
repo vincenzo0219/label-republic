@@ -155,6 +155,7 @@ export const TESTS: { path: string; name: string; description: string; room: str
   { path: "/anime-test", name: "덕질 타입 테스트", description: "굿즈 수집가? 정주행 시청파? 나의 애니·만화 덕질 타입", room: "애니-만화-덕후방" },
   { path: "/wine-test", name: "술 취향 테스트", description: "묵직 레드파? 스모키 피트파? 와인·위스키 취향 (만 19세 이상)", room: "와인-위스키-덕후방" },
   { path: "/dog-test", name: "견주 타입 테스트", description: "산책왕? 성분표 박사? 나의 견주 타입", room: "반려견-덕후방" },
+  { path: "/ntrp-test", name: "NTRP 1분 자가진단", description: "질문 6개로 알아보는 내 테니스 수준 (재미용 추정)", room: "테니스-덕후방" },
   { path: "/viv-test", name: "비바리움러 타입 테스트", description: "레이아웃 장인? 관찰 기록파? 나의 비바리움 타입", room: "비바리움-덕후방" },
   { path: "/vivarium-test", name: "첫 생물 고르기 테스트", description: "우리 집에서 키울 수 있는 첫 비바리움 생물 찾기", room: "비바리움-덕후방" },
 ];
