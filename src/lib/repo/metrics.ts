@@ -108,6 +108,23 @@ export async function sourceBreakdown(fromDay: string, toDay: string): Promise<S
   );
 }
 
+export type CampaignRow = { campaign: string; landings: number; visitors: number; returned: number; first_day: string };
+
+/** 📣 광고별 유입 (10/28): 광고로 처음 들어온 횟수 · 사람 수 · 그중 다른 날 다시 온 사람 */
+export async function campaignStats(fromDay: string, toDay: string): Promise<CampaignRow[]> {
+  return query<CampaignRow>(
+    `WITH l AS (
+       SELECT campaign, visitor_hash, min(day) AS d, count(*) AS n FROM page_views
+        WHERE is_landing AND campaign IS NOT NULL AND day BETWEEN $1::date AND $2::date
+        GROUP BY campaign, visitor_hash)
+     SELECT campaign, sum(n)::int AS landings, count(*)::int AS visitors,
+            count(*) FILTER (WHERE EXISTS (SELECT 1 FROM page_views p WHERE p.visitor_hash = l.visitor_hash AND p.day > l.d))::int AS returned,
+            to_char(min(d), 'MM/DD') AS first_day
+       FROM l GROUP BY campaign ORDER BY visitors DESC, campaign`,
+    [fromDay, toDay],
+  );
+}
+
 export async function topReferrers(fromDay: string, toDay: string, source: string, limit = 8): Promise<{ host: string; landings: number }[]> {
   return query(
     `SELECT referrer_host AS host, count(*)::int AS landings FROM page_views

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { config } from "@/lib/config";
-import { classifySource, isBot, newVisitorId, parsePath, recordPageView, VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
+import { adCampaign, classifySource, isBot, newVisitorId, parsePath, recordPageView, VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
 import { fingerprint } from "@/lib/fingerprint";
 import { hit } from "@/lib/rate-limit";
 
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       siteHost: new URL(config.siteUrl).hostname, // 레퍼러도 hostname(포트 제외)으로 비교한다
       from: new URL(parsed.data.path, "http://x").searchParams.get("from"),
     });
-    await recordPageView({ visitorHash: vh, path, source, referrerHost: host, landing: parsed.data.landing });
+    await recordPageView({ visitorHash: vh, path, source, referrerHost: host, landing: parsed.data.landing, campaign: adCampaign(parsed.data.path) });
   } catch (err) {
     console.error("[metrics]", (err as Error).message);
   }
