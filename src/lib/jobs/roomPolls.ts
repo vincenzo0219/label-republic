@@ -25,7 +25,8 @@ export async function yesterdayLine(slug: string, day: string): Promise<string> 
 /** "⚽ 직관 vs 중계" · 장면이 있으면 "💬 오늘의 썸 카톡: <장면>" (버튼에 두 갈래가 보인다) */
 export function pollTitle(slug: string, day: string, emoji: string, topic: [string, string]): string {
   const scene = roomPollScene(slug, day);
-  return scene ? `${emoji} 오늘의 썸 카톡: ${scene}` : `${emoji} ${topic[0]} vs ${topic[1]}`;
+  // 💘 썸·연애 심리 탭에 모이게 말머리 [심리] (10/28)
+  return scene ? `[심리] ${emoji} 오늘의 썸 카톡: ${scene}` : `${emoji} ${topic[0]} vs ${topic[1]}`;
 }
 
 export async function runRoomPolls(day = kstDay(), now = new Date()): Promise<string[]> {

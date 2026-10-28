@@ -143,7 +143,7 @@ describe("오늘의 썸 카톡", () => {
     expect(set.scenes!.length).toBe(set.polls.length);
     expect(sceneOf("미혼남녀-만남-행사", "2026-10-28")).toContain("다음에 또 봬요");
     expect(topicOf("미혼남녀-만남-행사", "2026-10-28")).toEqual(["내가 먼저 다음 약속 잡는다", "상대가 잡길 기다린다"]);
-    expect(pollTitle("미혼남녀-만남-행사", "2026-10-29", "💬", topicOf("미혼남녀-만남-행사", "2026-10-29")!)).toMatch(/^💬 오늘의 썸 카톡: /);
+    expect(pollTitle("미혼남녀-만남-행사", "2026-10-29", "💬", topicOf("미혼남녀-만남-행사", "2026-10-29")!)).toMatch(/^\[심리\] 💬 오늘의 썸 카톡: /);
     expect(pollTitle("k리그-덕후방", "2026-10-29", "⚽", ["직관", "중계"])).toBe("⚽ 직관 vs 중계");
   });
 });
