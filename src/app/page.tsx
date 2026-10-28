@@ -6,7 +6,6 @@ import { MY_ROOMS_COOKIE, parseMyRoomsCookie } from "@/lib/myRooms";
 import { FeedView } from "@/components/FeedView";
 import { CRAWLER_HEADER } from "@/lib/fingerprint";
 import { EarTestBanner } from "@/components/EarTestBanner";
-import { HomeNews } from "@/components/ReportLink";
 import { MyRoomEvents } from "@/components/MyRoomEvents";
 import { TodayCards } from "@/components/TodayCards";
 import { RoomOpenedNotice } from "@/components/RoomOpenedNotice";
@@ -59,7 +58,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {all && <ForgetRoom />}
       {!crawler && <MyRoomsBar rooms={rooms.map((r) => ({ slug: r.slug, name: r.name }))} initial={mine} legacy={legacy} filtered={onlyMine} redirect={!all} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      {!crawler && !sp.page && <HomeNews />}
       {onlyMine && !sp.page && mine && <MyRoomEvents rooms={mine} />}
       {!crawler && !sp.page && !!mine?.length && <TodayCards rooms={mine} showRoom={mine.length > 1} />}
       {!sp.page && <EarTestBanner />}

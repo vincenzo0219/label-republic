@@ -215,7 +215,6 @@ export function MyRoomsBar({ rooms, initial, legacy, filtered, redirect }: { roo
       {filtered && (
         <p className="my-all">
           <RoomAlertButton className="my-alert-btn" />
-          <Link href="/?all=1">전체 방 글 보기</Link>
         </p>
       )}
     </>

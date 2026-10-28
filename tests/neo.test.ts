@@ -63,6 +63,19 @@ d("💳 넣어둬 (DB)", async () => {
     expect(await neo.getNeo(x.id, "own5")).toBeNull();
   });
 
+  it("넣어둬 글마다 숨은 댓글 글 하나 (본 사람 수·댓글), 지우면 함께 지운다", async () => {
+    const { ensureNeoTalks } = await import("@/lib/repo/neoTalk");
+    const x = await neo.createNeo({ title: "롱패딩", price: 199000, reason: "", owner: "own6", fingerprint: "fp6" });
+    const t1 = (await ensureNeoTalks([x]))[x.id]!;
+    expect(t1).toMatchObject({ comments: 0, views: 0 });
+    // 두 번 불러도 하나
+    expect((await ensureNeoTalks([x]))[x.id]!.postId).toBe(t1.postId);
+    const [p] = await query<{ slug: string; hidden: boolean }>("SELECT c.slug, c.is_hidden AS hidden FROM posts p JOIN categories c ON c.id = p.category_id WHERE p.id = $1", [t1.postId]);
+    expect(p).toEqual({ slug: "neo", hidden: true });
+    await neo.deleteNeo(x.id, "own6");
+    expect(await query("SELECT 1 FROM posts WHERE id = $1", [t1.postId])).toHaveLength(0);
+  });
+
   it("24시간 뒤 마감, 넣어뒀어요를 고르면 지킨 돈에 쌓인다", async () => {
     const it1 = await neo.createNeo({ title: "패딩", price: 189000, reason: "", owner: "own2", fingerprint: "fp2" });
     await query("UPDATE neo_items SET closes_at = now() - interval '1 minute' WHERE id = $1", [it1.id]);

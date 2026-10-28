@@ -29,7 +29,7 @@ export async function quietRoomSlugs(): Promise<Set<string>> {
             AND NOT EXISTS (SELECT 1 FROM comments m JOIN posts p ON p.id = m.post_id
                              WHERE p.category_id = c.id AND NOT m.is_ai_curated
                                AND m.created_at > now() - make_interval(days => $1)) AS quiet
-       FROM categories c`,
+       FROM categories c WHERE NOT c.is_hidden`,
     [QUIET_ROOM_DAYS],
   );
   const quiet = rows.filter((r) => r.quiet).map((r) => r.slug);

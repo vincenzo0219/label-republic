@@ -22,7 +22,7 @@ export async function runTrustBatch(): Promise<TrustBatchResult> {
     let changed = 0;
     let categories = 0;
     try {
-      const cats = await client.query<{ id: number }>("SELECT id FROM categories ORDER BY id");
+      const cats = await client.query<{ id: number }>("SELECT id FROM categories WHERE NOT is_hidden ORDER BY id");
       for (const c of cats.rows) {
         const res = await client.query<{ n: number }>("SELECT refresh_trust_tiers($1, $2) AS n", [c.id, await getRule("trust_min_votes")]);
         changed += res.rows[0]!.n;

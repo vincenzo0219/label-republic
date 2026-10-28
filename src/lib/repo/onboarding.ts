@@ -69,7 +69,7 @@ export function siteStats(now = Date.now()): Promise<SiteStats> {
     `SELECT (SELECT count(*)::int FROM posts p WHERE ${VISIBLE}) AS posts,
             (SELECT count(*)::int FROM products pr WHERE pr.merged_into IS NULL
                AND EXISTS (SELECT 1 FROM post_products pp JOIN posts p ON p.id = pp.post_id WHERE pp.product_id = pr.id AND ${VISIBLE})) AS products,
-            (SELECT count(*)::int FROM categories) AS boards`,
+            (SELECT count(*)::int FROM categories WHERE NOT is_hidden) AS boards`,
   ).then((rows) => rows[0]!);
   g.__lrSiteStats = { at: now, value };
   // 실패하면 다음 요청이 다시 세도록

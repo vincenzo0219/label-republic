@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { NeoBoard } from "@/components/NeoBoard";
 import { listNeo, neoSaved } from "@/lib/repo/neo";
 import { pageVisitor } from "@/lib/neoServer";
+import { ensureNeoTalks } from "@/lib/repo/neoTalk";
 
 export const dynamic = "force-dynamic";
 
@@ -18,5 +19,6 @@ export const metadata: Metadata = {
 export default async function NeoPage() {
   const visitor = await pageVisitor();
   const [list, saved] = await Promise.all([listNeo(visitor), neoSaved()]);
-  return <NeoBoard open={list.open} closed={list.closed} saved={saved} now={Date.now()} />;
+  const talks = await ensureNeoTalks([...list.open, ...list.closed]).catch(() => ({}));
+  return <NeoBoard open={list.open} closed={list.closed} saved={saved} now={Date.now()} talks={talks} />;
 }
