@@ -16,7 +16,7 @@ export const ROOM_POLLS: Record<string, RoomPollSet> = {
   // 💬 오늘의 썸 카톡 (10/28 대표님 "1. ok"): 솔로가 다음 썸을 미리 해 보는 두 갈래. 다음 날 어제 결과가 붙는다
   "미혼남녀-만남-행사": {
     emoji: "💬",
-    start: "2026-10-29",
+    start: "2026-10-28",
     hour: 8,
     scenes: [
       "소개팅 다음 날, 상대가 \"다음에 또 봬요\"만 보냈다",
