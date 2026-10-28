@@ -13,7 +13,7 @@ import { PostCard } from "./PostCard";
 import { FilterCount, FilterCountsLoader, MarkSeen } from "./NewMarks";
 import { SortBar } from "./SortBar";
 import { roomRuleNotice } from "@/lib/singlesRules";
-import { ALL_TAB, NO_INFO_TAB, ROOM_DEFAULT_TAB, ROOM_TAB_LINKS, headLabel, roomTabsAround, tabHeadsFor, type Head } from "@/lib/heads";
+import { ALL_TAB, NO_INFO_TAB, headsFor, tabMembers, ROOM_DEFAULT_TAB, ROOM_TAB_LINKS, headLabel, roomTabsAround, tabHeadsFor, type Head } from "@/lib/heads";
 import { pinnedTabFor, stripsHead } from "@/lib/shopRoom";
 import type { Comment } from "@/lib/types";
 import { EventAlert } from "./EventAlert";
@@ -78,7 +78,7 @@ export async function FeedView({
   const [categories, feed, needs, tools, quiet] = await Promise.all([
     // 방 목록·조용한 방은 홈의 방 탭(CategoryTabs)에만 쓰여서, 방 안에서는 조회하지 않는다
     category ? Promise.resolve([]) : listCategories(),
-    chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, categorySlugs: !category && onlyMine && mine?.length ? mine : undefined, sort, page, type, head, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category, pinnedTab: pinnedTabFor(category?.slug, { head, type, sourced }) }),
+    chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, categorySlugs: !category && onlyMine && mine?.length ? mine : undefined, sort, page, type, head, notHeads: type === "info" && !head && category ? headsFor(category.slug).flatMap((h) => tabMembers(h.key)) : undefined, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category, pinnedTab: pinnedTabFor(category?.slug, { head, type, sourced }) }),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? cachedRoomTools(category.id) : Promise.resolve(null),
     category ? Promise.resolve(new Set<string>()) : cachedQuiet(0).catch(() => new Set<string>()),

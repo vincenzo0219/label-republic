@@ -54,5 +54,12 @@ d("posts with many comments rise in the feed (10/22)", async () => {
     const deal = await listPosts({ categoryId: cat!.id, sort: "latest", page: 1, head: "혜택" });
     expect(deal.items.map((p) => p.title)).toEqual(["[혜택] 쿠폰"]);
   });
+  it("📋 정보 탭은 🎫 행사·자랑 말머리 글을 빼고 보여 준다 (10/29 겹침)", async () => {
+    const [cat] = await query<{ id: number }>("INSERT INTO categories (slug, name, description) VALUES ('inf', 'inf', '') RETURNING id");
+    for (const t of ["[행사] 대회", "[혜택] 쿠폰", "코트 예약 정리"])
+      await query("INSERT INTO posts (category_id, nickname, pw_hash, title, body, post_type) VALUES ($1, 'n', 'x', $2, 'b', 'info')", [cat!.id, t]);
+    const info = await listPosts({ categoryId: cat!.id, sort: "latest", page: 1, type: "info", notHeads: ["자랑", "행사", "혜택"] });
+    expect(info.items.map((p) => p.title)).toEqual(["코트 예약 정리"]);
+  });
 });
 
