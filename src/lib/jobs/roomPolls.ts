@@ -3,7 +3,7 @@ import { AI_AUTHOR } from "../aiMark";
 import { query } from "../db";
 import { reportError } from "../error-tracking";
 import { kstDay } from "../metrics";
-import { ROOM_POLLS, roomPollTopic } from "../roomPolls";
+import { ROOM_POLLS, roomPollScene, roomPollTopic } from "../roomPolls";
 
 /** 어제 질문의 사람 투표 결과 한 줄 (Sprint 95) — 투표한 사람이 다음 날 결과를 보러 온다. 표가 없으면 빈 줄 */
 export async function yesterdayLine(slug: string, day: string): Promise<string> {
@@ -18,7 +18,14 @@ export async function yesterdayLine(slug: string, day: string): Promise<string> 
   const a = v?.a ?? 0, b = v?.b ?? 0;
   if (a + b === 0) return "";
   const pa = Math.round((a / (a + b)) * 100);
-  return `📊 어제 결과: ${topic[0]} ${pa}% vs ${topic[1]} ${100 - pa}% (${a + b}명)\n\n`;
+  const scene = roomPollScene(slug, prev);
+  return `📊 어제${scene ? ` "${scene}"` : ""} 결과: ${topic[0]} ${pa}% vs ${topic[1]} ${100 - pa}% (${a + b}명)\n\n`;
+}
+
+/** "⚽ 직관 vs 중계" · 장면이 있으면 "💬 오늘의 썸 카톡: <장면>" (버튼에 두 갈래가 보인다) */
+export function pollTitle(slug: string, day: string, emoji: string, topic: [string, string]): string {
+  const scene = roomPollScene(slug, day);
+  return scene ? `${emoji} 오늘의 썸 카톡: ${scene}` : `${emoji} ${topic[0]} vs ${topic[1]}`;
 }
 
 export async function runRoomPolls(day = kstDay()): Promise<string[]> {
@@ -32,7 +39,7 @@ export async function runRoomPolls(day = kstDay()): Promise<string[]> {
     const rows = await query<{ id: string }>(
       `INSERT INTO posts (category_id, nickname, pw_hash, title, body, seed_key, moderated_by, post_type)
        VALUES ($1, $2, 'room-poll', $3, $4, $5, 'room-poll', 'chat') ON CONFLICT (seed_key) DO NOTHING RETURNING id::text`,
-      [cat.id, AI_AUTHOR, `${set.emoji} ${topic[0]} vs ${topic[1]}`, body, `roompoll:${slug}:${day}`],
+      [cat.id, AI_AUTHOR, pollTitle(slug, day, set.emoji, topic), body, `roompoll:${slug}:${day}`],
     );
     if (rows[0]) posted.push(rows[0].id);
   }

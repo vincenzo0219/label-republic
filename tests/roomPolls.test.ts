@@ -133,3 +133,17 @@ d("room polls (database)", async () => {
     expect((await query<{ nickname: string }>("SELECT nickname FROM comments"))[0]!.nickname).toBe("덕후1호");
   });
 });
+
+// 💬 오늘의 썸 카톡 (10/28): 미혼남녀방은 장면 + 두 갈래, 장면 수와 질문 수가 같다
+import { ROOM_POLLS as POLLS, roomPollScene as sceneOf, roomPollTopic as topicOf } from "@/lib/roomPolls";
+import { pollTitle } from "@/lib/jobs/roomPolls";
+describe("오늘의 썸 카톡", () => {
+  it("장면과 두 갈래가 짝지어 돌아간다", () => {
+    const set = POLLS["미혼남녀-만남-행사"]!;
+    expect(set.scenes!.length).toBe(set.polls.length);
+    expect(sceneOf("미혼남녀-만남-행사", "2026-10-29")).toContain("다음에 또 봬요");
+    expect(topicOf("미혼남녀-만남-행사", "2026-10-29")).toEqual(["내가 먼저 다음 약속 잡는다", "상대가 잡길 기다린다"]);
+    expect(pollTitle("미혼남녀-만남-행사", "2026-10-29", "💬", topicOf("미혼남녀-만남-행사", "2026-10-29")!)).toMatch(/^💬 오늘의 썸 카톡: /);
+    expect(pollTitle("k리그-덕후방", "2026-10-29", "⚽", ["직관", "중계"])).toBe("⚽ 직관 vs 중계");
+  });
+});
