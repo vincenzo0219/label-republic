@@ -85,6 +85,17 @@ d("💳 넣어둬 (DB)", async () => {
     expect(await neo.neoNewCount(new Date(Date.now() + 60_000), "viewer7")).toBe(0);
   });
 
+  it("로고 옆 새 소식 점: 날짜가 바뀌었거나 새 넣어둬가 있으면", async () => {
+    const dayStart = Date.now() - 3600_000;
+    // 오늘 들어오기 전에 본 것 → 새 회차
+    expect(await neo.homeHasNew(new Date(dayStart - 1000), "viewer9", dayStart)).toBe(true);
+    const later = new Date(Date.now() + 60_000);
+    expect(await neo.homeHasNew(later, "viewer9", dayStart)).toBe(false);
+    const seen = new Date(Date.now() - 1000);
+    await neo.createNeo({ title: "전기요", price: 59000, reason: "", owner: "own9", fingerprint: "fp9" });
+    expect(await neo.homeHasNew(seen, "viewer9", dayStart)).toBe(true);
+  });
+
   it("24시간 뒤 마감, 넣어뒀어요를 고르면 지킨 돈에 쌓인다", async () => {
     const it1 = await neo.createNeo({ title: "패딩", price: 189000, reason: "", owner: "own2", fingerprint: "fp2" });
     await query("UPDATE neo_items SET closes_at = now() - interval '1 minute' WHERE id = $1", [it1.id]);

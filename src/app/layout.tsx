@@ -12,6 +12,7 @@ import { InAppBrowserTip } from "@/components/InAppBrowserTip";
 import { MetaPixel } from "@/components/MetaPixel";
 import { NavCounter } from "@/components/MyRooms";
 import { ReportLink } from "@/components/ReportLink";
+import { LogoDot } from "@/components/LogoDot";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { config } from "@/lib/config";
 import "./globals.css";
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="container">
             <Link href="/" className="logo" aria-label="노방장 홈">
               노방장
+              <LogoDot />
             </Link>
             <form action="/search" method="get" role="search" aria-label="사이트 검색" className="header-search">
               <input type="search" name="q" placeholder="검색" aria-label="검색어" maxLength={100} />

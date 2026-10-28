@@ -70,7 +70,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border-bottom: 1px solid var(--line);
 }
 .site-header .container { display: flex; align-items: center; gap: 10px; height: 56px; }
-.logo { font-weight: 800; font-size: 18px; letter-spacing: -0.02em; white-space: nowrap; }
+.logo { position: relative; font-weight: 800; font-size: 18px; letter-spacing: -0.02em; white-space: nowrap; }
+.logo-dot { position: absolute; top: -2px; right: -9px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .logo small { font-weight: 600; font-size: 11px; color: var(--muted); margin-left: 4px; }
 .header-search { flex: 1; min-width: 0; }
 .header-search input {
