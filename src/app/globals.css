@@ -1410,6 +1410,7 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .neo-hero p { margin: 0 0 4px; }
 .neo-saved b { color: var(--brand); font-size: 18px; }
 .neo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.neo-edit { margin-bottom: 0; }
 .neo-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; background: var(--surface); }
 .neo-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .neo-title { font-weight: 800; font-size: 17px; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }

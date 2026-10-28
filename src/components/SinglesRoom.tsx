@@ -80,8 +80,8 @@ export function SinglesTalkLine({ eventId, talk }: { eventId: string; talk?: Sin
   if (!talk) return null;
   return (
     <p className="singles-talk-line">
-      <span>👁 {talk.views.toLocaleString("ko-KR")}명 봤어요</span>
-      <Link href={`${singlesEventPath(eventId)}#talk`}>💬 댓글 {talk.comments.toLocaleString("ko-KR")}{talk.comments ? "" : " · 첫 댓글 쓰기"}</Link>
+      <span aria-label={`${talk.views}명 봤어요`}>👁 {talk.views.toLocaleString("ko-KR")}</span>
+      <Link href={`${singlesEventPath(eventId)}#talk`} aria-label={`댓글 ${talk.comments}개`}>💬 {talk.comments.toLocaleString("ko-KR")}</Link>
     </p>
   );
 }

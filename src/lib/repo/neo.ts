@@ -151,6 +151,21 @@ export async function setNeoOutcome(id: string, visitor: string, outcome: NeoOut
   return (await getNeo(id, visitor))!;
 }
 
+/** 내 글 고치기 (10/28 대표님): 투표 중에만 이름·가격·이유·대안. 사진은 그대로 */
+export async function updateNeo(id: string, visitor: string, input: { title: string; price: number; reason: string; alt: string }): Promise<NeoItem> {
+  const [it] = await query<{ closed: boolean; photo: boolean }>(
+    "SELECT closes_at <= now() AS closed, photo_id IS NOT NULL AS photo FROM neo_items WHERE id = $1 AND owner_hash = $2 AND NOT is_hidden",
+    [id, visitor],
+  );
+  if (!it) throw notFound("내 넣어둬 글");
+  if (it.closed) throw new HttpError(409, "closed", "투표가 끝난 글은 고칠 수 없어요.");
+  if (input.title.trim().length < 2 && !it.photo) throw new HttpError(400, "invalid_input", "물건 이름을 2자 이상 적어 주세요.");
+  const problem = neoTextProblem(input.title, input.reason, input.alt);
+  if (problem) throw new HttpError(400, "invalid_input", problem);
+  await query("UPDATE neo_items SET title = $2, price = $3, reason = $4, alt = $5 WHERE id = $1", [id, input.title.trim(), input.price, input.reason, input.alt]);
+  return (await getNeo(id, visitor))!;
+}
+
 export async function deleteNeo(id: string, visitor: string): Promise<void> {
   const rows = await query("DELETE FROM neo_items WHERE id = $1 AND owner_hash = $2 RETURNING id", [id, visitor]);
   if (!rows.length) throw notFound("내 넣어둬 글");
