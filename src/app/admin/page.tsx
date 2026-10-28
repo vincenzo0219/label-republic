@@ -86,6 +86,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openBoardRequests(),
       m.openErrors(),
     ]);
+  const campaigns = await m.campaignStats(...cur).catch(() => []);
   const monthStart = `${today.slice(0, 8)}01`;
   const [ear, hearing, firstLine, typing, aiT, month, daily7, states, people, readers, readers7, readers28] = await Promise.all([
     earFunnel(...cur),
@@ -182,6 +183,39 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <DailyBars title="검색 유입" unit="회" data={chartDays.map((r) => ({ day: r.day, value: r.search_landings }))} description="검색엔진에서 들어온 랜딩 페이지 수" />
         <DailyBars title="페이지뷰" unit="회" data={chartDays.map((r) => ({ day: r.day, value: r.page_views }))} />
         <DailyBars title="재방문자" unit="명" data={chartDays.map((r) => ({ day: r.day, value: r.returning_visitors }))} description="그날 방문자 중 이전 날짜에 처음 온 방문자" />
+      </section>
+
+      <section aria-label="광고별 유입">
+        <h2 className="section-title">📣 광고별 유입 (최근 {range}일)</h2>
+        <p className="hint">광고 링크의 utm_campaign(또는 from=ig_ad&amp;c=…)으로 처음 들어온 사람. 10/28 배포 뒤부터 쌓여요.</p>
+        {campaigns.length ? (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>광고</th>
+                <th>첫 유입</th>
+                <th>들어온 횟수</th>
+                <th>사람</th>
+                <th>다른 날 다시 옴</th>
+              </tr>
+            </thead>
+            <tbody>
+              {campaigns.map((c) => (
+                <tr key={c.campaign}>
+                  <td>{c.campaign}</td>
+                  <td>{c.first_day}</td>
+                  <td>{c.landings.toLocaleString("ko-KR")}</td>
+                  <td>{c.visitors.toLocaleString("ko-KR")}</td>
+                  <td>
+                    {c.returned.toLocaleString("ko-KR")}명{c.visitors ? ` (${Math.round((c.returned / c.visitors) * 100)}%)` : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="hint">아직 광고 표시가 붙은 유입이 없습니다.</p>
+        )}
       </section>
 
       <section className="chart-grid two" aria-label="유입 경로">

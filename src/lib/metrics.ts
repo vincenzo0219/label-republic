@@ -98,12 +98,33 @@ export function kstDay(d = new Date()): string {
   return new Date(d.getTime() + 9 * 3600_000).toISOString().slice(0, 10);
 }
 
+/**
+ * 첫 페이지 주소의 광고 표시 → 광고 이름 (10/28). utm_campaign 이 있으면 그것, 없으면 from=ig_ad&c=cheer 같은 예전 표시를 "ig_ad:cheer" 로.
+ * 광고가 아니면 null. 글자는 영문·숫자·_·-·: 만, 60자까지
+ */
+export function adCampaign(rawPath: string): string | null {
+  let sp: URLSearchParams;
+  try {
+    sp = new URL(rawPath, "http://x").searchParams;
+  } catch {
+    return null;
+  }
+  const clean = (v: string) => v.toLowerCase().replace(/[^a-z0-9_:-]/g, "").slice(0, 60) || null;
+  const utm = sp.get("utm_campaign");
+  if (utm) return clean(utm);
+  const from = sp.get("from")?.toLowerCase();
+  if (from && /_ad$/.test(from)) return clean(`${from}:${sp.get("c") ?? "-"}`);
+  return null;
+}
+
 export type PageViewInput = {
   visitorHash: string;
   path: ParsedPath;
   source: TrafficSource;
   referrerHost: string | null;
   landing: boolean;
+  /** 광고로 들어온 첫 페이지면 광고 이름 (adCampaign) */
+  campaign?: string | null;
   now?: Date;
 };
 
@@ -155,8 +176,8 @@ export async function recordPageView(input: PageViewInput): Promise<{ isReturnin
        RETURNING coalesce((SELECT first_day FROM prev) < $3::date, false) AS is_returning
      ),
      pv AS (
-       INSERT INTO page_views (occurred_at, day, visitor_hash, is_returning, path, post_id, category_slug, source, referrer_host, is_landing, search_query)
-       SELECT $2, $3::date, $1, v.is_returning, $4, $5, $6, $7, $8, $9, $10 FROM v
+       INSERT INTO page_views (occurred_at, day, visitor_hash, is_returning, path, post_id, category_slug, source, referrer_host, is_landing, search_query, campaign)
+       SELECT $2, $3::date, $1, v.is_returning, $4, $5, $6, $7, $8, $9, $10, $11 FROM v
      )
      SELECT is_returning FROM v`,
     [
@@ -170,6 +191,7 @@ export async function recordPageView(input: PageViewInput): Promise<{ isReturnin
       input.referrerHost,
       input.landing,
       input.path.searchQuery,
+      input.landing ? (input.campaign ?? null) : null,
     ],
   );
   if (input.path.postId) {

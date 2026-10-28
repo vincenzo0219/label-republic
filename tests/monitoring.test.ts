@@ -224,6 +224,24 @@ d("monitoring (database)", async () => {
     expect(row).toEqual({ status: "duplicate", slug: "camping" });
   });
 
+  it("광고별 유입: 광고 표시로 처음 온 사람과 다른 날 다시 온 사람 (10/28)", async () => {
+    expect(metrics.adCampaign("/neo?from=instagram&utm_source=meta&utm_campaign=neo_ad_1028")).toBe("neo_ad_1028");
+    expect(metrics.adCampaign("/?from=ig_ad&c=cheer")).toBe("ig_ad:cheer");
+    expect(metrics.adCampaign("/c/x?from=instagram")).toBeNull();
+    expect(metrics.adCampaign("/?utm_campaign=<script>")).toBe("script");
+    const a = metrics.visitorHash("00000000-0000-4000-8000-0000000000a1");
+    const b = metrics.visitorHash("00000000-0000-4000-8000-0000000000b1");
+    const twoDaysAgo = new Date(Date.now() - 2 * 86400_000);
+    const neo = metrics.parsePath("/neo")!;
+    await metrics.recordPageView({ visitorHash: a, path: neo, source: "social", referrerHost: null, landing: true, campaign: "neo_ad_test", now: twoDaysAgo });
+    await metrics.recordPageView({ visitorHash: b, path: neo, source: "social", referrerHost: null, landing: true, campaign: "neo_ad_test", now: twoDaysAgo });
+    // a 만 오늘 다시 (광고 표시 없이)
+    await metrics.recordPageView({ visitorHash: a, path: neo, source: "direct", referrerHost: null, landing: true });
+    const today = metrics.kstDay();
+    const rows = await dash.campaignStats(metrics.kstDay(new Date(Date.now() - 7 * 86400_000)), today);
+    expect(rows.find((r) => r.campaign === "neo_ad_test")).toMatchObject({ landings: 2, visitors: 2, returned: 1 });
+  });
+
   it("records page views, returning visitors, sources and post views", async () => {
     const post = await newPost("검색 유입 글");
     const vh = metrics.visitorHash("00000000-0000-4000-8000-000000000001");
