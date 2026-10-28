@@ -1514,3 +1514,8 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .game-nums .game-num { display: flex; align-items: center; gap: 6px; font-size: 14px; }
 .game-nums .game-num input { width: 64px; flex: 0 0 64px; }
 .game-form-actions { display: flex; gap: 8px; }
+
+/* 🏠 검색 결과 위 방 바로가기 (10/29) */
+.room-hits { display: grid; gap: 8px; margin: 0 0 12px; }
+.room-hit { display: block; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: inherit; text-decoration: none; font-size: 15px; }
+.room-hit b { color: var(--accent, inherit); }

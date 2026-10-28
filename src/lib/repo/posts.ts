@@ -40,7 +40,8 @@ const CARD_SELECT = `
     'capacity', mt.capacity, 'rsvp_count', mt.rsvp_count, 'status', mt.status, 'confirmed_at', mt.confirmed_at
   ) END AS meetup,
   json_build_object('slug', c.slug, 'name', c.name) AS category,
-  left(regexp_replace(p.body, '\\s+', ' ', 'g'), 400) AS excerpt,
+  -- 퀴즈 정답(✅ 정답: …)은 목록 미리보기에 안 보이게 (10/29 대표님 영상: 검색 결과에서 답이 먼저 보임)
+  left(regexp_replace(regexp_replace(p.body, '✅\\s*정답.*$', ''), '\\s+', ' ', 'g'), 400) AS excerpt,
   CASE WHEN s.id IS NULL THEN NULL ELSE json_build_object(
     'lines', s.summary_lines, 'model_version', s.model_version, 'is_author_edited', s.is_author_edited
   ) END AS summary,

@@ -61,5 +61,11 @@ d("posts with many comments rise in the feed (10/22)", async () => {
     const info = await listPosts({ categoryId: cat!.id, sort: "latest", page: 1, type: "info", notHeads: ["자랑", "행사", "혜택"] });
     expect(info.items.map((p) => p.title)).toEqual(["코트 예약 정리"]);
   });
+  it("목록 미리보기에는 퀴즈 정답(✅ 정답: …)이 안 보인다 (10/29)", async () => {
+    const [cat] = await query<{ id: number }>("INSERT INTO categories (slug, name, description) VALUES ('qz', 'qz', '') RETURNING id");
+    await query("INSERT INTO posts (category_id, nickname, pw_hash, title, body, post_type) VALUES ($1, 'n', 'x', '퀴즈', $2, 'info')", [cat!.id, "① 당일 ② 2영업일\n정답은 내일 아침\n✅ 정답: ② 2영업일 (T+2)"]);
+    const r = await listPosts({ categoryId: cat!.id, sort: "latest", page: 1 });
+    expect(r.items[0]!.excerpt).toBe("① 당일 ② 2영업일 정답은 내일 아침 ");
+  });
 });
 
