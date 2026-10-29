@@ -190,6 +190,8 @@ export type Comment = {
   liked_by?: string[];
   /** 🙌 환영러: 처음 온 사람의 첫 글에 첫 댓글을 단 적이 있는 닉네임 (10/29) */
   welcomer?: boolean;
+  /** 🔥 오늘의 퀴즈 연속 참여 일수 (3일 이상일 때만, 10/29) */
+  streak?: number | null;
 };
 
 export type BoardRequest = {

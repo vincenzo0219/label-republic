@@ -1,5 +1,6 @@
 "use client";
 
+import { CHAT_CHIPS, chatChipTargets, chatChipText } from "@/lib/quickReplies";
 import { badgeOf, type BadgeMap } from "@/lib/badges";
 import { NickBadge } from "./NickBadge";
 import Link from "next/link";
@@ -73,6 +74,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
   const [blocked, setBlocked] = useState<string[]>([]);
   useEffect(() => setBlocked(blockedNicknames()), []);
   const comments = useMemo(() => (blocked.length ? allComments.filter((c) => !blocked.includes(c.nickname)) : allComments), [allComments, blocked]);
+  const [chatChipped, setChatChipped] = useState<Set<string>>(new Set());
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [live, setLive] = useState(false);
   const [form, setForm] = useState({ nickname: "", pw: "", body: "" });
@@ -357,6 +359,8 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
 
   if (chat) {
     const shown = comments.slice(-show);
+    // 🙌 사람 말 아래 바로 누르는 답장 (10/29): 최근 사람 말 3개에만
+    const chipIds = new Set(chatChipTargets(shown, form.nickname, chatChipped));
     return (
       <section id="comments" className="chat-room" aria-label="수다방">
         {comments.length > show && (
@@ -368,7 +372,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
           {shown.map((c) => (
             <li key={c.id} id={`c${c.id}`} className={`chat-msg${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
               <div className="chat-head">
-                {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} />{c.welcomer && <span className="welcomer-badge" title="처음 온 분의 첫 글에 첫 댓글을 단 분이에요">🙌 환영러</span>}</>}
+                {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} />{c.welcomer && <span className="welcomer-badge" title="처음 온 분의 첫 글에 첫 댓글을 단 분이에요">🙌 환영러</span>}{c.streak ? <span className="streak-badge" title="오늘의 퀴즈 연속 참여">🔥 {c.streak >= 30 ? 30 : c.streak >= 7 ? 7 : 3}일+</span> : null}</>}
                 <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
               </div>
               {c.hidden_reason ? (
@@ -395,6 +399,24 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                   {report && !c.is_ai_curated && c.nickname !== form.nickname.trim() && (
                     <ReportButton path={`/api/comments/${c.id}/report`} label="🚩" what="말" blockName={c.nickname} onHidden={() => setBlocked(blockedNicknames())} />
                   )}
+                </div>
+              )}
+              {chipIds.has(c.id) && (
+                <div className="chat-chips" role="group" aria-label={`${c.nickname}님께 한 번 눌러 답장`}>
+                  {CHAT_CHIPS.map((ch) => (
+                    <button
+                      key={ch}
+                      type="button"
+                      className="chip quick-reply"
+                      disabled={busy}
+                      onClick={async () => {
+                        setChatChipped((s) => new Set(s).add(c.id));
+                        await sendChip(chatChipText(c.nickname, ch));
+                      }}
+                    >
+                      {ch}
+                    </button>
+                  ))}
                 </div>
               )}
             </li>
@@ -440,7 +462,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
               <div key={c.id} id={`c${c.id}`} className={`comment${c.id !== root.id ? " is-reply" : ""}${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
                 <div className="comment-head">
                   {/* AI 표시는 이름 한 곳에 (이름 + 배지로 두 번 나오던 것) */}
-                  {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} />{c.welcomer && <span className="welcomer-badge" title="처음 온 분의 첫 글에 첫 댓글을 단 분이에요">🙌 환영러</span>}</>}
+                  {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} />{c.welcomer && <span className="welcomer-badge" title="처음 온 분의 첫 글에 첫 댓글을 단 분이에요">🙌 환영러</span>}{c.streak ? <span className="streak-badge" title="오늘의 퀴즈 연속 참여">🔥 {c.streak >= 30 ? 30 : c.streak >= 7 ? 7 : 3}일+</span> : null}</>}
                   <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
                   <span className="spacer" />
                   {!c.hidden_reason && (

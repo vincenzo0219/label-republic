@@ -1,5 +1,6 @@
 "use client";
 
+import { KnowledgeNotes } from "./KnowledgeNotes";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
@@ -117,6 +118,7 @@ export function MyPage() {
 
   return (
     <div className="my-page">
+      <KnowledgeNotes />
       <section className="card">
         <h2 className="card-title">닉네임</h2>
         <form className="row" onSubmit={rename}>

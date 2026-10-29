@@ -5,8 +5,7 @@ import { cache } from "react";
 import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
-import { RoomPoll } from "@/components/RoomPoll";
-import { ROOM_POLLS } from "@/lib/roomPolls";
+import { RoomQuiz } from "@/components/RoomQuiz";
 import { parseHead } from "@/lib/heads";
 import { RoomMemory } from "@/components/RoomMemory";
 import { BookBite } from "@/components/BookBite";
@@ -201,6 +200,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     <>
       <RoomMemory slug={category.slug} />
       {adTop}
+      {/* 🧩 오늘의 1분 퀴즈 (10/29 대표님): 어느 탭이든 방 맨 위. 기존 오늘의 질문이 있는 방은 그 카드. 👫 남녀 생각 차이 탭은 같은 투표를 목록으로 보여 주니 뺀다 */}
+      {!category.is_hidden && roomTab?.key !== "gender" && <RoomQuiz slug={category.slug} name={category.name} />}
       {/* 🎉 오늘 축하할 덕후 (10/26): 오늘 올라온 기념일·응원 카드, 줄 안에서 바로 누른다 */}
       {!sp.tab && !sp.type && !head && (Number(sp.page) || 1) === 1 && <TodayCards rooms={[category.slug]} />}
       {links.length > 0 && <nav className="room-links" aria-label="바로가기">
@@ -216,8 +217,6 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           ),
         )}
       </nav>}
-      {/* 👫 남녀 생각 차이 탭은 같은 투표를 목록으로 보여 주니 맨 위 투표는 뺀다 */}
-      {ROOM_POLLS[category.slug] && roomTab?.key !== "gender" && <RoomPoll slug={category.slug} />}
       <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? (head === "자랑" ? <>{roomBox}{fanDays(false)}</> : roomBox) : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : (kidsLine ?? fanLine)} roomTab={roomTabProps} />
     </>
   );
