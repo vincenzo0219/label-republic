@@ -121,6 +121,21 @@ d("🎾 게임 모집 (DB)", async () => {
     await expect(games.createGame(base({ notes: "씨발 빨리", date: "2026-11-04" }), who, NOW)).rejects.toMatchObject({ status: 400 });
   });
 
+  it("연락처 없이도 올리고, 💬 댓글로 참여 (10/29 대표님 \"오픈채팅이 없는데\")", async () => {
+    const talk = await import("@/lib/repo/tennisTalk");
+    const { id } = await games.createGame(base({ contact: "", court: "수지체육공원 B", date: "2026-11-06" }), { fingerprint: "e".repeat(64), net: null }, NOW);
+    const g = (await games.listGames({}, NOW)).items.find((x) => x.id === id)!;
+    expect(g.hasContact).toBe(false);
+    expect(g.comments).toBe(0);
+    const a = await talk.ensureTennisTalk(id);
+    expect((await talk.ensureTennisTalk(id)).postId).toBe(a.postId);
+    await query("UPDATE posts SET comment_count = 2 WHERE id = $1", [a.postId]);
+    expect((await games.listGames({}, NOW)).items.find((x) => x.id === id)!.comments).toBe(2);
+    // 숨은 방 글은 방 피드에 안 나온다
+    const [c] = await query<{ is_hidden: boolean }>("SELECT is_hidden FROM categories WHERE slug = 'tennis-talk'");
+    expect(c!.is_hidden).toBe(true);
+  });
+
   it("신고는 가리지 않고 운영자에게 보고 (10/29)", async () => {
     const { id } = await games.createGame(base({ court: "스포원 실내", date: "2026-11-05" }), who, NOW);
     for (let i = 0; i < 5; i++) await games.reportGame(id, String(i).repeat(64), "광고");

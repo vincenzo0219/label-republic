@@ -9,6 +9,7 @@ import { hit } from "../rate-limit";
 import { aiAbuse, heuristicAbuse } from "../abuse";
 import { trollCheck } from "../troll";
 import { assertPin } from "./pin-guard";
+import { tennisTalkCounts } from "./tennisTalk";
 import { ownerAlertAfter, reportAlertAfter } from "./ownerAlert";
 import { kstYmd } from "../instructorRoom";
 import { GAMES_TAB, TENNIS_ROOM, gameInputSchema, gameProblem, whenRange, type GameInput, type GameInputRaw, type GameType, type When } from "../tennisGames";
@@ -31,6 +32,10 @@ export type GameCard = {
   nickname: string;
   createdAt: string;
   closed: boolean;
+  /** 연락처(오픈채팅·카톡 아이디)를 남겼는지. 없으면 💬 댓글로만 참여 */
+  hasContact: boolean;
+  /** 💬 댓글 수 (목록에서만 채운다) */
+  comments?: number;
 };
 
 type Row = {
@@ -51,10 +56,11 @@ type Row = {
   nickname: string;
   created_at: string;
   closed_at: string | null;
+  has_contact: boolean;
 };
 
 const COLS = `id::text, sido, sigungu, court, play_date::text AS play_date, start_time, end_time, game_type, need_m, need_f, need_any,
-  level, cost, notes, nickname, created_at, closed_at`;
+  level, cost, notes, nickname, created_at, closed_at, (contact <> '') AS has_contact`;
 
 const card = (r: Row): GameCard => ({
   id: r.id,
@@ -74,6 +80,7 @@ const card = (r: Row): GameCard => ({
   nickname: r.nickname,
   createdAt: r.created_at,
   closed: !!r.closed_at,
+  hasContact: r.has_contact,
 });
 
 function check(raw: GameInputRaw, now: Date): GameInput {
@@ -138,7 +145,8 @@ export async function listGames(f: GameFilter, now = new Date()): Promise<{ item
     query<Row>(`SELECT ${COLS} FROM tennis_games WHERE ${w} ORDER BY (closed_at IS NOT NULL), play_date, start_time, id LIMIT ${GAME_PAGE} OFFSET ${(page - 1) * GAME_PAGE}`, params),
     query<{ n: number }>(`SELECT count(*)::int AS n FROM tennis_games WHERE ${w}`, params),
   ]);
-  return { items: rows.map(card), total: count?.n ?? 0, page };
+  const counts = await tennisTalkCounts(rows.map((r) => r.id));
+  return { items: rows.map((r) => ({ ...card(r), comments: counts[r.id] ?? 0 })), total: count?.n ?? 0, page };
 }
 
 async function ownerRow(id: string, fp: string, pin: string): Promise<{ play_date: string; closed_at: string | null }> {

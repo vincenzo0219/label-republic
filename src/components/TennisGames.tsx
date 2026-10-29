@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LiveComments } from "./LiveComments";
+import type { Comment } from "@/lib/types";
 import { api } from "@/lib/client-api";
 import { REGIONS, districtsOf, kstYmd } from "@/lib/instructorRoom";
 import { myNick, myPin, saveNick, withMyPin } from "@/lib/me";
 import type { GameCard } from "@/lib/repo/tennisGames";
-import { GAME_GUIDE, GAME_TYPES, contactProblem, dateLabel, gameProblem, needLabel, parseKakaoGame, timeLabel, type GameType, type When } from "@/lib/tennisGames";
+import { GAME_GUIDE, GAME_TYPES, dateLabel, gameProblem, needLabel, parseKakaoGame, timeLabel, type GameType, type When } from "@/lib/tennisGames";
 
 const FILTER_KEY = "lr:gameFilter";
 const MINE = "lr:myGames";
@@ -147,16 +149,8 @@ export function TennisGames() {
 }
 
 function GameCardView({ g, today, mine, onChanged, onEdit }: { g: GameCard; today: string; mine: boolean; onChanged: () => void; onEdit: (e: GameCard & { contact: string }) => void }) {
-  const [contact, setContact] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const show = async () => {
-    setMsg(null);
-    const r = await fetch(`/api/tennis-games/${g.id}/contact`).catch(() => null);
-    const d = r ? ((await r.json().catch(() => ({}))) as { contact?: string; error?: { message: string } }) : {};
-    if (r?.ok && d.contact) setContact(d.contact);
-    else setMsg(d.error?.message ?? "잠시 후 다시 눌러 주세요");
-  };
   const owner = async (what: "close" | "delete" | "edit") => {
     if (what === "close" && !window.confirm("마감할까요?")) return;
     if (what === "delete" && !window.confirm("삭제할까요? 되돌릴 수 없어요")) return;
@@ -183,7 +177,6 @@ function GameCardView({ g, today, mine, onChanged, onEdit }: { g: GameCard; toda
       setMsg((e as Error).message);
     }
   };
-  const href = contact && /^https:\/\/open\.kakao\.com\//.test(contact) ? contact : null;
 
   return (
     <article className={`kids-card game-card${g.closed ? " game-closed" : ""}`}>
@@ -198,14 +191,13 @@ function GameCardView({ g, today, mine, onChanged, onEdit }: { g: GameCard; toda
       {(g.cost || g.notes) && <p className="hint game-notes">{[g.cost, g.notes].filter(Boolean).join(" · ")}</p>}
       <div className="game-actions">
         <span className="hint">{g.nickname}</span>
-        {!g.closed && !contact && <button type="button" className="btn btn-sm btn-primary" onClick={show}>💬 연락하기</button>}
-        {contact && (href ? <a className="gig-contact" href={href} target="_blank" rel="nofollow noopener">오픈채팅 열기</a> : <span className="gig-contact">카톡 아이디: {contact}</span>)}
         {mine && !g.closed && <button type="button" className="linkish" onClick={() => owner("edit")}>수정</button>}
         {mine && !g.closed && <button type="button" className="linkish" onClick={() => owner("close")}>마감</button>}
         {mine && <button type="button" className="linkish" onClick={() => owner("delete")}>삭제</button>}
         {!mine && <button type="button" className="linkish" onClick={report}>🚩</button>}
       </div>
       {msg && <p className="hint">{msg}</p>}
+      <GameTalk gameId={g.id} count={g.comments ?? 0} open={!g.closed} />
     </article>
   );
 }
@@ -308,16 +300,7 @@ function GameForm({ edit, defaults, onDone }: { edit?: GameCard & { contact: str
       <input className="input" maxLength={40} placeholder="조건 (예: 구력 2년 이상, NTRP 3.0+, 게임 원활)" value={s.level} onChange={(e) => set({ level: e.target.value })} />
       <input className="input" maxLength={40} placeholder="비용 (예: 코트비 1/N, 캔볼 1000원)" value={s.cost} onChange={(e) => set({ cost: e.target.value })} />
       <textarea className="input" rows={2} maxLength={300} placeholder="한 줄 메모 (선택)" value={s.notes} onChange={(e) => set({ notes: e.target.value })} />
-      <input
-        className="input"
-        required
-        maxLength={160}
-        placeholder="연락: 오픈채팅 링크 또는 카톡 아이디 (전화번호 X)"
-        value={s.contact}
-        onChange={(e) => set({ contact: e.target.value })}
-        aria-invalid={!!s.contact && !!contactProblem(s.contact)}
-      />
-      <p className="hint">연락처는 목록에 보이지 않고, &quot;연락하기&quot;를 누른 사람에게만 보여요.</p>
+      <p className="hint">참여 신청은 게임 카드의 💬 댓글로 받아요.</p>
       {!edit && <input className="input" required minLength={2} maxLength={20} placeholder="닉네임" value={nickname} onChange={(e) => setNickname(e.target.value)} />}
       {err && <p className="error">{err}</p>}
       <div className="game-form-actions">
@@ -325,5 +308,38 @@ function GameForm({ edit, defaults, onDone }: { edit?: GameCard & { contact: str
         <button type="button" className="btn btn-ghost" onClick={onDone}>닫기</button>
       </div>
     </form>
+  );
+}
+
+/** 💬 게임마다 댓글 (10/29 대표님 "오픈채팅이랑 관계없이"): 참여 신청은 모두 댓글로. 누르면 그때 댓글 글을 만들고 불러온다 */
+function GameTalk({ gameId, count, open }: { gameId: string; count: number; open: boolean }) {
+  const [shown, setShown] = useState(false);
+  const [talk, setTalk] = useState<{ postId: string; comments: Comment[] } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const load = async () => {
+    setShown(true);
+    if (talk) return;
+    try {
+      const { postId } = await api<{ postId: string }>(`/api/tennis-games/${gameId}/talk`, "POST", {});
+      const { comments } = await api<{ comments: Comment[] }>(`/api/posts/${postId}/comments`, "GET");
+      setTalk({ postId, comments });
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  };
+  return (
+    <div className="game-talk">
+      {!shown ? (
+        <button type="button" className="linkish" onClick={load}>
+          {open && count === 0 ? "💬 댓글로 참여 신청" : `💬 댓글 ${count}`}
+        </button>
+      ) : err ? (
+        <p className="error">{err}</p>
+      ) : talk ? (
+        <LiveComments postId={talk.postId} initial={talk.comments} casual report />
+      ) : (
+        <p className="hint">불러오는 중…</p>
+      )}
+    </div>
   );
 }

@@ -13,7 +13,7 @@ export const GAME_TYPES = ["남복", "여복", "혼복", "단식", "랠리"] as 
 export type GameType = (typeof GAME_TYPES)[number];
 /** 며칠 뒤 게임까지 받는지 */
 export const MAX_AHEAD_DAYS = 60;
-export const GAME_GUIDE = "카톡방에 올리던 한 줄을 붙여 넣으면 날짜·시간·종목·인원이 채워져요. 연락은 오픈채팅 링크나 카톡 아이디로만 받아요.";
+export const GAME_GUIDE = "카톡방에 올리던 한 줄을 붙여 넣으면 날짜·시간·종목·인원이 채워져요. 참여 신청은 게임마다 💬 댓글로 받아요.";
 
 const HHMM = /^\d{2}:\d{2}$/;
 const PHONE = /(?:\+?82[-\s.]?)?0\d{1,2}[-\s.]?\d{3,4}[-\s.]?\d{4}/;
@@ -22,8 +22,8 @@ const EMAIL = /[\w.+-]+@[\w-]+\.[\w.]+/;
 /** 공개 칸(코트·조건·비용·메모)에 전화번호·이메일이 있으면 그 이유 */
 export function personalInfoIn(...texts: string[]): string | null {
   const t = texts.join("\n");
-  if (PHONE.test(t)) return "전화번호는 적지 말아 주세요. 연락은 오픈채팅 링크·카톡 아이디 칸으로 받아요";
-  if (EMAIL.test(t)) return "이메일은 적지 말아 주세요. 연락은 오픈채팅 링크·카톡 아이디 칸으로 받아요";
+  if (PHONE.test(t)) return "전화번호는 적지 말아 주세요. 참여 신청은 💬 댓글로 받아요";
+  if (EMAIL.test(t)) return "이메일은 적지 말아 주세요. 참여 신청은 💬 댓글로 받아요";
   return null;
 }
 
@@ -52,7 +52,8 @@ export const gameInputSchema = z.object({
   level: z.string().trim().max(40).default(""),
   cost: z.string().trim().max(40).default(""),
   notes: z.string().trim().max(300).default(""),
-  contact: z.string().trim().min(4).max(160),
+  // 10/29 대표님 "오픈채팅이랑 관계없이 만들어": 화면에는 연락처 칸이 없고 참여는 💬 댓글로. 예전 글·API 호환으로 칸만 남긴다
+  contact: z.string().trim().max(160).default(""),
 });
 export type GameInputRaw = z.input<typeof gameInputSchema>;
 export type GameInput = z.output<typeof gameInputSchema>;
@@ -64,7 +65,7 @@ export function gameProblem(g: Omit<GameInput, "nickname" | "pw">, today: string
   if (g.date > addDays(today, MAX_AHEAD_DAYS)) return `${MAX_AHEAD_DAYS}일 안의 게임만 올릴 수 있어요`;
   if (g.end && g.end <= g.start) return "끝나는 시간이 시작보다 늦어야 해요";
   if (g.needM + g.needF + g.needAny === 0) return "몇 명 모집하는지 적어 주세요";
-  return contactProblem(g.contact) ?? personalInfoIn(g.court, g.level, g.cost, g.notes);
+  return (g.contact ? contactProblem(g.contact) : null) ?? personalInfoIn(g.court, g.level, g.cost, g.notes);
 }
 
 export const needLabel = (g: { needM: number; needF: number; needAny: number }): string =>
