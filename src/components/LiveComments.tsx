@@ -401,7 +401,6 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                   <button className={`linkish like${liked.has(c.id) ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={liked.has(c.id)} aria-label={`${c.nickname}님 말에 공감`}>
                     👍{likes[c.id] ? ` ${likes[c.id]}` : ""}
                   </button>
-                  {c.liked_by?.length ? <span className="liked-by">👍 {c.liked_by.join("·")}</span> : null}
                   <button className="linkish" onClick={() => setForm((f) => ({ ...f, body: f.body.includes(`@${c.nickname}`) ? f.body : `@${c.nickname} ${f.body}` }))}>답하기</button>
                   {!c.is_ai_curated && c.nickname === form.nickname.trim() && (
                     <>
@@ -501,7 +500,6 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                       👍{likes[c.id] ? ` ${likes[c.id]}` : ""}
                     </button>
                   )}
-                  {c.liked_by?.length ? <span className="liked-by">👍 {c.liked_by.join("·")}</span> : null}
                   <button className="linkish" onClick={() => startReply(c)} aria-label={`${c.nickname}님 댓글에 답글`}>답글</button>
                   {!c.is_ai_curated && (
                     <>
