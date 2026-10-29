@@ -52,7 +52,8 @@ export const gameInputSchema = z.object({
   level: z.string().trim().max(40).default(""),
   cost: z.string().trim().max(40).default(""),
   notes: z.string().trim().max(300).default(""),
-  contact: z.string().trim().min(4).max(160),
+  // 10/29 대표님 "오픈채팅이 없는데": 비워 두면 게임 카드의 💬 댓글로 참여한다
+  contact: z.string().trim().max(160).default(""),
 });
 export type GameInputRaw = z.input<typeof gameInputSchema>;
 export type GameInput = z.output<typeof gameInputSchema>;
@@ -64,7 +65,7 @@ export function gameProblem(g: Omit<GameInput, "nickname" | "pw">, today: string
   if (g.date > addDays(today, MAX_AHEAD_DAYS)) return `${MAX_AHEAD_DAYS}일 안의 게임만 올릴 수 있어요`;
   if (g.end && g.end <= g.start) return "끝나는 시간이 시작보다 늦어야 해요";
   if (g.needM + g.needF + g.needAny === 0) return "몇 명 모집하는지 적어 주세요";
-  return contactProblem(g.contact) ?? personalInfoIn(g.court, g.level, g.cost, g.notes);
+  return (g.contact ? contactProblem(g.contact) : null) ?? personalInfoIn(g.court, g.level, g.cost, g.notes);
 }
 
 export const needLabel = (g: { needM: number; needF: number; needAny: number }): string =>
