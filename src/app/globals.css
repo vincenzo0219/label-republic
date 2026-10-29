@@ -1646,4 +1646,3 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .kospi-rank-no { width: 18px; font-weight: 800; }
 .kospi-rank-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .kospi-rank-rec { white-space: nowrap; }
-.kospi-rank-empty { margin: 8px 0 0; }
