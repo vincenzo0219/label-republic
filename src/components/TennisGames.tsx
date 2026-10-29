@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LiveComments } from "./LiveComments";
+import { CourtOpenAlert, TennisGameAlert } from "./TennisAlerts";
 import type { Comment } from "@/lib/types";
 import { api } from "@/lib/client-api";
 import { REGIONS, districtsOf, kstYmd } from "@/lib/instructorRoom";
@@ -102,6 +103,8 @@ export function TennisGames() {
         <button type="button" className="btn btn-primary tab-write" onClick={() => setForm({})}>🎾 게임 모집 올리기</button>
       )}
       <p className="hint gig-guide">{GAME_GUIDE}</p>
+      <TennisGameAlert sido={f.sido} sigungu={f.sigungu} />
+      <CourtOpenAlert />
       <div className="gig-filters">
         <div className="kids-picker-row">
           <select className="select" aria-label="시·도" value={f.sido} onChange={(e) => set({ sido: e.target.value, sigungu: "" })}>
@@ -179,7 +182,7 @@ function GameCardView({ g, today, mine, onChanged, onEdit }: { g: GameCard; toda
   };
 
   return (
-    <article className={`kids-card game-card${g.closed ? " game-closed" : ""}`}>
+    <article id={`game-${g.id}`} className={`kids-card game-card${g.closed ? " game-closed" : ""}`}>
       <div className="kids-chips">
         {g.closed ? <span className="kids-chip">마감</span> : g.date === today ? <span className="kids-chip st-open">오늘</span> : null}
         <span className="kids-chip kind">{g.type}</span>
