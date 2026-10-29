@@ -2,6 +2,7 @@
  * DB 통합 테스트 — TEST_DATABASE_URL 이 있을 때만 실행된다.
  * 매 실행마다 public 스키마를 비우고 마이그레이션을 새로 적용한다. (운영 DB를 가리키지 말 것)
  */
+import { listReports } from "@/lib/repo/reports";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -112,13 +113,21 @@ d("database rules", async () => {
     expect(await posts.votePost(post.id, fp(2), 1)).toMatchObject({ upvotes: 2, downvotes: 0 });
   });
 
-  it("auto-blinds after 5 distinct reporters, ignoring duplicates", async () => {
+  it("reports go to the operator instead of blinding (10/29), ignoring duplicates; blinded posts stay closed", async () => {
     const post = await newPost();
     await establish(fp(1), fp(2), fp(3), fp(4), fp(5));
     for (let i = 1; i <= 4; i++) await posts.reportPost(post.id, fp(i), "광고");
     expect(await posts.reportPost(post.id, fp(4), "again")).toMatchObject({ report_count: 4, is_blinded: false, alreadyReported: true });
-    expect(await posts.reportPost(post.id, fp(5), "광고")).toMatchObject({ report_count: 5, is_blinded: true });
+    expect(await posts.reportPost(post.id, fp(5), "광고")).toMatchObject({ report_count: 5, is_blinded: false });
+    expect((await posts.listPosts({ sort: "latest" })).total).toBe(1);
+    expect(await listReports({ type: "post", id: post.id })).toMatchObject([{ reports: 5, reasons: "광고", hidden: false, url: `/posts/${post.id}` }]);
+    // 운영자 API: 신고 5명(규칙 값) 이상이면 우선
+    const adminReports = await import("@/app/api/admin/reports/route");
+    const res = await adminReports.GET(new Request("http://localhost/api/admin/reports?days=7"), { params: Promise.resolve({}) });
+    expect(await res.json()).toMatchObject({ items: [{ type: "post", id: post.id, reports: 5, priority: true }] });
 
+    // 가려진 글(운영자·임시조치·AI)은 그대로 닫힌다
+    await query("UPDATE posts SET is_blinded = true WHERE id = $1", [post.id]);
     const detail = await posts.getPost(post.id);
     expect(detail?.body).toBe("");
     expect((await posts.listPosts({ sort: "latest" })).total).toBe(0);
@@ -191,9 +200,11 @@ d("database rules", async () => {
 
     await establish(fp(1), fp(2), fp(3), fp(4), fp(5));
     for (let i = 1; i <= 4; i++) await posts.reportPost(target.id, fp(i), "광고");
-    // 고유 신고자 5명이지만 가중치 합 4.2 < 5 → 아직 블라인드 아님
+    // 가중치는 운영자가 조직적 신고를 가려 보는 데 쓴다. 신고로는 가리지 않는다 (10/29)
     expect(await posts.reportPost(target.id, fp(4), "dup")).toMatchObject({ report_count: 5, is_blinded: false });
-    expect(await posts.reportPost(target.id, fp(5), "광고")).toMatchObject({ report_count: 6, is_blinded: true });
+    expect(await posts.reportPost(target.id, fp(5), "광고")).toMatchObject({ report_count: 6, is_blinded: false });
+    const [s] = await query<{ report_score: number }>("SELECT report_score FROM posts WHERE id = $1", [target.id]);
+    expect(s!.report_score).toBeCloseTo(5.2);
   });
 
   it("suppresses spammy posts: sorted last, no trust badge, flagged in detail", async () => {

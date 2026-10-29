@@ -40,7 +40,7 @@ import { FACT_KIND_LABEL, formatValue } from "@/lib/products";
 import { LEGAL_HOLD_DAYS, LEGAL_REASONS, type LegalReason } from "@/lib/repo/legal";
 import { isAttending, listParticipants } from "@/lib/repo/meetups";
 import { getAppeal } from "@/lib/repo/operator";
-import { getMyVote, getPost as getPostUncached } from "@/lib/repo/posts";
+import { getMyVote, getPost as getPostUncached, isShadowAuthor } from "@/lib/repo/posts";
 import { EXTRACTIVE_MODEL } from "@/lib/summary";
 import { typeChip } from "@/lib/adSchedule";
 import { headOf } from "@/lib/heads";
@@ -100,7 +100,9 @@ export default async function PostPage({ params }: Props) {
   const post = await getPost(id);
   if (!post) notFound();
 
-  if (post.is_blinded) {
+  // 🧹 조롱·도배로 바로 가린 글은 쓴 사람에게만 그대로 보인다 (10/29)
+  const shadowMine = post.is_blinded && post.ai_hidden_reason === "troll" && (await isShadowAuthor(post.id, fingerprint(await headers())));
+  if (post.is_blinded && !shadowMine) {
     return (
       <>
         <p className="hint"><Link href={`/c/${encodeURIComponent(post.category.slug)}`}>← {post.category.name}</Link></p>
@@ -112,7 +114,11 @@ export default async function PostPage({ params }: Props) {
           </div>
         ) : (
           <>
-            {post.ai_hidden_reason ? (
+            {post.ai_hidden_reason === "operator" ? (
+              <div className="notice" style={{ marginTop: 24 }}>
+                🛠 운영자가 확인하고 가린 게시글입니다. 모든 조치는 <Link href="/transparency">투명성 기록</Link>에 공개됩니다.
+              </div>
+            ) : post.ai_hidden_reason ? (
               <div className="notice" style={{ marginTop: 24 }}>
                 🤖 AI 자동 운영이 <b>{abuseLabel(post.ai_hidden_reason)}</b>이(가) 담긴 것으로 판단해 가린 게시글입니다.
                 욕설·혐오 표현·인신공격·개인정보는 사람 운영자 없이 AI가 가리고, 오판이면 작성자가 아래에서 재검토를 요청할 수 있습니다.
@@ -120,7 +126,7 @@ export default async function PostPage({ params }: Props) {
               </div>
             ) : (
               <div className="notice" style={{ marginTop: 24 }}>
-                🚫 신고 {post.report_count}회 누적으로 자동 블라인드된 게시글입니다. 노방장은 방장 없이 커뮤니티 신고로만 정화됩니다.
+                🚫 신고 {post.report_count}회 누적으로 가려진 게시글입니다 (2026.10.29 전 기준). 지금은 신고가 운영자에게 전달되고 신고만으로는 가리지 않습니다.
               </div>
             )}
             {!post.is_ai_curated && <AppealBox postId={post.id} initial={await getAppeal(post.id)} />}
@@ -138,7 +144,7 @@ export default async function PostPage({ params }: Props) {
   const isEvent = post.title.startsWith("[행사]") && !infoOnly && !flags?.no_matching;
   const ruleNotice = roomRuleNotice(post.category.slug);
   const [comments, myVote, participants, attending, appeal, corrections, rules, debate, together] = await Promise.all([
-    listComments(id),
+    listComments(id, fp),
     getMyVote(id, fp),
     post.meetup ? listParticipants(id) : Promise.resolve([]),
     post.meetup ? isAttending(id, fp) : Promise.resolve(false),
@@ -285,7 +291,7 @@ export default async function PostPage({ params }: Props) {
         <WatchToggle kind="post" id={post.id} name={post.title} />
         <SaveOffline postId={post.id} />
         {!post.is_ai_curated && <PostOwnerActions postId={post.id} noEdit={!!post.card_kind} />}
-        <ReportButton postId={post.id} blindAt={rules.post_blind_reports} />
+        <ReportButton postId={post.id} />
       </div>
 
       {/* 잡담에는 고칠 "사실"이 없으니 정정 제안 대신 댓글로 (이미 달린 정정은 보인다) */}

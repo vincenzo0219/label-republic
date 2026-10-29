@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { viewerFp } from "@/lib/viewerFp";
 import Link from "next/link";
 import { cache } from "react";
 import { KidsAlertButton } from "@/components/KidsAlertButton";
@@ -45,7 +46,7 @@ export default async function KidsProgramPage({ params }: Props) {
       </div>
     );
   const postId = await programPostId(p.id).catch(() => null);
-  const comments = postId ? await listComments(postId) : [];
+  const comments = postId ? await listComments(postId, await viewerFp()) : [];
   const badges = postId ? await badgesSafe(KIDS_ROOM, comments.map((c) => c.nickname)) : undefined;
   const status = programStatus(p);
   const apply = applyHref(p);

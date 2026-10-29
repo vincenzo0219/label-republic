@@ -72,9 +72,10 @@ d("operator moderation tools (database)", async () => {
     const post = await newPost("표적 글");
     await establish(fp("old"));
     await posts.reportPost(post.id, fp("old"), "진짜 신고");
-    // 갓 생긴 fingerprint 의 몰린 신고는 가중치가 절반이라 10건이 몰려야 블라인드된다
     for (let n = 1; n <= 10; n++) await posts.reportPost(post.id, fp(`r${n}`), "광고");
-    expect(await postRow(post.id)).toMatchObject({ is_blinded: true, report_count: 11 });
+    // 신고로는 가리지 않는다 (10/29, 108). 그 전에 신고 누적으로 가려진 글을 흉내 낸다
+    expect(await postRow(post.id)).toMatchObject({ is_blinded: false, report_count: 11 });
+    await query("UPDATE posts SET is_blinded = true, blinded_at = now() WHERE id = $1", [post.id]);
 
     // 작성자 재검토 요청 — 비밀번호 확인, 글당 한 번
     await expect(op.createAppeal(post.id, fp("author"), "0000", "")).rejects.toMatchObject({ code: "wrong_password" });
@@ -101,16 +102,17 @@ d("operator moderation tools (database)", async () => {
     expect((await op.listAlertsForReview()).recent[0]).toMatchObject({ id: alert.id, status: "actioned" });
   });
 
-  it("keeps the blind when enough legitimate reports remain", async () => {
+  it("re-count after voiding keeps only legal/AI blinds; remaining reports no longer blind (10/29)", async () => {
     const post = await newPost();
     for (let n = 1; n <= 5; n++) {
       await establish(fp(`u${n}`));
       await posts.reportPost(post.id, fp(`u${n}`), "광고");
     }
     for (let n = 1; n <= 4; n++) await posts.reportPost(post.id, fp(`r${n}`), "광고");
+    await query("UPDATE posts SET is_blinded = true, blinded_at = now() WHERE id = $1", [post.id]);
     const alert = await alertOf("report_burst", post.id);
-    expect((await op.voidAlert(alert.id, "")).posts).toEqual([{ id: post.id, blinded: true }]);
-    expect(await postRow(post.id)).toMatchObject({ is_blinded: true, report_count: 5 });
+    expect((await op.voidAlert(alert.id, "")).posts).toEqual([{ id: post.id, blinded: false }]);
+    expect(await postRow(post.id)).toMatchObject({ is_blinded: false, report_count: 5 });
   });
 
   it("voids a burst of fresh-fingerprint votes and a mass reporter's reports", async () => {
@@ -184,6 +186,8 @@ d("operator moderation tools (database)", async () => {
       await establish(fp(`u${n}`));
       await posts.reportPost(blinded.id, fp(`u${n}`), "광고");
     }
+    // 10/29 전 신고 누적으로 가려진 글
+    await query("UPDATE posts SET is_blinded = true, blinded_at = now() WHERE id = $1", [blinded.id]);
     await op.createAppeal(blinded.id, fp("author"), "1234", "억울합니다");
     await expect(op.rejectAppeal(blinded.id, " ")).rejects.toMatchObject({ code: "note_required" });
     await op.rejectAppeal(blinded.id, "신고가 모두 서로 다른 기존 이용자이며 조작 정황이 없음");

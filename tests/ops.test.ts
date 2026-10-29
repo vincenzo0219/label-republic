@@ -161,8 +161,8 @@ d("launch hardening (database)", async () => {
       await query("SELECT touch_fingerprint($1, now() - interval '30 days')", [v.repeat(64)]);
       await corrections.reportCorrection(c.id, v.repeat(64));
     }
-    // 5 × 0.5 + 4 × 1 = 6.5 ≥ 5 이고 고유 신고 9건 → 가려짐
-    expect((await query<{ is_hidden: boolean }>("SELECT is_hidden FROM corrections"))[0]!.is_hidden).toBe(true);
+    // 신고 9건이어도 가리지 않고 운영자에게 (10/29)
+    expect((await query<{ is_hidden: boolean; report_count: number }>("SELECT is_hidden, report_count FROM corrections"))[0]).toEqual({ is_hidden: false, report_count: 9 });
 
     // 철회된 제안에 늦게 도착한 작성자 응답은 거절
     const c2 = await corrections.createCorrection(post.id, {

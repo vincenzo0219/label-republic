@@ -1,3 +1,4 @@
+import { listReports } from "@/lib/repo/reports";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
@@ -315,13 +316,13 @@ d("📋 대강·구인 (DB)", async () => {
     // 의료 표현은 올리지 않는다
     await expect(gigs.createGig(ask({ notes: "거북목 교정이 목표예요", contact: "010-2000-0006" }), who, NOW)).rejects.toMatchObject({ status: 400, message: MEDICAL_MESSAGE });
     await expect(gigs.createGig(lesson({ career: "통증 관리 전문", contact: "010-2000-0007" }), who, NOW)).rejects.toMatchObject({ status: 400, message: MEDICAL_MESSAGE });
-    // 🚩 신고: 한 브라우저 한 번, 고유 신고 3건이면 목록에서 가린다
+    // 🚩 신고: 한 브라우저 한 번. 가리지 않고 운영자에게 보고 (10/29)
     expect(await gigs.reportGig(t2.id, "1".repeat(64), "선입금 요구")).toEqual({ is_blinded: false, alreadyReported: false });
     expect(await gigs.reportGig(t2.id, "1".repeat(64), "또")).toEqual({ is_blinded: false, alreadyReported: true });
     await gigs.reportGig(t2.id, "2".repeat(64), "");
-    expect(await gigs.reportGig(t2.id, "3".repeat(64), "")).toEqual({ is_blinded: true, alreadyReported: false });
-    expect(await lessonIds({})).not.toContain(t2.id);
-    expect(await of(s2.id)).toEqual([t3.id, t1.id]);
+    expect(await gigs.reportGig(t2.id, "3".repeat(64), "")).toEqual({ is_blinded: false, alreadyReported: false });
+    expect(await lessonIds({})).toContain(t2.id);
+    expect(await listReports({ type: "gig", id: t2.id })).toMatchObject([{ reports: 3, reasons: "선입금 요구", url: `/gigs/${t2.id}` }]);
     await expect(gigs.reportGig("999999", "4".repeat(64), "")).rejects.toMatchObject({ status: 404 });
   });
 

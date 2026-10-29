@@ -6,7 +6,7 @@
 import type { PushMessage } from "./push";
 import { OPERATOR_NICKS } from "./repo/metrics";
 
-export type OwnerAlertKind = "post" | "comment" | "gig";
+export type OwnerAlertKind = "post" | "comment" | "gig" | "report";
 export type OwnerWrite = { kind: OwnerAlertKind; nickname: string; fingerprint?: string | null; isAiCurated?: boolean };
 export type OwnerAlertItem = { id: string; kind: OwnerAlertKind; room: string; nickname: string; excerpt: string; url: string };
 
@@ -30,12 +30,17 @@ export function ownerAlertWait(lastSentAt: Date | null, now: Date, gapMs = OWNER
   return Math.max(0, lastSentAt.getTime() + gapMs - now.getTime());
 }
 
-const LABEL: Record<OwnerAlertKind, string> = { post: "새 글", comment: "댓글", gig: "대강·구인" };
+const LABEL: Record<OwnerAlertKind, string> = { post: "새 글", comment: "댓글", gig: "대강·구인", report: "신고" };
 
 /** 한 건이면 누가 어디에 무엇을, 여러 건이면 개수와 앞의 두 건. 누르면 가장 최근 글로 */
 export function ownerAlertMessage(items: OwnerAlertItem[]): PushMessage {
   const last = items[items.length - 1]!;
   const tag = `lr-owner-${last.id}`;
+  // 🚩 신고 (10/29): 신고는 가리지 않고 운영자에게 알린다. nickname 칸에는 무엇을(글·댓글…) 신고했는지
+  if (items.every((i) => i.kind === "report"))
+    return items.length === 1
+      ? { title: `🚩 신고 · ${last.room} · ${last.nickname}`.slice(0, 80), body: last.excerpt, url: last.url, tag }
+      : { title: `🚩 신고 ${items.length}건`, body: items.slice(-2).reverse().map((i) => `${i.room}: ${i.excerpt}`).join(" / "), url: "/admin#reports-h", tag };
   if (items.length === 1)
     return { title: `✍️ ${LABEL[last.kind]} · ${last.room} · ${last.nickname}`.slice(0, 80), body: last.excerpt, url: last.url, tag };
   const kinds = new Set(items.map((i) => i.kind));

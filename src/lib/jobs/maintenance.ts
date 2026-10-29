@@ -239,6 +239,7 @@ export async function runMaintenance(now = new Date()): Promise<MaintenanceResul
       );
       // 개인 식별 가능성을 줄이기 위해 원본 조회 기록은 400일, 알림은 90일만 보관
       const pv = await client.query("DELETE FROM page_views WHERE occurred_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
+      await client.query("DELETE FROM page_dwell WHERE occurred_at < $1::timestamptz - interval '400 days'", [now.toISOString()]);
       const al = await client.query("DELETE FROM abuse_alerts WHERE last_seen < $1::timestamptz - interval '90 days'", [now.toISOString()]);
       await client.query("DELETE FROM maintenance_runs WHERE started_at < $1::timestamptz - interval '30 days'", [now.toISOString()]);
       // fingerprint 활동 이력도 조회 기록과 같은 400일 보관 (개인정보처리방침과 일치)

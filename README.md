@@ -3,7 +3,7 @@
 > 방장 없는 덕후 팩트체크 커뮤니티 — 방장 없이, 정보는 죽지 않고, 신뢰만 남는다.
 > (Sprint 36까지의 이름은 "라벨공화국". Sprint 37에서 이름이 둘이면 헷갈려 "노방장" 하나로 정했습니다. 저장소·쿠키·캐시 이름의 `labelrep`·`lr` 은 그대로 둡니다.)
 
-회원가입 없이 닉네임 + 4자리 비밀번호로 글/댓글을 쓰고, 추천·비추천과 **신고 자동 블라인드**(기본 5명, 기준값은 이용자 투표로 조정)로 커뮤니티가 스스로 정화하는 Mobile-first SSR 게시판입니다.
+회원가입 없이 닉네임 + 4자리 비밀번호로 글/댓글을 쓰고, 추천·비추천과 **신고 → 운영자 보고**(2026-10-29부터 신고로 자동으로 가리지 않음)로 정화하는 Mobile-first SSR 게시판입니다.
 
 ## 구현 범위
 
@@ -224,7 +224,7 @@ npm run perf:load -- --base http://localhost:3000 --duration 15 --concurrency 20
 | 동의 판정 | 동의 가중치 합 ≥ 3 이고 반대의 2배 이상이면 "커뮤니티 동의". 갓 생긴 fingerprint(첫 활동 1시간 이내) 표는 0.5, 제안자·글 작성자는 투표 불가 (`src/lib/corrections.ts`) |
 | 자동 효과 | 동의된 제안이 반영되지 않은 글: 글 위 안내 + 카드 "🛠 정정 제안 N" 배지, **신뢰도 상위 배지 제외**(`refresh_trust_tiers`), 대상 수치는 **제품 페이지·비교 중앙값에서 제외**("집계 제외" 표시) |
 | 작성자 응답 | 글 비밀번호로 "반영함" — 글을 고친 뒤에만, 수치·문장 제안이면 그 수치·문장이 실제로 바뀌었어야 함(말로만 닫기 방지). "답변"(반영하지 않는 이유)은 남지만 자동 효과는 풀리지 않음 |
-| 제안자·신고 | 제안 비밀번호로 철회. 고유 신고 5건이면 자동으로 가려짐 (글 자동 블라인드와 같은 기준) |
+| 제안자·신고 | 제안 비밀번호로 철회. 신고는 가리지 않고 운영자에게 보고 (2026-10-29~) |
 | 수정 이력 | 글을 고칠 때마다 이전 판(제목·본문·수치)을 저장. `/posts/:id/history`에서 줄 단위 비교(바뀐 줄 앞뒤만), 반영된 정정 제안 목록, 이전 판 전체 보기. 글 머리 "수정 이력 N" 링크 |
 | 성능 | 카드·피드는 캐시 컬럼(`correction_count`, `disputed_count`)만 읽음. 제품 수치 집계의 제외 판단은 동의된 제안이 있는 글에만 조회 (정정 제안 2천 건이 걸린 제품에서도 수치 집계 47ms) |
 
@@ -921,7 +921,7 @@ npm run db:restore -- backups/labelrep-….dump [--target URL] [--force] [--uplo
 - **인증 없음**: 글/댓글은 닉네임 + 숫자 4자리 비밀번호. 비밀번호는 `scrypt`(랜덤 salt) 해시로만 저장. 틀린 비밀번호는 클라이언트당 15분 5회, 대상 글/댓글당 1시간 30회로 제한(1만 가지 조합 무차별 대입 방어).
 - **fingerprint**: `HMAC-SHA256(APP_SECRET, IP | User-Agent)`. 원본 IP는 저장하지 않음. IP는 `server.ts`가 소켓 주소로 덮어쓴 헤더에서만 읽어 위조 불가. `votes(post_id, voter_fingerprint)`, `reports(post_id, reporter_fingerprint)` 유니크 제약으로 1인 1회를 DB가 강제.
 - **추천/비추천**: 같은 버튼 재클릭 = 취소, 반대 버튼 = 변경. 카운터는 트리거가 유지.
-- **자동 블라인드**: 고유 신고자 5명 이상이고 신고 가중치 합이 5 이상이면 트리거가 `is_blinded = true` (사람 승인 없음). 대량 신고 fingerprint의 신고는 가중치가 자동으로 낮아진다. 블라인드 글은 피드/검색/사이트맵에서 제외되고 본문·요약 비노출, 투표·댓글 불가.
+- **신고 → 운영자 보고** (2026-10-29, 108): 신고는 세기만 하고 가리지 않는다. `/admin` 🚩 신고 칸과 `GET /api/admin/reports`로 모이고, 운영자 알림을 켠 기기로 푸시. 신고 수가 규칙 값(기본 5) 이상이면 "우선". (그 전에는 고유 신고자 5명·가중치 합 5 이상이면 자동 블라인드였다.) 대량 신고 fingerprint의 신고는 가중치가 자동으로 낮아진다. 블라인드 글은 피드/검색/사이트맵에서 제외되고 본문·요약 비노출, 투표·댓글 불가.
 - **신뢰도 배지** (`refresh_trust_tiers`): 카테고리별 최근 30일 글 중 게시 24시간 이상 + 투표 3표 이상인 글을 순추천 `percent_rank`로 상위 5% / 12% / 19% 부여. 조건 미달은 "검증 대기", 광고 의심 글은 배지 없음. 배치로만 갱신(기본 2분).
 - **AI 1차 정화**: 스팸 점수 0.8 이상이면 `is_suppressed` — 노출 순위만 낮추고 최종 판단은 추천·신고에 맡긴다. 작성자가 수정하면 다시 판정.
 - **정렬**: 신뢰도순(배지 → 순추천 → 최신) / 최신순 / 추천순(순추천).
@@ -947,7 +947,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | POST | `/api/corrections/:id/vote` | `{value: 1 동의 \| -1 반대}` (다시 누르면 취소) |
 | POST | `/api/corrections/:id/respond` | 글 작성자 응답 `{pw, action: applied\|answered, note}` |
 | POST | `/api/corrections/:id/withdraw` | 제안자 철회 `{pw}` |
-| POST | `/api/corrections/:id/report` | 신고 (고유 5건이면 자동으로 가림) |
+| POST | `/api/corrections/:id/report` | 신고 (가리지 않고 운영자에게 보고) |
 | GET | `/api/facts?category=&attr=&basis=&kind=label\|measured&unit=&min=&max=&order=desc\|asc` | 보드 성분 순위 (attr 없으면 항목 목록) · `?q=마그네슘 200mg 이상` 은 모든 보드 조건 검색 |
 | GET | `/api/products?q=&category=` | 제품 자동완성 (보이는 글이 있는 제품만, 검색어 AND) |
 | POST | `/api/posts` | (글·댓글·정정 제안 작성은 `Idempotency-Key: <UUID>` 헤더를 받습니다 — 같은 키·같은 내용이면 처음 결과를 다시 돌려줌, 다른 내용이면 409) 작성 `{category, postType: info\|chat\|meetup, nickname, pw, title, body, summary?, summaryToken?, meetup?: {meetAt, location, minParticipants, capacity}, images?: [{id, token, alt}], sources?: [{url, label}], products?: [{id} \| {brand, name}], facts?: [{product, attribute, value, unit, basis?, kind: label\|measured}]}` (facts.product 는 products 순서) |
@@ -955,7 +955,7 @@ Claude 호출은 구조화 출력(`messages.parse` + zod)으로 정확히 3줄�
 | PATCH | `/api/posts/:id` | 수정 `{pw, title?, body?, summary?, summaryToken?, images?, sources?, products?, facts?}` (보낸 목록이 최종 상태) |
 | DELETE | `/api/posts/:id` | 삭제 `{pw}` |
 | POST | `/api/posts/:id/vote` | `{value: 1 \| -1}` |
-| POST | `/api/posts/:id/report` | `{reason}` — 고유 신고 N명 + 가중치 합 N 이면 자동 블라인드 (N = 커뮤니티 규칙, 기본 5) |
+| POST | `/api/posts/:id/report` | `{reason}` — 가리지 않고 운영자에게 보고. 고유 신고 N명 이상이면 운영자 우선 확인 (N = 커뮤니티 규칙, 기본 5) |
 | POST | `/api/uploads` | 이미지 업로드 (본문 = 이미지 바이트) → `{id, token, width, height}` |
 | GET | `/media/:id.webp`, `/media/:id_t.webp`, `/media/:id_s.webp` | 첨부 이미지·썸네일(480px)·목록 카드용 192px 정사각형 (보이는 글에 첨부된 것만) |
 | GET/POST | `/api/posts/:id/appeal` | 재검토 요청 상태 / 작성자 요청 `{pw, message}` (블라인드·광고 의심 글, 글당 1회) |

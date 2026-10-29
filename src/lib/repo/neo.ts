@@ -4,14 +4,15 @@
  * 마감 뒤 올린 사람이 "샀어요 / 넣어뒀어요"를 고르면 넣어둔 금액이 모두의 "넣어둬로 지킨 돈"에 쌓인다.
  * 가입 없이 방문자 쿠키(해시)로 글쓴이·투표자를 알아본다. 신고 3번이면 가린다.
  */
+import { reportAlertAfter } from "./ownerAlert";
 import { heuristicAbuse } from "../abuse";
+import { trollCheck } from "../troll";
 import { query, tx } from "../db";
 import { HttpError, notFound } from "../errors";
 import { tokenOk } from "./images";
 
 export type NeoChoice = "buy" | "keep";
 export type NeoOutcome = "bought" | "kept";
-export const NEO_HIDE_REPORTS = 3;
 export const NEO_DAILY_POSTS = 5;
 
 export type NeoItem = {
@@ -50,10 +51,9 @@ function shape(r: Row): NeoItem {
   };
 }
 
-/** 링크·전화번호·SNS 아이디는 받지 않는다 (광고·거래 글 막기) */
+/** 전화번호·SNS 아이디는 받지 않는다 (거래 글 막기). 링크는 된다 (10/29 대표님 "링크 올리는거는 모든 방에 허용") */
 export function neoTextProblem(...texts: string[]): string | null {
   const t = texts.join("\n");
-  if (/https?:\/\/|www\.|\.(com|kr|net|co|io|me|ly)\b/i.test(t)) return "링크는 넣을 수 없어요. 물건 이름만 적어 주세요.";
   if (/01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}|카톡|오픈채팅|텔레그램|@[a-z0-9_.]{3,}/i.test(t)) return "연락처·아이디는 넣을 수 없어요.";
   if (heuristicAbuse(...texts)) return "욕설·비하 표현은 쓸 수 없어요.";
   return null;
@@ -83,6 +83,9 @@ export async function createNeo(input: {
       const got = await c.query("UPDATE post_images SET neo_id = $2, attached_at = now() WHERE id = $1 AND post_id IS NULL AND neo_id IS NULL RETURNING id", [input.photo.id, rows[0]!.id]);
       if (!got.rowCount) throw new HttpError(400, "invalid_image", "사진을 다시 올려 주세요.");
     }
+    // 🧹 조롱·도배는 올라가되 바로 가린다: 쓴 사람에게만 보인다 (10/29 넣어둬 정치 도배)
+    if (trollCheck([input.title, input.reason, input.alt ?? ""]))
+      await c.query("UPDATE neo_items SET is_hidden = true, hidden_reason = 'troll', hidden_at = now() WHERE id = $1", [rows[0]!.id]);
     return rows[0]!.id;
   });
   return (await getNeo(id, input.owner))!;
@@ -90,7 +93,7 @@ export async function createNeo(input: {
 
 export async function getNeo(id: string, visitor: string): Promise<NeoItem | null> {
   if (!/^\d{1,18}$/.test(id)) return null;
-  const [r] = await query<Row>(`SELECT ${COLS("$2")} FROM neo_items i WHERE i.id = $1 AND NOT i.is_hidden`, [id, visitor]);
+  const [r] = await query<Row>(`SELECT ${COLS("$2")} FROM neo_items i WHERE i.id = $1 AND (NOT i.is_hidden OR (i.hidden_reason = 'troll' AND i.owner_hash = $2))`, [id, visitor]);
   return r ? shape(r) : null;
 }
 
@@ -98,11 +101,11 @@ export async function getNeo(id: string, visitor: string): Promise<NeoItem | nul
 export async function listNeo(visitor: string, opts: { limit?: number } = {}): Promise<{ open: NeoItem[]; closed: NeoItem[] }> {
   const limit = Math.min(opts.limit ?? 30, 60);
   const open = await query<Row>(
-    `SELECT ${COLS("$1")} FROM neo_items i WHERE NOT i.is_hidden AND i.closes_at > now() ORDER BY i.created_at DESC LIMIT $2`,
+    `SELECT ${COLS("$1")} FROM neo_items i WHERE (NOT i.is_hidden OR (i.hidden_reason = 'troll' AND i.owner_hash = $1)) AND i.closes_at > now() ORDER BY i.created_at DESC LIMIT $2`,
     [visitor, limit],
   );
   const closed = await query<Row>(
-    `SELECT ${COLS("$1")} FROM neo_items i WHERE NOT i.is_hidden AND i.closes_at <= now() ORDER BY i.closes_at DESC LIMIT $2`,
+    `SELECT ${COLS("$1")} FROM neo_items i WHERE (NOT i.is_hidden OR (i.hidden_reason = 'troll' AND i.owner_hash = $1)) AND i.closes_at <= now() ORDER BY i.closes_at DESC LIMIT $2`,
     [visitor, Math.min(limit, 20)],
   );
   return { open: open.map(shape), closed: closed.map(shape) };
@@ -142,7 +145,7 @@ export async function voteNeo(id: string, visitor: string, choice: NeoChoice): P
  */
 export async function setNeoOutcome(id: string, visitor: string, outcome: NeoOutcome): Promise<NeoItem> {
   const rows = await query<{ closed: boolean }>(
-    "SELECT closes_at <= now() AS closed FROM neo_items WHERE id = $1 AND owner_hash = $2 AND NOT is_hidden",
+    "SELECT closes_at <= now() AS closed FROM neo_items WHERE id = $1 AND owner_hash = $2 AND (NOT is_hidden OR hidden_reason = 'troll')",
     [id, visitor],
   );
   if (!rows[0]) throw notFound("내 넣어둬 글");
@@ -154,7 +157,7 @@ export async function setNeoOutcome(id: string, visitor: string, outcome: NeoOut
 /** 내 글 고치기 (10/28 대표님): 투표 중에만 이름·가격·이유·대안. 사진은 그대로 */
 export async function updateNeo(id: string, visitor: string, input: { title: string; price: number; reason: string; alt: string }): Promise<NeoItem> {
   const [it] = await query<{ closed: boolean; photo: boolean }>(
-    "SELECT closes_at <= now() AS closed, photo_id IS NOT NULL AS photo FROM neo_items WHERE id = $1 AND owner_hash = $2 AND NOT is_hidden",
+    "SELECT closes_at <= now() AS closed, photo_id IS NOT NULL AS photo FROM neo_items WHERE id = $1 AND owner_hash = $2 AND (NOT is_hidden OR hidden_reason = 'troll')",
     [id, visitor],
   );
   if (!it) throw notFound("내 넣어둬 글");
@@ -163,6 +166,8 @@ export async function updateNeo(id: string, visitor: string, input: { title: str
   const problem = neoTextProblem(input.title, input.reason, input.alt);
   if (problem) throw new HttpError(400, "invalid_input", problem);
   await query("UPDATE neo_items SET title = $2, price = $3, reason = $4, alt = $5 WHERE id = $1", [id, input.title.trim(), input.price, input.reason, input.alt]);
+  if (trollCheck([input.title, input.reason, input.alt]))
+    await query("UPDATE neo_items SET is_hidden = true, hidden_reason = 'troll', hidden_at = now() WHERE id = $1 AND NOT is_hidden", [id]);
   return (await getNeo(id, visitor))!;
 }
 
@@ -197,31 +202,30 @@ export async function adminListNeo(): Promise<{ id: string; title: string; creat
 /** 🛠 운영자 복원 (10/29 대표님 "기존 글들 그대로 복원"): 신고로 가려진 글을 다시 보이게, 신고 기록·댓글 글 가림도 풀기 */
 export async function adminRestoreNeo(id: string): Promise<void> {
   await tx(async (c) => {
-    const r = await c.query("UPDATE neo_items SET is_hidden = false, report_count = 0 WHERE id = $1 RETURNING id", [id]);
+    const r = await c.query("UPDATE neo_items SET is_hidden = false, hidden_reason = NULL, hidden_at = NULL, report_count = 0 WHERE id = $1 RETURNING id", [id]);
     if (!r.rowCount) throw notFound("넣어둬 글");
     await c.query("DELETE FROM neo_reports WHERE item_id = $1", [id]);
     await c.query("UPDATE posts SET is_blinded = false WHERE seed_key = $1", [`roomchat:neo:${id}`]);
   });
 }
 
-/** 신고: 한 사람 한 번, NEO_HIDE_REPORTS 번이면 가린다 */
+/** 신고: 한 사람 한 번. 가리지 않고 운영자에게 보고 (10/29 대표님: 누가 신고를 몰아 멀쩡한 글을 가렸음) */
 export async function reportNeo(id: string, visitor: string): Promise<{ hidden: boolean }> {
-  return tx(async (c) => {
+  const res = await tx(async (c) => {
     const ins = await c.query("INSERT INTO neo_reports (item_id, visitor_hash) SELECT id, $2 FROM neo_items WHERE id = $1 ON CONFLICT DO NOTHING RETURNING item_id", [id, visitor]);
     if (!ins.rowCount) {
       const ex = await c.query("SELECT 1 FROM neo_items WHERE id = $1", [id]);
       if (!ex.rowCount) throw notFound("넣어둬 글");
     }
     const r = await c.query<{ is_hidden: boolean }>(
-      `UPDATE neo_items SET report_count = (SELECT count(*) FROM neo_reports WHERE item_id = $1),
-         is_hidden = is_hidden OR (SELECT count(*) FROM neo_reports WHERE item_id = $1) >= $2
-       WHERE id = $1 RETURNING is_hidden`,
-      [id, NEO_HIDE_REPORTS],
+      "UPDATE neo_items SET report_count = (SELECT count(*) FROM neo_reports WHERE item_id = $1) WHERE id = $1 RETURNING is_hidden",
+      [id],
     );
-    // 가려지면 댓글 글도 가린다 (neoTalk)
-    if (r.rows[0]?.is_hidden) await c.query("UPDATE posts SET is_blinded = true WHERE seed_key = $1", [`roomchat:neo:${id}`]);
-    return { hidden: !!r.rows[0]?.is_hidden };
+    return { hidden: !!r.rows[0]?.is_hidden, fresh: !!ins.rowCount };
   });
+  // 커밋 뒤에 (알림이 방금 넣은 신고를 읽게)
+  if (res.fresh) reportAlertAfter("neo", id, "");
+  return { hidden: res.hidden };
 }
 
 /** 💳 넣어둬로 지킨 돈: 마감 뒤 "넣어뒀어요"를 고른 글의 금액 합 */

@@ -132,16 +132,19 @@ d("monitoring (database)", async () => {
     expect(w.map((r) => r.weight)).toEqual([1, 1, 0.5, 1]);
   });
 
-  it("makes a coordinated burst of fresh reporters insufficient to blind on its own", async () => {
+  const score = async (id: string) => (await query<{ report_score: number }>("SELECT report_score FROM posts WHERE id = $1", [id]))[0]!.report_score;
+
+  it("down-weights a coordinated burst of fresh reporters; reports never blind (10/29)", async () => {
     const post = await newPost();
     for (let n = 1; n <= 7; n++) await posts.reportPost(post.id, fp(n), "광고");
-    // 1 + 1 + 0.5 × 5 = 4.5 < 5
-    expect((await posts.getPost(post.id))!.is_blinded).toBe(false);
+    // 1 + 1 + 0.5 × 5 = 4.5
+    expect(await score(post.id)).toBeCloseTo(4.5);
     for (const n of ["e1", "e2"]) {
       await establish(fp(n));
       await posts.reportPost(post.id, fp(n), "광고");
     }
-    expect((await posts.getPost(post.id))!.is_blinded).toBe(true);
+    expect(await score(post.id)).toBeCloseTo(6.5);
+    expect((await posts.getPost(post.id))!.is_blinded).toBe(false);
   });
 
   it("does not down-weight fresh reporters on posts already flagged as likely spam", async () => {
@@ -155,7 +158,7 @@ d("monitoring (database)", async () => {
     });
     expect(spam.is_suppressed).toBe(true);
     for (let n = 1; n <= 5; n++) await posts.reportPost(spam.id, fp(`s${n}`), "광고");
-    expect((await posts.getPost(spam.id))!.is_blinded).toBe(true);
+    expect(await score(spam.id)).toBeCloseTo(5);
   });
 
   it("raises report/vote burst and mass-reporter alerts, upserting instead of duplicating", async () => {

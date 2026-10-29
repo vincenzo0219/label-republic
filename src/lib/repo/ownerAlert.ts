@@ -6,6 +6,7 @@
 import { pool, query } from "../db";
 import { HttpError, notFound } from "../errors";
 import { sendPush, type PushMessage, type SendResult } from "../push";
+import { listReports, REPORT_TYPE_LABEL, type ReportType } from "./reports";
 import { excerpt, isHumanWrite, ownerAlertMessage, ownerAlertWait, type OwnerAlertItem, type OwnerWrite } from "../ownerAlert";
 
 const LOCK_KEY = 4_823_110;
@@ -45,6 +46,26 @@ export async function ownerAlertIdle(): Promise<void> {
   while (pending.size) await Promise.allSettled([...pending]);
   if (timer) clearTimeout(timer);
   timer = null;
+}
+
+/**
+ * 🚩 신고가 들어오면 부른다 (10/29 대표님 "신고하면 가려지는게 아니라 나한테 보고"). 사람 글 알림과 같은 길로,
+ * 켠 기기가 있을 때만 남기고 보낸다. 기다리지 않고, 던지지 않는다. 기기가 없어도 /admin 🚩 신고 칸에는 보인다.
+ */
+export function reportAlertAfter(type: ReportType, id: string, reason: string): void {
+  const p = listReports({ type, id, days: 1, limit: 1 })
+    .then(async ([r]) => {
+      if (!r) return 0;
+      const rows = await query(
+        `INSERT INTO owner_alerts (kind, room, nickname, excerpt, url) SELECT 'report', $1, $2, $3, $4 WHERE ${EXISTS_ON} RETURNING id`,
+        [r.room, `${REPORT_TYPE_LABEL[type]} ${r.reports}건`, excerpt(`${reason ? `${reason} · ` : ""}${r.text}`), r.url],
+      );
+      return rows.length;
+    })
+    .then((n) => (n ? flushOwnerAlerts() : null))
+    .catch((err) => console.error("[owner-alert] 신고", err))
+    .finally(() => pending.delete(p));
+  pending.add(p);
 }
 
 /** 글·댓글을 만든 직후 부른다. 사람 글만, 기다리지 않고, 던지지 않는다 */

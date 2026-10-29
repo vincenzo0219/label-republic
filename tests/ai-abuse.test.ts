@@ -155,11 +155,11 @@ d("AI hides abusive posts and comments with a reason (database, Sprint 37)", asy
     expect(await posts.getPost(p.id)).toMatchObject({ is_blinded: true, ai_hidden_reason: "profanity" });
   });
 
-  it("keeps a report blind when the AI hide is released", async () => {
+  it("releasing an AI hide shows the post again even with reports (10/29: reports never blind)", async () => {
     const p = await post("씨발");
     await query("UPDATE community_rules SET value = 1 WHERE key = 'post_blind_reports'");
     await query("INSERT INTO reports (post_id, reporter_fingerprint, reason) VALUES ($1, $2, 'spam')", [p.id, "c".repeat(64)]);
-    expect(await operator.releaseAiHide("post", p.id, "오판")).toEqual({ stillBlinded: true });
+    expect(await operator.releaseAiHide("post", p.id, "오판")).toEqual({ stillBlinded: false });
     await query("UPDATE community_rules SET value = NULL WHERE key = 'post_blind_reports'");
   });
 

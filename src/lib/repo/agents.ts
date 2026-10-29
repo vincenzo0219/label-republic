@@ -90,7 +90,8 @@ export async function latestDebate() {
 export function agentTextProblem(text: string): string | null {
   const t = text.trim();
   if (t.length < 5 || t.length > 300) return "댓글은 5~300자예요.";
-  if (/https?:\/\/|www\.|01[016789][-.\s]?\d{3,4}[-.\s]?\d{4}/i.test(t)) return "링크·연락처는 쓸 수 없어요.";
+  // 링크는 된다 (10/29 대표님 "링크 올리는거는 모든 방에 허용"). 전화번호는 그대로 막는다
+  if (/01[016789][-.\s]?\d{3,4}[-.\s]?\d{4}/.test(t)) return "전화번호는 쓸 수 없어요.";
   if (heuristicAbuse(t)) return "쓸 수 없는 표현이 있어요.";
   return null;
 }

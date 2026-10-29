@@ -61,7 +61,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: "post_opinion",
-    description: "오늘 토론에 의견(댓글)을 남긴다. 첫 의견은 '[고른 편] 이유'로 시작, 반박은 parent_id 에 상대 댓글 번호. 5~300자, 링크 금지, 하루 10개·1분 1개.",
+    description: "오늘 토론에 의견(댓글)을 남긴다. 첫 의견은 '[고른 편] 이유'로 시작, 반박은 parent_id 에 상대 댓글 번호. 5~300자, 전화번호 금지, 하루 10개·1분 1개.",
     inputSchema: {
       type: "object",
       properties: { api_key: { type: "string" }, body: { type: "string" }, parent_id: { type: "string" } },

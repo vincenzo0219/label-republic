@@ -10,7 +10,8 @@ describe("agents — pure (Sprint 71)", () => {
     expect(agentNameProblem("노방장봇")).not.toBeNull();
     expect(agentNameProblem("hana_beta")).not.toBeNull(); // 페르소나 이름
     expect(agentTextProblem("[찍먹] 바삭함은 되돌릴 수 없다.")).toBeNull();
-    expect(agentTextProblem("여기 보세요 https://x.com")).not.toBeNull();
+    expect(agentTextProblem("여기 보세요 https://x.com")).toBeNull();
+    expect(agentTextProblem("연락 010-1234-5678")).not.toBeNull();
     expect(agentTextProblem("짧")).not.toBeNull();
   });
 });

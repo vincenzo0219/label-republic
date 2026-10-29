@@ -1,3 +1,4 @@
+import { listReports } from "@/lib/repo/reports";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -120,9 +121,11 @@ d("🎾 게임 모집 (DB)", async () => {
     await expect(games.createGame(base({ notes: "씨발 빨리", date: "2026-11-04" }), who, NOW)).rejects.toMatchObject({ status: 400 });
   });
 
-  it("신고가 쌓이면 가린다", async () => {
+  it("신고는 가리지 않고 운영자에게 보고 (10/29)", async () => {
     const { id } = await games.createGame(base({ court: "스포원 실내", date: "2026-11-05" }), who, NOW);
-    for (let i = 0; i < games.GAME_BLIND_AT; i++) await games.reportGame(id, String(i).repeat(64), "광고");
-    expect((await games.listGames({}, NOW)).items.map((g) => g.id)).not.toContain(id);
+    for (let i = 0; i < 5; i++) await games.reportGame(id, String(i).repeat(64), "광고");
+    expect((await games.listGames({}, NOW)).items.map((g) => g.id)).toContain(id);
+    const [r] = await listReports({ type: "game", id });
+    expect(r).toMatchObject({ reports: 5, reasons: "광고", hidden: false });
   });
 });

@@ -22,6 +22,11 @@ describe("🔔 사람 글·댓글 알림 — 판단·문구 (10/25)", () => {
     expect(isHumanWrite({ kind: "gig", nickname: "테스트센터", fingerprint: FP })).toBe(true);
   });
 
+  it("🚩 report alerts read as reports (10/29)", () => {
+    expect(ownerAlertMessage([item("1", { kind: "report", room: "주식", nickname: "글 3건", excerpt: "광고 · 제목" })])).toMatchObject({ title: "🚩 신고 · 주식 · 글 3건", body: "광고 · 제목" });
+    expect(ownerAlertMessage([item("1", { kind: "report" }), item("2", { kind: "report", room: "💳 넣어둬" })])).toMatchObject({ title: "🚩 신고 2건", url: "/admin#reports-h" });
+  });
+
   it("cuts excerpts to 40 chars on one line", () => {
     expect(excerpt("  줄\n바꿈   있음 ")).toBe("줄 바꿈 있음");
     expect(excerpt("가".repeat(50))).toBe(`${"가".repeat(40)}…`);
@@ -122,11 +127,21 @@ d("🔔 사람 글·댓글 알림 — DB (10/25)", async () => {
     expect((await oa.flushOwnerAlerts(new Date(Date.now() + 200_000), { noTimer: true })).sent).toBe(0);
   });
 
+  it("🚩 a report is sent to the operator instead of hiding (10/29)", async () => {
+    await posts.reportPost(postId, "r".repeat(64), "광고·홍보");
+    await oa.ownerAlertIdle();
+    const r = await oa.flushOwnerAlerts(new Date(Date.now() + 400_000), { noTimer: true });
+    expect(r).toMatchObject({ sent: 1 });
+    expect(sent[2]).toMatchObject({ title: expect.stringContaining("🚩 신고"), url: `/posts/${postId}` });
+    expect(sent[2]!.body).toContain("광고·홍보");
+    expect((await posts.getPost(postId))!.is_blinded).toBe(false);
+  });
+
   it("turns off", async () => {
     expect(await oa.setOwnerAlert(sub.endpoint, false)).toBe(false);
     await comment("손님3", "끈 뒤 댓글", FP);
     await oa.ownerAlertIdle();
-    expect(sent).toHaveLength(2);
+    expect(sent).toHaveLength(3);
     await expect(oa.setOwnerAlert("https://fcm.googleapis.com/fcm/send/none", true)).rejects.toMatchObject({ status: 404 });
   });
 });

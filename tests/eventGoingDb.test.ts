@@ -1,3 +1,4 @@
+import { listReports } from "@/lib/repo/reports";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
@@ -108,7 +109,7 @@ d("🙋 같이 갈 사람 (DB)", async () => {
     expect(v.members.map((m) => m.nickname)).toEqual(["에이", "비"]);
   });
 
-  it("hides a message, a member and a 모집 after 3 distinct reports; 장소 reports only flag", async () => {
+  it("reports on a message, a member and a 모집 go to the operator and hide nothing (10/29)", async () => {
     const p = await newEvent();
     const g = await eg.createOpenGroup(p.id, fp("a"), { day: start.iso, meetTime: "10:00", place: "입구 앞", capacity: 6, intro: "", nickname: "에이", pin: "1111" });
     const toks = [verifiedEventMember(g.token)!];
@@ -118,16 +119,18 @@ d("🙋 같이 갈 사람 (DB)", async () => {
     expect(await eg.reportEventTarget(g.id, fp("b"), "message", msgId, "", toks[1]!)).toMatchObject({ hidden: false });
     expect(await eg.reportEventTarget(g.id, fp("b"), "message", msgId, "", toks[1]!)).toMatchObject({ already: true });
     await eg.reportEventTarget(g.id, fp("c"), "message", msgId, "", toks[2]!);
-    expect(await eg.reportEventTarget(g.id, fp("d"), "message", msgId, "", toks[3]!)).toMatchObject({ hidden: true });
-    expect((await eg.groupView(g.id, toks[1]!)).messages).toHaveLength(0);
-    // 조원 신고 3건 → 가려지고 채팅을 못 본다
+    expect(await eg.reportEventTarget(g.id, fp("d"), "message", msgId, "", toks[3]!)).toMatchObject({ hidden: false });
+    expect((await eg.groupView(g.id, toks[1]!)).messages).toHaveLength(1);
+    expect(await listReports({ type: "group", id: `message:${msgId}` })).toMatchObject([{ reports: 3, text: "안녕하세요", url: `/posts/${p.id}` }]);
+    // 조원 신고 3건 → 그대로 (운영자 확인)
     for (const i of [1, 2, 3]) await eg.reportEventTarget(g.id, fp("bcd"[i - 1]!), "member", toks[0]!, "", toks[i]!);
-    await expect(eg.groupView(g.id, toks[0]!)).rejects.toMatchObject({ status: 403 });
+    expect((await eg.groupView(g.id, toks[0]!)).messages).toHaveLength(1);
     // 조원이 아니면 메시지 신고 못 함
     await expect(eg.reportEventTarget(g.id, fp("x"), "message", msgId, "", null)).rejects.toMatchObject({ status: 403 });
-    // 모집 신고 3건 → 목록에서 빠진다
+    // 모집 신고 3건 → 목록에 그대로, 운영자에게
     for (const c of ["x", "y", "w"]) await eg.reportEventTarget(g.id, fp(c), "group", null, "광고", null);
-    expect(await eg.listOpenGroups(p.id)).toHaveLength(0);
+    expect(await eg.listOpenGroups(p.id)).toHaveLength(1);
+    expect(await listReports({ type: "group", id: `group:${g.id}` })).toMatchObject([{ reports: 3, reasons: "광고" }]);
   });
 
   it("auto-groups pool entries at D-3 12:00 with places, pushes, and gates the chat until D-1", async () => {

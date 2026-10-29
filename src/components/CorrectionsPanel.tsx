@@ -65,7 +65,7 @@ export function CorrectionsPanel({ postId, facts, initial, hasAuthor, rules }: P
       {visible.length > 0 && (
         <ol className="correction-list">
           {visible.map((c) => (
-            <CorrectionItem key={c.id} c={c} hasAuthor={hasAuthor} hideReports={rules.hideReports} onChange={replace} />
+            <CorrectionItem key={c.id} c={c} hasAuthor={hasAuthor} onChange={replace} />
           ))}
         </ol>
       )}
@@ -80,7 +80,7 @@ export function CorrectionsPanel({ postId, facts, initial, hasAuthor, rules }: P
   );
 }
 
-function CorrectionItem({ c, hasAuthor, hideReports, onChange }: { c: Correction; hasAuthor: boolean; hideReports: number; onChange: (c: Correction) => void }) {
+function CorrectionItem({ c, hasAuthor, onChange }: { c: Correction; hasAuthor: boolean; onChange: (c: Correction) => void }) {
   const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -152,7 +152,7 @@ function CorrectionItem({ c, hasAuthor, hideReports, onChange }: { c: Correction
           type="button"
           className="btn btn-sm btn-ghost"
           disabled={busy}
-          onClick={() => window.confirm(`이 정정 제안을 신고할까요? 고유 신고 ${hideReports}건이면 자동으로 가려집니다.`) && run(() => api(`/api/corrections/${c.id}/report`, "POST", {}), () => setMsg("신고했습니다."))}
+          onClick={() => window.confirm("이 정정 제안을 신고할까요? 신고는 운영자에게 전달되고, 운영자가 확인한 뒤 가려요.") && run(() => api(`/api/corrections/${c.id}/report`, "POST", {}), () => setMsg("신고했습니다."))}
         >
           신고
         </button>

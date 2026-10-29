@@ -6,6 +6,7 @@
  * - event_penalties: 노쇼·늦은 취소 (본인에게만 보인다)
  * 운영자가 대신 글·댓글을 쓰는 일은 없다. 조 채팅도 사람 말만.
  */
+import { reportAlertAfter } from "./ownerAlert";
 import type { PoolClient } from "pg";
 import { query, tx, isUniqueViolation } from "../db";
 import { HttpError, blinded, notFound } from "../errors";
@@ -14,7 +15,7 @@ import { assertPin } from "./pin-guard";
 import { eventMemberRef, eventPoolRef } from "../comment-token";
 import { eventSpan, eventName, dayIso, isoDayNumber } from "../adSchedule";
 import {
-  AUTO_MAX, GROUPS_SHOW_MIN, OPEN_CAP_MAX, OPEN_CAP_MIN, REPORT_HIDE, SLOT_LABEL,
+  AUTO_MAX, GROUPS_SHOW_MIN, OPEN_CAP_MAX, OPEN_CAP_MIN, SLOT_LABEL,
   buildAutoGroups, chatOpen, chatOpensAt, penaltyText, checkinWindow, freeCancelUntil, goingDisplay, groupClosed, inCheckin, keepBadge,
   kstToday, meetTime, parseOpening, penaltyUntil, placeLine, poolDue, poolOpen, quietHours, reminderDue, settleOutcomes, spreadPlace,
   type Age, type Outcome, type Slot,
@@ -429,20 +430,21 @@ export async function reportEventTarget(
       id = targetId;
     }
   }
-  return tx(async (c) => {
+  const res = await tx(async (c) => {
     const ins = await c.query("INSERT INTO event_group_reports (target, target_id, fingerprint, reason) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING 1", [target, id, fp, reason.slice(0, 200)]);
     if (!ins.rowCount) return { hidden: false, already: true };
     if (target === "place") {
       await c.query("UPDATE event_groups SET place_reports = place_reports + 1 WHERE id = $1", [id]);
       return { hidden: false, already: false };
     }
+    // 신고로는 가리지 않고 운영자에게 보고 (10/29 대표님)
     const table = target === "group" ? "event_groups" : target === "message" ? "event_group_messages" : "event_group_members";
-    const r = await c.query<{ is_hidden: boolean }>(
-      `UPDATE ${table} SET report_count = report_count + 1, is_hidden = is_hidden OR report_count + 1 >= $2 WHERE id = $1 RETURNING is_hidden`,
-      [id, REPORT_HIDE],
-    );
+    const r = await c.query<{ is_hidden: boolean }>(`UPDATE ${table} SET report_count = report_count + 1 WHERE id = $1 RETURNING is_hidden`, [id]);
     return { hidden: !!r.rows[0]?.is_hidden, already: false };
   });
+  // 커밋 뒤에 (알림이 방금 넣은 신고를 읽게)
+  if (!res.already) reportAlertAfter("group", `${target}:${id}`, reason);
+  return res;
 }
 
 // ---------------------------------------------------------------------------

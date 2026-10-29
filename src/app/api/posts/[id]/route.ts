@@ -15,7 +15,7 @@ export const GET = route<P>(async (req, { id }) => {
   if (!post) throw notFound();
   const [comments, myVote] = post.is_blinded
     ? [[], 0]
-    : await Promise.all([listComments(id), getMyVote(id, fingerprint(req.headers))]);
+    : await Promise.all([listComments(id, fingerprint(req.headers)), getMyVote(id, fingerprint(req.headers))]);
   return json({ post, comments, myVote });
 });
 

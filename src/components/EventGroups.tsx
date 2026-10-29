@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
-import { CONTACT_HINT, NOSHOW_RULE, OPEN_CAP_MAX, OPEN_CAP_MIN, REPORT_HIDE, SAFETY_NOTE, mappable } from "@/lib/eventGoing";
+import { CONTACT_HINT, NOSHOW_RULE, OPEN_CAP_MAX, OPEN_CAP_MIN, SAFETY_NOTE, mappable } from "@/lib/eventGoing";
 import { naverMapUrl } from "@/lib/venues";
 import { GROUPS_EVENT, groupTokens, savedNickname, setGroupToken } from "@/lib/eventTokens";
 import { blockedNicknames } from "@/lib/blocked";
@@ -74,7 +74,7 @@ export function EventGroups({ postId, initial, days, today, blocked }: { postId:
                   <button type="button" className="btn btn-sm btn-primary" onClick={() => setJoining(joining === g.id ? null : g.id)}>참여하기</button>
                 )}
                 {mineIds.has(g.id) && <span className="hint">참여 중</span>}
-                <ReportButton blindAt={REPORT_HIDE} path={`/api/event-groups/${g.id}`} extra={{ action: "report", target: "group" }} what="모집" onHidden={refresh} />
+                <ReportButton path={`/api/event-groups/${g.id}`} extra={{ action: "report", target: "group" }} what="모집" onHidden={refresh} />
               </div>
               {joining === g.id && <JoinForm groupId={g.id} onJoined={(t) => joined(g.id, t)} />}
             </li>
@@ -261,7 +261,7 @@ function GroupRoom({ groupId, token, postId, onGone }: { groupId: string; token:
           )}
         </p>
         {g.kind === "auto" && (
-          <ReportButton blindAt={REPORT_HIDE} path={`/api/event-groups/${g.id}`} extra={{ action: "report", target: "place", token }} label="🧭 장소가 이상해요" what="장소" onHidden={() => {}} />
+          <ReportButton path={`/api/event-groups/${g.id}`} extra={{ action: "report", target: "place", token }} label="🧭 장소가 이상해요" what="장소" onHidden={() => {}} />
         )}
       </div>
 
@@ -277,7 +277,7 @@ function GroupRoom({ groupId, token, postId, onGone }: { groupId: string; token:
               </button>
             )}
             {m.id !== view.me.id && (
-              <ReportButton blindAt={REPORT_HIDE} path={`/api/event-groups/${g.id}`} extra={{ action: "report", target: "member", targetId: m.id, token }} label="🚩" what="조원" blockName={m.nickname} onHidden={load} />
+              <ReportButton path={`/api/event-groups/${g.id}`} extra={{ action: "report", target: "member", targetId: m.id, token }} label="🚩" what="조원" blockName={m.nickname} onHidden={load} />
             )}
           </li>
         ))}
@@ -302,7 +302,7 @@ function GroupRoom({ groupId, token, postId, onGone }: { groupId: string; token:
             {view.messages.filter((x) => x.mine || !blockedNicknames().includes(x.nickname)).map((x) => (
               <li key={x.id} className={x.mine ? "mine" : undefined}>
                 <b>{x.nickname}</b> {x.body}
-                {!x.mine && <ReportButton blindAt={REPORT_HIDE} path={`/api/event-groups/${g.id}`} extra={{ action: "report", target: "message", targetId: x.id, token }} label="🚩" what="메시지" blockName={x.nickname} onHidden={load} />}
+                {!x.mine && <ReportButton path={`/api/event-groups/${g.id}`} extra={{ action: "report", target: "message", targetId: x.id, token }} label="🚩" what="메시지" blockName={x.nickname} onHidden={load} />}
               </li>
             ))}
           </ul>

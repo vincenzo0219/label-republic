@@ -90,7 +90,7 @@ d("community rule votes (database)", async () => {
     await pool().end();
   });
 
-  it("reads defaults (board votes from the environment) and the DB trigger follows the rule value", async () => {
+  it("reads defaults (board votes from the environment); reports never blind whatever the rule value (10/29)", async () => {
     const values = await rules.getRules();
     expect(values).toMatchObject({ post_blind_reports: 5, correction_hide_reports: 5, spam_suppress_score: 0.8, board_promotion_votes: 40, trust_min_votes: 3 });
 
@@ -101,7 +101,7 @@ d("community rule votes (database)", async () => {
       await query("INSERT INTO fingerprints (fingerprint, first_seen) VALUES ($1, now() - interval '30 days')", [fp(100 + i)]);
       await posts.reportPost(post.id, fp(100 + i), "광고");
     }
-    expect((await query<{ b: boolean }>("SELECT is_blinded AS b FROM posts WHERE id = $1", [post.id]))[0]!.b).toBe(true);
+    expect((await query<{ b: boolean }>("SELECT is_blinded AS b FROM posts WHERE id = $1", [post.id]))[0]!.b).toBe(false);
   });
 
   it("lets only established members propose and vote, with age-based weights", async () => {
@@ -151,13 +151,13 @@ d("community rule votes (database)", async () => {
     expect(await rules.getRule("post_blind_reports")).toBe(3);
     expect(await rules.ruleChanges()).toMatchObject([{ rule_key: "post_blind_reports", from_value: 5, to_value: 3, proposal_id: strong.id }]);
 
-    // 새 기준으로 블라인드 (3명)
+    // 바뀐 값은 운영자 우선 확인 기준. 신고로는 가리지 않는다 (10/29)
     const post = await newPost();
     for (let i = 1; i <= 3; i++) await posts.reportPost(post.id, await member(400 + i, 40, 0), "허위");
-    expect((await query<{ b: boolean }>("SELECT is_blinded AS b FROM posts WHERE id = $1", [post.id]))[0]!.b).toBe(true);
-    // 임시조치 해제 판단도 같은 값 (신고 3건 → 해제해도 블라인드 유지)
+    expect((await query<{ b: boolean }>("SELECT is_blinded AS b FROM posts WHERE id = $1", [post.id]))[0]!.b).toBe(false);
+    // 임시조치를 풀면 다시 보인다 (신고 수로는 가리지 않음)
     await legal.applyLegalHold(post.id, "defamation", "");
-    expect((await legal.releaseLegalHold(post.id, "")).stillBlinded).toBe(true);
+    expect((await legal.releaseLegalHold(post.id, "")).stillBlinded).toBe(false);
   });
 
   it("proposer can withdraw with the password; operator can only hide the reason (logged publicly)", async () => {

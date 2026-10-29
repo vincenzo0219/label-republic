@@ -7,8 +7,9 @@ import { HttpError, notFound, tooMany } from "../errors";
 import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import { aiAbuse, heuristicAbuse } from "../abuse";
+import { trollCheck } from "../troll";
 import { assertPin } from "./pin-guard";
-import { ownerAlertAfter } from "./ownerAlert";
+import { ownerAlertAfter, reportAlertAfter } from "./ownerAlert";
 import { kstYmd } from "../instructorRoom";
 import { GAMES_TAB, TENNIS_ROOM, gameInputSchema, gameProblem, whenRange, type GameInput, type GameInputRaw, type GameType, type When } from "../tennisGames";
 
@@ -100,6 +101,8 @@ export async function createGame(raw: GameInputRaw, who: { fingerprint: string; 
      VALUES ($1, $2, $3, $4::date, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19) RETURNING id::text`,
     [g.sido, g.sigungu, g.court, g.date, g.start, g.end, g.type, g.needM, g.needF, g.needAny, g.level, g.cost, g.notes, g.contact.trim(), g.nickname, await hashPin(g.pw), who.fingerprint, who.net, now.toISOString()],
   );
+  // 🧹 조롱·도배는 올라가되 바로 가린다: 쓴 사람에게만 보인다 (10/29)
+  if (trollCheck([g.court, g.level, g.notes])) await query("UPDATE tennis_games SET ai_hidden_reason = 'troll', ai_hidden_at = now() WHERE id = $1", [row!.id]);
   ownerAlertAfter({ kind: "gig", nickname: g.nickname, fingerprint: who.fingerprint }, { kind: "gig", gigId: row!.id, text: [g.sigungu || g.sido, g.court, g.type].join(" · "), room: "🎾 게임 모집", url: `/c/${encodeURIComponent(TENNIS_ROOM)}?tab=${GAMES_TAB}` });
   return { id: row!.id };
 }
@@ -110,10 +113,10 @@ export async function moderateGame(id: string): Promise<void> {
   if (!r) return;
   const abuse = await aiAbuse([r.court, r.level, r.notes].join("\n"));
   if (abuse && abuse.category !== "personal_info")
-    await query("UPDATE tennis_games SET ai_hidden_reason = $2 WHERE id = $1 AND ai_hidden_reason IS NULL", [id, abuse.category]);
+    await query("UPDATE tennis_games SET ai_hidden_reason = $2, ai_hidden_at = now() WHERE id = $1 AND ai_hidden_reason IS NULL", [id, abuse.category]);
 }
 
-export type GameFilter = { sido?: string; sigungu?: string; type?: GameType; when?: When; page?: number };
+export type GameFilter = { sido?: string; sigungu?: string; type?: GameType; when?: When; page?: number; /** 보는 사람 지문: 🧹 쓴 사람에게만 보이는 가린 게임 */ viewer?: string };
 export const GAME_PAGE = 30;
 
 /** 공개 목록: 가림·지난 날짜 빼고 가까운 게임 먼저. 마감한 게임은 그날까지 맨 뒤에 남겨 "마감" 으로 보인다 */
@@ -121,7 +124,7 @@ export async function listGames(f: GameFilter, now = new Date()): Promise<{ item
   const today = kstYmd(now);
   const params: unknown[] = [today];
   const p = (v: unknown) => (params.push(v), `$${params.length}`);
-  const where = ["ai_hidden_reason IS NULL", "play_date >= $1::date"];
+  const where = [f.viewer ? `(ai_hidden_reason IS NULL OR (ai_hidden_reason = 'troll' AND author_fingerprint = ${p(f.viewer)}))` : "ai_hidden_reason IS NULL", "play_date >= $1::date"];
   if (f.sido) where.push(`sido = ${p(f.sido)}`);
   if (f.sido && f.sigungu) where.push(`sigungu = ${p(f.sigungu)}`);
   if (f.type) where.push(`game_type = ${p(f.type)}`);
@@ -187,7 +190,6 @@ export async function gameForOwner(id: string, fp: string, pin: string): Promise
   return { ...card(r!), contact: r!.contact };
 }
 
-export const GAME_BLIND_AT = 3;
 
 export async function reportGame(id: string, fp: string, reason: string): Promise<{ is_blinded: boolean; alreadyReported: boolean }> {
   if (!/^\d{1,18}$/.test(id)) throw notFound("게임");
@@ -198,11 +200,8 @@ export async function reportGame(id: string, fp: string, reason: string): Promis
     "INSERT INTO tennis_game_reports (game_id, reporter_fingerprint, reason) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING game_id::text",
     [id, fp, reason.slice(0, 200)],
   );
-  const [r] = await query<{ hidden: boolean }>(
-    `UPDATE tennis_games
-        SET ai_hidden_reason = COALESCE(ai_hidden_reason, CASE WHEN (SELECT count(*) FROM tennis_game_reports WHERE game_id = $1) >= $2 THEN 'reported' END)
-      WHERE id = $1 RETURNING ai_hidden_reason IS NOT NULL AS hidden`,
-    [id, GAME_BLIND_AT],
-  );
+  // 신고로는 가리지 않고 운영자에게 보고 (10/29 대표님)
+  if (ins.length) reportAlertAfter("game", id, reason);
+  const [r] = await query<{ hidden: boolean }>("SELECT ai_hidden_reason IS NOT NULL AS hidden FROM tennis_games WHERE id = $1", [id]);
   return { is_blinded: !!r?.hidden, alreadyReported: ins.length === 0 };
 }

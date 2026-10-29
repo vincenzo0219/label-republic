@@ -1,3 +1,4 @@
+import { listReports } from "@/lib/repo/reports";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -181,7 +182,7 @@ d("corrections (database)", async () => {
     expect(await c.respondCorrection(corr.id, AUTHOR, "1234", "applied", "")).toMatchObject({ status: "applied" });
   });
 
-  it("proposer can withdraw; five unique reports hide a correction", async () => {
+  it("proposer can withdraw; reports go to the operator and do not hide a correction (10/29)", async () => {
     const post = await newPost();
     const a = await propose(post.id);
     await expect(c.withdrawCorrection(a.id, PROPOSER, "1111")).rejects.toMatchObject({ status: 403 });
@@ -191,11 +192,11 @@ d("corrections (database)", async () => {
     await seasoned(...voters.slice(0, 5));
     for (const v of voters.slice(0, 4)) await c.reportCorrection(b.id, v);
     expect(await c.reportCorrection(b.id, voters[0]!)).toMatchObject({ alreadyReported: true, is_hidden: false });
-    expect(await c.reportCorrection(b.id, voters[4]!)).toMatchObject({ report_count: 5, is_hidden: true });
+    expect(await c.reportCorrection(b.id, voters[4]!)).toMatchObject({ report_count: 5, is_hidden: false });
+    expect(await listReports({ type: "correction", id: b.id })).toMatchObject([{ reports: 5, hidden: false, url: `/posts/${post.id}` }]);
     const list = await c.listCorrections(post.id);
-    expect(list.items.map((x) => x.status)).toEqual(["withdrawn"]);
-    expect(list.hidden).toBe(1);
-    expect((await posts.getPost(post.id))!.correction_count).toBe(0);
+    expect(list.items).toHaveLength(2);
+    expect(list.hidden).toBe(0);
     // 블라인드 글에는 정정 제안도 보이지 않고, 새로 달 수 없다
     await query("UPDATE posts SET is_blinded = true WHERE id = $1", [post.id]);
     expect((await c.listCorrections(post.id)).items).toEqual([]);

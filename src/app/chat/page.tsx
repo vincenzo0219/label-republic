@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { viewerFp } from "@/lib/viewerFp";
 import { notFound } from "next/navigation";
 import { LiveComments } from "@/components/LiveComments";
 import { chatTopic, LOUNGE_SLUG } from "@/lib/chatTopics";
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "전체 수다방", alternates: { can
 export default async function LoungePage() {
   const chat = await ensureRoomChat(LOUNGE_SLUG);
   if (!chat) notFound();
-  const initial = await listComments(chat.postId);
+  const initial = await listComments(chat.postId, await viewerFp());
   return (
     <>
       <h1 className="chat-title">💬 전체 수다방</h1>

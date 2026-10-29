@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { viewerFp } from "@/lib/viewerFp";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
@@ -33,7 +34,7 @@ export default async function SinglesEventPage({ params }: Props) {
   const talk = (await ensureSinglesTalks([e]).catch(() => ({})) as Record<string, { postId: string; views: number }>)[e.id];
   // 상세를 연 것도 본 사람으로 센다 (목록에서 이미 센 브라우저는 목록이 막는다)
   if (talk) addSeen([talk.postId]);
-  const comments = talk ? await listComments(talk.postId).catch(() => []) : [];
+  const comments = talk ? await listComments(talk.postId, await viewerFp()).catch(() => []) : [];
   return (
     <article className="singles-page">
       {/* 🎯 행사 빙고: 이 행사를 본 것으로 (이 브라우저에만) */}

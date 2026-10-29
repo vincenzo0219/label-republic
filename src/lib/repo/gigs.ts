@@ -10,8 +10,9 @@ import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import { assertPin } from "./pin-guard";
 import { subscriptionIdFor } from "./push";
-import { ownerAlertAfter } from "./ownerAlert";
+import { ownerAlertAfter, reportAlertAfter } from "./ownerAlert";
 import { aiAbuse, heuristicAbuse, maskPersonalInfo } from "../abuse";
+import { trollCheck } from "../troll";
 import { aiSpam, combine, heuristicSpam, shouldSuppress } from "../moderation";
 import { getRule } from "./rules";
 import {
@@ -296,6 +297,8 @@ export async function createGig(
       input.level,
     ],
   );
+  // 🧹 조롱·도배는 올라가되 바로 가린다: 쓴 사람에게만 보인다 (10/29)
+  if (trollCheck([input.studio, input.notes])) await query("UPDATE gig_listings SET ai_hidden_reason = 'troll', ai_hidden_at = now() WHERE id = $1", [row!.id]);
   // 🔔 운영자 기기로 바로 (10/25)
   ownerAlertAfter({ kind: "gig", nickname: input.nickname, fingerprint: who.fingerprint }, { kind: "gig", gigId: row!.id, text: [input.studio, input.sigungu || input.sido, input.classType].filter(Boolean).join(" · ") });
   return { id: row!.id };
@@ -309,7 +312,7 @@ export async function moderateGig(id: string): Promise<void> {
   const [abuse, spam] = await Promise.all([aiAbuse(text), aiSpam(r.studio, `${r.address}\n${r.notes}`)]);
   const verdict = spam ? combine(heuristicSpam(r.studio, r.notes), spam) : null;
   const reason = abuse && abuse.category !== "personal_info" ? abuse.category : verdict && shouldSuppress(verdict, await getRule("spam_suppress_score")) ? "spam" : null;
-  if (reason) await query("UPDATE gig_listings SET ai_hidden_reason = $2, ai_hidden_note = $3 WHERE id = $1 AND ai_hidden_reason IS NULL", [id, reason, (abuse?.evidence ?? verdict?.reasons.join(", ") ?? "").slice(0, 200)]);
+  if (reason) await query("UPDATE gig_listings SET ai_hidden_reason = $2, ai_hidden_note = $3, ai_hidden_at = now() WHERE id = $1 AND ai_hidden_reason IS NULL", [id, reason, (abuse?.evidence ?? verdict?.reasons.join(", ") ?? "").slice(0, 200)]);
 }
 
 export type GigFilter = {
@@ -325,15 +328,18 @@ export type GigFilter = {
   /** 시간대 (오전·오후·저녁·주말). 시간대를 비워 둔 글도 함께 */
   band?: string;
   page?: number;
+  /** 보는 사람 지문: 🧹 쓴 사람에게만 보이는 가린 글 */
+  viewer?: string;
 };
 export const GIG_PAGE = 30;
 
 /** 공개 목록: 마감·가림·날짜 지난 글(구인구직·레슨은 30일 지난 글) 빼고 최신순. kind 를 비우면 대강+구인구직 (레슨 구해요는 빼고) */
 export async function listGigs(f: GigFilter, now = new Date()): Promise<{ items: GigCard[]; total: number; page: number }> {
   const today = kstYmd(now);
-  const where = ["closed_at IS NULL", "ai_hidden_reason IS NULL", "expires_on >= $1::date"];
+  const where = ["closed_at IS NULL", "expires_on >= $1::date"];
   const params: unknown[] = [today];
   const p = (v: unknown) => (params.push(v), `$${params.length}`);
+  where.push(f.viewer ? `(ai_hidden_reason IS NULL OR (ai_hidden_reason = 'troll' AND author_fingerprint = ${p(f.viewer)}))` : "ai_hidden_reason IS NULL");
   // 지역: 대표 지역이 맞거나, 레슨 글의 여러 지역 중 하나가 겹치면 ("서울" 전체로 올린 글은 마포구에서도 보인다)
   if (f.sido && f.sigungu) {
     const [s, g] = [p(f.sido), p(f.sigungu)];
@@ -416,9 +422,8 @@ export async function lessonMatchesFor(g: Pick<GigCard, "id" | "kind" | "jobType
 }
 
 // ---------------------------------------------------------------------------
-// 🚩 신고 (글 신고와 같은 방식: 한 브라우저 한 번). 고유 신고 GIG_BLIND_AT 건이면 목록에서 가린다
+// 🚩 신고 (글 신고와 같은 방식: 한 브라우저 한 번). 가리지 않고 운영자에게 보고 (10/29 대표님)
 // ---------------------------------------------------------------------------
-export const GIG_BLIND_AT = 3;
 
 export async function reportGig(id: string, fp: string, reason: string): Promise<{ is_blinded: boolean; alreadyReported: boolean }> {
   if (!/^\d{1,18}$/.test(id)) throw notFound("글");
@@ -429,12 +434,8 @@ export async function reportGig(id: string, fp: string, reason: string): Promise
     "INSERT INTO gig_reports (gig_id, reporter_fingerprint, reason) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING gig_id::text",
     [id, fp, reason.slice(0, 200)],
   );
-  const [r] = await query<{ hidden: boolean }>(
-    `UPDATE gig_listings
-        SET ai_hidden_reason = COALESCE(ai_hidden_reason, CASE WHEN (SELECT count(*) FROM gig_reports WHERE gig_id = $1) >= $2 THEN 'reported' END)
-      WHERE id = $1 RETURNING ai_hidden_reason IS NOT NULL AS hidden`,
-    [id, GIG_BLIND_AT],
-  );
+  if (ins.length) reportAlertAfter("gig", id, reason);
+  const [r] = await query<{ hidden: boolean }>("SELECT ai_hidden_reason IS NOT NULL AS hidden FROM gig_listings WHERE id = $1", [id]);
   return { is_blinded: !!r?.hidden, alreadyReported: ins.length === 0 };
 }
 
