@@ -7,7 +7,7 @@ import { api } from "@/lib/client-api";
 import { REGIONS, districtsOf, kstYmd } from "@/lib/instructorRoom";
 import { myNick, myPin, saveNick, withMyPin } from "@/lib/me";
 import type { GameCard } from "@/lib/repo/tennisGames";
-import { GAME_GUIDE, GAME_TYPES, dateLabel, gameProblem, needLabel, parseKakaoGame, timeLabel, type GameType, type When } from "@/lib/tennisGames";
+import { GAME_GUIDE, GAME_TYPES, dateLabel, gameProblem, needLabel, timeLabel, type GameType, type When } from "@/lib/tennisGames";
 
 const FILTER_KEY = "lr:gameFilter";
 const MINE = "lr:myGames";
@@ -33,7 +33,7 @@ function addMine(id: string) {
   } catch {}
 }
 
-/** 🎾 게임 모집 탭 (10/29): 지역·종목·날짜로 거르고, 카톡 한 줄 붙여 넣어 올린다 */
+/** 🎾 게임 모집 탭 (10/29): 지역·종목·날짜로 거르고, 참여 신청은 💬 댓글로 (카톡 관련 문구·붙여 넣기는 10/29 대표님 요청으로 뺌) */
 export function TennisGames() {
   const [f, setF] = useState<Filter | null>(null);
   const [items, setItems] = useState<GameCard[] | null>(null);
@@ -132,7 +132,7 @@ export function TennisGames() {
         <p className="hint kids-loading" aria-busy="true">불러오는 중</p>
       ) : items.length === 0 ? (
         <p className="empty">
-          {f.sido || f.type || f.when ? "조건에 맞는 게임이 아직 없어요. 지역을 넓혀 보거나, 먼저 올려 보세요" : "아직 올라온 게임이 없어요. 카톡방에 올리던 모집 한 줄, 여기에도 올려 보세요 🎾"}
+          {f.sido || f.type || f.when ? "조건에 맞는 게임이 아직 없어요. 지역을 넓혀 보거나, 먼저 올려 보세요" : "아직 올라온 게임이 없어요. 첫 게임을 올려 보세요 🎾"}
         </p>
       ) : (
         <>
@@ -205,7 +205,6 @@ function GameCardView({ g, today, mine, onChanged, onEdit }: { g: GameCard; toda
 type FormState = { sido: string; sigungu: string; court: string; date: string; start: string; end: string; type: GameType | ""; needM: number; needF: number; needAny: number; level: string; cost: string; notes: string; contact: string };
 
 function GameForm({ edit, defaults, onDone }: { edit?: GameCard & { contact: string }; defaults: { sido: string; sigungu: string }; onDone: () => void }) {
-  const [raw, setRaw] = useState("");
   const [s, setS] = useState<FormState>(
     edit
       ? { ...edit, type: edit.type }
@@ -214,16 +213,9 @@ function GameForm({ edit, defaults, onDone }: { edit?: GameCard & { contact: str
   const [nickname, setNickname] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [filled, setFilled] = useState(false);
   useEffect(() => setNickname(myNick()), []);
   const set = (patch: Partial<FormState>) => setS({ ...s, ...patch });
   const today = kstYmd(new Date());
-
-  const fill = () => {
-    const p = parseKakaoGame(raw);
-    setS({ ...s, ...Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined && v !== "")) });
-    setFilled(true);
-  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -261,13 +253,6 @@ function GameForm({ edit, defaults, onDone }: { edit?: GameCard & { contact: str
   return (
     <form className="card gig-form game-form" onSubmit={submit}>
       <h2 className="gig-h1">{edit ? "게임 고치기" : "🎾 게임 모집 올리기"}</h2>
-      {!edit && (
-        <div className="game-paste">
-          <textarea className="input" rows={2} value={raw} maxLength={400} placeholder="카톡방에 올린 한 줄을 붙여 넣어 보세요. 예) 10/31(토) 10-12시 OO테니스장 실내 남복2 모집" onChange={(e) => setRaw(e.target.value)} />
-          <button type="button" className="btn btn-sm" disabled={!raw.trim()} onClick={fill}>칸 채우기</button>
-          {filled && <p className="hint">채운 칸을 한 번 확인해 주세요. 못 찾은 칸은 비워 뒀어요</p>}
-        </div>
-      )}
       <div className="kids-picker-row">
         <select className="select" aria-label="시·도" required value={s.sido} onChange={(e) => set({ sido: e.target.value, sigungu: "" })}>
           <option value="">시·도</option>
