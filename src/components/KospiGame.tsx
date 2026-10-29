@@ -19,8 +19,8 @@ const side = (s: 1 | -1) => (s === 1 ? "📈 오른다" : "📉 내린다");
 /** 지난 판 결과 한 줄 */
 function LastLine({ last }: { last: Last }) {
   const what = `${last.label} 결과`;
-  if (last.move === null) return <p className="kospi-last">⏳ {what} 대기 · 내 선택 {side(last.mine)}</p>;
-  if (last.move === 0) return <p className="kospi-last">{what}: 보합이라 이번 판은 세지 않아요</p>;
+  if (last.move === null) return <p className="kospi-last">⏳ {what} 대기 · {last.mine === 1 ? "📈" : "📉"}</p>;
+  if (last.move === 0) return <p className="kospi-last">{what}: 보합 · 무효</p>;
   return (
     <p className={`kospi-last${last.ok ? " ok" : ""}`}>
       {what}: {last.move === 1 ? "📈 올랐어요" : "📉 내렸어요"} · {last.ok ? "✅ 맞혔어요!" : "❌ 아쉬워요"}
@@ -36,7 +36,7 @@ function Ranking() {
       .catch(() => setRows([]));
   }, []);
   if (!rows) return null;
-  if (!rows.length) return <p className="hint kospi-rank-empty">이번 달 결과가 5판 이상 난 분이 아직 없어요</p>;
+  if (!rows.length) return null;
   return (
     <ol className="kospi-rank">
       {rows.map((r, i) => (
@@ -112,10 +112,8 @@ export function KospiGame({ slug }: { slug: string }) {
       </div>
       {d.last && <LastLine last={d.last} />}
       {newCard && <p className="quiz-note-line">🃏 +1 · 내 카드 모음에 담았어요</p>}
-      <h2 className="quiz-q">{d.label} 코스피 종가, 직전 거래일보다?</h2>
-      <p className="quiz-tease">
-        {d.mine ? "결과는 그날 장 마감 뒤에 나와요" : `${d.label} 오전 9시에 마감 · 고르면 다른 사람 선택이 보여요`}
-      </p>
+      <h2 className="quiz-q">{d.label} 코스피, 오를까 내릴까?</h2>
+      <p className="quiz-tease">{d.mine ? "결과는 장 마감 뒤" : "오전 9시 마감"}</p>
       <div className="quiz-options kospi-options">
         {([1, -1] as const).map((s) => {
           const n = d.tally ? (s === 1 ? d.tally.up : d.tally.down) : 0;
@@ -141,7 +139,7 @@ export function KospiGame({ slug }: { slug: string }) {
         </p>
       )}
       <div className="kospi-foot">
-        {games > 0 && <span className="kospi-record">내 성적 {d.stats.wins}승 {d.stats.losses}패</span>}
+        {games > 0 && <span className="kospi-record">{d.stats.wins}승 {d.stats.losses}패</span>}
         <button type="button" className="kospi-rank-toggle" onClick={() => setRank(!rank)} aria-expanded={rank}>
           🏆 이번 달 순위
         </button>
