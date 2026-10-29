@@ -20,6 +20,8 @@ import {
   toggleMyRoom,
   writeMyRoomsCookie,
 } from "@/lib/myRooms";
+import { readSeenAll } from "@/lib/seen";
+import { ringOn, ringOrder, type Rings } from "@/lib/storyRings";
 
 let cache: { key: string; list: string[] } = { key: "", list: [] };
 function snapshot(): string[] {
@@ -148,6 +150,23 @@ export function MyRoomStar({ slug }: { slug: string }) {
 
 type Room = { slug: string; name: string };
 
+/** ⭕ 내 방 동그라미 (10/29): 오늘 퀴즈 안 한 방·새 글 있는 방. 방 목록이 바뀔 때마다 한 번 묻는다 */
+function useRings(key: string): Rings | null {
+  const [rings, setRings] = useState<Rings | null>(null);
+  useEffect(() => {
+    if (!key) return;
+    const seen = readSeenAll();
+    const s = key.split(",").filter((r) => seen[r]).map((r) => `${encodeURIComponent(r)}:${seen[r]}`).join(",");
+    const ctl = new AbortController();
+    fetch(`/api/rooms/rings?slugs=${key.split(",").map(encodeURIComponent).join(",")}&s=${s}`, { signal: ctl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: Rings | null) => j && setRings(j))
+      .catch(() => {});
+    return () => ctl.abort();
+  }, [key]);
+  return rings;
+}
+
 /**
  * 홈 맨 위 내 방 칩 + "＋ 방 더 보기"(전체 방 목록, 내 방 ★ 먼저).
  * initial: 서버가 쿠키로 본 목록 (없으면 null). 브라우저 목록과 다르면 쿠키를 맞추고 화면을 새로 그린다.
@@ -186,16 +205,24 @@ export function MyRoomsBar({ rooms, initial, legacy, filtered, redirect }: { roo
 
   const byslug = new Map(rooms.map((r) => [r.slug, r]));
   const my = mine.map((s) => byslug.get(s)).filter((r): r is Room => !!r);
+  const rings = useRings(my.map((r) => r.slug).join(","));
   if (!my.length) return null;
   const sorted = [...my, ...rooms.filter((r) => !mine.includes(r.slug))];
   return (
     <>
       <nav className="my-rooms" aria-label="내 방">
-        {my.map((r) => (
-          <Link key={r.slug} href={`/c/${encodeURIComponent(r.slug)}`} className="my-chip">
-            <span aria-hidden>{roomEmoji(r.slug)}</span> {roomShortName(r)}
-          </Link>
-        ))}
+        {ringOrder(my, rings).map((r) => {
+          const ring = rings?.[r.slug];
+          return (
+            <Link key={r.slug} href={`/c/${encodeURIComponent(r.slug)}`} className="my-chip">
+              <span className={`story-ring${!rings ? "" : ringOn(ring) ? " on" : " off"}`} aria-hidden>
+                <span className="story-ring-in">{roomEmoji(r.slug)}</span>
+              </span>{" "}
+              {roomShortName(r)}
+              {ringOn(ring) && <span className="sr-only">{ring!.quiz ? ", 오늘 퀴즈 있음" : ", 새 글 있음"}</span>}
+            </Link>
+          );
+        })}
         <button type="button" className="my-chip my-chip-more" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
           ＋ 방 더 보기
         </button>

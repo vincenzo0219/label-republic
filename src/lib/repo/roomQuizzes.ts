@@ -291,3 +291,23 @@ export async function nextQuizRoom(visitor: string, day: string, current: string
   );
   return r ?? null;
 }
+
+/**
+ * ⭕ 홈 내 방 동그라미 (10/29): 방마다 오늘 퀴즈가 있는데 이 방문자가 아직 안 했는지. 방이 몇 개든 쿼리 하나.
+ * 답한 기록은 퀴즈 답(quiz_answers) 또는 💌 오늘의 질문 투표로 남는 노트(quiz_notes)
+ */
+export async function quizPending(slugs: string[], day: string, visitor: string | null): Promise<Record<string, boolean>> {
+  const rooms = slugs.filter((s) => !QUIZ_EXCLUDED.has(s));
+  const out: Record<string, boolean> = Object.fromEntries(slugs.map((s) => [s, false]));
+  if (!rooms.length) return out;
+  const rows = await query<{ room: string; has_db: boolean; done: boolean }>(
+    `SELECT r AS room,
+            EXISTS (SELECT 1 FROM room_quizzes q WHERE q.room = r AND q.day = $2) AS has_db,
+            ($3::text IS NOT NULL AND (EXISTS (SELECT 1 FROM quiz_answers a WHERE a.room = r AND a.day = $2 AND a.visitor_hash = $3)
+              OR EXISTS (SELECT 1 FROM quiz_notes n WHERE n.room = r AND n.day = $2 AND n.visitor_hash = $3))) AS done
+       FROM unnest($1::text[]) AS r`,
+    [rooms, day, visitor],
+  );
+  for (const r of rows) out[r.room] = !r.done && (r.has_db || r.room === SINGLES || !!builtinQuiz(r.room, day));
+  return out;
+}
