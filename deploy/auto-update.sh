@@ -50,6 +50,12 @@ if [ -z "$RUNTIME" ]; then
 fi
 
 # 1. 새 이미지 준비 (지금 서버는 그대로 돈다)
+# 디스크가 90% 넘게 차 있으면 받기 전에 캐시부터 비운다 (10/30 디스크가 꽉 차 이미지를 못 받아 배포가 9시간 멈췄다)
+if [ "$(df --output=pcent / | tail -1 | tr -dc 0-9)" -ge 90 ]; then
+  log "디스크 90% 넘음 — 빌드 캐시와 이름 없는 이미지를 지웁니다"
+  docker builder prune -af >/dev/null 2>&1 || true
+  docker image prune -f >/dev/null 2>&1 || true
+fi
 SOURCE=""
 if PULL_OUT="$(docker pull -q "$IMAGE_REPO:sha-$REMOTE" 2>&1)"; then
   SOURCE=registry
@@ -100,6 +106,8 @@ prepare() {
 if prepare && docker compose --profile https up -d --no-build && healthy; then
   log "업데이트 완료 ${REMOTE:0:7}"
   docker image prune -f >/dev/null 2>&1 || true
+  # 10/30: 빌드 캐시가 쌓여 디스크 58GB가 꽉 차 배포가 막혔다 → 사흘 지난 캐시는 지운다 (이미지는 건드리지 않아 되돌리기용 prev 는 남는다)
+  docker builder prune -af --filter until=72h >/dev/null 2>&1 || true
   exit 0
 fi
 
