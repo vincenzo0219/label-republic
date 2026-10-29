@@ -188,6 +188,8 @@ export type Comment = {
   likes?: number;
   /** 공감한 운영 계정 이름 (Sprint 79, 사람 공감 수와 따로) */
   liked_by?: string[];
+  /** 🙌 환영러: 처음 온 사람의 첫 글에 첫 댓글을 단 적이 있는 닉네임 (10/29) */
+  welcomer?: boolean;
 };
 
 export type BoardRequest = {

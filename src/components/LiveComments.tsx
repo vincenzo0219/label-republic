@@ -66,7 +66,7 @@ function thread(comments: Comment[]): { root: Comment; replies: Comment[] }[] {
 /** casual: 잡담·정모 글 — 출처·측정값을 요구하지 않는 말투로 안내한다 */
 /** ensurePost: 아직 글이 없는 화면(📍 동네 체험)에서 첫 댓글을 보낼 때 글을 만들고 번호를 돌려준다. postId 는 "" */
 /** notice: 쓰는 칸 위 안내 한 줄 · report: 댓글·채팅 한 줄마다 🚩 신고 (💌 만남 행사 방, 098) */
-export function LiveComments({ postId: initialPostId, initial, casual = false, chat = false, badges, ensurePost, notice, report = false }: { postId: string; initial: Comment[]; casual?: boolean; chat?: boolean; badges?: BadgeMap; ensurePost?: () => Promise<string>; notice?: string | null; report?: boolean }) {
+export function LiveComments({ postId: initialPostId, initial, casual = false, chat = false, badges, ensurePost, notice, report = false, quick }: { postId: string; initial: Comment[]; casual?: boolean; chat?: boolean; badges?: BadgeMap; ensurePost?: () => Promise<string>; notice?: string | null; report?: boolean; quick?: readonly string[] | null }) {
   const [postId, setPostId] = useState(initialPostId);
   const [allComments, setComments] = useState<Comment[]>(() => initial.map(norm));
   // 🚫 이 기기에서 차단한 닉네임은 숨긴다 (10/26, 신고 창에서 차단)
@@ -275,6 +275,41 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
     }
   }
 
+  // 🙌 한 번 누르는 답장 (10/29): 버튼 글자를 그대로 댓글로. 닉네임·비번은 이 브라우저 것
+  async function sendChip(text: string) {
+    const nickname = form.nickname.trim();
+    if (!nickname) {
+      setError("닉네임을 먼저 적어 주세요.");
+      nickRef.current?.focus();
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const payload = { nickname, pw: form.pw, body: text, chip: true };
+    try {
+      const pid = postId || (ensurePost ? await ensurePost() : "");
+      if (!pid) throw new Error("잠시 후 다시 시도해 주세요.");
+      if (pid !== postId) setPostId(pid);
+      const { comment, notifyRef } = await api<{ comment: Comment; notifyRef?: string }>(`/api/posts/${pid}/comments`, "POST", payload, {
+        idempotencyKey: requestKeyFor(sending, payload),
+      });
+      sending.current = undefined;
+      setComments((list) => (list.some((x) => String(x.id) === String(comment.id)) ? list : [...list, norm(comment)]));
+      try {
+        saveNick(nickname);
+        setSavedNick(true);
+      } catch {}
+      watchPost(pid);
+      if (notifyRef) addMyComment(notifyRef);
+      setPosted(true);
+    } catch (err) {
+      setError(isNetworkError(err) ? "연결이 끊겨 등록 결과를 받지 못했어요. 연결되면 다시 눌러주세요." : (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const commented = !!form.nickname.trim() && allComments.some((c) => !c.is_ai_curated && c.nickname === form.nickname.trim());
+
   async function remove(id: string) {
     try {
       const done = await withMyPin((pw) => api(`/api/comments/${id}`, "DELETE", { pw }), "댓글 비밀번호 4자리");
@@ -333,7 +368,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
           {shown.map((c) => (
             <li key={c.id} id={`c${c.id}`} className={`chat-msg${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
               <div className="chat-head">
-                {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} /></>}
+                {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} />{c.welcomer && <span className="welcomer-badge" title="처음 온 분의 첫 글에 첫 댓글을 단 분이에요">🙌 환영러</span>}</>}
                 <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
               </div>
               {c.hidden_reason ? (
@@ -405,7 +440,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
               <div key={c.id} id={`c${c.id}`} className={`comment${c.id !== root.id ? " is-reply" : ""}${fresh.has(c.id) ? " new" : ""}${target === c.id ? " is-target" : ""}`}>
                 <div className="comment-head">
                   {/* AI 표시는 이름 한 곳에 (이름 + 배지로 두 번 나오던 것) */}
-                  {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} /></>}
+                  {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} />{c.welcomer && <span className="welcomer-badge" title="처음 온 분의 첫 글에 첫 댓글을 단 분이에요">🙌 환영러</span>}</>}
                   <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
                   <span className="spacer" />
                   {!c.hidden_reason && (
@@ -443,6 +478,15 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
       ))}
 
       {notice && <p className="room-rule-note" role="note" style={{ marginTop: 16 }}>{notice}</p>}
+      {quick && quick.length > 0 && !commented && (
+        <div className="quick-replies" role="group" aria-label="한 번 눌러 답장">
+          {quick.map((q) => (
+            <button key={q} type="button" className="chip quick-reply" disabled={busy} onClick={() => sendChip(q)}>
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
       <form id="write" className="form" onSubmit={submit} style={{ marginTop: notice ? 8 : 16 }}>
         {/* 닉네임은 처음 한 번만, 비밀번호는 자동 (Sprint 96) */}
         {!savedNick && (

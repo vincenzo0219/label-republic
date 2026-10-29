@@ -11,6 +11,8 @@ import { AppealBox } from "@/components/AppealBox";
 import { CorrectionsPanel } from "@/components/CorrectionsPanel";
 import { Gallery } from "@/components/Gallery";
 import { LiveComments } from "@/components/LiveComments";
+import { quickRepliesFor, showQuickReplies } from "@/lib/quickReplies";
+import { quickReplyContext } from "@/lib/repo/quickReply";
 import { INVEST_NOTICE, isInvestRoom } from "@/lib/investRooms";
 import { DebateVote } from "@/components/DebateVote";
 import { debateTally } from "@/lib/repo/debateVotes";
@@ -137,6 +139,9 @@ export default async function PostPage({ params }: Props) {
   }
 
   const fp = fingerprint(await headers());
+  // 🙌 사람이 쓴 남의 글이면 한 번 누르는 답장 버튼 (10/29)
+  const qr = await quickReplyContext(post.id, fp).catch(() => null);
+  const quick = qr && showQuickReplies({ human: qr.human, mine: qr.mine, commented: false }) ? quickRepliesFor(qr.slug) : null;
   // 정보만 보여 주는 방(092)의 글이면 갈 거예요·같이 가요·댓글을 그리지 않는다.
   // 💌 만남 연결 기능 없는 방(098)은 댓글은 되고 갈 거예요·같이 가요만 없다 (서버도 거절)
   const flags = await roomFlags(post.category.slug).catch(() => null);
@@ -306,7 +311,7 @@ export default async function PostPage({ params }: Props) {
       )}
 
       {debate && <DebateVote postId={post.id} initial={debate} />}
-      {!infoOnly && <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} badges={badges} notice={ruleNotice} report={!!ruleNotice} />}
+      {!infoOnly && <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} badges={badges} notice={ruleNotice} report={!!ruleNotice} quick={quick} />}
       {isInvestRoom(post.category.slug) && <p className="invest-note">{INVEST_NOTICE}</p>}
     </article>
   );

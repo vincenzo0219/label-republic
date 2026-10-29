@@ -1,3 +1,4 @@
+import { markWelcome } from "./quickReply";
 import { trollCheck } from "../troll";
 import { tokenOk } from "./images";
 import { aiAbuse, aiImageAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
@@ -38,14 +39,16 @@ async function assertInvestOk(postId: string, body: string): Promise<string | nu
 export const TARGET_LIMIT = 5;
 
 // AI 자동 운영이 가린 댓글은 자리는 남기고 본문을 내보내지 않는다 (Sprint 37)
+// 🙌 환영러 (10/29): 처음 온 사람의 첫 글에 첫 댓글을 단 적이 있는 닉네임
+const WELCOMER = `EXISTS (SELECT 1 FROM comments w WHERE w.welcome AND w.nickname = comments.nickname) AS welcomer`;
 const COLS = `id, post_id, nickname, CASE WHEN ai_hidden_reason IS NULL THEN body ELSE '' END AS body, is_ai_curated, created_at,
   parent_id::text AS parent_id, mentions::text[] AS mentions, ai_hidden_reason AS hidden_reason,
-  CASE WHEN ai_hidden_reason IS NULL THEN image_id::text END AS image_id`;
+  CASE WHEN ai_hidden_reason IS NULL THEN image_id::text END AS image_id, ${WELCOMER}`;
 // 🧹 조롱·도배로 바로 가린 댓글(troll)은 다른 사람에게는 아예 안 보이고, 쓴 사람($2)에게는 그대로 보인다 (10/29)
 const SHADOW_MINE = `(ai_hidden_reason = 'troll' AND author_fingerprint = $2::text)`;
 const LIST_COLS = `id, post_id, nickname, CASE WHEN ai_hidden_reason IS NULL OR ${SHADOW_MINE} THEN body ELSE '' END AS body, is_ai_curated, created_at,
   parent_id::text AS parent_id, mentions::text[] AS mentions, CASE WHEN ${SHADOW_MINE} THEN NULL ELSE ai_hidden_reason END AS hidden_reason,
-  CASE WHEN ai_hidden_reason IS NULL OR ${SHADOW_MINE} THEN image_id::text END AS image_id`;
+  CASE WHEN ai_hidden_reason IS NULL OR ${SHADOW_MINE} THEN image_id::text END AS image_id, ${WELCOMER}`;
 
 export async function listComments(postId: string, viewerFp?: string | null): Promise<Comment[]> {
   if (!/^\d{1,18}$/.test(postId)) return [];
@@ -67,7 +70,7 @@ export async function listComments(postId: string, viewerFp?: string | null): Pr
  */
 export async function createComment(
   postId: string,
-  input: { nickname: string; pin: string; body: string; fingerprint?: string; net?: string; parentId?: string; image?: { id: string; token: string } },
+  input: { nickname: string; pin: string; body: string; fingerprint?: string; net?: string; parentId?: string; image?: { id: string; token: string }; chip?: boolean },
 ): Promise<Comment> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
   const slug = await assertInvestOk(postId, input.body);
@@ -127,10 +130,12 @@ export async function createComment(
     }
     const { rows } = await client.query<Comment>(
       `INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, parent_id, mentions, image_id,
-                             ai_hidden_reason, ai_hidden_note, ai_hidden_model, ai_hidden_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::bigint[], $8::uuid, $9::text, $10, $11, CASE WHEN $9::text IS NOT NULL THEN now() END) RETURNING ${COLS}`,
-      [postId, input.nickname, pwHash, input.body, input.fingerprint ?? null, parentId, mentions, imageId, ...hideParams(abuse)],
+                             ai_hidden_reason, ai_hidden_note, ai_hidden_model, ai_hidden_at, via_chip)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::bigint[], $8::uuid, $9::text, $10, $11, CASE WHEN $9::text IS NOT NULL THEN now() END, $12) RETURNING ${COLS}`,
+      [postId, input.nickname, pwHash, input.body, input.fingerprint ?? null, parentId, mentions, imageId, ...hideParams(abuse), !!input.chip],
     );
+    // 🙌 첫 환영 (10/29): 처음 온 사람의 첫 글에 사람이 단 첫 댓글이면 이 닉네임이 환영러가 된다
+    if (!abuse && (await markWelcome(client, String(rows[0]!.id), input.fingerprint, input.nickname))) rows[0]!.welcomer = true;
     if (imageId)
       await client.query("UPDATE post_images SET post_id = $2, comment_id = $3, attached_at = now() WHERE id = $1", [imageId, postId, rows[0]!.id]);
     // 쓴 사람 화면에는 그대로 (shadow)

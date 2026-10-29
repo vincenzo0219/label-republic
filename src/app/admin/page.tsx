@@ -1,3 +1,4 @@
+import { quickReplyStats } from "@/lib/repo/quickReply";
 import { listAutoHidden, listDuplicates, operatorReports, REPORT_TYPE_LABEL } from "@/lib/repo/reports";
 import { AdminHideButton } from "@/components/AdminHideButton";
 import { HIDE_TYPES } from "@/lib/repo/opHide";
@@ -91,6 +92,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     ]);
   const campaigns = await m.campaignStats(...cur).catch(() => []);
   const monthStart = `${today.slice(0, 8)}01`;
+  const quick = await quickReplyStats().catch(() => null);
   const [ear, hearing, firstLine, typing, aiT, month, daily7, states, people, readers, readers7, readers28] = await Promise.all([
     earFunnel(...cur),
     hearingFunnel(...cur),
@@ -167,7 +169,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <OwnerAlertCard devices={ownerDevices} />
 
       <MonthGoal today={today} visitors={month.visitors} returning={month.returning} daily={daily7} range={range} />
-      <PeopleReactions rows={people} />
+      <PeopleReactions rows={people} quick={quick} />
       <UserStates rows={states} />
       <ReaderRatio rows={readers} w={readers7} m28={readers28} />
 
@@ -585,7 +587,7 @@ function PostTable({ rows, unit, empty }: { rows: m.TopPost[]; unit: string; emp
 }
 
 /** 🤝 사람끼리 반응 (Sprint 87) — AI 는 사회자, 주인공은 사람. 북극성 지표 */
-function PeopleReactions({ rows }: { rows: m.PeopleDay[] }) {
+function PeopleReactions({ rows, quick }: { rows: m.PeopleDay[]; quick: { chips: number; welcomes: number; welcomers: number } | null }) {
   const [t, y] = rows;
   const week = rows.reduce((s, r) => s + r.h2h, 0);
   return (
@@ -596,6 +598,11 @@ function PeopleReactions({ rows }: { rows: m.PeopleDay[] }) {
           · 어제 {y?.h2h ?? 0} · 7일 {week} · 오늘 사람 댓글 중 사람이 답한 비율 {t?.answered == null ? "—" : `${t.answered}%`}
         </span>
       </p>
+      {quick && (
+        <p className="hint">
+          🙌 버튼 답장 7일 {quick.chips} · 🙌 첫 환영 7일 {quick.welcomes} (환영러 {quick.welcomers}명)
+        </p>
+      )}
       <table className="data-table">
         <thead>
           <tr>
