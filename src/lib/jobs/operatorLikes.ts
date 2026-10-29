@@ -10,6 +10,8 @@ export const OPERATOR_LIKE_NAME = AI_AUTHOR;
  * 이름을 밝혀 따로 보여 주고 사람 공감 수에는 섞지 않는다. AI·운영 계정 댓글, 가려진 댓글, 하루 지난 댓글은 건너뛴다.
  */
 export async function runOperatorLikes(now = new Date()): Promise<number> {
+  // 10/29 대표님 "자동 공감 꺼" → 끈다 (다시 켜려면 대표님 허락 필요)
+  if (process.env.OPERATOR_LIKES_FORCE !== "1") return 0;
   const rows = await query<{ id: string }>(
     `INSERT INTO comment_likes (comment_id, visitor_hash, by_name, created_at)
      SELECT c.id, 'op:' || $3::text, $3::text, $1::timestamptz

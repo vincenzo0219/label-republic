@@ -41,8 +41,12 @@ d("comment likes (Sprint 78)", async () => {
     await query("UPDATE comments SET author_fingerprint = 'fp1', created_at = now() - interval '5 minutes' WHERE id = $1", [c!.id]);
     await query("INSERT INTO comments (post_id, nickname, pw_hash, body, is_ai_curated) VALUES ($1, 'ai', 'x', 'ai', true)", [post!.id]);
     await query("INSERT INTO comments (post_id, nickname, pw_hash, body) VALUES ($1, '돈키호테', 'x', '운영 답글')", [post!.id]);
+    // 10/29 대표님 "자동 공감 꺼": 기본은 꺼짐
+    expect(await runOperatorLikes(new Date())).toBe(0);
+    process.env.OPERATOR_LIKES_FORCE = "1";
     expect(await runOperatorLikes(new Date())).toBe(1);
     expect(await runOperatorLikes(new Date(Date.now() + 120_000))).toBe(0);
+    delete process.env.OPERATOR_LIKES_FORCE;
     expect((await listComments(post!.id))[0]).toMatchObject({ likes: 1, liked_by: ["노방장"] });
     const w = await watchUpdates([], [], before, null, { comments: [c!.id] });
     expect(w).toMatchObject({ like_count: 1, liked_by: ["노방장"], total: 2 });
