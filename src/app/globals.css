@@ -1539,3 +1539,11 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
   .singles-star.on { background: #3a2c0a; color: #ffd479; }
   .singles-cal-date.soon { background: #4a2410; color: #fdba74; }
 }
+
+/* 🔔 공공 코트 예약 오픈 알림 (10/29) */
+.court-opens { display: grid; gap: 8px; margin: 12px 0; }
+.court-opens ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.court-opens li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.court-opens li > span { min-width: 0; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.court-opens li .btn { flex-shrink: 0; }
+.court-note { font-size: 12px; }

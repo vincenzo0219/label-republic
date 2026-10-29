@@ -16,6 +16,7 @@ import { TEST_POST_IDS } from "../testPosts";
 import { SAVINGS_ROOM } from "../investRooms";
 import { kstMonth } from "../savingsLog";
 import { runGigPush } from "./gigPush";
+import { runTennisPush } from "./tennisPush";
 import { flushOwnerAlerts } from "../repo/ownerAlert";
 import { runRoomPush } from "./roomPush";
 import { runSinglesPush } from "./singlesPush";
@@ -502,6 +503,9 @@ export function startPushScheduler(intervalMs: number): () => void {
     // 📋 대강·구인 지역 알림 (강사방, 10/25) — 당일 급구라 1분마다
     const g = await runGigPush();
     if (g.sent || g.removed) console.log(`[push] 대강·구인 알림 ${g.sent}건 발송, 구독 ${g.removed}개 정리`);
+    // 🎾 테니스방 (10/29): 우리 동네 새 게임 · 공공 코트 예약 오픈
+    const tn = await runTennisPush();
+    if (tn.games || tn.courts || tn.removed) console.log(`[push] 테니스 알림 게임 ${tn.games}건 · 코트 오픈 ${tn.courts}건 발송, 구독 ${tn.removed}개 정리`);
     // 🔔 사람 글·댓글 알림 (10/25): 쓰자마자 보내고, 60초 안에 묶인 것·놓친 것은 여기서
     await flushOwnerAlerts();
   });

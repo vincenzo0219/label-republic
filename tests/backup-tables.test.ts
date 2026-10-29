@@ -20,6 +20,7 @@ const NOT_CHECKED: Record<string, string> = {
   idempotency_keys: "24시간 뒤 지우는 중복 방지 키",
   maintenance_runs: "배치 실행 기록",
   page_views: "방문 통계",
+  court_open_push_log: "코트 오픈 알림 보낸 기록 (중복 발송 방지)",
   page_dwell: "체류시간·스크롤 통계 (400일 뒤 지운다)",
   kids_programs: "아이볼 프로그램 캐시 (다시 받아 온다)",
   push_runs: "배치 실행 기록",

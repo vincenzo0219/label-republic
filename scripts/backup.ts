@@ -48,6 +48,10 @@ export const CHECK_TABLES = [
   // 10/29 🎾 테니스방 게임 모집
   "tennis_games",
   "tennis_game_reports",
+  // 10/29 🔔 테니스 알림 (구독·운영자가 확인한 코트 오픈 규칙)
+  "tennis_alert_subs",
+  "court_opens",
+  "court_open_subs",
   // 10/26 🙋 같이 갈 사람 (모임·조원·노쇼 기록은 사라지면 안 된다)
   "event_going", "event_groups", "event_group_members", "event_group_messages", "event_pool", "event_penalties",
   // 098 🚩 댓글·채팅 신고 (가림 근거)
