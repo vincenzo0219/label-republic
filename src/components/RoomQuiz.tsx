@@ -30,7 +30,7 @@ const TITLE_MIN = 10;
 const SUSPENSE_MS = 300;
 
 /** 🎉 카드 안에서만 1초 반짝. 답할 때마다 작게, 정답·칭호·연속 고비(3·7·30일)는 크게 (10/29 대표님 "손맛, 폭죽 진행"). 움직임 줄이기 설정이면 안 보임 */
-function Confetti({ size }: { size: number }) {
+export function Confetti({ size }: { size: number }) {
   if (!size) return null;
   return (
     <span className="quiz-confetti" aria-hidden>

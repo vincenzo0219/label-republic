@@ -1630,3 +1630,20 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .chat-starter { animation: starter-in 260ms ease-out both; }
 @keyframes starter-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .chat-starter { animation: none; } }
+/* 📈 코스피 맞히기 (10/29): 퀴즈 카드 모양 그대로, 📈/📉 두 개 나란히 */
+.kospi-options { grid-template-columns: 1fr 1fr; }
+.kospi-options .quiz-opt { padding: 10px 12px; }
+.kospi-options .quiz-label { white-space: nowrap; }
+.kospi-chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.kospi-last { margin: 8px 0 0; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.kospi-last.ok { color: #1f9d63; }
+.kospi-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; font-size: 13px; }
+.kospi-record { font-weight: 700; }
+.kospi-rank-toggle { min-height: 36px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: inherit; font-weight: 700; cursor: pointer; }
+.kospi-rank { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.kospi-rank li { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: var(--bg, #fff); font-size: 14px; }
+.kospi-rank li.me { font-weight: 800; outline: 2px solid color-mix(in srgb, var(--accent, #2f6f5e) 40%, transparent); }
+.kospi-rank-no { width: 18px; font-weight: 800; }
+.kospi-rank-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.kospi-rank-rec { white-space: nowrap; }
+.kospi-rank-empty { margin: 8px 0 0; }
