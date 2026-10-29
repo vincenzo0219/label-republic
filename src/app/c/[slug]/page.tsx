@@ -6,6 +6,8 @@ import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { RoomQuiz } from "@/components/RoomQuiz";
+import { KospiGame } from "@/components/KospiGame";
+import { KOSPI_ROOMS } from "@/lib/kospiGame";
 import { parseHead } from "@/lib/heads";
 import { RoomMemory } from "@/components/RoomMemory";
 import { BookBite } from "@/components/BookBite";
@@ -202,6 +204,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       {adTop}
       {/* 🧩 오늘의 1분 퀴즈 (10/29 대표님): 어느 탭이든 방 맨 위. 기존 오늘의 질문이 있는 방은 그 카드. 👫 남녀 생각 차이 탭은 같은 투표를 목록으로 보여 주니 뺀다 */}
       {!category.is_hidden && roomTab?.key !== "gender" && <RoomQuiz slug={category.slug} name={category.name} />}
+      {/* 📈 코스피 맞히기 (10/29 대표님): 퀴즈를 뺀 투자방 3곳 맨 위 자리 */}
+      {!category.is_hidden && KOSPI_ROOMS.has(category.slug) && <KospiGame slug={category.slug} />}
       {/* 🎉 오늘 축하할 덕후 (10/26): 오늘 올라온 기념일·응원 카드, 줄 안에서 바로 누른다 */}
       {!sp.tab && !sp.type && !head && (Number(sp.page) || 1) === 1 && <TodayCards rooms={[category.slug]} />}
       {links.length > 0 && <nav className="room-links" aria-label="바로가기">
