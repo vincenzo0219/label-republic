@@ -1,4 +1,6 @@
-import { operatorReports, REPORT_TYPE_LABEL } from "@/lib/repo/reports";
+import { listAutoHidden, listDuplicates, operatorReports, REPORT_TYPE_LABEL } from "@/lib/repo/reports";
+import { AdminHideButton } from "@/components/AdminHideButton";
+import { HIDE_TYPES } from "@/lib/repo/opHide";
 import type { Metadata } from "next";
 import { ResolveError } from "@/components/admin/ResolveError";
 import Link from "next/link";
@@ -324,6 +326,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </section>
 
       <ReportsPanel />
+      <AutoHiddenPanel />
+      <DuplicatesPanel />
 
       <section className="panel">
         <h2>
@@ -795,6 +799,7 @@ async function ReportsPanel() {
                 <th className="num">신고</th>
                 <th>사유</th>
                 <th>마지막</th>
+                <th>조치</th>
               </tr>
             </thead>
             <tbody>
@@ -812,11 +817,87 @@ async function ReportsPanel() {
                   <td className="num">{r.reports}</td>
                   <td>{r.reasons}</td>
                   <td>{new Date(r.last_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                  <td>{(HIDE_TYPES as string[]).includes(r.type) && <AdminHideButton type={r.type} id={r.id} hidden={r.hidden} />}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+    </section>
+  );
+}
+
+const kst = (t: string) => new Date(t).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+/** 🧹 올린 직후 바로 가린 것(조롱·도배, 쓴 사람에게만 보임) + 운영자가 가린 것 (10/29). 오판이면 다시 보이기 */
+async function AutoHiddenPanel() {
+  const items = await listAutoHidden(7, 50);
+  return (
+    <section className="panel" aria-labelledby="autohidden-h">
+      <h2 id="autohidden-h">
+        🧹 바로 가린 것 {items.length > 0 && <span className="count-badge">{items.length}</span>}{" "}
+        <span className="hint">— 최근 7일. 조롱·도배는 쓴 사람에게만 보여요. 오판이면 다시 보이기</span>
+      </h2>
+      {items.length === 0 ? (
+        <p className="hint">최근 7일 바로 가린 것이 없습니다.</p>
+      ) : (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>종류</th>
+                <th>방</th>
+                <th>내용</th>
+                <th>이유</th>
+                <th>시각</th>
+                <th>조치</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((r) => (
+                <tr key={`${r.type}-${r.id}`}>
+                  <td>{REPORT_TYPE_LABEL[r.type]}</td>
+                  <td>{r.room}</td>
+                  <td>
+                    <a href={r.url}>{r.text || "(내용 없음)"}</a>
+                  </td>
+                  <td>
+                    {r.reason === "troll" ? "조롱·도배" : "운영자"}
+                    {r.evidence && <span className="hint"> · {r.evidence}</span>}
+                  </td>
+                  <td>{kst(r.hidden_at)}</td>
+                  <td>
+                    <AdminHideButton type={r.type} id={r.id} hidden />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** 🔁 똑같은 글을 여러 번 (10/29 대표님 "도배는 놔두고 똑같은 글 여러 번은 보고"). 보고만 */
+async function DuplicatesPanel() {
+  const items = await listDuplicates(1, 30);
+  return (
+    <section className="panel" aria-labelledby="dups-h">
+      <h2 id="dups-h">
+        🔁 똑같은 글 여러 번 {items.length > 0 && <span className="count-badge">{items.length}</span>} <span className="hint">— 최근 24시간. 보고만 해요</span>
+      </h2>
+      {items.length === 0 ? (
+        <p className="hint">최근 24시간 똑같은 글이 없습니다.</p>
+      ) : (
+        <ul>
+          {items.map((d) => (
+            <li key={`${d.type}-${d.ids.join(",")}`}>
+              {REPORT_TYPE_LABEL[d.type]} · {d.room} · <b>{d.count}번</b> ({d.authors}명) · {d.text} <span className="hint">· #{d.ids.join(", #")} · {kst(d.last_at)}</span>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

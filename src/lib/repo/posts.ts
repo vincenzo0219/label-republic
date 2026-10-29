@@ -6,13 +6,14 @@ import { HttpError, blinded, notFound, tooMany } from "../errors";
 import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import { aiSpam, combine, heuristicSpam, moderationNote, shouldSuppress, type SpamVerdict } from "../moderation";
-import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
+import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo, type AbuseVerdict } from "../abuse";
 import { searchTerms } from "../highlight";
 import { tabMembers, type Head } from "../heads";
 import { OPERATOR_NICKS } from "./metrics";
 import { ownerAlertAfter, reportAlertAfter } from "./ownerAlert";
 import { investProblem } from "../investRooms";
 import { roomAbuseOpts, roomHeuristicAbuse } from "../roomModeration";
+import { trollCheck } from "../troll";
 import { generateSummary, type ResolvedSummary } from "../summary";
 import type { SortKey } from "../validation";
 import type { CardKind, PostCard, PostDetail, PostRevision, PostType } from "../types";
@@ -435,7 +436,8 @@ export async function createPost(raw: CreatePostInput): Promise<PostDetail> {
   const pwHash = await hashPin(input.pin);
   const spamCut = await getRule("spam_suppress_score");
   // 분명한 욕설·혐오·개인정보는 처음부터 가려진 채 올라간다 (AI 자동 운영, Sprint 37)
-  const abuse = heuristicAbuse(input.title, input.body) ?? roomHeuristicAbuse(input.categorySlug, input.title, input.body);
+  // 조롱·도배성 글은 올라가되 바로 가린다: 쓴 사람에게만 보인다 (troll, 10/29)
+  const abuse = heuristicAbuse(input.title, input.body) ?? roomHeuristicAbuse(input.categorySlug, input.title, input.body) ?? trollCheck([input.title, input.body]);
 
   const id = await tx(async (client) => {
     const cat = await client.query<{ id: number; info_only: boolean; no_matching: boolean }>("SELECT id, info_only, no_matching FROM categories WHERE slug = $1", [input.categorySlug]);
@@ -534,7 +536,12 @@ export async function updatePost(id: string, fp: string, pin: string, input: Upd
       await client.query("UPDATE posts SET revision_count = revision_count + 1 WHERE id = $1", [id]);
     }
     // 고친 내용은 다시 판단한다 (운영자가 풀어 준 판단도 새 내용에는 이어지지 않음)
-    const abuse = heuristicAbuse(title, body) ?? roomHeuristicAbuse(post.category.slug, title, body);
+    // 운영자가 가린 글은 고쳐도 운영자가 풀기 전까지 가린 채 둔다 (10/29)
+    const [cur] = (await client.query<{ reason: string | null }>("SELECT ai_hidden_reason AS reason FROM posts WHERE id = $1", [id])).rows;
+    const abuse: AbuseVerdict | null =
+      cur?.reason === "operator"
+        ? { category: "operator", evidence: "운영자 가림", model: "operator" }
+        : (heuristicAbuse(title, body) ?? roomHeuristicAbuse(post.category.slug, title, body) ?? trollCheck([title, body]));
     await client.query(
       `UPDATE posts SET title = $2, body = $3, updated_at = now(),
          spam_score = $4, is_suppressed = $5, moderation_note = $6, moderated_by = $7,
@@ -768,4 +775,14 @@ export async function listPostIdsForSitemap(limit = 5000): Promise<{ id: string;
     `SELECT id, updated_at FROM posts WHERE NOT is_blinded AND NOT is_suppressed AND post_type <> 'chat' ORDER BY id DESC LIMIT $1`,
     [limit],
   );
+}
+
+/** 🧹 조롱·도배로 바로 가린 글(troll)을 쓴 사람이 보는지: 쓴 사람 화면에는 그대로 보인다 (10/29) */
+export async function isShadowAuthor(id: string, fp: string): Promise<boolean> {
+  if (!/^\d{1,18}$/.test(id)) return false;
+  const [r] = await query<{ ok: boolean }>(
+    "SELECT (ai_hidden_reason = 'troll' AND NOT legal_hold AND author_fingerprint = $2) AS ok FROM posts WHERE id = $1",
+    [id, fp],
+  );
+  return !!r?.ok;
 }

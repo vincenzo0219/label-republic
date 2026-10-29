@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { viewerFp } from "@/lib/viewerFp";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LiveComments } from "@/components/LiveComments";
@@ -33,7 +34,7 @@ export default async function NeoItemPage({ params }: Props) {
   const talk = ((await ensureNeoTalks([it]).catch(() => ({}))) as Record<string, NeoTalk>)[it.id];
   // 상세를 연 것도 본 사람으로 센다 (목록에서 이미 센 브라우저는 목록이 막는다)
   if (talk) addSeen([talk.postId]);
-  const comments = talk ? await listComments(talk.postId).catch(() => []) : [];
+  const comments = talk ? await listComments(talk.postId, await viewerFp()).catch(() => []) : [];
   return (
     <div className="neo">
       <header className="neo-hero">

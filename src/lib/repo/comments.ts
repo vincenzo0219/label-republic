@@ -1,3 +1,4 @@
+import { trollCheck } from "../troll";
 import { tokenOk } from "./images";
 import { aiAbuse, aiImageAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
 import { isUniqueViolation, query, tx } from "../db";
@@ -40,17 +41,23 @@ export const TARGET_LIMIT = 5;
 const COLS = `id, post_id, nickname, CASE WHEN ai_hidden_reason IS NULL THEN body ELSE '' END AS body, is_ai_curated, created_at,
   parent_id::text AS parent_id, mentions::text[] AS mentions, ai_hidden_reason AS hidden_reason,
   CASE WHEN ai_hidden_reason IS NULL THEN image_id::text END AS image_id`;
+// 🧹 조롱·도배로 바로 가린 댓글(troll)은 다른 사람에게는 아예 안 보이고, 쓴 사람($2)에게는 그대로 보인다 (10/29)
+const SHADOW_MINE = `(ai_hidden_reason = 'troll' AND author_fingerprint = $2::text)`;
+const LIST_COLS = `id, post_id, nickname, CASE WHEN ai_hidden_reason IS NULL OR ${SHADOW_MINE} THEN body ELSE '' END AS body, is_ai_curated, created_at,
+  parent_id::text AS parent_id, mentions::text[] AS mentions, CASE WHEN ${SHADOW_MINE} THEN NULL ELSE ai_hidden_reason END AS hidden_reason,
+  CASE WHEN ai_hidden_reason IS NULL OR ${SHADOW_MINE} THEN image_id::text END AS image_id`;
 
-export async function listComments(postId: string): Promise<Comment[]> {
+export async function listComments(postId: string, viewerFp?: string | null): Promise<Comment[]> {
   if (!/^\d{1,18}$/.test(postId)) return [];
   // 블라인드·임시조치된 글의 댓글은 내보내지 않는다 (글 API 와 같게, Sprint 33)
   return query<Comment>(
-    `SELECT * FROM (SELECT ${COLS}, (SELECT count(*)::int FROM comment_likes l WHERE l.comment_id = comments.id AND l.by_name IS NULL) AS likes,
+    `SELECT * FROM (SELECT ${LIST_COLS}, (SELECT count(*)::int FROM comment_likes l WHERE l.comment_id = comments.id AND l.by_name IS NULL) AS likes,
             (SELECT coalesce(array_agg(l.by_name ORDER BY l.created_at), '{}') FROM comment_likes l WHERE l.comment_id = comments.id AND l.by_name IS NOT NULL) AS liked_by
        FROM comments WHERE post_id = $1 AND NOT EXISTS (SELECT 1 FROM posts WHERE id = $1 AND is_blinded)
+        AND (ai_hidden_reason IS DISTINCT FROM 'troll' OR author_fingerprint = $2::text)
       -- 최근 1000개 (수다방처럼 긴 대화는 최신이 보여야 한다, Sprint 84)
       ORDER BY id DESC LIMIT 1000) t ORDER BY id`,
-    [postId],
+    [postId, viewerFp ?? null],
   );
 }
 
@@ -105,7 +112,9 @@ export async function createComment(
     const abuse =
       heuristicAbuse(input.body) ??
       roomHeuristicAbuse(slug, input.body) ??
-      (shouldSuppress(spam) ? { category: "spam" as const, evidence: spam.reasons.join(", "), model: spam.model } : null);
+      (shouldSuppress(spam) ? { category: "spam" as const, evidence: spam.reasons.join(", "), model: spam.model } : null) ??
+      // 🧹 조롱·도배는 올라가되 쓴 사람에게만 보인다 (10/29). ㅋㅋㅋ 같은 반응 한 줄은 통과
+      trollCheck([input.body], { comment: true });
     // 사진 (Sprint 90): 방금 올린, 아직 어디에도 안 붙은 사진만 — 업로드 토큰으로 확인
     let imageId: string | null = null;
     if (input.image) {
@@ -124,6 +133,8 @@ export async function createComment(
     );
     if (imageId)
       await client.query("UPDATE post_images SET post_id = $2, comment_id = $3, attached_at = now() WHERE id = $1", [imageId, postId, rows[0]!.id]);
+    // 쓴 사람 화면에는 그대로 (shadow)
+    if (abuse?.category === "troll") return { ...rows[0]!, body: input.body, hidden_reason: null, image_id: imageId } as Comment;
     return rows[0]!;
   });
   // 🔔 사람이 쓴 댓글이면 운영자 기기로 바로 (기다리지 않음, 10/25). 운영 초안·환영 답글은 지문이 없어 빠진다

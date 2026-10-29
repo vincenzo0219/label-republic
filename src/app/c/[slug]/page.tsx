@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { viewerFp } from "@/lib/viewerFp";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import Link from "next/link";
@@ -127,7 +128,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const links = ROOM_LINKS[category.slug] ?? [];
   const bite = category.slug === BOOK_ROOM_SLUG && !sp.tab ? await todayBite().catch(() => null) : null;
   const chat = sp.tab === "chat" ? await ensureRoomChat(category.slug) : null;
-  const initial = chat ? await listComments(chat.postId) : [];
+  const initial = chat ? await listComments(chat.postId, await viewerFp()) : [];
   const chatProps = chat ? { postId: chat.postId, initial, badges: await badgesSafe(category.slug, initial.map((c) => c.nickname)) } : undefined;
   const head = parseHead(sp.head);
   const writing = WRITING_ROOMS.has(category.slug) && !sp.tab && !sp.type && (!head || head === "자랑") ? await loadWriting(category.slug) : null;

@@ -28,6 +28,7 @@ type Event =
 const LIKES_KEY = "lr:likes";
 /** 🚩 신고가 쌓여 가린 말 (098) */
 const REPORTED_TEXT = "🚩 신고가 쌓여 가렸어요. 운영자가 확인해요.";
+const OPERATOR_TEXT = "🛠 운영자가 확인하고 가렸어요.";
 
 /** 소켓·예전 응답에서 온 댓글의 번호를 문자열로, 답글 필드는 빈 값으로 맞춘다 */
 const norm = (c: Comment): Comment => ({
@@ -336,7 +337,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                 <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
               </div>
               {c.hidden_reason ? (
-                <div className="chat-bubble comment-hidden">{c.hidden_reason === "reported" ? REPORTED_TEXT : <>🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가렸어요.</>}</div>
+                <div className="chat-bubble comment-hidden">{c.hidden_reason === "reported" ? REPORTED_TEXT : c.hidden_reason === "operator" ? OPERATOR_TEXT : <>🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가렸어요.</>}</div>
               ) : (
                 <div className="chat-bubble">
                   <Photo id={c.image_id} />
@@ -427,7 +428,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                 {to && <div className="comment-to">↳ {to.nickname}님에게</div>}
                 {c.hidden_reason ? (
                   <div className="comment-body comment-hidden">
-                    {c.hidden_reason === "reported" ? REPORTED_TEXT : <>🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가린 댓글입니다.</>}
+                    {c.hidden_reason === "reported" ? REPORTED_TEXT : c.hidden_reason === "operator" ? OPERATOR_TEXT : <>🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가린 댓글입니다.</>}
                   </div>
                 ) : (
                   <div className="comment-body">

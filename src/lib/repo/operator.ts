@@ -45,12 +45,14 @@ export const MOD_ACTIONS = {
   attr_alias_removed: "성분명 별칭 해제",
   attr_alias_reason_hidden: "성분명 제안 사유 가림 (권리침해)",
   ai_hide_released: "AI 자동 가림 해제 (오판)",
+  operator_hidden: "운영자 가림 (신고 확인·조롱·도배)",
+  operator_restored: "운영자 다시 보이기",
 } as const;
 export type ModAction = keyof typeof MOD_ACTIONS;
 
 type LogInput = {
   action: ModAction;
-  subjectType: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias" | "attr_alias" | "comment";
+  subjectType: "post" | "board_request" | "fingerprint" | "product" | "rule_proposal" | "brand_alias" | "attr_alias" | "comment" | "neo" | "gig" | "game";
   subjectId: string;
   note: string;
   affected?: number;

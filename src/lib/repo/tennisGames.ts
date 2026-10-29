@@ -7,6 +7,7 @@ import { HttpError, notFound, tooMany } from "../errors";
 import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import { aiAbuse, heuristicAbuse } from "../abuse";
+import { trollCheck } from "../troll";
 import { assertPin } from "./pin-guard";
 import { ownerAlertAfter, reportAlertAfter } from "./ownerAlert";
 import { kstYmd } from "../instructorRoom";
@@ -100,6 +101,8 @@ export async function createGame(raw: GameInputRaw, who: { fingerprint: string; 
      VALUES ($1, $2, $3, $4::date, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19) RETURNING id::text`,
     [g.sido, g.sigungu, g.court, g.date, g.start, g.end, g.type, g.needM, g.needF, g.needAny, g.level, g.cost, g.notes, g.contact.trim(), g.nickname, await hashPin(g.pw), who.fingerprint, who.net, now.toISOString()],
   );
+  // 🧹 조롱·도배는 올라가되 바로 가린다: 쓴 사람에게만 보인다 (10/29)
+  if (trollCheck([g.court, g.level, g.notes])) await query("UPDATE tennis_games SET ai_hidden_reason = 'troll', ai_hidden_at = now() WHERE id = $1", [row!.id]);
   ownerAlertAfter({ kind: "gig", nickname: g.nickname, fingerprint: who.fingerprint }, { kind: "gig", gigId: row!.id, text: [g.sigungu || g.sido, g.court, g.type].join(" · "), room: "🎾 게임 모집", url: `/c/${encodeURIComponent(TENNIS_ROOM)}?tab=${GAMES_TAB}` });
   return { id: row!.id };
 }
@@ -110,10 +113,10 @@ export async function moderateGame(id: string): Promise<void> {
   if (!r) return;
   const abuse = await aiAbuse([r.court, r.level, r.notes].join("\n"));
   if (abuse && abuse.category !== "personal_info")
-    await query("UPDATE tennis_games SET ai_hidden_reason = $2 WHERE id = $1 AND ai_hidden_reason IS NULL", [id, abuse.category]);
+    await query("UPDATE tennis_games SET ai_hidden_reason = $2, ai_hidden_at = now() WHERE id = $1 AND ai_hidden_reason IS NULL", [id, abuse.category]);
 }
 
-export type GameFilter = { sido?: string; sigungu?: string; type?: GameType; when?: When; page?: number };
+export type GameFilter = { sido?: string; sigungu?: string; type?: GameType; when?: When; page?: number; /** 보는 사람 지문: 🧹 쓴 사람에게만 보이는 가린 게임 */ viewer?: string };
 export const GAME_PAGE = 30;
 
 /** 공개 목록: 가림·지난 날짜 빼고 가까운 게임 먼저. 마감한 게임은 그날까지 맨 뒤에 남겨 "마감" 으로 보인다 */
@@ -121,7 +124,7 @@ export async function listGames(f: GameFilter, now = new Date()): Promise<{ item
   const today = kstYmd(now);
   const params: unknown[] = [today];
   const p = (v: unknown) => (params.push(v), `$${params.length}`);
-  const where = ["ai_hidden_reason IS NULL", "play_date >= $1::date"];
+  const where = [f.viewer ? `(ai_hidden_reason IS NULL OR (ai_hidden_reason = 'troll' AND author_fingerprint = ${p(f.viewer)}))` : "ai_hidden_reason IS NULL", "play_date >= $1::date"];
   if (f.sido) where.push(`sido = ${p(f.sido)}`);
   if (f.sido && f.sigungu) where.push(`sigungu = ${p(f.sigungu)}`);
   if (f.type) where.push(`game_type = ${p(f.type)}`);

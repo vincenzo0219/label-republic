@@ -5,6 +5,7 @@ import { YesterdayVisitors } from "@/components/YesterdayVisitors";
 import { FeedbackLink } from "@/components/FeedbackLink";
 import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
+import { DwellTracker } from "@/components/DwellTracker";
 import { ErrorReporter } from "@/components/ErrorReporter";
 import { ReadOnlyWatcher } from "@/components/ReadOnlyWatcher";
 import { IosAppPush } from "@/components/IosAppPush";
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a className="skip-link" href="#main">본문으로 건너뛰기</a>
         <Suspense fallback={null}>
           <Analytics />
+          <DwellTracker />
           <MetaPixel />
           <ErrorReporter />
         </Suspense>

@@ -12,7 +12,7 @@ import { commentSchema } from "@/lib/validation";
 
 type P = { id: string };
 
-export const GET = route<P>(async (_req, { id }) => json({ comments: await listComments(id) }));
+export const GET = route<P>(async (req, { id }) => json({ comments: await listComments(id, fingerprint(req.headers)) }));
 
 /** POST /api/posts/:id/comments {nickname, pw, body, parentId?} */
 export const POST = route<P>(async (req, { id }) => {

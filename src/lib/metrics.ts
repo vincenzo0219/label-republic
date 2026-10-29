@@ -199,3 +199,37 @@ export async function recordPageView(input: PageViewInput): Promise<{ isReturnin
   }
   return { isReturning: rows[0]?.is_returning ?? false };
 }
+
+/** ⏱ 페이지를 떠날 때 비콘 한 번 (10/29): 머문 시간·스크롤 깊이·지나친 표시 */
+export async function recordDwell(input: { visitorHash: string; path: string; categorySlug: string | null; ms: number; scrollPct: number; marks: string[]; now?: Date }): Promise<void> {
+  const now = input.now ?? new Date();
+  await query(
+    "INSERT INTO page_dwell (occurred_at, day, visitor_hash, path, category_slug, ms, scroll_pct, marks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+    [now.toISOString(), kstDay(now), input.visitorHash, input.path, input.categorySlug, input.ms, input.scrollPct, input.marks],
+  );
+}
+
+export type DwellRow = { path: string; category_slug: string | null; views: number; median_s: number; avg_scroll: number; marks: Record<string, number> };
+
+/** ⏱ 페이지별 체류시간 (중앙값 초)·평균 스크롤·표시까지 내려간 비율(%) — 많이 본 순 */
+export async function dwellStats(fromDay: string, toDay: string, opts: { path?: string; limit?: number } = {}): Promise<DwellRow[]> {
+  const args = [fromDay, toDay, opts.path ?? null];
+  const rows = await query<Omit<DwellRow, "marks">>(
+    `SELECT path, max(category_slug) AS category_slug, count(*)::int AS views,
+            round((percentile_cont(0.5) WITHIN GROUP (ORDER BY ms) / 1000)::numeric, 1)::float AS median_s,
+            round(avg(scroll_pct))::int AS avg_scroll
+       FROM page_dwell WHERE day BETWEEN $1 AND $2 AND ($3::text IS NULL OR path = $3)
+      GROUP BY path ORDER BY views DESC LIMIT $4`,
+    [...args, opts.limit ?? 15],
+  );
+  if (!rows.length) return [];
+  const marks = await query<{ path: string; m: string; n: number }>(
+    `SELECT path, m, count(*)::int AS n FROM page_dwell, unnest(marks) m
+      WHERE day BETWEEN $1 AND $2 AND path = ANY($3::text[]) GROUP BY path, m`,
+    [fromDay, toDay, rows.map((r) => r.path)],
+  );
+  return rows.map((r) => ({
+    ...r,
+    marks: Object.fromEntries(marks.filter((x) => x.path === r.path).map((x) => [x.m, Math.round((100 * x.n) / r.views)])),
+  }));
+}

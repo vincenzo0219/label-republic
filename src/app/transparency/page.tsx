@@ -29,6 +29,9 @@ function subjectLabel(r: ModerationLogRow) {
   if (r.subject_type === "rule_proposal") return <Link href={`/rules#proposal-${r.subject_id}`}>규칙 제안 #{r.subject_id}</Link>;
   if (r.subject_type === "brand_alias") return `브랜드 제안 #${r.subject_id}`;
   if (r.subject_type === "comment") return `댓글 #${r.subject_id}`;
+  if (r.subject_type === "neo") return `넣어둬 #${r.subject_id}`;
+  if (r.subject_type === "gig") return `대강·구인 #${r.subject_id}`;
+  if (r.subject_type === "game") return `테니스 게임 #${r.subject_id}`;
   // 기본 사전 해제는 "방번호:이름" (Sprint 35)
   if (r.subject_type === "attr_alias") return /^\d+$/.test(r.subject_id) ? `성분 이름 제안 #${r.subject_id}` : "성분명 기본 사전";
   return "신고자 1명";

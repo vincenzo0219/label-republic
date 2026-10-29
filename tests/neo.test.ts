@@ -6,9 +6,9 @@ import { neoTextProblem } from "@/lib/repo/neo";
 
 // 💳 넣어둬 (10/27): 살까 말까 익명 투표, AI 판결 없음
 describe("넣어둬 글 규칙", () => {
-  it("링크·연락처·욕설은 받지 않는다", () => {
+  it("연락처·욕설은 받지 않고, 링크는 된다 (10/29)", () => {
     expect(neoTextProblem("무선 이어폰", "지금 거 멀쩡함")).toBeNull();
-    expect(neoTextProblem("이어폰", "https://shop.example.com/x")).toMatch(/링크/);
+    expect(neoTextProblem("이어폰", "https://shop.example.com/x")).toBeNull();
     expect(neoTextProblem("이어폰", "010-1234-5678 연락")).toMatch(/연락처/);
     expect(neoTextProblem("이어폰", "카톡 주세요")).toMatch(/연락처/);
   });

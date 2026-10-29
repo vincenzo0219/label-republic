@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { clearSinglesProfile, loadSinglesProfile, saveSinglesProfile } from "@/lib/singlesClient";
 import {
   checkEligibility,
@@ -69,6 +69,9 @@ export function SinglesRejected({ event, events, profile, today }: { event: Sing
 }
 
 type Tab = "open" | "upcoming" | "past";
+/** 🎯 행사 빙고를 이 수만큼 행사 카드 뒤에 둔다 */
+const BINGO_AFTER = 3;
+
 const TABS: { key: Tab; label: string }[] = [
   { key: "open", label: "모집 중" },
   { key: "upcoming", label: "모집 예정" },
@@ -109,8 +112,6 @@ export function SinglesRoom({ events, today, talks = {} }: { events: SinglesEven
           솔로인 지금, 다음 썸에서 나는? 답장만 고르면 나오는 썸 날씨 ☀️🌧🌫🌪
         </span>
       </Link>
-      {/* 🎯 행사 빙고 (10/28): 행사를 하나씩 열어 볼 이유 */}
-      <SinglesBingo events={events} today={today} />
       <SinglesChecker profile={profile} onChange={update} onClear={clear} thisYear={Number(today.slice(0, 4))} />
       <nav className="type-filter" aria-label="모집 상태">
         {TABS.map((t) => (
@@ -123,14 +124,19 @@ export function SinglesRoom({ events, today, talks = {} }: { events: SinglesEven
         <p className="empty">{events.length === 0 ? "아직 모은 행사가 없어요. 원문 공지를 확인하는 대로 올려요." : "이 칸에 맞는 행사가 없어요."}</p>
       ) : (
         <div className="singles-list">
-          {shown.map((e) => (
-            <div key={e.id} data-post-id={talks[e.id]?.postId}>
-              <SinglesEventCard event={e} today={today} eligibility={judged ? checkEligibility(e, profile, today) : null}>
-                {tab !== "past" && <SinglesRejected event={e} events={events} profile={profile} today={today} />}
-                <SinglesTalkLine eventId={e.id} talk={talks[e.id]} />
-              </SinglesEventCard>
-            </div>
+          {shown.map((e, i) => (
+            <Fragment key={e.id}>
+              {/* 🎯 행사 빙고는 행사 카드 3개 뒤 (10/29 대표님: 빙고가 위에서 행사 글을 가려서) */}
+              {i === BINGO_AFTER && <SinglesBingo events={events} today={today} />}
+              <div data-post-id={talks[e.id]?.postId} {...(i === 0 ? { "data-dwell-mark": "first-event" } : {})}>
+                <SinglesEventCard event={e} today={today} eligibility={judged ? checkEligibility(e, profile, today) : null}>
+                  {tab !== "past" && <SinglesRejected event={e} events={events} profile={profile} today={today} />}
+                  <SinglesTalkLine eventId={e.id} talk={talks[e.id]} />
+                </SinglesEventCard>
+              </div>
+            </Fragment>
           ))}
+          {shown.length <= BINGO_AFTER && <SinglesBingo events={events} today={today} />}
           <SeenTracker key={tab} />
         </div>
       )}

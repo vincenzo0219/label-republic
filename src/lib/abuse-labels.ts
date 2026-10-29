@@ -8,6 +8,8 @@ export const ABUSE_LABELS = {
   image: "부적절한 사진",
   invest: "리딩방·수익 보장 홍보",
   diet: "극단적 다이어트 조장",
+  troll: "조롱·도배성 글",
+  operator: "운영 원칙 위반 (운영자 확인)",
 } as const;
 export type AbuseCategory = keyof typeof ABUSE_LABELS;
 

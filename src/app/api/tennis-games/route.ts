@@ -23,7 +23,7 @@ export const GET = route(async (req) => {
   const sp = Object.fromEntries([...new URL(req.url).searchParams].filter(([, v]) => v !== ""));
   const f = filterSchema.safeParse(sp);
   if (!f.success) throw new HttpError(400, "invalid_filter", "거르기 값이 올바르지 않습니다.");
-  const r = await listGames(f.data);
+  const r = await listGames({ ...f.data, viewer: fingerprint(req.headers) });
   return new Response(JSON.stringify(r), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
 });
 

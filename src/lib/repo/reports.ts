@@ -106,3 +106,66 @@ export async function operatorReports(days = 7, limit = 100): Promise<(ReportRow
     .map((r) => ({ ...r, priority: r.reports >= (r.type === "correction" ? rules.correction_hide_reports : rules.post_blind_reports) }))
     .sort((a, b) => Number(b.priority) - Number(a.priority) || Date.parse(b.last_at) - Date.parse(a.last_at));
 }
+
+export type HiddenRow = { type: "post" | "comment" | "neo" | "gig" | "game"; id: string; room: string; text: string; url: string; reason: string; evidence: string; hidden_at: string };
+
+/**
+ * 🧹 올린 직후 조롱·도배로 바로 가린 것(troll) + 운영자가 가린 것(operator), 최근 days 일. 쓴 사람에게만 보이는 상태라
+ * 운영자가 보고 오판이면 /admin 에서 한 번에 다시 보이게 한다 (10/29)
+ */
+export async function listAutoHidden(days = 7, limit = 100): Promise<HiddenRow[]> {
+  return query<HiddenRow>(
+    `SELECT * FROM (
+       SELECT 'post' AS type, p.id::text AS id, c.name AS room, left(p.title || ' ' || p.body, 120) AS text, '/posts/' || p.id AS url,
+              p.ai_hidden_reason AS reason, p.ai_hidden_note AS evidence, p.ai_hidden_at AS hidden_at
+         FROM posts p JOIN categories c ON c.id = p.category_id
+        WHERE p.ai_hidden_reason IN ('troll', 'operator') AND p.ai_hidden_at > now() - make_interval(days => $1)
+       UNION ALL
+       SELECT 'comment', cm.id::text, c.name, left(cm.body, 120),
+              CASE WHEN p.seed_key LIKE 'roomchat:%' THEN '/c/' || c.slug || '#c' || cm.id ELSE '/posts/' || p.id || '#c' || cm.id END,
+              cm.ai_hidden_reason, cm.ai_hidden_note, cm.ai_hidden_at
+         FROM comments cm JOIN posts p ON p.id = cm.post_id JOIN categories c ON c.id = p.category_id
+        WHERE cm.ai_hidden_reason IN ('troll', 'operator') AND cm.ai_hidden_at > now() - make_interval(days => $1)
+       UNION ALL
+       SELECT 'neo', i.id::text, '💳 넣어둬', left(i.title || ' ' || i.reason, 120), '/neo/' || i.id, i.hidden_reason, '', i.hidden_at
+         FROM neo_items i WHERE i.hidden_reason IN ('troll', 'operator') AND i.hidden_at > now() - make_interval(days => $1)
+       UNION ALL
+       SELECT 'gig', g.id::text, '📋 대강·구인', left(concat_ws(' · ', g.studio, g.notes), 120), '/gigs/' || g.id, g.ai_hidden_reason, g.ai_hidden_note, g.ai_hidden_at
+         FROM gig_listings g WHERE g.ai_hidden_reason IN ('troll', 'operator') AND g.ai_hidden_at > now() - make_interval(days => $1)
+       UNION ALL
+       SELECT 'game', t.id::text, '🎾 테니스 게임', left(concat_ws(' · ', t.court, t.notes), 120), '${TENNIS_GAMES_URL}', t.ai_hidden_reason, '', t.ai_hidden_at
+         FROM tennis_games t WHERE t.ai_hidden_reason IN ('troll', 'operator') AND t.ai_hidden_at > now() - make_interval(days => $1)
+     ) x ORDER BY hidden_at DESC LIMIT $2`,
+    [days, limit],
+  );
+}
+
+export type DuplicateRow = { type: "post" | "comment" | "neo"; text: string; count: number; authors: number; ids: string[]; room: string; last_at: string };
+
+/**
+ * 🔁 똑같은 글을 여러 번 (10/29 대표님 "도배는 놔두고, 똑같은 글을 여러번 올리면 자동점검때 보고"). 보고만 하고 손대지 않는다.
+ * 공백·문장부호를 빼고 같은 내용이 최근 days 일 안에 2번 이상이면 (같은 사람이든 여러 사람이든). 운영 닉네임·AI 글은 뺀다
+ */
+export async function listDuplicates(days = 1, limit = 50): Promise<DuplicateRow[]> {
+  const norm = (col: string) => `lower(regexp_replace(${col}, '[[:space:][:punct:]]', '', 'g'))`;
+  return query<DuplicateRow>(
+    `SELECT * FROM (
+       SELECT 'post' AS type, left(min(p.title), 80) AS text, count(*)::int AS count, count(DISTINCT coalesce(p.author_fingerprint, p.nickname))::int AS authors,
+              array_agg(p.id::text ORDER BY p.id) AS ids, min(c.name) AS room, max(p.created_at) AS last_at
+         FROM posts p JOIN categories c ON c.id = p.category_id
+        WHERE p.created_at > now() - make_interval(days => $1) AND NOT p.is_ai_curated AND p.author_fingerprint IS NOT NULL
+        GROUP BY ${norm("p.title || p.body")} HAVING count(*) >= 2 AND length(${norm("min(p.title) || min(p.body)")}) >= 4
+       UNION ALL
+       SELECT 'comment', left(min(cm.body), 80), count(*)::int, count(DISTINCT coalesce(cm.author_fingerprint, cm.nickname))::int,
+              array_agg(cm.id::text ORDER BY cm.id), min(c.name), max(cm.created_at)
+         FROM comments cm JOIN posts p ON p.id = cm.post_id JOIN categories c ON c.id = p.category_id
+        WHERE cm.created_at > now() - make_interval(days => $1) AND NOT cm.is_ai_curated AND cm.author_fingerprint IS NOT NULL
+        GROUP BY ${norm("cm.body")} HAVING count(*) >= 2 AND length(${norm("min(cm.body)")}) >= 6
+       UNION ALL
+       SELECT 'neo', left(min(i.title), 80), count(*)::int, count(DISTINCT i.owner_hash)::int, array_agg(i.id::text ORDER BY i.id), '💳 넣어둬', max(i.created_at)
+         FROM neo_items i WHERE i.created_at > now() - make_interval(days => $1) AND length(${norm("i.title")}) >= 2
+        GROUP BY ${norm("i.title")} HAVING count(*) >= 2
+     ) x ORDER BY count DESC, last_at DESC LIMIT $2`,
+    [days, limit],
+  );
+}
