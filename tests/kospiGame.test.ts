@@ -120,4 +120,17 @@ d("📈 코스피 맞히기 (DB)", async () => {
     // a(11/2 1승, 10월 아님) 는 1판이라 순위 X
     expect(rank).toHaveLength(2);
   });
+  it("⭕ 투자방 동그라미: 안 골랐으면 켜고, 고른 뒤엔 끄고, 결과가 새로 나오면 다시 켠다", async () => {
+    const t = new Date("2027-01-05T20:00:00Z"); // 1/6(수) 05:00 KST
+    const old = new Date(Date.now() - 60_000); // 종가 넣은 시각(지금)보다 앞에 본 방
+    const items = [{ slug: "주식", since: old }, { slug: "캠핑-덕후방", since: old }];
+    expect(await k.kospiPending(items, "ring", t)).toEqual({ 주식: true, "캠핑-덕후방": false });
+    expect((await k.kospiPending(items, null, t))["주식"]).toBe(true);
+    await k.pickKospi({ visitor: "ring", room: "주식", side: 1 }, new Date("2027-01-04T20:00:00Z")); // 1/5 판
+    await k.pickKospi({ visitor: "ring", room: "주식", side: 1 }, t); // 1/6 판
+    expect((await k.kospiPending(items, "ring", t))["주식"]).toBe(false);
+    await k.putKospiClose("2027-01-05", 2600);
+    expect((await k.kospiPending(items, "ring", t))["주식"]).toBe(true);
+    expect((await k.kospiPending([{ slug: "주식", since: new Date(Date.now() + 60_000) }], "ring", t))["주식"]).toBe(false);
+  });
 });

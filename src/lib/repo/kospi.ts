@@ -151,3 +151,26 @@ export async function kospiRanking(visitor: string | null, now = new Date()): Pr
     me: visitor !== null && r.key === `v:${visitor}`,
   }));
 }
+
+/**
+ * ⭕ 투자방 동그라미 (10/29 대표님 "결과 보러 다시 오게"): 지금 문제를 아직 안 골랐거나,
+ * 내가 고른 판의 종가가 그 방을 마지막으로 본 뒤에 들어왔으면(결과 나옴) 켠다. 투자방 아니면 false
+ */
+export async function kospiPending(items: { slug: string; since: Date }[], visitor: string | null, now = new Date()): Promise<Record<string, boolean>> {
+  const out: Record<string, boolean> = Object.fromEntries(items.map((i) => [i.slug, false]));
+  const rooms = items.filter((i) => KOSPI_ROOMS.has(i.slug));
+  if (!rooms.length) return out;
+  if (!visitor) {
+    for (const r of rooms) out[r.slug] = true;
+    return out;
+  }
+  const [row] = await query<{ picked: boolean; settled: string | null }>(
+    `SELECT EXISTS (SELECT 1 FROM kospi_picks WHERE day = $1 AND visitor_hash = $2) AS picked,
+            (SELECT max(c.updated_at) FROM kospi_picks p JOIN kospi_closes c ON c.day = p.day
+              WHERE p.visitor_hash = $2 AND p.day < $1)::text AS settled`,
+    [questionDay(now), visitor],
+  );
+  const settled = row?.settled ? Date.parse(row.settled) : 0;
+  for (const r of rooms) out[r.slug] = !row?.picked || settled > r.since.getTime();
+  return out;
+}

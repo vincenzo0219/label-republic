@@ -1589,8 +1589,9 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 @keyframes quiz-fall { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 0; transform: translateY(180px) rotate(320deg); } }
 @media (prefers-reduced-motion: reduce) { .quiz-confetti { display: none; } .quiz-bar { transition: none; } }
 .streak-badge { margin-left: 4px; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: #fff1e6; color: #b45309; }
-.chat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
-.chat-chips .chip { font-size: 13px; padding: 4px 10px; height: auto; }
+.chat-form .quick-replies { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
+.chat-form .quick-replies .chip { font-size: 13px; padding: 4px 10px; height: auto; }
+.chip-to { font-size: 12.5px; color: var(--muted); }
 /* 🧩 누르고 싶게 (10/29): 큰 버튼, 방 색 테두리, 누르면 살짝 눌림 */
 .quiz-opt { min-height: 52px; border: 2px solid color-mix(in srgb, var(--accent, #2f6f5e) 35%, var(--line)); border-radius: 14px; transition: transform 0.08s ease; }
 .quiz-opt:not(:disabled):active { transform: scale(0.96); }

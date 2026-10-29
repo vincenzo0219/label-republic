@@ -372,8 +372,8 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
 
   if (chat) {
     const shown = comments.slice(-show);
-    // 🙌 사람 말 아래 바로 누르는 답장 (10/29): 최근 사람 말 3개에만
-    const chipIds = new Set(chatChipTargets(shown, form.nickname, chatChipped));
+    // 🙌 바로 누르는 답장 (10/29): 메시지 창 바로 위, 가장 최근 사람 말 하나에게 (대표님 "말 선택이 메세지 창 근처에 있어야지")
+    const chipTo = shown.find((c) => c.id === chatChipTargets(shown, form.nickname, chatChipped, 1)[0]);
     return (
       <section id="comments" className="chat-room" aria-label="수다방">
         {comments.length > show && (
@@ -414,24 +414,6 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                   )}
                 </div>
               )}
-              {chipIds.has(c.id) && (
-                <div className="chat-chips" role="group" aria-label={`${c.nickname}님께 한 번 눌러 답장`}>
-                  {CHAT_CHIPS.map((ch) => (
-                    <button
-                      key={ch}
-                      type="button"
-                      className="chip quick-reply"
-                      disabled={busy}
-                      onClick={async () => {
-                        setChatChipped((s) => new Set(s).add(c.id));
-                        await sendChip(chatChipText(c.nickname, ch));
-                      }}
-                    >
-                      {ch}
-                    </button>
-                  ))}
-                </div>
-              )}
             </li>
           ))}
         </ul>
@@ -447,6 +429,42 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
             </label>
           )}
           {!savedNick && <NickCheck nickname={form.nickname} />}
+          {starter && !starterSent ? (
+            <div className="quick-replies chat-starter" role="group" aria-label="한 번 눌러 인사">
+              {CHAT_STARTERS.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  className="chip quick-reply"
+                  disabled={busy}
+                  onClick={async () => {
+                    await sendChip(q);
+                    setStarterSent(true);
+                  }}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          ) : chipTo ? (
+            <div className="quick-replies chat-starter" role="group" aria-label={`${chipTo.nickname}님께 한 번 눌러 답장`}>
+              <span className="chip-to">↳ {chipTo.nickname}님께</span>
+              {CHAT_CHIPS.map((ch) => (
+                <button
+                  key={ch}
+                  type="button"
+                  className="chip quick-reply"
+                  disabled={busy}
+                  onClick={async () => {
+                    setChatChipped((s) => new Set(s).add(chipTo.id));
+                    await sendChip(chatChipText(chipTo.nickname, ch));
+                  }}
+                >
+                  {ch}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <PhotoPreview photo={photo} onClear={() => setPhoto(null)} />
           <div className="row chat-row">
             <PhotoButton fileRef={fileRef} onPick={pickPhoto} />
@@ -513,24 +531,6 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
       ))}
 
       {notice && <p className="room-rule-note" role="note" style={{ marginTop: 16 }}>{notice}</p>}
-      {chat && starter && !starterSent && (
-        <div className="quick-replies chat-starter" role="group" aria-label="한 번 눌러 인사">
-          {CHAT_STARTERS.map((q) => (
-            <button
-              key={q}
-              type="button"
-              className="chip quick-reply"
-              disabled={busy}
-              onClick={async () => {
-                await sendChip(q);
-                setStarterSent(true);
-              }}
-            >
-              {q}
-            </button>
-          ))}
-        </div>
-      )}
       {quick && quick.length > 0 && !commented && (
         <div className="quick-replies" role="group" aria-label="한 번 눌러 답장">
           {quick.map((q) => (
