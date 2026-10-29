@@ -15,14 +15,17 @@ describe("🧩 오늘의 1분 퀴즈 (규칙)", () => {
     }
     expect(quizProblem(GENERIC_TYPE)).toBeNull();
   });
-  it("날짜로 매일 바뀌고, 토요일은 유형 테스트, 기존 오늘의 질문 방·제외 방은 null", () => {
+  it("날짜로 매일 바뀌고, 토요일은 유형 테스트, 제외 방은 null", () => {
     const a = builtinQuiz("캠핑-덕후방", "2026-10-29")!;
     const b = builtinQuiz("캠핑-덕후방", "2026-10-30")!;
     expect(a.kind).toBe("pick");
     expect(a).not.toEqual(b);
     expect(isTypeDay("2026-10-31")).toBe(true);
     expect(builtinQuiz("캠핑-덕후방", "2026-10-31")!.kind).toBe("type");
-    expect(builtinQuiz("k리그-덕후방", "2026-10-29")).toBeNull();
+    // 기존 오늘의 질문 방도 같은 카드로 (10/29): 그날의 A vs B 가 공감 퀴즈로
+    const k = builtinQuiz("k리그-덕후방", "2026-10-29")!;
+    expect(k.kind).toBe("pick");
+    expect(builtinQuiz("주식", "2026-10-29")).toBeNull();
     for (const r of QUIZ_EXCLUDED) expect(builtinQuiz(r, "2026-10-29")).toBeNull();
     expect(isTriviaDay("2026-10-29")).not.toBe(isTriviaDay("2026-10-30"));
     // 기본 정답 퀴즈가 없으면 홀수 날에도 공감 퀴즈
@@ -76,7 +79,8 @@ d("🧩 오늘의 1분 퀴즈 (DB)", async () => {
   it("운영자 줄이 먼저, 한 브라우저 하루 한 번, 같은 선택 %", async () => {
     const day = "2026-10-29";
     expect((await qz.todayQuiz("캠핑-덕후방", day))!.source).toBe("builtin");
-    expect((await qz.todayQuiz("k리그-덕후방", day))!.source).toBe("poll");
+    expect((await qz.todayQuiz("k리그-덕후방", day))!.source).toBe("builtin");
+    expect((await qz.todayQuiz("미혼남녀-만남-행사", day))!.source).toBe("poll");
     expect(await qz.todayQuiz("오늘도-장사중", day)).toBeNull();
     await qz.putRoomQuiz("캠핑-덕후방", day, { kind: "pick", q: "텐트 치고 제일 먼저?", options: ["의자", "불", "사진"] });
     await expect(qz.putRoomQuiz("오늘도-장사중", day, { kind: "pick", q: "x", options: ["a", "b"] })).rejects.toThrow();

@@ -7,7 +7,7 @@
  * ★ 정답 퀴즈(trivia) 규칙 (10/29 대표님 "절반은 정답이 있는 퀴즈, 절반은 공감형"): 날짜로 번갈아(짝수 날 공감 pick, 홀수 날 trivia).
  *   trivia 는 공식·1차 출처로 확인한 사실만, 항목마다 source(https 주소)와 한 줄 설명(why). 확인 못 하면 그날은 공감 pick 으로.
  */
-import { ROOM_POLLS } from "./roomPolls";
+import { ROOM_POLLS, roomPollTopic } from "./roomPolls";
 
 export type PickQuiz = { kind: "pick"; q: string; options: string[] };
 export type TypeQuiz = {
@@ -21,7 +21,8 @@ export type TriviaQuiz = { kind: "trivia"; q: string; options: string[]; answer:
 export type RoomQuiz = PickQuiz | TypeQuiz | TriviaQuiz;
 
 /** 퀴즈를 올리지 않는 방: 일하는 방, 숨은 방. 💌 미혼남녀방은 오늘의 썸 카톡이 그 역할 (ROOM_POLLS 로 나간다) */
-export const QUIZ_EXCLUDED = new Set(["요가-필라테스-강사방", "오늘도-장사중", "neo", "tennis-talk"]);
+// 정보를 얻는 투자방은 맨 위 퀴즈를 뺀다 (10/29 대표님 "주식 같은 정보를 얻는 방은 맨 위 퀴즈 빼자")
+export const QUIZ_EXCLUDED = new Set(["요가-필라테스-강사방", "오늘도-장사중", "neo", "tennis-talk", "주식", "미국주식방", "적립식-투자방"]);
 
 const p = (q: string, ...options: string[]): PickQuiz => ({ kind: "pick", q, options });
 
@@ -244,10 +245,12 @@ export const isTriviaDay = (day: string) => dayIndex(day) % 2 === 1;
 /** 🔥 연속 참여 배지 단계 (3·7·30일) */
 export const streakTier = (n: number): 0 | 3 | 7 | 30 => (n >= 30 ? 30 : n >= 7 ? 7 : n >= 3 ? 3 : 0);
 
-/** 운영자 줄이 없을 때 오늘의 퀴즈. ROOM_POLLS 가 있는 방은 null(기존 오늘의 질문을 쓴다) */
+/** 운영자 줄이 없을 때 오늘의 퀴즈. ROOM_POLLS 가 있는 방은 그 방의 오늘 질문을 같은 카드(손맛·폭죽·카드 모음)로 (10/29 대표님 "누르고 싶은 장치 진행") */
 export function builtinQuiz(slug: string, day: string): RoomQuiz | null {
-  if (QUIZ_EXCLUDED.has(slug) || ROOM_POLLS[slug]) return null;
+  if (QUIZ_EXCLUDED.has(slug)) return null;
   if (isTypeDay(day)) return GENERIC_TYPE;
+  const poll = ROOM_POLLS[slug] ? roomPollTopic(slug, day) : null;
+  if (poll) return { kind: "pick", q: `${ROOM_POLLS[slug]!.emoji} 오늘의 질문, 당신은?`, options: [poll[0], poll[1]] } as RoomQuiz;
   const i = dayIndex(day);
   const trivia = BUILTIN_TRIVIA[slug];
   if (isTriviaDay(day) && trivia?.length) return trivia[Math.floor(i / 2) % trivia.length]!;

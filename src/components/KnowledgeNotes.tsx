@@ -11,8 +11,6 @@ type NoteRoom = {
   taste: number;
   doctor: boolean;
 };
-/** 박사까지 (src/lib/repo/roomQuizzes.ts NOTE_TITLE_MIN 과 같게) */
-const TITLE_MIN = 10;
 const isKnowledge = (n: { kind: string }) =>
   n.kind === "trivia" || n.kind === "welcome";
 
@@ -27,7 +25,7 @@ type Note = {
   samePct: number | null;
 };
 
-/** 📚 내 지식 노트 (10/29 대표님 "지식노트 마이페이지로"): 오늘의 1분 퀴즈에 답할 때마다 쌓인다. 정답 퀴즈는 지식 카드, 공감 퀴즈는 내 취향 기록 */
+/** 🃏 내 카드 모음 (10/29 대표님 "지식노트 마이페이지로" → "내 카드 모음으로 변경", 숙제 같지 않게 진도 막대 없이 장수만): 오늘의 1분 퀴즈에 답할 때마다 쌓인다. 정답 퀴즈는 지식 카드, 공감 퀴즈는 내 취향 기록 */
 export function KnowledgeNotes() {
   const [data, setData] = useState<{
     rooms: NoteRoom[];
@@ -66,14 +64,14 @@ export function KnowledgeNotes() {
     const url = window.location.origin;
     try {
       if (navigator.share)
-        await navigator.share({ title: "노방장 지식 카드", text, url });
+        await navigator.share({ title: "노방장 카드", text, url });
       else await navigator.clipboard.writeText(`${text}\n${url}`);
     } catch {}
   };
 
   return (
     <section className="card" id="notes">
-      <h2 className="card-title">📚 내 지식 노트</h2>
+      <h2 className="card-title">🃏 내 카드 모음</h2>
       {!data || data.rooms.length === 0 ? (
         <p className="hint">방 맨 위 오늘의 1분 퀴즈에 답하면 여기에 쌓여요.</p>
       ) : (
@@ -112,32 +110,6 @@ export function KnowledgeNotes() {
               </button>
             ))}
           </div>
-          {data.rooms.slice(0, 5).map((r) => {
-            const n = r.knowledge + r.taste;
-            const short = roomShortName({ slug: r.room, name: r.name });
-            return (
-              <div key={r.room} className="quiz-progress">
-                <span className="quiz-progress-label">
-                  {n >= TITLE_MIN
-                    ? `${roomEmoji(r.room)} ${short} 박사 🎓`
-                    : `${roomEmoji(r.room)} ${short} 박사까지 ${n}/${TITLE_MIN}`}
-                </span>
-                <span
-                  className="quiz-progress-track"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={TITLE_MIN}
-                  aria-valuenow={Math.min(n, TITLE_MIN)}
-                >
-                  <span
-                    style={{
-                      width: `${Math.min(100, (n / TITLE_MIN) * 100)}%`,
-                    }}
-                  />
-                </span>
-              </div>
-            );
-          })}
           {open && (
             <div className="note-list">
               {!notes ? (

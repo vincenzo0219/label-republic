@@ -1,6 +1,6 @@
 "use client";
 
-import { CHAT_CHIPS, chatChipTargets, chatChipText } from "@/lib/quickReplies";
+import { CHAT_CHIPS, CHAT_STARTERS, chatChipTargets, chatChipText } from "@/lib/quickReplies";
 import { badgeOf, type BadgeMap } from "@/lib/badges";
 import { NickBadge } from "./NickBadge";
 import Link from "next/link";
@@ -96,6 +96,14 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
   // 💬 수다방 (Sprint 84): 비번 입력 없이 이 브라우저의 4자리를 쓰고, 최근 100개부터 보여 준다
   const [show, setShow] = useState(100);
   const [savedNick, setSavedNick] = useState(false);
+  // 👋 수다방에 들어오고 2초 뒤 첫 인사 버튼 (10/29 대표님). 한 번 보내면 사라진다
+  const [starter, setStarter] = useState(false);
+  const [starterSent, setStarterSent] = useState(false);
+  useEffect(() => {
+    if (!chat) return;
+    const t = window.setTimeout(() => setStarter(true), 2000);
+    return () => window.clearTimeout(t);
+  }, [chat]);
   // 📷 사진 1장 (Sprint 90): 고르면 바로 올리고, 보낼 때 id·token 만 넘긴다
   const [photo, setPhoto] = useState<{ id?: string; token?: string; preview: string; status: "uploading" | "done" | "error" } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -279,7 +287,12 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
 
   // 🙌 한 번 누르는 답장 (10/29): 버튼 글자를 그대로 댓글로. 닉네임·비번은 이 브라우저 것
   async function sendChip(text: string) {
-    const nickname = form.nickname.trim();
+    // 수다방 첫 인사 버튼은 닉네임이 없어도 바로 (10/29 대표님 "바로 선택해서 글 입력"): 손님 번호를 붙여 준다
+    let nickname = form.nickname.trim();
+    if (!nickname && chat) {
+      nickname = `손님${Math.floor(1000 + Math.random() * 9000)}`;
+      setForm((f) => ({ ...f, nickname }));
+    }
     if (!nickname) {
       setError("닉네임을 먼저 적어 주세요.");
       nickRef.current?.focus();
@@ -500,6 +513,24 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
       ))}
 
       {notice && <p className="room-rule-note" role="note" style={{ marginTop: 16 }}>{notice}</p>}
+      {chat && starter && !starterSent && (
+        <div className="quick-replies chat-starter" role="group" aria-label="한 번 눌러 인사">
+          {CHAT_STARTERS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              className="chip quick-reply"
+              disabled={busy}
+              onClick={async () => {
+                await sendChip(q);
+                setStarterSent(true);
+              }}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
       {quick && quick.length > 0 && !commented && (
         <div className="quick-replies" role="group" aria-label="한 번 눌러 답장">
           {quick.map((q) => (

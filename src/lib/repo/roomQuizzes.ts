@@ -16,7 +16,6 @@ export async function todayQuiz(slug: string, day: string): Promise<TodayQuiz> {
   if (slug === SINGLES) return { source: "poll" };
   const [row] = await query<{ kind: RoomQuiz["kind"]; payload: RoomQuiz }>("SELECT kind, payload FROM room_quizzes WHERE room = $1 AND day = $2", [slug, day]);
   if (row) return { source: "db", quiz: { ...row.payload, kind: row.kind } as RoomQuiz };
-  if (ROOM_POLLS[slug]) return { source: "poll" };
   const b = builtinQuiz(slug, day);
   return b ? { source: "builtin", quiz: b } : null;
 }

@@ -29,7 +29,7 @@ const TITLE_MIN = 10;
 /** 결과를 보여 주기 전 잠깐 뜸 */
 const SUSPENSE_MS = 300;
 
-/** 🎉 카드 안에서만 1초 반짝. 정답·연속 고비(3·7·30일)에만, 움직임 줄이기 설정이면 안 보임 */
+/** 🎉 카드 안에서만 1초 반짝. 답할 때마다 작게, 정답·칭호·연속 고비(3·7·30일)는 크게 (10/29 대표님 "손맛, 폭죽 진행"). 움직임 줄이기 설정이면 안 보임 */
 function Confetti({ size }: { size: number }) {
   if (!size) return null;
   return (
@@ -118,11 +118,11 @@ function NextStep({ slug, notes }: { slug: string; notes: number }) {
         </Link>
       ) : (
         <Link href="/my#notes" className="quiz-next-btn">
-          📚 내 노트 보기
+          🃏 내 카드 모음
         </Link>
       )}
       <Link href="/my#notes" className="quiz-notes-count">
-        📚 {notes}개
+        🃏 {notes}장
       </Link>
     </div>
   );
@@ -220,6 +220,8 @@ export function RoomQuiz({ slug, name }: { slug: string; name: string }) {
       setPlusOne(true);
       const milestone = r.streak >= 3 && streakTier(r.streak) === r.streak;
       const right = q.kind === "trivia" && r.mine === String(q.answer);
+      // 🎓 카드 10장째 되는 순간만 칭호를 깜짝 공개 (진도 막대는 숙제 같아서 뺐다, 10/29 대표님)
+      const justTitled = r.progress === TITLE_MIN;
       window.setTimeout(() => {
         setRevealed(true);
         setConfetti(
@@ -231,7 +233,9 @@ export function RoomQuiz({ slug, name }: { slug: string; name: string }) {
                 : 26
             : right
               ? 16
-              : 0,
+              : justTitled
+                ? 34
+                : 10,
         );
       }, SUSPENSE_MS);
     } catch (e) {
@@ -412,28 +416,15 @@ export function RoomQuiz({ slug, name }: { slug: string; name: string }) {
       {answered && revealed && (
         <>
           {plusOne && (
-            <p className="quiz-note-line">📚 +1 · 내 노트에 쌓였어요</p>
+            <p className="quiz-note-line">🃏 +1 · 내 카드 모음에 담았어요</p>
           )}
-          <div className="quiz-progress">
-            <span className="quiz-progress-label">
-              {d.progress >= TITLE_MIN
-                ? `${roomEmoji(slug)} ${short} 박사 🎓`
-                : `${roomEmoji(slug)} ${short} 박사까지 ${d.progress}/${TITLE_MIN}`}
-            </span>
-            <span
-              className="quiz-progress-track"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={TITLE_MIN}
-              aria-valuenow={Math.min(d.progress, TITLE_MIN)}
-            >
-              <span
-                style={{
-                  width: `${Math.min(100, (d.progress / TITLE_MIN) * 100)}%`,
-                }}
-              />
-            </span>
-          </div>
+          <p className="quiz-progress-label">
+            {d.progress === TITLE_MIN
+              ? `🎉 ${roomEmoji(slug)} ${short} 박사 칭호를 받았어요!`
+              : d.progress > TITLE_MIN
+                ? `${roomEmoji(slug)} ${short} 박사 🎓 · 카드 ${d.progress}장`
+                : `${roomEmoji(slug)} ${short} 카드 ${d.progress}장`}
+          </p>
           <button type="button" className="quiz-share" onClick={share}>
             {copied ? "✓ 복사했어요" : "📤 내 결과 공유하기"}
           </button>
