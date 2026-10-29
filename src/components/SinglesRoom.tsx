@@ -16,6 +16,7 @@ import {
 import type { SinglesTalk } from "@/lib/repo/singlesTalk";
 import { SeenTracker } from "./SeenTracker";
 import { SinglesBingo } from "./SinglesBingo";
+import { SinglesStar } from "./SinglesStar";
 import { SinglesAlert } from "./SinglesAlert";
 import { SinglesChecker } from "./SinglesChecker";
 import { SinglesEventCard } from "./SinglesEventCard";
@@ -130,6 +131,7 @@ export function SinglesRoom({ events, today, talks = {} }: { events: SinglesEven
               {i === BINGO_AFTER && <SinglesBingo events={events} today={today} />}
               <div data-post-id={talks[e.id]?.postId} {...(i === 0 ? { "data-dwell-mark": "first-event" } : {})}>
                 <SinglesEventCard event={e} today={today} eligibility={judged ? checkEligibility(e, profile, today) : null}>
+                  {tab !== "past" && <SinglesStar id={e.id} />}
                   {tab !== "past" && <SinglesRejected event={e} events={events} profile={profile} today={today} />}
                   <SinglesTalkLine eventId={e.id} talk={talks[e.id]} />
                 </SinglesEventCard>

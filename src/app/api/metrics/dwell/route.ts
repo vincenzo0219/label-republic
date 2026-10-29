@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     if (!(await hit(`dwell:${vh}`, 120, 60 * 1000))) return res;
     // 0.5초도 안 된 것(바로 다른 페이지로 넘어감)은 버린다
     if (parsed.data.ms < 500) return res;
-    await recordDwell({ visitorHash: vh, path: path.path, categorySlug: path.categorySlug, ms: parsed.data.ms, scrollPct: parsed.data.scroll, marks: parsed.data.marks });
+    await recordDwell({ visitorHash: vh, path: path.path, categorySlug: path.categorySlug, tab: path.tab, ms: parsed.data.ms, scrollPct: parsed.data.scroll, marks: parsed.data.marks });
   } catch {}
   return res;
 }

@@ -43,10 +43,10 @@ import { KidsTopLine } from "@/components/KidsTopLine";
 import { AdSchedule } from "@/components/AdSchedule";
 import { isAdLanding } from "@/lib/adSchedule";
 import { recentEventPosts } from "@/lib/repo/adSchedule";
-import { InfoOnlyRoom, SinglesTab } from "@/components/InfoOnlyRoom";
+import { InfoOnlyRoom, SinglesCalendarTab, SinglesGenderTab, SinglesTab } from "@/components/InfoOnlyRoom";
 import { BriefingStrip } from "@/components/BriefingStrip";
 import { BRIEFING_KINDS, roomBriefings } from "@/lib/repo/briefings";
-import { SINGLES_TAB } from "@/lib/singlesEvents";
+import { SINGLES_ROOM, SINGLES_TAB } from "@/lib/singlesEvents";
 import { GAMES_TAB } from "@/lib/tennisGames";
 import { TennisGames } from "@/components/TennisGames";
 
@@ -186,6 +186,10 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             ? { key: LESSON_TAB, node: <GigBoard kind="ask" /> }
             : roomTab?.key === SINGLES_TAB
               ? { key: SINGLES_TAB, node: <SinglesTab /> }
+              : roomTab?.key === "gender" && category.slug === SINGLES_ROOM
+                ? { key: "gender", node: <SinglesGenderTab /> }
+                : roomTab?.key === "mycal" && category.slug === SINGLES_ROOM
+                  ? { key: "mycal", node: <SinglesCalendarTab /> }
               : roomTab?.key === GAMES_TAB
                 ? { key: GAMES_TAB, node: <TennisGames /> }
         : undefined;
@@ -212,7 +216,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           ),
         )}
       </nav>}
-      {ROOM_POLLS[category.slug] && <RoomPoll slug={category.slug} />}
+      {/* 👫 남녀 생각 차이 탭은 같은 투표를 목록으로 보여 주니 맨 위 투표는 뺀다 */}
+      {ROOM_POLLS[category.slug] && roomTab?.key !== "gender" && <RoomPoll slug={category.slug} />}
       <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? (head === "자랑" ? <>{roomBox}{fanDays(false)}</> : roomBox) : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : (kidsLine ?? fanLine)} roomTab={roomTabProps} />
     </>
   );

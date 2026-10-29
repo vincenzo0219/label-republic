@@ -57,7 +57,17 @@ export function isBot(userAgent: string | null): boolean {
   return !userAgent || BOT_UA.test(userAgent);
 }
 
-export type ParsedPath = { path: string; postId: string | null; categorySlug: string | null; searchQuery: string | null };
+export type ParsedPath = { path: string; postId: string | null; categorySlug: string | null; searchQuery: string | null; tab?: string | null };
+
+const TAB_VALUE = /^[\p{L}\p{N}_-]{1,24}$/u;
+/** 방 주소의 탭 (10/29 "탭 클릭수도 세줘"): ?head=심리 → "head:심리", ?tab=meet → "tab:meet", ?type=info → "type:info". 없으면 null(기본 탭) */
+export function roomTabKey(params: URLSearchParams): string | null {
+  for (const k of ["head", "tab", "type"] as const) {
+    const v = params.get(k)?.trim();
+    if (v && TAB_VALUE.test(v)) return `${k}:${v}`;
+  }
+  return null;
+}
 
 export function parsePath(raw: string): ParsedPath | null {
   if (!raw.startsWith("/") || raw.startsWith("//")) return null;
@@ -80,7 +90,7 @@ export function parsePath(raw: string): ParsedPath | null {
     }
   }
   const q = p === "/search" ? url.searchParams.get("q")?.trim().slice(0, 100) || null : null;
-  return { path: p.slice(0, 300), postId: post ? post[1]! : null, categorySlug: slug, searchQuery: q };
+  return { path: p.slice(0, 300), postId: post ? post[1]! : null, categorySlug: slug, searchQuery: q, tab: slug ? roomTabKey(url.searchParams) : null };
 }
 
 export const VISITOR_COOKIE = "lr_vid";
@@ -176,8 +186,8 @@ export async function recordPageView(input: PageViewInput): Promise<{ isReturnin
        RETURNING coalesce((SELECT first_day FROM prev) < $3::date, false) AS is_returning
      ),
      pv AS (
-       INSERT INTO page_views (occurred_at, day, visitor_hash, is_returning, path, post_id, category_slug, source, referrer_host, is_landing, search_query, campaign)
-       SELECT $2, $3::date, $1, v.is_returning, $4, $5, $6, $7, $8, $9, $10, $11 FROM v
+       INSERT INTO page_views (occurred_at, day, visitor_hash, is_returning, path, post_id, category_slug, source, referrer_host, is_landing, search_query, campaign, tab)
+       SELECT $2, $3::date, $1, v.is_returning, $4, $5, $6, $7, $8, $9, $10, $11, $12 FROM v
      )
      SELECT is_returning FROM v`,
     [
@@ -192,6 +202,7 @@ export async function recordPageView(input: PageViewInput): Promise<{ isReturnin
       input.landing,
       input.path.searchQuery,
       input.landing ? (input.campaign ?? null) : null,
+      input.path.tab ?? null,
     ],
   );
   if (input.path.postId) {
@@ -201,11 +212,11 @@ export async function recordPageView(input: PageViewInput): Promise<{ isReturnin
 }
 
 /** ⏱ 페이지를 떠날 때 비콘 한 번 (10/29): 머문 시간·스크롤 깊이·지나친 표시 */
-export async function recordDwell(input: { visitorHash: string; path: string; categorySlug: string | null; ms: number; scrollPct: number; marks: string[]; now?: Date }): Promise<void> {
+export async function recordDwell(input: { visitorHash: string; path: string; categorySlug: string | null; tab?: string | null; ms: number; scrollPct: number; marks: string[]; now?: Date }): Promise<void> {
   const now = input.now ?? new Date();
   await query(
-    "INSERT INTO page_dwell (occurred_at, day, visitor_hash, path, category_slug, ms, scroll_pct, marks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-    [now.toISOString(), kstDay(now), input.visitorHash, input.path, input.categorySlug, input.ms, input.scrollPct, input.marks],
+    "INSERT INTO page_dwell (occurred_at, day, visitor_hash, path, category_slug, ms, scroll_pct, marks, tab) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+    [now.toISOString(), kstDay(now), input.visitorHash, input.path, input.categorySlug, input.ms, input.scrollPct, input.marks, input.tab ?? null],
   );
 }
 
@@ -232,4 +243,23 @@ export async function dwellStats(fromDay: string, toDay: string, opts: { path?: 
     ...r,
     marks: Object.fromEntries(marks.filter((x) => x.path === r.path).map((x) => [x.m, Math.round((100 * x.n) / r.views)])),
   }));
+}
+
+export type TabRow = { room: string; tab: string | null; views: number; median_s: number | null };
+
+/** 📑 방 탭별 클릭(조회) 수와 체류 중앙값 (10/29). tab 이 null 이면 그 방의 기본 화면 */
+export async function roomTabStats(fromDay: string, toDay: string, limit = 60): Promise<TabRow[]> {
+  const views = await query<{ room: string; tab: string | null; views: number }>(
+    `SELECT category_slug AS room, tab, count(*)::int AS views FROM page_views
+      WHERE day BETWEEN $1 AND $2 AND category_slug IS NOT NULL
+      GROUP BY category_slug, tab ORDER BY views DESC LIMIT $3`,
+    [fromDay, toDay, limit],
+  );
+  if (!views.length) return [];
+  const dwell = await query<{ room: string; tab: string | null; median_s: number }>(
+    `SELECT category_slug AS room, tab, round((percentile_cont(0.5) WITHIN GROUP (ORDER BY ms) / 1000)::numeric, 1)::float AS median_s
+       FROM page_dwell WHERE day BETWEEN $1 AND $2 AND category_slug IS NOT NULL GROUP BY category_slug, tab`,
+    [fromDay, toDay],
+  );
+  return views.map((v) => ({ ...v, median_s: dwell.find((d) => d.room === v.room && d.tab === v.tab)?.median_s ?? null }));
 }
