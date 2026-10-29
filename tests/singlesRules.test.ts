@@ -64,6 +64,6 @@ describe("💌 만남 행사 방 연락처 규칙", () => {
   it("the room opens on the 💌 만남 행사 tab, placed before 💬 채팅", () => {
     expect(ROOM_DEFAULT_TAB[ROOM]).toBe(SINGLES_TAB);
     expect(roomTabOf(ROOM, SINGLES_TAB)).toEqual({ key: "meet", label: "💌 만남 행사" });
-    expect(roomTabsAround(ROOM).before.map((t) => t.key)).toEqual(["meet"]);
+    expect(roomTabsAround(ROOM).before.map((t) => t.key)).toEqual(["meet", "gender", "mycal"]);
   });
 });

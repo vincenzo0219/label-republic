@@ -13,7 +13,7 @@ export const GAME_TYPES = ["남복", "여복", "혼복", "단식", "랠리"] as 
 export type GameType = (typeof GAME_TYPES)[number];
 /** 며칠 뒤 게임까지 받는지 */
 export const MAX_AHEAD_DAYS = 60;
-export const GAME_GUIDE = "카톡방에 올리던 한 줄을 붙여 넣으면 날짜·시간·종목·인원이 채워져요. 참여 신청은 게임마다 💬 댓글로 받아요.";
+export const GAME_GUIDE = "지역·날짜·종목으로 골라 보고, 참여 신청은 게임마다 💬 댓글로 받아요.";
 
 const HHMM = /^\d{2}:\d{2}$/;
 const PHONE = /(?:\+?82[-\s.]?)?0\d{1,2}[-\s.]?\d{3,4}[-\s.]?\d{4}/;

@@ -1519,3 +1519,23 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .room-hits { display: grid; gap: 8px; margin: 0 0 12px; }
 .room-hit { display: block; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: inherit; text-decoration: none; font-size: 15px; }
 .room-hit b { color: var(--accent, inherit); }
+
+/* 👫 남녀 생각 차이 (10/29) */
+.vote-gender { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; flex-wrap: wrap; }
+.vote-gender .chip { padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 14px; cursor: pointer; }
+.vote-gender .chip.on { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.vote-gender-result { font-weight: 700; }
+/* 📅 내 행사 달력 · ⭐ 관심 (10/29) */
+.singles-star { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 13px; cursor: pointer; white-space: nowrap; }
+.singles-star.on { border-color: #f5a623; background: #fff6e0; color: #8a5a00; }
+.singles-cal-list { list-style: none; padding: 0; margin: 8px 0 12px; display: grid; gap: 10px; }
+.singles-cal-item { padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.singles-cal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; font-weight: 700; }
+.singles-cal-head a { min-width: 0; overflow-wrap: anywhere; }
+.singles-cal-dates { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+.singles-cal-date { padding: 2px 8px; border-radius: 999px; background: var(--bg-soft, rgba(0,0,0,0.05)); font-size: 13px; }
+.singles-cal-date.soon { background: #fde2d8; color: #9a3412; font-weight: 700; }
+@media (prefers-color-scheme: dark) {
+  .singles-star.on { background: #3a2c0a; color: #ffd479; }
+  .singles-cal-date.soon { background: #4a2410; color: #fdba74; }
+}

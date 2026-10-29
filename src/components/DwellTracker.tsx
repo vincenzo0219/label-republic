@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 /**
@@ -10,6 +10,9 @@ import { useEffect } from "react";
  */
 export function DwellTracker() {
   const pathname = usePathname();
+  // 방 탭(?head=·?tab=·?type=)도 함께 보내 탭별로 센다 (10/29). 서버가 탭 말고는 버린다
+  const search = useSearchParams().toString();
+  const path = search ? `${pathname}?${search}` : pathname;
   useEffect(() => {
     let visibleMs = 0;
     let since = document.visibilityState === "visible" ? Date.now() : 0;
@@ -35,7 +38,7 @@ export function DwellTracker() {
       if (sent) return;
       sent = true;
       if (since) visibleMs += Date.now() - since;
-      const payload = JSON.stringify({ path: pathname, ms: Math.round(visibleMs), scroll: maxScroll, marks: [...marks].slice(0, 10) });
+      const payload = JSON.stringify({ path, ms: Math.round(visibleMs), scroll: maxScroll, marks: [...marks].slice(0, 10) });
       try {
         if (!navigator.sendBeacon?.("/api/metrics/dwell", new Blob([payload], { type: "application/json" }))) {
           void fetch("/api/metrics/dwell", { method: "POST", body: payload, keepalive: true, headers: { "Content-Type": "application/json" } });
@@ -56,6 +59,6 @@ export function DwellTracker() {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("pagehide", send);
     };
-  }, [pathname]);
+  }, [path]);
   return null;
 }

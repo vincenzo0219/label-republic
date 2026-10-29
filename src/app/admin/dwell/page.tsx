@@ -1,4 +1,4 @@
-import { dwellStats, kstDay } from "@/lib/metrics";
+import { dwellStats, kstDay, roomTabStats } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default async function DwellPage() {
   const to = kstDay();
   const from = kstDay(new Date(Date.now() - 6 * 86400_000));
-  const rows = await dwellStats(from, to, { limit: 30 });
+  const [rows, tabs] = await Promise.all([dwellStats(from, to, { limit: 30 }), roomTabStats(from, to)]);
   return (
     <section className="panel">
       <h1>⏱ 체류시간 ({from} ~ {to})</h1>
@@ -26,6 +26,27 @@ export default async function DwellPage() {
                 <td className="num">{r.median_s}초</td>
                 <td className="num">{r.avg_scroll}%</td>
                 <td className="num">{r.marks["first-event"] !== undefined ? `${r.marks["first-event"]}%` : "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <h2>📑 탭별 클릭 ({from} ~ {to})</h2>
+      <p className="hint">방 주소의 탭(?head=·?tab=·?type=)별 조회 수. "기본"은 탭 없이 들어온 방 첫 화면이에요. 10/29 배포 뒤부터 쌓여요.</p>
+      {tabs.length === 0 ? (
+        <p className="hint">아직 기록이 없어요.</p>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr><th>방</th><th>탭</th><th>조회</th><th>체류 중앙값</th></tr>
+          </thead>
+          <tbody>
+            {tabs.map((t) => (
+              <tr key={`${t.room}|${t.tab ?? ""}`}>
+                <td>{t.room}</td>
+                <td>{t.tab ?? "기본"}</td>
+                <td className="num">{t.views}</td>
+                <td className="num">{t.median_s === null ? "-" : `${t.median_s}초`}</td>
               </tr>
             ))}
           </tbody>
