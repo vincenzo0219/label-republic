@@ -100,7 +100,7 @@ d("legal hold and transparency (database)", async () => {
     expect(await legal.moderationLog()).toMatchObject([{ action: "legal_hold", post_id: post.id, reason: "defamation", note: "소명 접수" }]);
   });
 
-  it("restores visibility on release unless the community blind still applies", async () => {
+  it("restores visibility on release; reports alone never keep it blinded (10/29)", async () => {
     const a = await newPost();
     await legal.applyLegalHold(a.id, "privacy", "");
     expect(await legal.releaseLegalHold(a.id, "해제")).toEqual({ stillBlinded: false });
@@ -110,10 +110,10 @@ d("legal hold and transparency (database)", async () => {
     const b = await newPost();
     await query("INSERT INTO fingerprints (fingerprint, first_seen) SELECT lpad(g::text, 64, '0'), now() - interval '3 days' FROM generate_series(1, 5) g");
     for (let n = 1; n <= 5; n++) await posts.reportPost(b.id, fp(n), "광고");
-    expect((await posts.getPost(b.id))!.is_blinded).toBe(true);
+    expect((await posts.getPost(b.id))!.is_blinded).toBe(false);
     await legal.applyLegalHold(b.id, "illegal", "");
-    expect(await legal.releaseLegalHold(b.id, "")).toEqual({ stillBlinded: true });
-    expect((await posts.getPost(b.id))!).toMatchObject({ is_blinded: true, legal_hold: false });
+    expect(await legal.releaseLegalHold(b.id, "")).toEqual({ stillBlinded: false });
+    expect((await posts.getPost(b.id))!).toMatchObject({ is_blinded: false, legal_hold: false });
   });
 
   it("keeps the public log when the post is later deleted and flags overdue holds", async () => {

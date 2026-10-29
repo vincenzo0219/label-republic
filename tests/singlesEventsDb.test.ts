@@ -1,3 +1,4 @@
+import { listReports } from "@/lib/repo/reports";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
@@ -135,7 +136,7 @@ d("💌 미혼남녀 만남 행사 (DB): 커뮤니티는 열고 만남 연결·�
     await query("DELETE FROM posts WHERE id = $1", [id]);
   });
 
-  it("🚩 comment and chat-line reports: one per person, hidden after 3 distinct reports", async () => {
+  it("🚩 comment and chat-line reports: one per person, sent to the operator, never hidden by count (10/29)", async () => {
     const chat = await ensureRoomChat(ROOM);
     const c = await comments.createComment(chat!.postId, { nickname: "이상한", pin: "1234", body: "선입금하면 소개해 줄게요" });
     const id = String(c.id);
@@ -147,9 +148,12 @@ d("💌 미혼남녀 만남 행사 (DB): 커뮤니티는 열고 만남 연결·�
       { params: Promise.resolve({ id }) },
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ hidden: true });
+    expect(await res.json()).toMatchObject({ hidden: false });
     const [row] = (await comments.listComments(chat!.postId)).filter((x) => String(x.id) === id);
-    expect(row).toMatchObject({ body: "", hidden_reason: "reported" });
+    expect(row).toMatchObject({ body: "선입금하면 소개해 줄게요", hidden_reason: null });
+    const [r] = await listReports({ type: "comment", id });
+    expect(r).toMatchObject({ reports: 3, text: "선입금하면 소개해 줄게요" });
+    expect(r!.url).toMatch(/\/chat#c/);
     await expect(comments.reportComment("999999999", fp("3"), "")).rejects.toMatchObject({ status: 404 });
   });
 

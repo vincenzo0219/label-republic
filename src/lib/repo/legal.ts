@@ -6,7 +6,6 @@
 import { deleteSnapshot } from "../snapshots";
 import { query, tx } from "../db";
 import { HttpError, notFound } from "../errors";
-import { getRule } from "./rules";
 
 export const LEGAL_REASONS = {
   defamation: "명예훼손",
@@ -37,7 +36,7 @@ export async function applyLegalHold(postId: string, reason: LegalReason, note: 
   await deleteSnapshot(`/posts/${postId}`);
 }
 
-/** 임시조치 해제. 신고 누적 블라인드 조건을 여전히 만족하면 블라인드는 유지한다. */
+/** 임시조치 해제. AI 가림이면 블라인드는 유지한다 (신고 수로는 가리지 않는다, 10/29 108) */
 export async function releaseLegalHold(postId: string, note: string): Promise<{ stillBlinded: boolean }> {
   if (!/^\d{1,18}$/.test(postId)) throw notFound();
   return tx(async (client) => {
@@ -48,15 +47,13 @@ export async function releaseLegalHold(postId: string, note: string): Promise<{ 
     const row = p.rows[0];
     if (!row) throw notFound();
     if (!row.legal_hold) throw new HttpError(409, "not_held", "임시조치 중인 게시물이 아닙니다.");
-    const blindAt = await getRule("post_blind_reports");
-    const reportBlind = row.report_count >= blindAt && row.report_score >= blindAt;
     // AI 자동 가림은 임시조치와 따로 유지된다 (Sprint 37)
-    const stillBlinded = reportBlind || row.ai_hidden;
+    const stillBlinded = row.ai_hidden;
     await client.query(
       `UPDATE posts SET legal_hold = false, legal_hold_until = NULL, is_blinded = $2,
          blinded_at = CASE WHEN $3 THEN blinded_at ELSE NULL END
        WHERE id = $1`,
-      [postId, stillBlinded, reportBlind],
+      [postId, stillBlinded, false],
     );
     await client.query("INSERT INTO moderation_log (action, post_id, subject_id, reason, note) VALUES ('legal_release', $1, $4, $2, $3)", [
       postId,

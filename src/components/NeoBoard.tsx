@@ -37,7 +37,7 @@ export function NeoCard({ initial, now, talk, onChange, onRemove }: { initial: N
     try {
       const r = await api<{ item?: NeoItem; hidden?: boolean }>(`/api/neo/${it.id}`, "POST", body);
       if (r.item) set(r.item);
-      if (body.action === "report") setMsg(r.hidden ? "신고가 쌓여 가렸어요." : "신고했어요. 3번 쌓이면 가려져요.");
+      if (body.action === "report") setMsg("신고했어요. 운영자에게 전달돼요.");
     } catch (e) {
       setMsg((e as Error).message);
     } finally {

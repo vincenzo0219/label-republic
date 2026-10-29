@@ -10,7 +10,7 @@ import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import { assertPin } from "./pin-guard";
 import { subscriptionIdFor } from "./push";
-import { ownerAlertAfter } from "./ownerAlert";
+import { ownerAlertAfter, reportAlertAfter } from "./ownerAlert";
 import { aiAbuse, heuristicAbuse, maskPersonalInfo } from "../abuse";
 import { aiSpam, combine, heuristicSpam, shouldSuppress } from "../moderation";
 import { getRule } from "./rules";
@@ -416,9 +416,8 @@ export async function lessonMatchesFor(g: Pick<GigCard, "id" | "kind" | "jobType
 }
 
 // ---------------------------------------------------------------------------
-// 🚩 신고 (글 신고와 같은 방식: 한 브라우저 한 번). 고유 신고 GIG_BLIND_AT 건이면 목록에서 가린다
+// 🚩 신고 (글 신고와 같은 방식: 한 브라우저 한 번). 가리지 않고 운영자에게 보고 (10/29 대표님)
 // ---------------------------------------------------------------------------
-export const GIG_BLIND_AT = 3;
 
 export async function reportGig(id: string, fp: string, reason: string): Promise<{ is_blinded: boolean; alreadyReported: boolean }> {
   if (!/^\d{1,18}$/.test(id)) throw notFound("글");
@@ -429,12 +428,8 @@ export async function reportGig(id: string, fp: string, reason: string): Promise
     "INSERT INTO gig_reports (gig_id, reporter_fingerprint, reason) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING gig_id::text",
     [id, fp, reason.slice(0, 200)],
   );
-  const [r] = await query<{ hidden: boolean }>(
-    `UPDATE gig_listings
-        SET ai_hidden_reason = COALESCE(ai_hidden_reason, CASE WHEN (SELECT count(*) FROM gig_reports WHERE gig_id = $1) >= $2 THEN 'reported' END)
-      WHERE id = $1 RETURNING ai_hidden_reason IS NOT NULL AS hidden`,
-    [id, GIG_BLIND_AT],
-  );
+  if (ins.length) reportAlertAfter("gig", id, reason);
+  const [r] = await query<{ hidden: boolean }>("SELECT ai_hidden_reason IS NOT NULL AS hidden FROM gig_listings WHERE id = $1", [id]);
   return { is_blinded: !!r?.hidden, alreadyReported: ins.length === 0 };
 }
 

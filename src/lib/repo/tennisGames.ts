@@ -8,7 +8,7 @@ import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import { aiAbuse, heuristicAbuse } from "../abuse";
 import { assertPin } from "./pin-guard";
-import { ownerAlertAfter } from "./ownerAlert";
+import { ownerAlertAfter, reportAlertAfter } from "./ownerAlert";
 import { kstYmd } from "../instructorRoom";
 import { GAMES_TAB, TENNIS_ROOM, gameInputSchema, gameProblem, whenRange, type GameInput, type GameInputRaw, type GameType, type When } from "../tennisGames";
 
@@ -187,7 +187,6 @@ export async function gameForOwner(id: string, fp: string, pin: string): Promise
   return { ...card(r!), contact: r!.contact };
 }
 
-export const GAME_BLIND_AT = 3;
 
 export async function reportGame(id: string, fp: string, reason: string): Promise<{ is_blinded: boolean; alreadyReported: boolean }> {
   if (!/^\d{1,18}$/.test(id)) throw notFound("게임");
@@ -198,11 +197,8 @@ export async function reportGame(id: string, fp: string, reason: string): Promis
     "INSERT INTO tennis_game_reports (game_id, reporter_fingerprint, reason) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING game_id::text",
     [id, fp, reason.slice(0, 200)],
   );
-  const [r] = await query<{ hidden: boolean }>(
-    `UPDATE tennis_games
-        SET ai_hidden_reason = COALESCE(ai_hidden_reason, CASE WHEN (SELECT count(*) FROM tennis_game_reports WHERE game_id = $1) >= $2 THEN 'reported' END)
-      WHERE id = $1 RETURNING ai_hidden_reason IS NOT NULL AS hidden`,
-    [id, GAME_BLIND_AT],
-  );
+  // 신고로는 가리지 않고 운영자에게 보고 (10/29 대표님)
+  if (ins.length) reportAlertAfter("game", id, reason);
+  const [r] = await query<{ hidden: boolean }>("SELECT ai_hidden_reason IS NOT NULL AS hidden FROM tennis_games WHERE id = $1", [id]);
   return { is_blinded: !!r?.hidden, alreadyReported: ins.length === 0 };
 }

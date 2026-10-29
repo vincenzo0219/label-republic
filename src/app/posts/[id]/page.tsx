@@ -120,7 +120,7 @@ export default async function PostPage({ params }: Props) {
               </div>
             ) : (
               <div className="notice" style={{ marginTop: 24 }}>
-                🚫 신고 {post.report_count}회 누적으로 자동 블라인드된 게시글입니다. 노방장은 방장 없이 커뮤니티 신고로만 정화됩니다.
+                🚫 신고 {post.report_count}회 누적으로 가려진 게시글입니다 (2026.10.29 전 기준). 지금은 신고가 운영자에게 전달되고 신고만으로는 가리지 않습니다.
               </div>
             )}
             {!post.is_ai_curated && <AppealBox postId={post.id} initial={await getAppeal(post.id)} />}
@@ -285,7 +285,7 @@ export default async function PostPage({ params }: Props) {
         <WatchToggle kind="post" id={post.id} name={post.title} />
         <SaveOffline postId={post.id} />
         {!post.is_ai_curated && <PostOwnerActions postId={post.id} noEdit={!!post.card_kind} />}
-        <ReportButton postId={post.id} blindAt={rules.post_blind_reports} />
+        <ReportButton postId={post.id} />
       </div>
 
       {/* 잡담에는 고칠 "사실"이 없으니 정정 제안 대신 댓글로 (이미 달린 정정은 보인다) */}

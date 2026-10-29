@@ -15,7 +15,6 @@ const MIN = 60_000;
 export const GOING_SHOW_MIN = 3;
 export const GOING_NAMES_MAX = 10;
 export const GROUPS_SHOW_MIN = 3;
-export const REPORT_HIDE = 3;
 export const AUTO_MIN = 4;
 export const AUTO_MAX = 6;
 export const OPEN_CAP_MIN = 2;

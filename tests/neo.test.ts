@@ -1,3 +1,4 @@
+import { listReports } from "@/lib/repo/reports";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -86,9 +87,10 @@ d("💳 넣어둬 (DB)", async () => {
     await expect(neo.adminDeleteNeo(keep.id)).rejects.toThrow();
   });
 
-  it("운영자 복원: 신고로 가려진 글이 다시 보인다, 투표는 2일 (10/29)", async () => {
+  it("운영자 복원: 10/29 전 신고로 가려진 글이 다시 보인다, 투표는 2일 (10/29)", async () => {
     const x = await neo.createNeo({ title: "가려질 글", price: 5000, reason: "", owner: "own10", fingerprint: "fp10" });
     for (const v of ["r1", "r2", "r3"]) await neo.reportNeo(x.id, v);
+    await query("UPDATE neo_items SET is_hidden = true WHERE id = $1", [x.id]);
     expect((await neo.listNeo("v10")).open.some((i) => i.id === x.id)).toBe(false);
     await neo.adminRestoreNeo(x.id);
     const back = (await neo.listNeo("v10")).open.find((i) => i.id === x.id);
@@ -132,13 +134,14 @@ d("💳 넣어둬 (DB)", async () => {
     expect(list.open.map((x) => x.title)).toContain("무선 이어폰");
   });
 
-  it("신고 3번이면 가리고, 하루 5개까지", async () => {
-    const it2 = await neo.createNeo({ title: "가릴 글", price: 5000, reason: "", owner: "own3", fingerprint: "fp3" });
+  it("신고는 가리지 않고 운영자에게 (10/29), 하루 5개까지", async () => {
+    const it2 = await neo.createNeo({ title: "신고될 글", price: 5000, reason: "", owner: "own3", fingerprint: "fp3" });
     await neo.reportNeo(it2.id, "r1");
     await neo.reportNeo(it2.id, "r1");
     await neo.reportNeo(it2.id, "r2");
-    expect(await neo.reportNeo(it2.id, "r3")).toEqual({ hidden: true });
-    expect(await neo.getNeo(it2.id, "r1")).toBeNull();
+    expect(await neo.reportNeo(it2.id, "r3")).toEqual({ hidden: false });
+    expect(await neo.getNeo(it2.id, "r1")).not.toBeNull();
+    expect(await listReports({ type: "neo", id: it2.id })).toMatchObject([{ reports: 3, text: "신고될 글", url: `/neo/${it2.id}` }]);
     for (let i = 0; i < 4; i++) await neo.createNeo({ title: `물건 ${i}`, price: 1000, reason: "", owner: "own3", fingerprint: "fp3" });
     await expect(neo.createNeo({ title: "여섯 번째", price: 1000, reason: "", owner: "own3", fingerprint: "fp3" })).rejects.toMatchObject({ status: 429 });
   });

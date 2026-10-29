@@ -1,3 +1,4 @@
+import { operatorReports, REPORT_TYPE_LABEL } from "@/lib/repo/reports";
 import type { Metadata } from "next";
 import { ResolveError } from "@/components/admin/ResolveError";
 import Link from "next/link";
@@ -321,6 +322,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           </table>
         </div>
       </section>
+
+      <ReportsPanel />
 
       <section className="panel">
         <h2>
@@ -766,6 +769,55 @@ async function PushPanel() {
         <StatTile label="🎫 행사 알림" value={p.eventSubs} />
       </div>
       <HBarList title="🎫 방별 행사 알림" rows={p.rooms.map((r) => ({ label: r.slug, value: r.n }))} unit="명" empty="아직 행사 알림을 켠 사람이 없어요." />
+    </section>
+  );
+}
+
+/** 🚩 신고 들어온 것 (10/29 대표님 "신고하면 가려지는게 아니라 나한테 보고"): 신고는 아무것도 가리지 않고 여기로 온다 */
+async function ReportsPanel() {
+  const items = await operatorReports(7, 50);
+  return (
+    <section className="panel" aria-labelledby="reports-h">
+      <h2 id="reports-h">
+        🚩 신고 들어온 것 {items.length > 0 && <span className="count-badge">{items.length}</span>}{" "}
+        <span className="hint">— 최근 7일. 신고로는 가리지 않아요. 확인하고 운영자가 조치</span>
+      </h2>
+      {items.length === 0 ? (
+        <p className="hint">최근 7일 신고가 없습니다.</p>
+      ) : (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>종류</th>
+                <th>방</th>
+                <th>내용</th>
+                <th className="num">신고</th>
+                <th>사유</th>
+                <th>마지막</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((r) => (
+                <tr key={`${r.type}-${r.id}`}>
+                  <td>
+                    {r.priority && <b>⚠️ 우선 </b>}
+                    {REPORT_TYPE_LABEL[r.type]}
+                    {r.hidden && <span className="hint"> · 가려짐</span>}
+                  </td>
+                  <td>{r.room}</td>
+                  <td>
+                    <a href={r.url}>{r.text || "(내용 없음)"}</a>
+                  </td>
+                  <td className="num">{r.reports}</td>
+                  <td>{r.reasons}</td>
+                  <td>{new Date(r.last_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

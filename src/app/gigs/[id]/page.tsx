@@ -22,7 +22,7 @@ import {
   weekdayLabel,
   whenLabel,
 } from "@/lib/instructorRoom";
-import { GIG_BLIND_AT, getGig as getGigUncached, lessonMatchesFor, type GigDetail } from "@/lib/repo/gigs";
+import { getGig as getGigUncached, lessonMatchesFor, type GigDetail } from "@/lib/repo/gigs";
 
 export const dynamic = "force-dynamic";
 
@@ -137,7 +137,7 @@ export default async function GigPage({ params, searchParams }: Props) {
       {g.notes && <p className="gig-notes">{g.notes}</p>}
       <GigActions id={g.id} done={done} />
       <p className="gig-report">
-        <ReportButton postId={g.id} blindAt={GIG_BLIND_AT} path={`/api/gigs/${g.id}/report`} what="글" />
+        <ReportButton postId={g.id} path={`/api/gigs/${g.id}/report`} what="글" />
       </p>
       {lesson && !done && (
         <section className="gig-matches" aria-labelledby="gig-matches-h">

@@ -10,7 +10,7 @@ import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse"
 import { searchTerms } from "../highlight";
 import { tabMembers, type Head } from "../heads";
 import { OPERATOR_NICKS } from "./metrics";
-import { ownerAlertAfter } from "./ownerAlert";
+import { ownerAlertAfter, reportAlertAfter } from "./ownerAlert";
 import { investProblem } from "../investRooms";
 import { roomAbuseOpts, roomHeuristicAbuse } from "../roomModeration";
 import { generateSummary, type ResolvedSummary } from "../summary";
@@ -695,7 +695,7 @@ export async function getMyVote(id: string, fp: string): Promise<1 | -1 | 0> {
 }
 
 // ---------------------------------------------------------------------------
-// 신고 — fingerprint당 1회, 고유 신고 5건이면 DB 트리거가 자동 블라인드
+// 신고 — fingerprint당 1회. 가리지 않고 운영자에게 보고 (10/29 대표님, 108). 가리는 건 운영자·AI·임시조치만
 // ---------------------------------------------------------------------------
 
 export type ReportResult = { report_count: number; is_blinded: boolean; alreadyReported: boolean };
@@ -712,6 +712,7 @@ export async function reportPost(id: string, fp: string, reason: string): Promis
     if (!isUniqueViolation(err)) throw err;
     alreadyReported = true;
   }
+  if (!alreadyReported) reportAlertAfter("post", id, reason);
   const rows = await query<{ report_count: number; is_blinded: boolean }>(
     "SELECT report_count, is_blinded FROM posts WHERE id = $1",
     [id],

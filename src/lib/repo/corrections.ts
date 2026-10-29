@@ -1,6 +1,7 @@
 /**
  * 정정 제안 (Sprint 15). 규칙은 src/lib/corrections.ts, 효과(신뢰도 배지·제품 집계)는 DB 함수와 products.ts 에 있다.
  */
+import { reportAlertAfter } from "./ownerAlert";
 import type { PoolClient } from "pg";
 import { isUniqueViolation, query, tx } from "../db";
 import { HttpError, blinded, notFound } from "../errors";
@@ -281,7 +282,7 @@ export async function withdrawCorrection(id: string, fp: string, pin: string): P
 /** 신고 — 고유 신고 5건이면 자동으로 가린다 */
 export async function reportCorrection(id: string, fp: string): Promise<{ report_count: number; is_hidden: boolean; alreadyReported: boolean }> {
   if (!ID.test(id)) throw notFound("정정 제안");
-  return tx(async (client) => {
+  const res = await tx(async (client) => {
     const { rows } = await client.query<{ post_id: string; post_author: string | null }>(
       "SELECT c.post_id, p.author_fingerprint AS post_author FROM corrections c JOIN posts p ON p.id = c.post_id WHERE c.id = $1 FOR UPDATE OF c",
       [id],
@@ -295,14 +296,16 @@ export async function reportCorrection(id: string, fp: string): Promise<{ report
        ON CONFLICT DO NOTHING`,
       [id, fp],
     );
-    // 가림: 고유 신고 N건 AND 가중치 합 N (커뮤니티 규칙 correction_hide_reports — 갓 생긴 이용자 동원으로 가리기 어렵게)
+    // 신고로는 가리지 않고 운영자에게 보고 (10/29 대표님). 세기만 한다
     const { rows: r } = await client.query<{ report_count: number; is_hidden: boolean }>(
-      `WITH agg AS (SELECT count(*)::int AS n, coalesce(sum(weight), 0) AS w FROM correction_reports WHERE correction_id = $1)
-       UPDATE corrections SET report_count = agg.n, is_hidden = is_hidden OR (agg.n >= $2 AND agg.w >= $2)
-         FROM agg WHERE id = $1 RETURNING report_count, is_hidden`,
-      [id, await getRule("correction_hide_reports")],
+      `UPDATE corrections SET report_count = (SELECT count(*)::int FROM correction_reports WHERE correction_id = $1)
+        WHERE id = $1 RETURNING report_count, is_hidden`,
+      [id],
     );
     await refreshPostCounts(client, rows[0].post_id);
     return { ...r[0]!, alreadyReported: ins.rowCount === 0 };
   });
+  // 커밋 뒤에 (알림이 방금 넣은 신고를 읽게)
+  if (!res.alreadyReported) reportAlertAfter("correction", id, "");
+  return res;
 }

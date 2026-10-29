@@ -4,6 +4,7 @@
  * 마감 뒤 올린 사람이 "샀어요 / 넣어뒀어요"를 고르면 넣어둔 금액이 모두의 "넣어둬로 지킨 돈"에 쌓인다.
  * 가입 없이 방문자 쿠키(해시)로 글쓴이·투표자를 알아본다. 신고 3번이면 가린다.
  */
+import { reportAlertAfter } from "./ownerAlert";
 import { heuristicAbuse } from "../abuse";
 import { query, tx } from "../db";
 import { HttpError, notFound } from "../errors";
@@ -11,7 +12,6 @@ import { tokenOk } from "./images";
 
 export type NeoChoice = "buy" | "keep";
 export type NeoOutcome = "bought" | "kept";
-export const NEO_HIDE_REPORTS = 3;
 export const NEO_DAILY_POSTS = 5;
 
 export type NeoItem = {
@@ -204,24 +204,23 @@ export async function adminRestoreNeo(id: string): Promise<void> {
   });
 }
 
-/** 신고: 한 사람 한 번, NEO_HIDE_REPORTS 번이면 가린다 */
+/** 신고: 한 사람 한 번. 가리지 않고 운영자에게 보고 (10/29 대표님: 누가 신고를 몰아 멀쩡한 글을 가렸음) */
 export async function reportNeo(id: string, visitor: string): Promise<{ hidden: boolean }> {
-  return tx(async (c) => {
+  const res = await tx(async (c) => {
     const ins = await c.query("INSERT INTO neo_reports (item_id, visitor_hash) SELECT id, $2 FROM neo_items WHERE id = $1 ON CONFLICT DO NOTHING RETURNING item_id", [id, visitor]);
     if (!ins.rowCount) {
       const ex = await c.query("SELECT 1 FROM neo_items WHERE id = $1", [id]);
       if (!ex.rowCount) throw notFound("넣어둬 글");
     }
     const r = await c.query<{ is_hidden: boolean }>(
-      `UPDATE neo_items SET report_count = (SELECT count(*) FROM neo_reports WHERE item_id = $1),
-         is_hidden = is_hidden OR (SELECT count(*) FROM neo_reports WHERE item_id = $1) >= $2
-       WHERE id = $1 RETURNING is_hidden`,
-      [id, NEO_HIDE_REPORTS],
+      "UPDATE neo_items SET report_count = (SELECT count(*) FROM neo_reports WHERE item_id = $1) WHERE id = $1 RETURNING is_hidden",
+      [id],
     );
-    // 가려지면 댓글 글도 가린다 (neoTalk)
-    if (r.rows[0]?.is_hidden) await c.query("UPDATE posts SET is_blinded = true WHERE seed_key = $1", [`roomchat:neo:${id}`]);
-    return { hidden: !!r.rows[0]?.is_hidden };
+    return { hidden: !!r.rows[0]?.is_hidden, fresh: !!ins.rowCount };
   });
+  // 커밋 뒤에 (알림이 방금 넣은 신고를 읽게)
+  if (res.fresh) reportAlertAfter("neo", id, "");
+  return { hidden: res.hidden };
 }
 
 /** 💳 넣어둬로 지킨 돈: 마감 뒤 "넣어뒀어요"를 고른 글의 금액 합 */

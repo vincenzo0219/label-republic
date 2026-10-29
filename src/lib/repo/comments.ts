@@ -10,10 +10,9 @@ import { hashPin } from "../password";
 import { hit } from "../rate-limit";
 import type { Comment } from "../types";
 import { assertPin } from "./pin-guard";
-import { ownerAlertAfter } from "./ownerAlert";
+import { ownerAlertAfter, reportAlertAfter } from "./ownerAlert";
 import { infoOnlyError } from "./infoOnly";
 import { contactProblem } from "../singlesRules";
-import { COMMENT_REPORT_HIDE } from "../commentReport";
 
 /** 글이 있는 방 slug (없으면 null) */
 async function roomOfPost(postId: string): Promise<string | null> {
@@ -140,9 +139,8 @@ export async function deleteComment(id: string, fp: string, pin: string): Promis
   await query("DELETE FROM comments WHERE id = $1", [id]);
 }
 
-export { COMMENT_REPORT_HIDE };
 
-/** 같은 사람은 한 번. 결과의 hidden 이 true 면 화면에서 바로 가린다 (실시간 알림도 간다) */
+/** 같은 사람은 한 번. 신고로는 가리지 않고 운영자에게 보고한다 (10/29 대표님). hidden 은 이미 AI·운영자가 가린 경우 */
 export async function reportComment(id: string, fp: string, reason: string): Promise<{ hidden: boolean; already: boolean }> {
   if (!/^\d{1,18}$/.test(id)) throw notFound("댓글");
   const [c] = await query<{ id: string }>("SELECT id::text FROM comments WHERE id = $1", [id]);
@@ -156,13 +154,7 @@ export async function reportComment(id: string, fp: string, reason: string): Pro
     if (!isUniqueViolation(err)) throw err;
     already = true;
   }
-  // 이미 가려졌거나 🤖 운영 댓글은 그대로
-  await query(
-    `UPDATE comments SET ai_hidden_reason = 'reported', ai_hidden_note = '신고 누적', ai_hidden_model = 'reports', ai_hidden_at = now()
-      WHERE id = $1 AND ai_hidden_reason IS NULL AND NOT is_ai_curated
-        AND (SELECT count(*) FROM comment_reports WHERE comment_id = $1) >= $2`,
-    [id, COMMENT_REPORT_HIDE],
-  );
+  if (!already) reportAlertAfter("comment", id, reason);
   const [r] = await query<{ hidden: boolean }>("SELECT ai_hidden_reason IS NOT NULL AS hidden FROM comments WHERE id = $1", [id]);
   return { hidden: !!r?.hidden, already };
 }

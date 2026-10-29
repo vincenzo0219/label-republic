@@ -11,7 +11,6 @@ import { timeAgo } from "@/lib/format";
 import { blockedNicknames } from "@/lib/blocked";
 import type { Comment } from "@/lib/types";
 import { abuseLabel } from "@/lib/abuse-labels";
-import { COMMENT_REPORT_HIDE } from "@/lib/commentReport";
 import { imageUrl, thumbUrl } from "@/lib/media-url";
 import { shrinkIfNeeded, upload } from "./ImagePicker";
 import { myNick, myPin, saveNick, withMyPin } from "@/lib/me";
@@ -358,7 +357,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                     </>
                   )}
                   {report && !c.is_ai_curated && c.nickname !== form.nickname.trim() && (
-                    <ReportButton blindAt={COMMENT_REPORT_HIDE} path={`/api/comments/${c.id}/report`} label="🚩" what="말" blockName={c.nickname} onHidden={() => setBlocked(blockedNicknames())} />
+                    <ReportButton path={`/api/comments/${c.id}/report`} label="🚩" what="말" blockName={c.nickname} onHidden={() => setBlocked(blockedNicknames())} />
                   )}
                 </div>
               )}
@@ -422,7 +421,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                     </>
                   )}
                   {report && !c.is_ai_curated && !c.hidden_reason && c.nickname !== form.nickname.trim() && (
-                    <ReportButton blindAt={COMMENT_REPORT_HIDE} path={`/api/comments/${c.id}/report`} label="🚩" what="댓글" blockName={c.nickname} onHidden={() => setBlocked(blockedNicknames())} />
+                    <ReportButton path={`/api/comments/${c.id}/report`} label="🚩" what="댓글" blockName={c.nickname} onHidden={() => setBlocked(blockedNicknames())} />
                   )}
                 </div>
                 {to && <div className="comment-to">↳ {to.nickname}님에게</div>}

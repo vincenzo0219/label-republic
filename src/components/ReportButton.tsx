@@ -23,9 +23,8 @@ const REASONS = [
  * (대강·구인·레슨 글 /api/gigs/:id/report, 🙋 같이 가요 모집·조 채팅). what: 안내 문구의 대상 이름.
  * blockName 을 주면 "이 사람 차단"도 고를 수 있다 (이 기기에서만 그 닉네임 글·말이 안 보임).
  */
-export function ReportButton({ postId, blindAt, path, extra, label, what = "게시글", blockName, onHidden }: {
+export function ReportButton({ postId, path, extra, label, what = "게시글", blockName, onHidden }: {
   postId?: string;
-  blindAt: number;
   path?: string;
   extra?: Record<string, unknown>;
   label?: string;
@@ -98,7 +97,7 @@ export function ReportButton({ postId, blindAt, path, extra, label, what = "게�
                 <input type="checkbox" checked={block} onChange={(e) => setBlock(e.target.checked)} /> {blockName}님 차단 (이 기기에서 이 사람 글·말이 안 보여요)
               </label>
             )}
-            <p className="muted">신고한 사람은 상대에게 알려지지 않아요. 서로 다른 신고가 {blindAt}건 쌓이면 자동으로 가려지고, 운영자가 확인해요.</p>
+            <p className="muted">신고한 사람은 상대에게 알려지지 않아요. 신고는 운영자에게 바로 전달되고, 운영자가 확인한 뒤 가려요.</p>
             <div className="report-actions">
               <button type="button" className="btn btn-sm" onClick={() => setOpen(false)}>취소</button>
               <button type="button" className="btn btn-sm btn-danger" onClick={send} disabled={!pick || busy}>신고하기</button>

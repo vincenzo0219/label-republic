@@ -32,18 +32,19 @@ export default async function PolicyPage() {
         </li>
       </ul>
 
-      <h2>신고와 자동 블라인드</h2>
+      <h2>신고</h2>
       <ul>
         <li>
-          서로 다른 <b>{formatRule("post_blind_reports", rules.post_blind_reports)}명</b> 이상이 신고하고 신고 가중치 합이 {formatRule("post_blind_reports", rules.post_blind_reports)} 이상이면 사람의 판단 없이 자동으로 블라인드됩니다.
+          신고는 글·댓글을 자동으로 가리지 않고 운영자에게 바로 전달됩니다. 몇 명이 짜고 신고해 멀쩡한 글을 가리지 못하게 하려는 것입니다 (2026.10.29부터).
+          서로 다른 <b>{formatRule("post_blind_reports", rules.post_blind_reports)}명</b> 이상이 신고한 글은 운영자가 먼저 확인하고, 규칙에 어긋나면 운영자가 확인해 조치합니다.
         </li>
         <li>
           <b>강퇴 대신 자동 쓰기 제한</b>: 가입이 없어 사람을 내보낼 수는 없습니다. 대신 같은 곳(같은 브라우저, 또는 같은 접속 망의 같은 브라우저 종류)에서 쓴 글이 최근
           30일 안에 이용자 신고로 <b>{formatRule("write_limit_blinds", rules.write_limit_blinds)}번</b> 블라인드되면, 마지막 블라인드부터{" "}
           <b>{formatRule("write_limit_days", rules.write_limit_days)}일</b> 동안 글·댓글·정정 제안을 쓸 수 없습니다. 운영자가 정하지 않고, 조작된 신고가 무효가 되어 블라인드가
-          풀리면 제한도 함께 풀립니다. 법적 임시조치와 AI가 가린 글은 세지 않습니다. 접속 망과 브라우저를 모두 바꾸면 피할 수 있는 한계가 있습니다.
+          풀리면 제한도 함께 풀립니다. 법적 임시조치와 AI가 가린 글은 세지 않습니다. 지금은 신고로 글을 가리지 않아 이 제한도 걸리지 않습니다. 접속 망과 브라우저를 모두 바꾸면 피할 수 있는 한계가 있습니다.
         </li>
-        <li>짧은 시간에 신고를 몰아서 하거나, 갓 생긴 이용자들이 한 글에 신고를 몰면 그 신고의 가중치가 자동으로 낮아집니다. 조직적인 신고로 정상 글을 가리는 것을 막기 위해서입니다.</li>
+        <li>짧은 시간에 신고를 몰아서 하거나, 갓 생긴 이용자들이 한 글에 신고를 몰면 그 신고의 가중치가 자동으로 낮아집니다. 운영자가 조직적인 신고를 가려 보기 위해서입니다.</li>
       </ul>
 
       <h2>AI의 역할</h2>
@@ -94,7 +95,7 @@ export default async function PolicyPage() {
           글을 고칠 때마다 이전 판이 &ldquo;수정 이력&rdquo;에 남아 누구나 바뀐 내용을 볼 수 있습니다. 이전 판에 연락처처럼 남기면 안 되는 내용이 있으면 작성자는
           글 비밀번호로 그 판을 지울 수 있고, 권리침해 신고가 있으면 운영자가 지웁니다(투명성 기록에 공개).
         </li>
-        <li>제안자는 제안을 철회할 수 있고, 고유 신고 <b>{formatRule("correction_hide_reports", rules.correction_hide_reports)}건</b>이 쌓인 제안은 자동으로 가려집니다.</li>
+        <li>제안자는 제안을 철회할 수 있고, 고유 신고 <b>{formatRule("correction_hide_reports", rules.correction_hide_reports)}건</b>이 쌓인 제안은 운영자가 먼저 확인합니다 (신고로 자동으로 가리지는 않습니다).</li>
       </ul>
 
       <h2>제품 리뉴얼(라벨 변경)</h2>

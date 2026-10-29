@@ -178,7 +178,7 @@ function GameCardView({ g, today, mine, onChanged, onEdit }: { g: GameCard; toda
     if (reason === null) return;
     try {
       await api(`/api/tennis-games/${g.id}/report`, "POST", { reason: reason || "신고" });
-      setMsg("신고했어요. 여러 명이 신고하면 목록에서 가려져요");
+      setMsg("신고했어요. 운영자에게 전달돼요");
     } catch (e) {
       setMsg((e as Error).message);
     }
