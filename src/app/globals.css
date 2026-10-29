@@ -1202,6 +1202,14 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
   flex: 0 0 auto; padding: 8px 14px; border-radius: 999px; font-size: 14.5px; font-weight: 700; text-decoration: none; white-space: nowrap;
   border: 1px solid var(--brand); background: var(--surface); color: var(--text); cursor: pointer; font-family: inherit;
 }
+/* ⭕ 내 방 동그라미 (10/29, 인스타 스토리처럼): 색은 오늘 퀴즈·새 글 있음, 회색은 다 봄. 돌지 않고, 처음 한 번만 살짝 */
+.my-chip:has(.story-ring) { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 5px 14px 5px 6px; }
+.story-ring { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; padding: 2px; flex: 0 0 auto; background: var(--line); box-sizing: border-box; }
+.story-ring-in { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--surface); font-size: 15px; line-height: 1; }
+.story-ring.on { background: conic-gradient(from 200deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5, #feda75); animation: story-pulse 0.9s ease-out 1; }
+.story-ring.off { background: var(--line); opacity: 0.85; }
+@keyframes story-pulse { 0% { transform: scale(0.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .story-ring.on { animation: none; } }
 .my-chip-more { border-style: dashed; border-color: var(--line); color: var(--brand); font-weight: 600; }
 .my-room-list { list-style: none; margin: 0 0 14px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
 .my-room-list a { display: block; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 14px; }
