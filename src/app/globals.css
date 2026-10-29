@@ -181,7 +181,10 @@ mark { background: var(--mark); color: var(--text); border-radius: 3px; padding:
 .comment:target, .comment.is-target { background: var(--gold-bg); scroll-margin-top: 80px; }
 .comment-to { font-size: 12px; color: var(--muted); }
 .mention { color: var(--brand); font-weight: 600; }
-.reply-banner { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+.reply-inline { display: grid; gap: 8px; margin: 8px 0 4px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.reply-inline .quick-replies { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.reply-inline .quick-replies .chip { font-size: 13px; padding: 4px 10px; height: auto; }
+.reply-inline .reply-cancel { justify-self: start; font-size: 12.5px; }
 .mention-suggest { display: flex; flex-wrap: wrap; gap: 6px; }
 @keyframes flash { from { background: color-mix(in srgb, var(--brand) 14%, transparent); } to { background: transparent; } }
 .linkish { background: none; border: 0; padding: 0; color: var(--muted); font-size: 12px; cursor: pointer; text-decoration: underline; }

@@ -28,6 +28,8 @@ export const OPERATOR_NICKS_CLIENT = ["노방장", "돈키호테", "덕후1호",
 export const CHAT_CHIPS = ["🙌 반가워요!", "저도요!", "ㅋㅋ 공감"] as const;
 /** 👋 수다방에 들어오고 2초 뒤 뜨는 첫 인사 (10/29 대표님 "누군가 채팅창에 들어오면 2초 후에 선택 글들이 생기고 바로 선택해서 글 입력") */
 export const CHAT_STARTERS = ["👋 안녕하세요!", "🙌 처음 왔어요", "다들 뭐 해요?", "😊 반가워요~"] as const;
+/** ↳ 댓글 아래 답글 칸의 한 번 누르는 답 (10/30 대표님 "더 쉽게") */
+export const REPLY_CHIPS = ["😊 반가워요!", "고마워요 🙏", "맞아요!", "ㅋㅋ 공감"] as const;
 export const chatChipText = (nickname: string, chip: string) => `@${nickname} ${chip}`;
 
 /** 버튼을 붙일 말: 사람(운영·AI 아님)이 쓴, 내 것이 아닌, 아직 내가 버튼으로 답하지 않은 최근 말 몇 개 */
