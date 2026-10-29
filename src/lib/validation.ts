@@ -152,6 +152,8 @@ export const commentSchema = z.object({
   parentId: z.string().regex(/^\d{1,18}$/).optional(),
   /** 사진 1장 (Sprint 90) — /api/uploads 가 준 id·token */
   image: z.object({ id: z.string().uuid(), token: z.string().max(200) }).optional(),
+  /** 🙌 답장 버튼으로 단 댓글 (10/29, 관리자에서 센다) */
+  chip: z.boolean().optional(),
 });
 
 export const summaryPreviewSchema = z.object({

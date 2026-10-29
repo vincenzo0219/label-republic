@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LiveComments } from "./LiveComments";
+import { quickRepliesFor } from "@/lib/quickReplies";
 import { CourtOpenAlert, TennisGameAlert } from "./TennisAlerts";
 import type { Comment } from "@/lib/types";
 import { api } from "@/lib/client-api";
@@ -200,7 +201,7 @@ function GameCardView({ g, today, mine, onChanged, onEdit }: { g: GameCard; toda
         {!mine && <button type="button" className="linkish" onClick={report}>🚩</button>}
       </div>
       {msg && <p className="hint">{msg}</p>}
-      <GameTalk gameId={g.id} count={g.comments ?? 0} open={!g.closed} />
+      <GameTalk gameId={g.id} count={g.comments ?? 0} open={!g.closed} mine={mine} />
     </article>
   );
 }
@@ -300,7 +301,7 @@ function GameForm({ edit, defaults, onDone }: { edit?: GameCard & { contact: str
 }
 
 /** 💬 게임마다 댓글 (10/29 대표님 "오픈채팅이랑 관계없이"): 참여 신청은 모두 댓글로. 누르면 그때 댓글 글을 만들고 불러온다 */
-function GameTalk({ gameId, count, open }: { gameId: string; count: number; open: boolean }) {
+function GameTalk({ gameId, count, open, mine }: { gameId: string; count: number; open: boolean; mine: boolean }) {
   const [shown, setShown] = useState(false);
   const [talk, setTalk] = useState<{ postId: string; comments: Comment[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -324,7 +325,7 @@ function GameTalk({ gameId, count, open }: { gameId: string; count: number; open
       ) : err ? (
         <p className="error">{err}</p>
       ) : talk ? (
-        <LiveComments postId={talk.postId} initial={talk.comments} casual report />
+        <LiveComments postId={talk.postId} initial={talk.comments} casual report quick={mine || !open ? null : quickRepliesFor("tennis")} />
       ) : (
         <p className="hint">불러오는 중…</p>
       )}

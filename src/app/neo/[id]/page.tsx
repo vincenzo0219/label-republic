@@ -3,6 +3,7 @@ import { viewerFp } from "@/lib/viewerFp";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LiveComments } from "@/components/LiveComments";
+import { quickRepliesFor } from "@/lib/quickReplies";
 import { NeoCard } from "@/components/NeoBoard";
 import { addSeen } from "@/lib/metrics";
 import { listComments } from "@/lib/repo/comments";
@@ -45,7 +46,7 @@ export default async function NeoItemPage({ params }: Props) {
       {talk && (
         <section id="talk" className="singles-talk" aria-label="댓글">
           <h2 className="section-title">💬 한마디</h2>
-          <LiveComments postId={talk.postId} initial={comments} casual report />
+          <LiveComments postId={talk.postId} initial={comments} casual report quick={it.owner ? null : quickRepliesFor("neo")} />
         </section>
       )}
       <p>
