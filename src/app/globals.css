@@ -1647,3 +1647,47 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .kospi-rank-no { width: 18px; font-weight: 800; }
 .kospi-rank-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .kospi-rank-rec { white-space: nowrap; }
+/* 🎮 방 미니게임 (10/29) */
+.mini-game { max-width: 520px; margin: 0 auto; padding: 4px 0 24px; }
+.mg-head { display: grid; gap: 4px; margin: 0 0 10px; }
+.mg-back { font-size: 13.5px; color: var(--muted); text-decoration: none; }
+.mg-title { font-size: 22px; margin: 0; }
+.mg-stage { display: grid; gap: 10px; }
+.mg-sub { margin: 0; font-size: 14px; color: var(--muted); font-weight: 600; }
+.mg-end { position: relative; overflow: hidden; display: grid; gap: 8px; justify-items: center; text-align: center; padding: 28px 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.mg-end-kicker { margin: 0; font-weight: 700; color: var(--brand); }
+.mg-end-score { margin: 0; font-size: 36px; font-weight: 800; line-height: 1.2; word-break: keep-all; }
+.mg-end-line { margin: 0; font-size: 14.5px; color: var(--muted); }
+.mg-end-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
+.mg-end-actions .btn { text-decoration: none; }
+/* ⚡ 반응속도 */
+.rx-pad { width: 100%; min-height: 58vh; border: 0; border-radius: 20px; display: grid; place-items: center; color: #fff; font-size: 24px; font-weight: 800; touch-action: manipulation; user-select: none; -webkit-user-select: none; cursor: pointer; background: #3b4a5a; }
+.rx-wait { background: #c2413a; }
+.rx-go { background: #1f9d5c; }
+.rx-early { background: #b7791f; }
+.rx-shown { background: #2f5d8a; }
+.rx-label { padding: 0 16px; }
+/* 💘 이상형 월드컵 */
+.wc-pair { display: grid; gap: 10px; }
+.wc-card { min-height: 128px; border: 2px solid color-mix(in srgb, #e05a7a 40%, var(--line)); border-radius: 18px; background: var(--surface); font-size: 20px; font-weight: 700; padding: 16px; color: inherit; word-break: keep-all; cursor: pointer; transition: transform 0.08s ease; }
+.wc-card:active { transform: scale(0.97); background: #fff0f3; }
+.wc-vs { justify-self: center; font-weight: 800; color: #e05a7a; }
+/* ☕ 라떼아트 */
+.latte-stage { display: grid; justify-items: center; gap: 6px; padding: 12px; border-radius: 20px; background: #f4ece3; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.latte-svg { width: min(78vw, 300px); height: auto; display: block; }
+.latte-tip { margin: 0; font-weight: 700; color: #5b4636; text-align: center; min-height: 1.5em; }
+.latte-heart { animation: latte-pop 360ms ease-out both; transform-box: fill-box; }
+@keyframes latte-pop { from { opacity: 0; } to { opacity: 1; } }
+/* 🎾 랠리 */
+.rally-court { position: relative; height: min(62vh, 480px); border-radius: 18px; overflow: hidden; background: #2f7d5b; border: 3px solid #e9f5ee; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.rally-net { position: absolute; left: 0; right: 0; top: 8%; height: 3px; background: #e9f5ee; opacity: 0.85; }
+.rally-mid { position: absolute; top: 8%; bottom: 0; left: 50%; width: 2px; background: #e9f5ee; opacity: 0.6; }
+.rally-zone { position: absolute; left: 0; right: 0; background: rgba(255, 255, 255, 0.16); border-top: 2px dashed rgba(255, 255, 255, 0.6); border-bottom: 2px dashed rgba(255, 255, 255, 0.6); }
+.rally-ball { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; background: #d8f34a; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+.rally-racket { position: absolute; bottom: 4%; transform: translateX(-50%); width: 46px; height: 58px; border: 5px solid #f4f4f4; border-radius: 50% 50% 46% 46%; transition: left 0.08s ease; }
+.rally-racket::after { content: ""; position: absolute; left: 50%; top: 100%; width: 6px; height: 18px; transform: translateX(-50%); background: #f4f4f4; border-radius: 3px; }
+.rally-msg { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: #fff; font-size: 20px; font-weight: 800; line-height: 1.5; }
+.rally-pop { position: absolute; left: 50%; top: 66%; transform: translateX(-50%); color: #fff; font-weight: 800; font-size: 20px; animation: rally-pop 420ms ease-out forwards; }
+@keyframes rally-pop { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -24px); } }
+@media (prefers-reduced-motion: reduce) { .wc-card, .rally-racket { transition: none; } .rally-pop, .latte-heart { animation: none; } }
+.mg-end-score.wc-result { font-size: 24px; }

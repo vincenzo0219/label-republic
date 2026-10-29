@@ -48,6 +48,7 @@ import { InfoOnlyRoom, SinglesCalendarTab, SinglesGenderTab, SinglesTab } from "
 import { BriefingStrip } from "@/components/BriefingStrip";
 import { BRIEFING_KINDS, roomBriefings } from "@/lib/repo/briefings";
 import { SINGLES_ROOM, SINGLES_TAB } from "@/lib/singlesEvents";
+import { roomGameLink } from "@/lib/miniGames";
 import { GAMES_TAB } from "@/lib/tennisGames";
 import { TennisGames } from "@/components/TennisGames";
 
@@ -126,7 +127,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   if (category.info_only) return <InfoOnlyRoom category={category} />;
   const sp = await searchParams;
   // 💬 수다방은 방 탭의 "자유채팅"으로 옮김
-  const links = ROOM_LINKS[category.slug] ?? [];
+  // 🎮 방 미니게임 (10/29 대표님): "1분 테스트" 버튼 바로 옆 하나 (새 탭 X)
+  const game = roomGameLink(category.slug);
+  const links = [...(ROOM_LINKS[category.slug] ?? []), ...(game ? [game] : [])];
   const bite = category.slug === BOOK_ROOM_SLUG && !sp.tab ? await todayBite().catch(() => null) : null;
   const chat = sp.tab === "chat" ? await ensureRoomChat(category.slug) : null;
   const initial = chat ? await listComments(chat.postId, await viewerFp()) : [];
