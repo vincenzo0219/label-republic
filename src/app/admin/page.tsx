@@ -1,5 +1,6 @@
 import { quickReplyStats } from "@/lib/repo/quickReply";
 import { quizRetention } from "@/lib/repo/quizRetention";
+import { gameStats } from "@/lib/repo/miniGames";
 import { quizStats, streakDistribution } from "@/lib/repo/roomQuizzes";
 import { listAutoHidden, listDuplicates, operatorReports, REPORT_TYPE_LABEL } from "@/lib/repo/reports";
 import { AdminHideButton } from "@/components/AdminHideButton";
@@ -97,6 +98,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const quick = await quickReplyStats().catch(() => null);
   const quizRows = await quizStats(7).catch(() => []);
   const retention = await quizRetention(7).catch(() => null);
+  const games = await gameStats(7).catch(() => null);
   const streaks = await streakDistribution(today).catch(() => null);
   const [ear, hearing, firstLine, typing, aiT, month, daily7, states, people, readers, readers7, readers28] = await Promise.all([
     earFunnel(...cur),
@@ -268,6 +270,37 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                       {r.regularRate}% ({r.regulars})
                     </td>
                     <td>{r.days.map((x) => `${x.day.slice(5)} ${x.rate}%·${x.nextDay === null ? "-" : `${x.nextDay}%`}`).join("  ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="hint">아직 기록이 없습니다.</p>
+        )}
+      </section>
+
+      <section aria-label="미니게임">
+        <h2 className="section-title">🎮 미니게임 (최근 7일)</h2>
+        <p className="hint">버튼: 방 버튼으로 들어온 수 · 판: 끝까지 한 판 수 · 사람: 한 사람 수 · 2일 이상: 7일 동안 이틀 이상 한 사람</p>
+        {games ? (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>게임</th>
+                  <th>사람</th>
+                  <th>2일 이상</th>
+                  <th>날짜별 버튼 · 판 · 사람</th>
+                </tr>
+              </thead>
+              <tbody>
+                {games.map((g) => (
+                  <tr key={g.game}>
+                    <td>{g.name}</td>
+                    <td>{g.players}</td>
+                    <td>{g.returning}</td>
+                    <td>{g.days.filter((d) => d.opens || d.plays).map((d) => `${d.day.slice(5)} ${d.clicks}·${d.plays}·${d.players}`).join("  ") || "-"}</td>
                   </tr>
                 ))}
               </tbody>
