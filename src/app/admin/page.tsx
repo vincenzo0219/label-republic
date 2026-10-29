@@ -1,4 +1,5 @@
 import { quickReplyStats } from "@/lib/repo/quickReply";
+import { quizStats, streakDistribution } from "@/lib/repo/roomQuizzes";
 import { listAutoHidden, listDuplicates, operatorReports, REPORT_TYPE_LABEL } from "@/lib/repo/reports";
 import { AdminHideButton } from "@/components/AdminHideButton";
 import { HIDE_TYPES } from "@/lib/repo/opHide";
@@ -93,6 +94,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const campaigns = await m.campaignStats(...cur).catch(() => []);
   const monthStart = `${today.slice(0, 8)}01`;
   const quick = await quickReplyStats().catch(() => null);
+  const quizRows = await quizStats(7).catch(() => []);
+  const streaks = await streakDistribution(today).catch(() => null);
   const [ear, hearing, firstLine, typing, aiT, month, daily7, states, people, readers, readers7, readers28] = await Promise.all([
     earFunnel(...cur),
     hearingFunnel(...cur),
@@ -188,6 +191,50 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <DailyBars title="검색 유입" unit="회" data={chartDays.map((r) => ({ day: r.day, value: r.search_landings }))} description="검색엔진에서 들어온 랜딩 페이지 수" />
         <DailyBars title="페이지뷰" unit="회" data={chartDays.map((r) => ({ day: r.day, value: r.page_views }))} />
         <DailyBars title="재방문자" unit="명" data={chartDays.map((r) => ({ day: r.day, value: r.returning_visitors }))} description="그날 방문자 중 이전 날짜에 처음 온 방문자" />
+      </section>
+
+      <section aria-label="오늘의 1분 퀴즈">
+        <h2 className="section-title">🧩 오늘의 1분 퀴즈 응답률 (최근 7일)</h2>
+        <p className="hint">
+          방문자: 그날 방 첫 화면을 연 사람 · 본 사람: 퀴즈 카드가 화면에 보인 사람 · 답: 퀴즈 답 + 기존 오늘의 질문 투표 · 🙌 버튼 답장: 한 번 누르는 답장 수
+        </p>
+        {streaks && (
+          <p className="hint">
+            🔥 지금 이어지는 연속 참여: 1~2일 {streaks.d1_2}명 · 3~6일 {streaks.d3_6}명 · 7~29일 {streaks.d7_29}명 · 30일+ {streaks.d30}명
+          </p>
+        )}
+        {quizRows.length ? (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>날짜</th>
+                <th>방</th>
+                <th>방문자</th>
+                <th>본 사람</th>
+                <th>답</th>
+                <th>답/방문자</th>
+                <th>답/본 사람</th>
+                <th>🙌 버튼 답장</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quizRows.slice(0, 80).map((r) => (
+                <tr key={`${r.day}-${r.room}`}>
+                  <td>{r.day.slice(5)}</td>
+                  <td>{r.room}</td>
+                  <td>{r.visitors}</td>
+                  <td>{r.impressions}</td>
+                  <td>{r.answers + r.pollVotes}</td>
+                  <td>{r.rateVisitors}%</td>
+                  <td>{r.impressions ? `${r.rateSeen}%` : "-"}</td>
+                  <td>{r.chips}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="hint">아직 기록이 없습니다.</p>
+        )}
       </section>
 
       <section aria-label="광고별 유입">

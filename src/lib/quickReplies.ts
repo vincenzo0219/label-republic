@@ -20,3 +20,31 @@ export function showQuickReplies(o: { human: boolean; mine: boolean; commented: 
 }
 
 export const isQuickReply = (body: string, key: string | null | undefined): boolean => quickRepliesFor(key).includes(body.trim());
+
+/** 운영 닉네임 (src/lib/repo/metrics.ts OPERATOR_NICKS 와 같게). 화면에서 사람 말인지 가를 때 */
+export const OPERATOR_NICKS_CLIENT = ["노방장", "돈키호테", "덕후1호", "💬 수다방", "울트라매니아", "동탄맨", "부산수지", "예은이", "러블리", "AI 큐레이터", "비즈파일럿"];
+
+/** 💬 수다방 한 줄 아래 버튼 (10/29 대표님 "반가워요 등등이 바로 보여서 클릭만 하면"): 누르면 "@닉네임 반가워요!" */
+export const CHAT_CHIPS = ["🙌 반가워요!", "저도요!", "ㅋㅋ 공감"] as const;
+/** 👋 수다방에 들어오고 2초 뒤 뜨는 첫 인사 (10/29 대표님 "누군가 채팅창에 들어오면 2초 후에 선택 글들이 생기고 바로 선택해서 글 입력") */
+export const CHAT_STARTERS = ["👋 안녕하세요!", "🙌 처음 왔어요", "다들 뭐 해요?", "😊 반가워요~"] as const;
+export const chatChipText = (nickname: string, chip: string) => `@${nickname} ${chip}`;
+
+/** 버튼을 붙일 말: 사람(운영·AI 아님)이 쓴, 내 것이 아닌, 아직 내가 버튼으로 답하지 않은 최근 말 몇 개 */
+export function chatChipTargets(
+  msgs: { id: string; nickname: string; is_ai_curated?: boolean; hidden_reason?: string | null }[],
+  myNick: string,
+  done: ReadonlySet<string>,
+  limit = 3,
+): string[] {
+  const me = myNick.trim();
+  const out: string[] = [];
+  for (let i = msgs.length - 1; i >= 0 && out.length < limit; i--) {
+    const m = msgs[i]!;
+    if (m.is_ai_curated || m.hidden_reason || OPERATOR_NICKS_CLIENT.includes(m.nickname.trim())) continue;
+    if (me && m.nickname.trim() === me) continue;
+    if (done.has(m.id)) continue;
+    out.push(m.id);
+  }
+  return out;
+}

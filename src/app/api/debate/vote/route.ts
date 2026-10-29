@@ -3,9 +3,10 @@ import { config } from "@/lib/config";
 import { tooMany } from "@/lib/errors";
 import { fingerprint } from "@/lib/fingerprint";
 import { json, parseBody, route } from "@/lib/http";
-import { newVisitorId, VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
+import { kstDay, newVisitorId, VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
 import { hit } from "@/lib/rate-limit";
 import { debateTally, latestBookPoll, latestRoomPoll, voteDebate } from "@/lib/repo/debateVotes";
+import { notePollVote, recordQuizDay, roomPollDay } from "@/lib/repo/roomQuizzes";
 
 const schema = z.object({ postId: z.string().regex(/^\d{1,18}$/), side: z.enum(["A", "B"]), gender: z.enum(["m", "f"]).optional() });
 
@@ -15,7 +16,12 @@ export const POST = route(async (req) => {
   const cookie = req.headers.get("cookie")?.match(new RegExp(`(?:^|;\\s*)${VISITOR_COOKIE}=([0-9a-f-]{36})`))?.[1];
   const vid = cookie ?? newVisitorId();
   const { postId, side, gender } = await parseBody(req, schema);
-  const res = json(await voteDebate(postId, visitorHash(vid), side, gender));
+  const tally = await voteDebate(postId, visitorHash(vid), side, gender);
+  // 🔥 방 오늘의 질문에 답한 것도 연속 참여로 센다 (10/29)
+  const pollDay = await roomPollDay(postId);
+  const streak = pollDay === kstDay() ? await recordQuizDay(pollDay, visitorHash(vid), fingerprint(req.headers)) : undefined;
+  if (pollDay === kstDay()) await notePollVote(postId, visitorHash(vid), side, pollDay).catch(() => {});
+  const res = json(streak === undefined ? tally : { ...tally, streak });
   if (!cookie) res.cookies.set(VISITOR_COOKIE, vid, { httpOnly: true, sameSite: "lax", secure: config.siteUrl.startsWith("https://"), maxAge: 60 * 60 * 24 * 365, path: "/" });
   return res;
 });

@@ -40,7 +40,10 @@ export const TARGET_LIMIT = 5;
 
 // AI 자동 운영이 가린 댓글은 자리는 남기고 본문을 내보내지 않는다 (Sprint 37)
 // 🙌 환영러 (10/29): 처음 온 사람의 첫 글에 첫 댓글을 단 적이 있는 닉네임
-const WELCOMER = `EXISTS (SELECT 1 FROM comments w WHERE w.welcome AND w.nickname = comments.nickname) AS welcomer`;
+const WELCOMER = `EXISTS (SELECT 1 FROM comments w WHERE w.welcome AND w.nickname = comments.nickname) AS welcomer,
+  (SELECT s.current FROM quiz_streaks s WHERE s.key = 'f:' || comments.author_fingerprint AND s.current >= 3
+      AND s.last_day >= (now() AT TIME ZONE 'Asia/Seoul')::date - 1) AS streak`;
+// 🔥 연속 참여 (10/29): 오늘의 퀴즈를 3일 이상 이어서 답하고 있는 사람 (지문 기준)
 const COLS = `id, post_id, nickname, CASE WHEN ai_hidden_reason IS NULL THEN body ELSE '' END AS body, is_ai_curated, created_at,
   parent_id::text AS parent_id, mentions::text[] AS mentions, ai_hidden_reason AS hidden_reason,
   CASE WHEN ai_hidden_reason IS NULL THEN image_id::text END AS image_id, ${WELCOMER}`;

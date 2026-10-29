@@ -1552,3 +1552,73 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .quick-replies { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
 .quick-reply { font-size: 14px; padding: 8px 12px; }
 .welcomer-badge { margin-left: 4px; font-size: 12px; padding: 1px 6px; border-radius: 999px; background: var(--accent-soft, rgba(0,0,0,.06)); white-space: nowrap; }
+
+/* 🧩 오늘의 1분 퀴즈 (10/29) */
+.quiz-wrap { margin: 0 0 12px; }
+.quiz-streak-row { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.quiz-card { position: relative; overflow: hidden; margin: 0 0 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.quiz-card > * { min-width: 0; }
+.quiz-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.quiz-kicker { font-size: 13px; font-weight: 700; color: var(--accent, inherit); }
+.quiz-streak { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.quiz-streak.hot { background: #fff1e6; border-color: #ffb357; color: #b45309; }
+.quiz-q { margin: 8px 0; font-size: 18px; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
+.quiz-options { display: grid; gap: 8px; }
+.quiz-opt { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 46px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg, #fff); font-size: 16px; font-weight: 700; text-align: left; cursor: pointer; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; color: inherit; }
+.quiz-opt:disabled { cursor: default; }
+.quiz-opt.mine { border-color: var(--accent, #2f6f5e); }
+.quiz-opt.correct { border-color: #3ddc97; }
+.quiz-bar { position: absolute; inset: 0 auto 0 0; background: rgba(61, 220, 151, 0.18); transition: width 0.35s ease; }
+.quiz-opt.mine .quiz-bar { background: rgba(47, 111, 94, 0.22); }
+.quiz-label, .quiz-pct { position: relative; }
+.quiz-pct { font-size: 14px; white-space: nowrap; }
+.quiz-reward { margin: 10px 0 0; font-size: 15px; font-weight: 700; }
+.quiz-reward .hint { font-weight: 400; margin: 4px 0 0; }
+.quiz-result b { font-size: 20px; }
+.quiz-result p { margin: 6px 0; }
+.quiz-confetti { position: absolute; inset: 0; pointer-events: none; }
+.quiz-confetti i { position: absolute; top: -8px; width: 7px; height: 10px; border-radius: 2px; opacity: 0; animation: quiz-fall 1s ease-out forwards; }
+@keyframes quiz-fall { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 0; transform: translateY(180px) rotate(320deg); } }
+@media (prefers-reduced-motion: reduce) { .quiz-confetti { display: none; } .quiz-bar { transition: none; } }
+.streak-badge { margin-left: 4px; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: #fff1e6; color: #b45309; }
+.chat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+.chat-chips .chip { font-size: 13px; padding: 4px 10px; height: auto; }
+/* 🧩 누르고 싶게 (10/29): 큰 버튼, 방 색 테두리, 누르면 살짝 눌림 */
+.quiz-opt { min-height: 52px; border: 2px solid color-mix(in srgb, var(--accent, #2f6f5e) 35%, var(--line)); border-radius: 14px; transition: transform 0.08s ease; }
+.quiz-opt:not(:disabled):active { transform: scale(0.96); }
+.quiz-count { margin: -2px 0 6px; font-size: 13px; color: var(--muted, #6b7280); }
+.quiz-tease { margin: 0 0 8px; font-size: 13px; color: var(--muted, #6b7280); }
+.quiz-next { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.quiz-next-btn { flex: 1; min-height: 48px; display: flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 14px; background: var(--accent, #2f6f5e); color: #fff; font-weight: 700; text-align: center; text-decoration: none; word-break: keep-all; }
+.quiz-notes-count { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.quiz-options { grid-template-columns: 1fr; gap: 10px; }
+.quiz-opt { width: 100%; min-height: 56px; max-height: none; }
+.quiz-opt.mine { font-weight: 800; border-width: 3px; }
+.quiz-opt.wrong { border-color: #d9534f; }
+.quiz-opt.correct { border-color: #1f9d63; }
+.quiz-progress { display: grid; gap: 4px; margin-top: 10px; font-size: 13px; font-weight: 700; }
+.quiz-progress-track { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.quiz-progress-track > span { display: block; height: 100%; background: var(--accent, #2f6f5e); border-radius: 999px; }
+.quiz-share { margin-top: 10px; min-height: 44px; width: 100%; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: inherit; font-weight: 700; cursor: pointer; }
+.quiz-result-kicker { display: block; font-size: 13px; color: var(--muted, #6b7280); }
+@media (prefers-reduced-motion: reduce) { .quiz-opt { transition: none; } .quiz-opt:not(:disabled):active { transform: none; } }
+.quiz-bar { transform-origin: left center; animation: quiz-grow 0.35s ease-out; }
+@keyframes quiz-grow { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .quiz-bar { animation: none; } }
+/* 📚 내 지식 노트 (10/29) */
+.quiz-note-line { margin: 8px 0 0; font-size: 13px; font-weight: 700; }
+.note-rooms { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.note-rooms .chip { height: auto; padding: 6px 10px; white-space: normal; }
+.note-rooms .chip.on { border-color: var(--accent, #2f6f5e); }
+.note-doctor { color: #b45309; }
+.note-h { font-size: 15px; margin: 12px 0 6px; }
+.note-card { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; }
+.note-card p { margin: 4px 0; }
+.note-actions { display: flex; gap: 12px; font-size: 13px; }
+.note-taste { margin: 4px 0; font-size: 14px; overflow-wrap: anywhere; }
+.note-streak { margin: 4px 0 8px; font-size: 14px; font-weight: 700; }
+
+/* 👋 수다방 첫 인사 버튼: 2초 뒤 살짝 떠오른다 */
+.chat-starter { animation: starter-in 260ms ease-out both; }
+@keyframes starter-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .chat-starter { animation: none; } }
