@@ -1,14 +1,16 @@
 import { z } from "zod";
 import { json, parseBody, route } from "@/lib/http";
 import { kstDay } from "@/lib/metrics";
+import { quizRetention } from "@/lib/repo/quizRetention";
 import { listRoomQuizzes, putRoomQuiz, quizStats } from "@/lib/repo/roomQuizzes";
 
 // /api/admin/* 는 server.ts 에서 ADMIN_PASSWORD Basic 인증을 통과해야만 도달한다.
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-/** GET /api/admin/room-quizzes?from=&to= — 넣어 둔 퀴즈 / ?stats=1&days=7 — 📊 방·날짜별 응답률 */
+/** GET /api/admin/room-quizzes?from=&to= — 넣어 둔 퀴즈 / ?stats=1&days=7 — 📊 방·날짜별 응답률 / ?retention=1&days=7 — 다음 날 재방문·3일 이상 */
 export const GET = route(async (req) => {
   const sp = new URL(req.url).searchParams;
+  if (sp.get("retention") === "1") return json(await quizRetention(Number(sp.get("days")) || 7));
   if (sp.get("stats") === "1") return json({ rows: await quizStats(Number(sp.get("days")) || 7) });
   const from = sp.get("from") ?? kstDay();
   const to = sp.get("to") ?? kstDay(new Date(Date.now() + 13 * 86400_000));

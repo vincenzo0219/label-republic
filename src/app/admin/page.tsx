@@ -1,4 +1,5 @@
 import { quickReplyStats } from "@/lib/repo/quickReply";
+import { quizRetention } from "@/lib/repo/quizRetention";
 import { quizStats, streakDistribution } from "@/lib/repo/roomQuizzes";
 import { listAutoHidden, listDuplicates, operatorReports, REPORT_TYPE_LABEL } from "@/lib/repo/reports";
 import { AdminHideButton } from "@/components/AdminHideButton";
@@ -95,6 +96,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const monthStart = `${today.slice(0, 8)}01`;
   const quick = await quickReplyStats().catch(() => null);
   const quizRows = await quizStats(7).catch(() => []);
+  const retention = await quizRetention(7).catch(() => null);
   const streaks = await streakDistribution(today).catch(() => null);
   const [ear, hearing, firstLine, typing, aiT, month, daily7, states, people, readers, readers7, readers28] = await Promise.all([
     earFunnel(...cur),
@@ -232,6 +234,45 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               ))}
             </tbody>
           </table>
+        ) : (
+          <p className="hint">아직 기록이 없습니다.</p>
+        )}
+      </section>
+
+      <section aria-label="퀴즈 리텐션">
+        <h2 className="section-title">📊 퀴즈 리텐션 (최근 7일{retention ? ` · ${retention.from.slice(5)}~${retention.to.slice(5)}` : ""})</h2>
+        <p className="hint">
+          참여율: 방문자 중 답한 사람 · 다음 날 재방문: 그날 답한 사람 중 다음 날 같은 방에 다시 온 비율 (오늘 답한 사람은 내일 나와서 -) · 3일 이상: 7일 동안 답한 사람 중 3일 이상 답한 비율 · 답: 퀴즈 + 오늘의 질문 투표 + 코스피 맞히기 · <span className="count-badge">테스트</span> 나중에 🏆 이번 주 순위를 먼저 켤 방
+        </p>
+        {retention && retention.rooms.length ? (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>방</th>
+                  <th>답한 사람</th>
+                  <th>다음 날 재방문</th>
+                  <th>3일 이상</th>
+                  <th>날짜별 참여율 · 다음 날 재방문</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[retention.total, ...retention.rooms].slice(0, 41).map((r) => (
+                  <tr key={r.room}>
+                    <td>
+                      {r.room === "전체" ? <strong>전체</strong> : r.room} {r.test && <span className="count-badge">테스트</span>}
+                    </td>
+                    <td>{r.answerers}</td>
+                    <td>{r.nextDay === null ? "-" : `${r.nextDay}%`}</td>
+                    <td>
+                      {r.regularRate}% ({r.regulars})
+                    </td>
+                    <td>{r.days.map((x) => `${x.day.slice(5)} ${x.rate}%·${x.nextDay === null ? "-" : `${x.nextDay}%`}`).join("  ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="hint">아직 기록이 없습니다.</p>
         )}
