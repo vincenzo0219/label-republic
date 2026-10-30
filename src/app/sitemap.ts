@@ -59,6 +59,7 @@ async function build(): Promise<MetadataRoute.Sitemap> {
     { url: `${config.siteUrl}/drama-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/coffee-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/anime-test`, changeFrequency: "weekly" as const, priority: 0.7 },
+    { url: `${config.siteUrl}/love-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/viv-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/wine-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/debate-test`, changeFrequency: "weekly" as const, priority: 0.7 },

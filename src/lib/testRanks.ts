@@ -6,6 +6,7 @@ import { GAME_INTRO_POST_ID } from "./gameTest";
 import { DRAMA_INTRO_POST_ID } from "./dramaTest";
 import { COFFEE_INTRO_POST_ID } from "./coffeeTest";
 import { ANIME_INTRO_POST_ID } from "./animeTest";
+import { LOVE_INTRO_POST_ID } from "./loveTest";
 import { WINE_INTRO_POST_ID } from "./wineTest";
 import { DEBATE_TEST_POST_ID } from "./debateTest";
 import { PARENT_INTRO_POST_ID } from "./parentTest";
@@ -32,6 +33,7 @@ export const RANK_TESTS: Record<string, RankTest> = {
   drama: { key: "drama", postId: DRAMA_INTRO_POST_ID, title: "📺 드라마러 타입 분포", room: "드라마-덕후방", test: "/drama-test" },
   coffee: { key: "coffee", postId: COFFEE_INTRO_POST_ID, title: "☕ 커피러 타입 분포", room: "커피-덕후방", test: "/coffee-test" },
   anime: { key: "anime", postId: ANIME_INTRO_POST_ID, title: "🎨 덕질 타입 분포", room: "애니-만화-덕후방", test: "/anime-test" },
+  love: { key: "love", postId: LOVE_INTRO_POST_ID, title: "💘 연애 성향 분포", room: "미혼남녀-만남-행사", test: "/love-test" },
   wine: { key: "wine", postId: WINE_INTRO_POST_ID, title: "🍷 술 취향 타입 분포", room: "와인-위스키-덕후방", test: "/wine-test" },
   parent: { key: "parent", postId: PARENT_INTRO_POST_ID, title: "👶 육아 타입 분포", room: "육아-덕후방", test: "/parent-test" },
   writer: { key: "writer", postId: WRITER_INTRO_POST_ID, title: "✍️ 장르 작가 분포", room: "작가지망생방", test: "/writer-test" },
