@@ -20,6 +20,7 @@ import { NickCheck } from "./NickCheck";
 import { ReportButton } from "./ReportButton";
 import { EAR_BRAG_POST_ID, earBragLine } from "@/lib/earTest";
 import { HEARING_BRAG_POST_ID, hearingBragLine } from "@/lib/hearingTest";
+import { vibe } from "@/lib/juice";
 
 type Event =
   | { type: "created"; comment: Comment }
@@ -382,6 +383,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
   // 👍 공감 (Sprint 78): 누른 댓글은 이 브라우저에만 기억
   const toggleLike = async (c: Comment) => {
     const on = !liked.has(c.id);
+    if (on) vibe(15);
     setLiked((cur) => {
       const next = new Set(cur);
       if (on) next.add(c.id);
@@ -427,9 +429,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
               )}
               {!c.hidden_reason && (
                 <div className="chat-actions">
-                  <button className={`linkish like${liked.has(c.id) ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={liked.has(c.id)} aria-label={`${c.nickname}님 말에 공감`}>
-                    👍{likes[c.id] ? ` ${likes[c.id]}` : ""}
-                  </button>
+                  <LikeChip on={liked.has(c.id)} n={likes[c.id] ?? 0} who={c.nickname} onTap={() => toggleLike(c)} />
                   <button
                     className="linkish"
                     onClick={() => {
@@ -553,11 +553,6 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                   {c.is_ai_curated ? <><b>{c.nickname}</b><span className="ai-mark" title="AI가 작성한 댓글입니다." aria-label="AI 작성">🤖</span></> : <><b>{c.nickname}</b><NickBadge label={badgeOf(badges, c.nickname)} />{c.welcomer && <span className="welcomer-badge" title="처음 온 분의 첫 글에 첫 댓글을 단 분이에요">🙌 환영러</span>}{c.streak ? <span className="streak-badge" title="오늘의 퀴즈 연속 참여">🔥 {c.streak >= 30 ? 30 : c.streak >= 7 ? 7 : 3}일+</span> : null}</>}
                   <time dateTime={c.created_at} suppressHydrationWarning>{timeAgo(c.created_at)}</time>
                   <span className="spacer" />
-                  {!c.hidden_reason && (
-                    <button className={`linkish like${liked.has(c.id) ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={liked.has(c.id)} aria-label={`${c.nickname}님 댓글에 공감`}>
-                      👍{likes[c.id] ? ` ${likes[c.id]}` : ""}
-                    </button>
-                  )}
                   <button className="linkish" onClick={() => startReply(c)} aria-label={`${c.nickname}님 댓글에 답글`}>답글</button>
                   {!c.is_ai_curated && (
                     <>
@@ -580,6 +575,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                     {c.image_id && c.body === "📷" ? null : splitMentions(c.body, nicknames).map((p, i) => (p.mention ? <span key={i} className="mention">{p.text}</span> : p.text))}
                   </div>
                 )}
+                {!c.hidden_reason && <LikeChip on={liked.has(c.id)} n={likes[c.id] ?? 0} who={c.nickname} onTap={() => toggleLike(c)} />}
                 {replyTo?.id === c.id && (
                   <form className="reply-inline" onSubmit={(e) => submit(e, true)}>
                     <div className="quick-replies" role="group" aria-label={`${c.nickname}님께 한 번 눌러 답글`}>
@@ -717,5 +713,17 @@ function PhotoPreview({ photo, onClear }: { photo: { preview: string; status: st
       <span className="hint">{photo.status === "uploading" ? "올리는 중…" : "📷 사진 1장"}</span>
       <button type="button" className="linkish" onClick={onClear} aria-label="사진 빼기">✕</button>
     </div>
+  );
+}
+
+/**
+ * 👍 카톡처럼 말 아래 붙은 엄지척 칩 (10/30 대표님 "글을 누를필요없이 바로 터치한번으로"). 한 번 누르면 공감, 다시 누르면 취소.
+ */
+function LikeChip({ on, n, who, onTap }: { on: boolean; n: number; who: string; onTap: () => void }) {
+  return (
+    <button type="button" className={`like-chip${on ? " on" : ""}`} onClick={onTap} aria-pressed={on} aria-label={`${who}님 말에 엄지척${n ? ` ${n}개` : ""}`}>
+      <span aria-hidden>👍</span>
+      {n > 0 && <span className="like-chip-n">{n}</span>}
+    </button>
   );
 }
