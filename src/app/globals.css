@@ -1815,7 +1815,10 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .room-icon-tile:active .room-icon { transform: scale(0.94); }
 .room-icon-name { max-width: 100%; font-size: 12.5px; font-weight: 600; line-height: 1.3; text-align: center; word-break: keep-all; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .feed-title { font-size: 17px; margin: 18px 0 6px; }
-.all-rooms-cta { display: block; margin: 2px 0 12px; padding: 11px 14px; border: 1px solid color-mix(in srgb, var(--brand) 30%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--brand) 7%, var(--surface)); color: inherit; font-weight: 700; font-size: 15px; text-align: center; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .room-icon { transition: none; } }
 
-.rooms-cta-on .all-rooms-link.other-rooms { display: none; }
+
+/* 🏠 방 화면 맨 위 "노방장 홈 · 다른 방 n개" (10/30) */
+.room-topbar { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: inherit; font-size: 14px; font-weight: 700; text-decoration: none; }
+.room-topbar > span[aria-hidden] { font-size: 20px; line-height: 1; color: var(--muted); }
+.room-topbar-more { margin-left: auto; color: var(--brand); font-size: 13.5px; }

@@ -18,6 +18,11 @@ export function LogoDot() {
         return;
       }
       since = window.localStorage.getItem(KEY) ?? "";
+      // 처음 온 사람(첫 화면을 아직 안 봄)은 늘 점: 다른 방이 있다는 신호 (10/30 대표님 "처음 들어온 사람이 노방장 로고 옆에 빨간점 없었다는데")
+      if (!since) {
+        setDot(true);
+        return;
+      }
     } catch {
       return;
     }

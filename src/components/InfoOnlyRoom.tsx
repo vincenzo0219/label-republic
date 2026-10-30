@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listCategories } from "@/lib/repo/categories";
-import { AllRoomsCta } from "./AllRoomsCta";
+import { RoomTopBar } from "./RoomTopBar";
 import type { Category } from "@/lib/types";
 import { listSinglesEvents } from "@/lib/repo/singlesEvents";
 import { ensureSinglesTalks } from "@/lib/repo/singlesTalk";
@@ -37,11 +37,10 @@ export async function InfoOnlyRoom({ category }: { category: Category }) {
       <div className="board-head singles-head">
         <span className="room-title">
           <span className="room-name">{category.name}</span>
-          <Link href="/?all=1#rooms" className="all-rooms-link other-rooms">☰ 다른 방{count > 1 ? ` ${count - 1}개` : ""}</Link>
         </span>
         <p className="room-desc">{category.description}</p>
       </div>
-      <AllRoomsCta count={count} />
+      <RoomTopBar count={count} />
       {category.slug === SINGLES_ROOM ? <SinglesTab /> : <p className="empty">이 방은 정보만 모아 보여 줘요.</p>}
     </>
   );

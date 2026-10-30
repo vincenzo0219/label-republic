@@ -6,6 +6,8 @@ import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { RoomQuiz } from "@/components/RoomQuiz";
+import { RoomTopBar } from "@/components/RoomTopBar";
+import { listCategories } from "@/lib/repo/categories";
 import { KospiGame } from "@/components/KospiGame";
 import { KOSPI_ROOMS } from "@/lib/kospiGame";
 import { parseHead } from "@/lib/heads";
@@ -201,9 +203,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   // 🎉 내 덕질 기념일 (10/26): 📸 자랑 탭에는 카드, 전체 탭 첫 페이지에는 작게. 숨긴 방·만남 연결 기능 없는 방(098)은 빼고 (정보만 보여 주는 방은 위에서 이미 끝)
   const fanDays = (compact: boolean) => (category.is_hidden || category.no_matching ? null : <FanDays slug={category.slug} roomName={category.name} compact={compact} />);
   const fanLine = !kidsLine && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? fanDays(true) : null;
+  const roomCount = (await listCategories().catch(() => [])).length;
   return (
     <>
       <RoomMemory slug={category.slug} />
+      <RoomTopBar count={roomCount} />
       {adTop}
       {/* 🧩 오늘의 1분 퀴즈 (10/29 대표님): 어느 탭이든 방 맨 위. 기존 오늘의 질문이 있는 방은 그 카드. 👫 남녀 생각 차이 탭은 같은 투표를 목록으로 보여 주니 뺀다 */}
       {!category.is_hidden && roomTab?.key !== "gender" && <RoomQuiz slug={category.slug} name={category.name} />}

@@ -20,7 +20,6 @@ import { CalendarSubscribe } from "./CalendarSubscribe";
 import { CheerButton } from "./CheerButton";
 import { LiveComments } from "./LiveComments";
 import { RoomVisitors } from "./RoomVisitors";
-import { AllRoomsCta } from "./AllRoomsCta";
 import { SeenTracker } from "./SeenTracker";
 import { badgeOf, ROOM_BADGES, type BadgeMap } from "@/lib/badges";
 import { badgesSafe } from "@/lib/repo/badges";
@@ -127,7 +126,6 @@ export async function FeedView({
           <span className="room-title">
             <span className="room-name">{category.name}</span>
             <MyRoomStar slug={category.slug} />
-            <Link href="/?all=1#rooms" className="all-rooms-link other-rooms">☰ 다른 방{roomCount > 1 ? ` ${roomCount - 1}개` : ""}</Link>
             <RoomVisitors slug={category.slug} />
           </span>
           <div className="board-actions">
@@ -150,7 +148,6 @@ export async function FeedView({
           </div>
         </div>
       )}
-      {category && <AllRoomsCta count={roomCount} />}
       {banner}
       {category && (
       <nav className="type-filter" aria-label="글 유형">
