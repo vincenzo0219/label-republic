@@ -344,7 +344,7 @@ function startWorker() {
       if (process.env.OPERATOR_LIKES_ENABLED !== "0") jobStops.push(startOperatorLikesScheduler());
       // 처음 댓글 남긴 사람에게 운영 계정 환영 답글 (Sprint 92). WELCOME_ENABLED=0 이면 끈다
       if (process.env.WELCOME_ENABLED !== "0") jobStops.push(startWelcomeScheduler());
-      // 사람이 새 글을 쓰면 20초 안에 동탄맨·울트라매니아가 번갈아 반가운 댓글 (10/30 대표님 허락). POST_WELCOME_ENABLED=0 이면 끈다
+      // 사람이 글·댓글을 쓰면 20초~1분 사이 울트라매니아가 반가운 답글 (10/30 대표님). POST_WELCOME_ENABLED=0 이면 끈다
       if (process.env.POST_WELCOME_ENABLED !== "0") jobStops.push(startPostWelcomeScheduler());
       // 🏪 오늘도 장사중: 정해진 시각에 비즈파일럿 글 · 07:30 공지 · 일요일 모아 보기 (10/25). SHOP_ROOM_ENABLED=0 이면 끈다
       if (process.env.SHOP_ROOM_ENABLED !== "0") jobStops.push(startShopRoomScheduler());

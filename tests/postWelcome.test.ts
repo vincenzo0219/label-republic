@@ -4,14 +4,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST_WELCOME_NAMES, postWelcome } from "@/lib/jobs/postWelcome";
 
 describe("✍️ 새 글 환영 댓글 (문구)", () => {
-  it("운영 이름 17개 중 글마다 한 이름으로 고정, 문장은 돌린다", () => {
-    expect(POST_WELCOME_NAMES).toHaveLength(17);
-    expect(POST_WELCOME_NAMES).toContain("짱가");
-    expect(POST_WELCOME_NAMES).not.toContain("💬 수다방");
-    expect(postWelcome("3121", "민수", "1347").who).toBe(postWelcome("3121", "환엄", "1357").who);
+  it("늘 울트라매니아 한 이름으로, 문장은 돌린다", () => {
+    expect(postWelcome("3121", "민수", "1347").who).toBe("울트라매니아");
+    expect(postWelcome("99", "환엄").who).toBe("울트라매니아");
     expect(postWelcome("3121", "민수", "1347").body).not.toBe(postWelcome("3121", "민수", "1348").body);
-    const names = new Set(Array.from({ length: 60 }, (_, i) => postWelcome(String(1000 + i), "a").who));
-    expect(names.size).toBeGreaterThan(8);
+    expect(POST_WELCOME_NAMES).not.toContain("노방장");
   });
 });
 
@@ -20,6 +17,7 @@ const d = url ? describe : describe.skip;
 
 d("✍️ 새 글 환영 댓글 (DB)", async () => {
   process.env.DATABASE_URL = url;
+  process.env.POST_WELCOME_ENABLED = "1";
   const { pool, query } = await import("@/lib/db");
   const { runPostWelcome } = await import("@/lib/jobs/postWelcome");
   beforeAll(async () => {
@@ -64,6 +62,6 @@ d("✍️ 새 글 환영 댓글 (DB)", async () => {
     process.env.POST_WELCOME_ENABLED = "0";
     await add("손님3");
     expect(await runPostWelcome()).toBe(0);
-    delete process.env.POST_WELCOME_ENABLED;
+    process.env.POST_WELCOME_ENABLED = "1";
   });
 });

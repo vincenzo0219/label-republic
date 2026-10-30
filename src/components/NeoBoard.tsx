@@ -10,6 +10,7 @@ import { markNeoSeen } from "./NeoChip";
 import { SeenTracker } from "./SeenTracker";
 import type { NeoChoice, NeoItem, NeoOutcome } from "@/lib/repo/neo";
 import type { NeoTalk } from "@/lib/repo/neoTalk";
+import { parseWon } from "@/lib/won";
 
 const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
 const pct = (x: number, n: number) => (n ? Math.round((x / n) * 100) : 0);
@@ -64,7 +65,7 @@ export function NeoCard({ initial, now, talk, onChange, onRemove }: { initial: N
     setBusy(true);
     setMsg(null);
     try {
-      const price = Number(edit.price.replace(/[^\d]/g, ""));
+      const price = parseWon(edit.price) ?? 0;
       const r = await api<{ item: NeoItem }>(`/api/neo/${it.id}`, "PATCH", { title: edit.title, price, reason: edit.reason, alt: edit.alt });
       set(r.item);
       setEdit(null);
@@ -109,14 +110,8 @@ export function NeoCard({ initial, now, talk, onChange, onRemove }: { initial: N
       {edit ? (
         <form className="neo-form neo-edit" onSubmit={save}>
           <input className="input" placeholder={it.photo_id ? "물건 이름 (선택)" : "물건 이름"} value={edit.title} maxLength={40} onChange={(e) => setEdit({ ...edit, title: e.target.value })} aria-label="물건" />
-          <input
-            className="input"
-            inputMode="numeric"
-            placeholder="가격 (원)"
-            value={edit.price ? Number(edit.price.replace(/[^\d]/g, "")).toLocaleString("ko-KR") : ""}
-            onChange={(e) => setEdit({ ...edit, price: e.target.value })}
-            aria-label="가격"
-          />
+          <input className="input" inputMode="text" placeholder="가격 (예: 3만5천원)" value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} aria-label="가격" />
+          <PriceHint value={edit.price} />
           <input className="input" placeholder="이유 (선택)" value={edit.reason} maxLength={120} onChange={(e) => setEdit({ ...edit, reason: e.target.value })} aria-label="이유" />
           <input className="input" placeholder="대안 (선택)" value={edit.alt} maxLength={60} onChange={(e) => setEdit({ ...edit, alt: e.target.value })} aria-label="대안" />
           <div className="neo-vote">
@@ -239,7 +234,7 @@ export function NeoBoard({ open, closed, saved, now, talks = {} }: { open: NeoIt
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const priceNum = Number(price.replace(/[^\d]/g, ""));
+  const priceNum = parseWon(price) ?? 0;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,15 +299,9 @@ export function NeoBoard({ open, closed, saved, now, talks = {} }: { open: NeoIt
             )}
             <input type="file" accept="image/*" onChange={pick} hidden />
           </label>
-          <input
-          className="input"
-          inputMode="numeric"
-          placeholder="가격 (원)"
-          value={price ? priceNum.toLocaleString("ko-KR") : ""}
-          onChange={(e) => setPrice(e.target.value)}
-          aria-label="가격"
-          />
+          <input className="input" inputMode="text" placeholder="가격 (예: 3만5천원)" value={price} onChange={(e) => setPrice(e.target.value)} aria-label="가격" />
         </div>
+        <PriceHint value={price} />
         {more || !photo ? (
           <input className="input" placeholder={photo ? "물건 이름 (선택)" : "물건 이름 (사진 없으면 필수)"} value={title} maxLength={40} onChange={(e) => setTitle(e.target.value)} aria-label="물건" />
         ) : null}
@@ -352,5 +341,16 @@ export function NeoBoard({ open, closed, saved, now, talks = {} }: { open: NeoIt
       )}
       <SeenTracker />
     </div>
+  );
+}
+
+/** 가격 칸 아래 작게: 읽은 금액 미리 보기, 못 읽으면 예시 (10/30 "만원이라고 칠때는 자유롭게") */
+function PriceHint({ value }: { value: string }) {
+  if (!value.trim()) return null;
+  const n = parseWon(value);
+  return (
+    <p className="hint neo-price-hint" role="status">
+      {n === null ? "예: 3만5천원, 1.5만, 12000" : n < 1000 ? "1,000원 이상으로 적어 주세요" : `= ${n.toLocaleString("ko-KR")}원`}
+    </p>
   );
 }
