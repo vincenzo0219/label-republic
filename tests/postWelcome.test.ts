@@ -4,13 +4,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST_WELCOME_NAMES, postWelcome } from "@/lib/jobs/postWelcome";
 
 describe("✍️ 새 글 환영 댓글 (문구)", () => {
-  it("운영 이름 17개 중 랜덤(같은 이름 연달아 X), 문장도 돌린다", () => {
+  it("운영 이름 17개 중 글마다 한 이름으로 고정, 문장은 돌린다", () => {
     expect(POST_WELCOME_NAMES).toHaveLength(17);
     expect(POST_WELCOME_NAMES).toContain("짱가");
     expect(POST_WELCOME_NAMES).not.toContain("💬 수다방");
-    const a = postWelcome("10", "철수", () => 3).who;
-    expect(postWelcome("11", "철수", () => 3).who).not.toBe(a);
-    expect(postWelcome("10", "철수").body).not.toBe(postWelcome("11", "철수").body);
+    expect(postWelcome("3121", "민수", "1347").who).toBe(postWelcome("3121", "환엄", "1357").who);
+    expect(postWelcome("3121", "민수", "1347").body).not.toBe(postWelcome("3121", "민수", "1348").body);
+    const names = new Set(Array.from({ length: 60 }, (_, i) => postWelcome(String(1000 + i), "a").who));
+    expect(names.size).toBeGreaterThan(8);
   });
 });
 
@@ -53,6 +54,9 @@ d("✍️ 새 글 환영 댓글 (DB)", async () => {
     // 글쓴이가 자기 글에 댓글을 달아도 또 달지 않는다, 막 쓴 글(10초)은 아직 기다린다
     await query("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, created_at) VALUES ($1, '손님', 'x', '저도요', 'fp', now() - interval '70 seconds')", [human]);
     await query(`INSERT INTO posts (category_id, nickname, pw_hash, title, body, post_type, author_fingerprint, created_at) VALUES ($1, '새손님', 'x', 't', 'b', 'chat', 'fp9', now() - interval '10 seconds')`, [cat!.id]);
+    expect(await runPostWelcome()).toBe(0);
+    // 대표님 휴대폰 이름에는 달지 않는다
+    await add("김하연작가");
     expect(await runPostWelcome()).toBe(0);
     process.env.POST_WELCOME_ENABLED = "0";
     await add("손님3");
