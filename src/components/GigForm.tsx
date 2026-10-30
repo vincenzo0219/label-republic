@@ -1,5 +1,6 @@
 "use client";
 
+import { celebrateWrite } from "./Celebrate";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -177,6 +178,7 @@ export function GigForm({ kind, jobType: initialType = null }: { kind: GigKind; 
         setErr({ msg: d.error?.message ?? "올리지 못했어요", id: d.error?.code === "duplicate_gig" ? d.id : undefined });
         return;
       }
+      celebrateWrite();
       saveNick(body.nickname);
       try {
         const mine = JSON.parse(window.localStorage.getItem(MINE) ?? "[]") as string[];

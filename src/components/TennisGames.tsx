@@ -1,5 +1,6 @@
 "use client";
 
+import { celebrateWrite } from "./Celebrate";
 import { useEffect, useState } from "react";
 import { LiveComments } from "./LiveComments";
 import { quickRepliesFor } from "@/lib/quickReplies";
@@ -235,6 +236,7 @@ function GameForm({ edit, defaults, onDone }: { edit?: GameCard & { contact: str
         if (ok === null) return;
       } else {
         const r = await api<{ id: string }>("/api/tennis-games", "POST", body);
+        celebrateWrite();
         saveNick(body.nickname);
         addMine(r.id);
       }

@@ -1,5 +1,6 @@
 "use client";
 
+import { celebrateWrite } from "./Celebrate";
 import { addMyPost, myNick, myPin, saveNick } from "@/lib/me";
 import { NickCheck } from "./NickCheck";
 import { roomRuleNotice } from "@/lib/singlesRules";
@@ -383,6 +384,7 @@ export function PostEditor(props: Props) {
         // 내가 쓴 글은 자동으로 소식 받기 (댓글·정정 제안이 달리면 📬 에 표시)
         watchPost(post.id);
         addMyPost(post.id);
+        celebrateWrite();
         router.push(`/posts/${post.id}`);
       } else {
         await api(`/api/posts/${props.postId}`, "PATCH", {

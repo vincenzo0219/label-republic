@@ -14,7 +14,7 @@ import {
   MY_ROOMS_KEY,
   onMyRoomsChange,
   roomEmoji,
-  roomPlainName,
+  roomColor,
   roomShortName,
   seedMyRooms,
   toggleMyRoom,
@@ -175,7 +175,6 @@ function useRings(key: string): Rings | null {
 export function MyRoomsBar({ rooms, initial, legacy, filtered, redirect }: { rooms: Room[]; initial: string[] | null; legacy: string | null; filtered: boolean; redirect: boolean }) {
   const router = useRouter();
   const live = useMyRooms();
-  const [open, setOpen] = useState(false);
   const mine = live ?? initial ?? [];
 
   // 처음 그려질 때 사이트 안 이동으로 왔는지 기억
@@ -206,39 +205,37 @@ export function MyRoomsBar({ rooms, initial, legacy, filtered, redirect }: { roo
   const byslug = new Map(rooms.map((r) => [r.slug, r]));
   const my = mine.map((s) => byslug.get(s)).filter((r): r is Room => !!r);
   const rings = useRings(my.map((r) => r.slug).join(","));
-  if (!my.length) return null;
-  const sorted = [...my, ...rooms.filter((r) => !mine.includes(r.slug))];
+  // 🏠 홈 맨 위는 늘 "내 방" (10/30 대표님 "네이버카페나 네이버밴드처럼 내카페, 내밴드 이런식으로 앞에"): 큰 아이콘 + ＋ 방 추가, 오른쪽 전체보기
   return (
     <>
-      <nav className="my-rooms" aria-label="내 방">
-        {ringOrder(my, rings).map((r) => {
-          const ring = rings?.[r.slug];
-          return (
-            <Link key={r.slug} href={`/c/${encodeURIComponent(r.slug)}`} className="my-chip">
-              <span className={`story-ring${!rings ? "" : ringOn(ring) ? " on" : " off"}`} aria-hidden>
-                <span className="story-ring-in">{roomEmoji(r.slug)}</span>
-              </span>{" "}
-              {roomShortName(r)}
-              {ringOn(ring) && <span className="sr-only">{ring!.quiz ? ", 오늘 퀴즈 있음" : ", 새 글 있음"}</span>}
+      <section className="home-sec" aria-label="내 방">
+        <div className="home-sec-head">
+          <h2>내 방</h2>
+          <Link href="/?all=1#rooms">전체보기 →</Link>
+        </div>
+        <ul className="room-icons row">
+          {ringOrder(my, rings).map((r) => {
+            const ring = rings?.[r.slug];
+            return (
+              <li key={r.slug}>
+                <Link href={`/c/${encodeURIComponent(r.slug)}`} className="room-icon-tile">
+                  <span className={`room-icon${!rings ? "" : ringOn(ring) ? " ring-on" : ""}`} style={{ "--acc": roomColor(r.slug) } as React.CSSProperties} aria-hidden>
+                    {roomEmoji(r.slug)}
+                  </span>
+                  <span className="room-icon-name">{roomShortName(r)}</span>
+                  {ringOn(ring) && <span className="sr-only">{ring!.quiz ? ", 오늘 퀴즈 있음" : ", 새 글 있음"}</span>}
+                </Link>
+              </li>
+            );
+          })}
+          <li>
+            <Link href="/?all=1#rooms" className="room-icon-tile">
+              <span className="room-icon add" aria-hidden>＋</span>
+              <span className="room-icon-name">방 추가</span>
             </Link>
-          );
-        })}
-        <button type="button" className="my-chip my-chip-more" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-          ＋ 방 더 보기
-        </button>
-      </nav>
-      {open && (
-        <ul className="my-room-list" aria-label="전체 방">
-          {sorted.map((r) => (
-            <li key={r.slug}>
-              <Link href={`/c/${encodeURIComponent(r.slug)}`}>
-                <span aria-hidden>{roomEmoji(r.slug)}</span> {roomPlainName(r)}
-                {mine.includes(r.slug) && <span className="my-mark" aria-label="내 방"> ★</span>}
-              </Link>
-            </li>
-          ))}
+          </li>
         </ul>
-      )}
+      </section>
       {filtered && (
         <p className="my-all">
           <RoomAlertButton className="my-alert-btn" />

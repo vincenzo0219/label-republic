@@ -1233,6 +1233,7 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .home-tests-more[open] > summary { display: inline-block; margin-bottom: 6px; }
 .home-tests-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .all-rooms-link { font-size: 13px; color: var(--muted); text-decoration: none; white-space: nowrap; align-self: center; }
+.all-rooms-link.other-rooms { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--fg, inherit); font-weight: 600; }
 /* 사람 댓글이 달린 글 (10/24): 작게, 다른 배지와 같은 모양 */
 .badge-people { background: color-mix(in srgb, var(--brand) 12%, transparent); color: var(--brand); }
 
@@ -1794,3 +1795,30 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .chat-quote b { color: inherit; font-weight: 700; }
 .chat-quote span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-quote.gone { font-style: italic; }
+
+/* 🏠 홈 내 방·방 둘러보기 (10/30 "네이버 카페·밴드처럼"): 큰 아이콘 칸 */
+.home-sec { margin: 4px 0 16px; scroll-margin-top: 72px; }
+.home-sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 10px; }
+.home-sec-head h2 { font-size: 17px; margin: 0; }
+.home-sec-head h2 span { font-size: 13px; font-weight: 500; color: var(--muted); }
+.home-sec-head a { font-size: 13.5px; color: var(--muted); text-decoration: none; white-space: nowrap; }
+.room-icons { list-style: none; margin: 0; padding: 0; }
+.room-icons.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 6px; }
+@media (min-width: 600px) { .room-icons.grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.room-icons.row { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 2px; scrollbar-width: none; }
+.room-icons.row::-webkit-scrollbar { display: none; }
+.room-icons.row > li { flex: 0 0 72px; }
+.room-icon-tile { display: grid; justify-items: center; gap: 6px; color: inherit; text-decoration: none; min-width: 0; }
+.room-icon { --acc: #9aa5b1; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 22px; background: color-mix(in srgb, var(--acc) 22%, var(--surface)); border: 1px solid color-mix(in srgb, var(--acc) 35%, var(--line)); font-size: 30px; line-height: 1; transition: transform 0.08s ease; }
+.room-icon.add { background: var(--surface); border: 1.5px dashed var(--line); color: var(--muted); font-size: 24px; }
+.room-icon.ring-on { box-shadow: 0 0 0 2px var(--bg, #fff), 0 0 0 4px #ff4d4f; }
+.room-icon-tile:active .room-icon { transform: scale(0.94); }
+.room-icon-name { max-width: 100%; font-size: 12.5px; font-weight: 600; line-height: 1.3; text-align: center; word-break: keep-all; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.feed-title { font-size: 17px; margin: 18px 0 6px; }
+@media (prefers-reduced-motion: reduce) { .room-icon { transition: none; } }
+
+
+/* 🏠 방 화면 맨 위 "노방장 홈 · 다른 방 n개" (10/30) */
+.room-topbar { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: inherit; font-size: 14px; font-weight: 700; text-decoration: none; }
+.room-topbar > span[aria-hidden] { font-size: 20px; line-height: 1; color: var(--muted); }
+.room-topbar-more { margin-left: auto; color: var(--brand); font-size: 13.5px; }

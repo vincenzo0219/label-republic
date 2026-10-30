@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Celebrate } from "@/components/Celebrate";
 import Link from "next/link";
 import { FollowLinks } from "@/components/FollowLinks";
 import { YesterdayVisitors } from "@/components/YesterdayVisitors";
@@ -17,6 +18,7 @@ import { LogoDot } from "@/components/LogoDot";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { config } from "@/lib/config";
 import "./globals.css";
+import "./celebrate.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(config.siteUrl),
@@ -50,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko">
       <body>
         <a className="skip-link" href="#main">본문으로 건너뛰기</a>
+        <Celebrate />
         <Suspense fallback={null}>
           <Analytics />
           <DwellTracker />

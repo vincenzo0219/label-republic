@@ -1,5 +1,6 @@
 "use client";
 
+import { celebrateWrite } from "./Celebrate";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api, requestKeyFor } from "@/lib/client-api";
@@ -78,6 +79,7 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt, onPosted
         idempotencyKey: requestKeyFor(sending, payload),
       });
       sending.current = undefined;
+      celebrateWrite();
       saveNick(payload.nickname);
       watchPost(postId);
       if (notifyRef) addMyComment(notifyRef);

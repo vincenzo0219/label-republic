@@ -1,5 +1,6 @@
 "use client";
 
+import { celebrateWrite } from "./Celebrate";
 import { CHAT_CHIPS, CHAT_STARTERS, chatChipTargets, REPLY_CHIPS } from "@/lib/quickReplies";
 import { badgeOf, type BadgeMap } from "@/lib/badges";
 import { NickBadge } from "./NickBadge";
@@ -279,6 +280,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
         idempotencyKey: requestKeyFor(sending, payload),
       });
       sending.current = undefined;
+      celebrateWrite();
       setComments((list) => (list.some((x) => String(x.id) === String(comment.id)) ? list : [...list, norm(comment)]));
       if (rt) {
         setReplyBody("");
@@ -327,6 +329,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
         idempotencyKey: requestKeyFor(sending, payload),
       });
       sending.current = undefined;
+      celebrateWrite();
       setComments((list) => (list.some((x) => String(x.id) === String(comment.id)) ? list : [...list, norm(comment)]));
       if (parentId) {
         setReplyTo(null);
