@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fanTestClickKey, isClickKey } from "@/lib/clicks";
 import { roomGameLink, validScore } from "@/lib/miniGames";
-import { aiPick, kstWeekStart, outcomeFor, pkState, shooterOf, teamKey } from "@/lib/pk";
+import { aiPick, aiSkill, gaugeSweepMs, kickResult, kstWeekStart, outcomeFor, pkState, shooterOf, skillOf, teamKey } from "@/lib/pk";
 
 /** A·B 가 킥마다 고른 칸을 [A, B] 쌍으로 */
 const play = (pairs: [number, number][]) => pkState(pairs.map((p) => p[0]), pairs.map((p) => p[1]));
@@ -48,6 +48,75 @@ describe("⚽ 승부차기 (규칙)", () => {
     let r = 0;
     const seq = [0.9, 0.99]; // 절반 밖 → 아무 칸 (0.99 → 오른쪽)
     expect(aiPick(human, 4, "a", () => seq[r++]!)).toBe(2);
+  });
+  it("게이지·반사신경: 정확도 25 미만은 빗나감, 방향 맞혀도 반사신경 40 미만은 손끝을 스치고 골", () => {
+    expect(kickResult(0, 0, 24, 100)).toBe("miss");
+    expect(kickResult(0, 1, 24, 0)).toBe("miss"); // 방향이 달라도 빗나가면 실패
+    expect(kickResult(0, 1, 25, 100)).toBe("goal");
+    expect(kickResult(2, 2, 90, 40)).toBe("save");
+    expect(kickResult(2, 2, 90, 39)).toBe("graze");
+    // 상태 계산에 반영: A 빗나감(0골), B 스침 골(1골)
+    const s = pkState([0, 1], [1, 1], [10, 20], [50, 50]);
+    expect(s.kicks.map((k) => [k.result, k.goal])).toEqual([["miss", false], ["graze", true]]);
+    expect([s.a, s.b]).toEqual([0, 1]);
+    // 실력 칸이 없으면 50 (예전 방식과 같다)
+    expect(pkState([0], [0]).kicks[0]!.result).toBe("save");
+  });
+  it("실력 값: 0~1 실수만, 범위 밖은 자르고 없으면 50", () => {
+    expect([skillOf(0.734), skillOf(-3), skillOf(7), skillOf(undefined), skillOf(Number.NaN), skillOf("1")]).toEqual([73, 0, 100, 50, 50, 50]);
+  });
+  it("게이지는 라운드마다 조금씩 빨라지고 너무 빠르지는 않다", () => {
+    expect(gaugeSweepMs(0)).toBe(1100);
+    expect(gaugeSweepMs(2)).toBeLessThan(gaugeSweepMs(0));
+    expect(gaugeSweepMs(1)).toBe(gaugeSweepMs(0)); // 같은 라운드(A·B 한 번씩)는 같은 속도
+    expect(gaugeSweepMs(40)).toBe(650);
+  });
+  it("🤖 노방장 AI 실력: 찰 때 약 8% 빗나감, 막을 때 반사신경 30~100 (방향 맞히면 약 86% 선방)", () => {
+    expect(aiSkill(true, () => 0.05)).toBeLessThan(25);
+    expect(aiSkill(true, () => 0.09)).toBeGreaterThanOrEqual(25);
+    expect(aiSkill(true, () => 0.5)).toBeGreaterThanOrEqual(25);
+    expect(aiSkill(false, () => 0)).toBe(30);
+    expect(aiSkill(false, () => 0.999)).toBe(100);
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const shots = Array.from({ length: 5000 }, () => aiSkill(true, rnd));
+    const miss = shots.filter((x) => x < 25).length / shots.length;
+    expect(miss).toBeGreaterThan(0.06);
+    expect(miss).toBeLessThan(0.1);
+    const keeps = Array.from({ length: 5000 }, () => aiSkill(false, rnd));
+    const saves = keeps.filter((x) => x >= 40).length / keeps.length;
+    expect(saves).toBeGreaterThan(0.82);
+    expect(saves).toBeLessThan(0.9);
+    expect(Math.min(...shots, ...keeps)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...shots, ...keeps)).toBeLessThanOrEqual(100);
+  });
+  it("타이밍 좋은 사람은 AI 를 절반보다 조금 더 이긴다 (모의 대결)", () => {
+    let seed = 11;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    let wins = 0;
+    let losses = 0;
+    for (let g = 0; g < 2000; g++) {
+      const h: number[] = [];
+      const ai: number[] = [];
+      const hs: number[] = [];
+      const as: number[] = [];
+      for (let t = 0; t < 16; t++) {
+        const humanShoots = shooterOf(t) === "a";
+        ai.push(aiPick(h, t, "a", rnd));
+        as.push(aiSkill(!humanShoots, rnd));
+        h.push(Math.floor(rnd() * 3));
+        hs.push(humanShoots ? 55 + Math.floor(rnd() * 46) : 30 + Math.floor(rnd() * 71)); // 잘 맞추지만 가끔 늦다
+        const st = pkState(h, ai, hs, as);
+        if (st.done) {
+          if (st.winner === "a") wins++;
+          else if (st.winner === "b") losses++;
+          break;
+        }
+      }
+    }
+    const rate = wins / (wins + losses);
+    expect(rate).toBeGreaterThan(0.52);
+    expect(rate).toBeLessThan(0.68);
   });
   it("응원 팀 묶기: 띄어쓰기·대소문자·FC 무시", () => {
     expect(teamKey("FC서울")).toBe(teamKey(" 서울 fc "));
@@ -126,8 +195,8 @@ d("⚽ 승부차기 (DB)", () => {
     expect(JSON.stringify(p2)).not.toContain('"shot"');
     // 같은 킥을 두 번 보내도 한 번만
     await pk.pickPk(id, "p1", 0, 0, t(1));
-    v = await pk.pickPk(id, "p2", 0, 2, t(2));
-    expect(v.kicks).toEqual([{ turn: 0, shooter: "a", shot: 2, dive: 2, goal: false }]);
+    v = await pk.pickPk(id, "p2", 0, 2, t(2), 0.9);
+    expect(v.kicks).toEqual([{ turn: 0, shooter: "a", shot: 2, dive: 2, goal: false, result: "save" }]);
     // A 가 계속 골, B 는 계속 실패 → 7킥 뒤 끝
     const pairs: [number, number][] = [[0, 0], [0, 1], [1, 1], [0, 1], [2, 2], [0, 1]];
     let turn = 1;

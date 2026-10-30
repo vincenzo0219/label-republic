@@ -1750,3 +1750,15 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
   .pk-keeper, .pk-ball, .pk-timer, .pk-go { transition: none; }
   .pk-ball-spin, .pk-flash { animation: none; }
 }
+/* ⚽ 게이지·반사신경 (10/30 "게이지 넣어") */
+.pk-gauge { position: relative; display: block; width: 100%; height: 44px; padding: 0; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; background: linear-gradient(90deg, #ffe8cc, #fff9db 50%, #ffe8cc); }
+.pk-gauge-miss { position: absolute; top: 0; bottom: 0; background: rgba(250, 82, 82, 0.35); }
+.pk-gauge-sweet { position: absolute; top: 0; bottom: 0; left: 37.5%; width: 25%; background: rgba(64, 192, 87, 0.45); }
+.pk-gauge-needle { position: absolute; top: 3px; bottom: 3px; left: 0; width: 6px; margin-left: -3px; border-radius: 3px; background: #212529; }
+.pk-gauge-say { position: absolute; inset: 0; display: grid; place-items: center; font-size: 16px; font-weight: 900; color: #212529; text-shadow: 0 1px 0 #fff; }
+.pk-reflex { position: absolute; inset: 0; z-index: 2; border: 0; padding: 0; background: rgba(0, 0, 0, 0.08); cursor: pointer; }
+.pk-reflex-ball { position: absolute; left: 50%; top: 66%; font-size: 30px; line-height: 1; transform: translate(-50%, -50%); }
+.pk-reflex-ring { position: absolute; left: 50%; top: 66%; width: 46px; height: 46px; border: 4px solid #ffd43b; border-radius: 50%; transform: translate(-50%, -50%) scale(3.2); animation: pk-ring linear forwards; }
+@keyframes pk-ring { to { transform: translate(-50%, -50%) scale(1); border-color: #40c057; } }
+.pk-reflex-say { position: absolute; left: 0; right: 0; top: 12%; text-align: center; font-size: 22px; font-weight: 900; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4); }
+.pk-ball.hide { visibility: hidden; }

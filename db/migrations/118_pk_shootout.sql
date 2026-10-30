@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS pk_matches (
   b_team       varchar(20),
   a_picks      smallint[]   NOT NULL DEFAULT '{}',
   b_picks      smallint[]   NOT NULL DEFAULT '{}',
+  -- 실력 칸(0~100): 찰 때는 게이지 정확도, 막을 때는 반사신경 타이밍. 킥마다 picks 와 같은 자리 (10/30 대표님 "게이지 넣어")
+  a_skill      smallint[]   NOT NULL DEFAULT '{}',
+  b_skill      smallint[]   NOT NULL DEFAULT '{}',
   a_goals      smallint,
   b_goals      smallint,
   winner       char(1)      CHECK (winner IN ('a', 'b', 'd')),

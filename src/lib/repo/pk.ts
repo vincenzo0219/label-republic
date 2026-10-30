@@ -9,15 +9,19 @@ import { kstDay } from "../metrics";
 import { GAMES } from "../miniGames";
 import {
   aiPick,
+  aiSkill,
   isPick,
   type Kick,
   kstWeekStart,
   outcomeFor,
+  PK_SKILL_DEFAULT,
   PK_STALL_SEC,
   PK_WAIT_SEC,
   type PkKind,
   pkState,
   type Side,
+  shooterOf,
+  skillOf,
   teamKey,
 } from "../pk";
 
@@ -31,6 +35,8 @@ type Row = {
   b_team: string | null;
   a_picks: number[];
   b_picks: number[];
+  a_skill: number[];
+  b_skill: number[];
   updated_at: Date;
   created_at: Date;
 };
@@ -55,7 +61,7 @@ export type PkView = {
   teams?: TeamWins[];
 };
 
-const COLS = "id::text, kind, status, a_visitor, b_visitor, a_team, b_team, a_picks, b_picks, updated_at, created_at";
+const COLS = "id::text, kind, status, a_visitor, b_visitor, a_team, b_team, a_picks, b_picks, a_skill, b_skill, updated_at, created_at";
 
 async function load(c: PoolClient | null, id: string, lock = false): Promise<Row> {
   const sql = `SELECT ${COLS} FROM pk_matches WHERE id = $1${lock ? " FOR UPDATE" : ""}`;
@@ -116,7 +122,13 @@ export async function pkView(id: string, visitor: string, now = new Date()): Pro
         const m = side === "a" ? cur.a_picks : cur.b_picks;
         const t = side === "a" ? cur.b_picks : cur.a_picks;
         if (cur.status === "playing" && m.length > t.length) {
-          await c.query(`UPDATE pk_matches SET ${col} = array_append(${col}, $2::smallint), updated_at = $3 WHERE id = $1`, [id, Math.floor(Math.random() * 3), now]);
+          const sk = side === "a" ? "b_skill" : "a_skill";
+          await c.query(`UPDATE pk_matches SET ${col} = array_append(${col}, $2::smallint), ${sk} = array_append(${sk}, $4::smallint), updated_at = $3 WHERE id = $1`, [
+            id,
+            Math.floor(Math.random() * 3),
+            now,
+            PK_SKILL_DEFAULT,
+          ]);
           await finishIfDone(c, id, now);
         }
       });
@@ -127,7 +139,7 @@ export async function pkView(id: string, visitor: string, now = new Date()): Pro
 }
 
 async function viewOf(r: Row, side: Side, now: Date): Promise<PkView> {
-  const s = pkState(r.a_picks, r.b_picks);
+  const s = pkState(r.a_picks, r.b_picks, r.a_skill, r.b_skill);
   const mine = side === "a" ? r.a_picks : r.b_picks;
   const theirs = side === "a" ? r.b_picks : r.a_picks;
   const view: PkView = {
@@ -153,22 +165,33 @@ async function viewOf(r: Row, side: Side, now: Date): Promise<PkView> {
 }
 
 /** 이번 킥에 내 칸 고르기. 둘 다 고른 킥까지만 다음으로 넘어간다 */
-export async function pickPk(id: string, visitor: string, turn: number, pick: number, now = new Date()): Promise<PkView> {
+export async function pickPk(id: string, visitor: string, turn: number, pick: number, now = new Date(), skill?: number): Promise<PkView> {
   if (!isPick(pick) || !Number.isInteger(turn) || turn < 0) throw new HttpError(400, "bad_pick", "다시 골라 주세요");
   await tx(async (c) => {
     const r = await load(c, id, true);
     const side = sideOf(r, visitor);
     if (r.status !== "playing") throw new HttpError(409, "not_playing", "대결이 끝났어요");
-    const s = pkState(r.a_picks, r.b_picks);
+    const s = pkState(r.a_picks, r.b_picks, r.a_skill, r.b_skill);
     const mine = side === "a" ? r.a_picks : r.b_picks;
     if (s.done || turn !== s.turn || mine.length !== turn) return; // 이미 골랐거나 아직 상대 차례: 그대로 둔다
     const col = side === "a" ? "a_picks" : "b_picks";
-    await c.query(`UPDATE pk_matches SET ${col} = array_append(${col}, $2::smallint), updated_at = $3 WHERE id = $1`, [id, pick, now]);
+    const sk = side === "a" ? "a_skill" : "b_skill";
+    await c.query(`UPDATE pk_matches SET ${col} = array_append(${col}, $2::smallint), ${sk} = array_append(${sk}, $4::smallint), updated_at = $3 WHERE id = $1`, [
+      id,
+      pick,
+      now,
+      skillOf(skill),
+    ]);
     if (r.kind === "ai") {
-      // AI 는 사람이 이번에 고른 칸을 보지 않고, 지난 킥만 보고 고른다
+      // AI 는 사람이 이번에 고른 칸·실력을 보지 않고, 지난 킥만 보고 고른다
       const ai = aiPick(mine, turn, side);
       const aiCol = side === "a" ? "b_picks" : "a_picks";
-      await c.query(`UPDATE pk_matches SET ${aiCol} = array_append(${aiCol}, $2::smallint) WHERE id = $1`, [id, ai]);
+      const aiSk = side === "a" ? "b_skill" : "a_skill";
+      await c.query(`UPDATE pk_matches SET ${aiCol} = array_append(${aiCol}, $2::smallint), ${aiSk} = array_append(${aiSk}, $3::smallint) WHERE id = $1`, [
+        id,
+        ai,
+        aiSkill(shooterOf(turn) !== side),
+      ]);
     }
     await finishIfDone(c, id, now);
   });
@@ -177,7 +200,7 @@ export async function pickPk(id: string, visitor: string, turn: number, pick: nu
 
 async function finishIfDone(c: PoolClient, id: string, now: Date): Promise<void> {
   const r = await load(c, id);
-  const s = pkState(r.a_picks, r.b_picks);
+  const s = pkState(r.a_picks, r.b_picks, r.a_skill, r.b_skill);
   if (!s.done || r.status !== "playing") return;
   await c.query("UPDATE pk_matches SET status = 'done', a_goals = $2, b_goals = $3, winner = $4, finished_at = $5, updated_at = $5 WHERE id = $1", [
     id,
