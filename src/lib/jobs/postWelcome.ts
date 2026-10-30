@@ -3,6 +3,7 @@ import { pool } from "../db";
 import { guardJob } from "./guard";
 import { createComment } from "../repo/comments";
 import { OPERATOR_NICKS } from "../repo/metrics";
+import { AI_OPS_NICKS } from "../aiMark";
 
 const LOCK_KEY = 4_823_093;
 const MAX_PER_RUN = 10;
@@ -14,7 +15,10 @@ const MAX_PER_RUN = 10;
 // 10/30 대표님 "18개로 랜덤 번갈아가며": 운영 이름 전부 ("💬 수다방"은 사람 이름이 아니라 뺐다)
 /** 대표님이 휴대폰에서 쓰는 이름: 환영 답글을 달지 않는다 (10/30 "내가 다는 댓글에는 댓글 달지마", "밑에는 내가 쓴거니까") */
 export const OWNER_NICKS = ["김하연작가"];
-export const POST_WELCOME_NAMES = OPERATOR_NICKS.filter((n) => n !== "💬 수다방");
+// 🤖 표시가 붙는 AI 이름(노방장·돈키호테·덕후1호)은 빼고 (10/30 "노방장은 ai표시 로봇 표시가 붙는거잖아")
+export const POST_WELCOME_NAMES = OPERATOR_NICKS.filter((n) => n !== "💬 수다방" && !AI_OPS_NICKS.has(n));
+/** 글에 AI 이름으로만 답한 적이 있으면 이 이름으로 이어서 (10/30 "댓글은 노방장쓰지말고 울트라매니아로 해") */
+export const AI_REPLACEMENT_NAME = "울트라매니아";
 
 const LINES = [
   (n: string) => `${n}님 환영해요`,
@@ -84,11 +88,12 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
       for (const c of cs) {
         let { who, body } = postWelcome(c.post_id, c.nickname, c.id);
         // 이미 이 글에 운영 이름으로 답한 적이 있으면 그 이름을 그대로 (10/30 "한번 답글을 달기 시작할때는 같은 닉네임으로")
-        const { rows: first } = await client.query<{ nickname: string }>(
-          "SELECT nickname FROM comments WHERE post_id = $1 AND nickname = ANY($2::text[]) ORDER BY id LIMIT 1",
-          [c.post_id, POST_WELCOME_NAMES],
+        // 가장 최근에 답한 운영 이름을 잇는다. 그게 🤖 AI 이름이면 울트라매니아로
+        const { rows: last } = await client.query<{ nickname: string }>(
+          "SELECT nickname FROM comments WHERE post_id = $1 AND nickname = ANY($2::text[]) ORDER BY id DESC LIMIT 1",
+          [c.post_id, [...POST_WELCOME_NAMES, ...AI_OPS_NICKS]],
         );
-        if (first[0]) who = first[0].nickname;
+        if (last[0]) who = AI_OPS_NICKS.has(last[0].nickname) ? AI_REPLACEMENT_NAME : last[0].nickname;
         await createComment(c.post_id, { nickname: who, pin: String(randomInt(1000, 10000)), body, parentId: c.id });
         n++;
       }

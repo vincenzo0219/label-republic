@@ -4,8 +4,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST_WELCOME_NAMES, postWelcome } from "@/lib/jobs/postWelcome";
 
 describe("✍️ 새 글 환영 댓글 (문구)", () => {
-  it("운영 이름 17개 중 글마다 한 이름으로 고정, 문장은 돌린다", () => {
-    expect(POST_WELCOME_NAMES).toHaveLength(17);
+  it("운영 이름 14개(🤖 AI 이름 제외) 중 글마다 한 이름으로 고정, 문장은 돌린다", () => {
+    expect(POST_WELCOME_NAMES).toHaveLength(14);
+    expect(POST_WELCOME_NAMES).not.toContain("노방장");
+    expect(POST_WELCOME_NAMES).not.toContain("덕후1호");
     expect(POST_WELCOME_NAMES).toContain("짱가");
     expect(POST_WELCOME_NAMES).not.toContain("💬 수다방");
     expect(postWelcome("3121", "민수", "1347").who).toBe(postWelcome("3121", "환엄", "1357").who);
