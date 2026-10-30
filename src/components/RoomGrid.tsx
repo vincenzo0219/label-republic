@@ -20,6 +20,10 @@ export async function RoomGrid({ all, mine = [] }: { all: boolean; mine?: string
     cachedActivity(0).catch(() => ({}) as Record<string, number>),
   ]);
   const sorted = [...rooms].sort((a, b) => {
+    // 내 방은 위에 이미 있으니 아직 안 담은 방을 먼저 (10/30 "방선택 8개를 하면, 아예 다른 방을 볼수가 없어")
+    const ma = mine.includes(a.slug) ? 1 : 0;
+    const mb = mine.includes(b.slug) ? 1 : 0;
+    if (ma !== mb) return ma - mb;
     const qa = quiet.has(a.slug) ? 1 : 0;
     const qb = quiet.has(b.slug) ? 1 : 0;
     if (qa !== qb) return qa - qb;

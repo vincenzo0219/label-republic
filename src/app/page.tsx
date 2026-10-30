@@ -60,7 +60,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {all && <ForgetRoom />}
       {/* 홈 맨 위 순서 (10/30 대표님 "네이버 카페·밴드처럼, 헷갈리지 않게"): 내 방 → 방 둘러보기 → 넣어둬·오늘의 문제 줄 → 추천 글 */}
       {!crawler && <MyRoomsBar rooms={rooms.map((r) => ({ slug: r.slug, name: r.name }))} initial={mine} legacy={legacy} filtered={onlyMine} redirect={!all} />}
-      {!sp.page && (all || !mine?.length) && <RoomGrid all={all} mine={mine ?? []} />}
+      {/* 방 둘러보기는 내 방이 있어도 늘 (10/30 대표님 "방선택 8개를 하면, 아예 다른 방을 볼수가 없어") */}
+      {!sp.page && <RoomGrid all={all} mine={mine ?? []} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       {!sp.page && <EarTestBanner />}
       {onlyMine && !sp.page && mine && <MyRoomEvents rooms={mine} />}
