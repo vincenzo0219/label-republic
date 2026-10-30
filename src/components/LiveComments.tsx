@@ -1,6 +1,6 @@
 "use client";
 
-import { CHAT_CHIPS, CHAT_STARTERS, chatChipTargets, chatChipText } from "@/lib/quickReplies";
+import { CHAT_CHIPS, CHAT_STARTERS, chatChipTargets, chatChipText, REPLY_CHIPS } from "@/lib/quickReplies";
 import { badgeOf, type BadgeMap } from "@/lib/badges";
 import { NickBadge } from "./NickBadge";
 import Link from "next/link";
@@ -82,6 +82,9 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
   // 리포트·알림의 "#c번호" 링크로 온 댓글 — 앱 안 이동(pushState)에서는 :target 이 바뀌지 않아 직접 강조한다
   const [target, setTarget] = useState<string | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  // ↳ 답글은 그 댓글 바로 아래 작은 칸에서 (10/30 대표님 "답글 누르고 글 쓰고 입력하기가 너무 힘든데")
+  const [replyBody, setReplyBody] = useState("");
+  const replyRef = useRef<HTMLInputElement>(null);
   const nickRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -243,12 +246,12 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
   function startReply(c: Comment) {
     setReplyTo({ id: c.id, nickname: c.nickname });
     // 답글의 답글이면 누구에게 답하는지 본문에도 (원 댓글 아래에 모여 보이므로)
-    if (c.parent_id) setForm((f) => (f.body.includes(`@${c.nickname}`) ? f : { ...f, body: `@${c.nickname} ${f.body}` }));
-    bodyRef.current?.focus();
-    bodyRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    setReplyBody(c.parent_id ? `@${c.nickname} ` : "");
+    requestAnimationFrame(() => replyRef.current?.focus());
   }
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent, asReply = false) {
+    const rt = asReply ? replyTo : null;
     e.preventDefault();
     setBusy(true);
     setError(null);
@@ -257,7 +260,14 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
       return setError("사진을 올리는 중이에요. 잠깐만요.");
     }
     const image = photoReady ? { id: photo!.id!, token: photo!.token! } : undefined;
-    const payload = { ...form, body: form.body.trim() || (image ? "📷" : form.body), ...(replyTo ? { parentId: replyTo.id } : {}), ...(image ? { image } : {}) };
+    const text = rt ? replyBody : form.body;
+    if (rt && !text.trim()) {
+      setBusy(false);
+      return replyRef.current?.focus();
+    }
+    const payload = rt
+      ? { ...form, body: text.trim(), parentId: rt.id }
+      : { ...form, body: form.body.trim() || (image ? "📷" : form.body), ...(image ? { image } : {}) };
     try {
       const pid = postId || (ensurePost ? await ensurePost() : "");
       if (!pid) throw new Error("잠시 후 다시 시도해 주세요.");
@@ -267,9 +277,13 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
       });
       sending.current = undefined;
       setComments((list) => (list.some((x) => String(x.id) === String(comment.id)) ? list : [...list, norm(comment)]));
-      setForm((f) => ({ ...f, body: "" }));
-      setPhoto(null);
-      setReplyTo(null);
+      if (rt) {
+        setReplyBody("");
+        setReplyTo(null);
+      } else {
+        setForm((f) => ({ ...f, body: "" }));
+        setPhoto(null);
+      }
       try {
         saveNick(form.nickname);
         setSavedNick(true);
@@ -286,7 +300,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
   }
 
   // 🙌 한 번 누르는 답장 (10/29): 버튼 글자를 그대로 댓글로. 닉네임·비번은 이 브라우저 것
-  async function sendChip(text: string) {
+  async function sendChip(text: string, parentId?: string) {
     // 수다방 첫 인사 버튼은 닉네임이 없어도 바로 (10/29 대표님 "바로 선택해서 글 입력"): 손님 번호를 붙여 준다
     let nickname = form.nickname.trim();
     if (!nickname && chat) {
@@ -300,7 +314,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
     }
     setBusy(true);
     setError(null);
-    const payload = { nickname, pw: form.pw, body: text, chip: true };
+    const payload = { nickname, pw: form.pw, body: text, chip: true, ...(parentId ? { parentId } : {}) };
     try {
       const pid = postId || (ensurePost ? await ensurePost() : "");
       if (!pid) throw new Error("잠시 후 다시 시도해 주세요.");
@@ -310,6 +324,10 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
       });
       sending.current = undefined;
       setComments((list) => (list.some((x) => String(x.id) === String(comment.id)) ? list : [...list, norm(comment)]));
+      if (parentId) {
+        setReplyTo(null);
+        setReplyBody("");
+      }
       try {
         saveNick(nickname);
         setSavedNick(true);
@@ -522,6 +540,28 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                     {c.image_id && c.body === "📷" ? null : splitMentions(c.body, nicknames).map((p, i) => (p.mention ? <span key={i} className="mention">{p.text}</span> : p.text))}
                   </div>
                 )}
+                {replyTo?.id === c.id && (
+                  <form className="reply-inline" onSubmit={(e) => submit(e, true)}>
+                    <div className="quick-replies" role="group" aria-label={`${c.nickname}님께 한 번 눌러 답글`}>
+                      {REPLY_CHIPS.map((q) => (
+                        <button key={q} type="button" className="chip quick-reply" disabled={busy} onClick={() => sendChip(q, c.id)}>
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                    {!savedNick && (
+                      <input className="input" placeholder="닉네임 (처음 한 번만)" value={form.nickname} maxLength={20} required aria-label="닉네임"
+                        onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
+                    )}
+                    <div className="row chat-row">
+                      <input ref={replyRef} className="input" placeholder={`${c.nickname}님에게 답글`} value={replyBody} maxLength={1000} aria-label={`${c.nickname}님에게 답글`}
+                        enterKeyHint="send" onChange={(e) => setReplyBody(e.target.value)} />
+                      <button className="btn btn-primary" disabled={busy || !replyBody.trim()}>{busy ? "…" : "보내기"}</button>
+                    </div>
+                    <button type="button" className="linkish reply-cancel" onClick={() => setReplyTo(null)}>취소</button>
+                    {error && <p className="error">{error}</p>}
+                  </form>
+                )}
               </div>
             );
           })}
@@ -547,15 +587,9 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
             <NickCheck nickname={form.nickname} />
           </>
         )}
-        {replyTo && (
-          <div className="reply-banner" role="status">
-            ↳ <b>{replyTo.nickname}</b>님에게 답글
-            <button type="button" className="linkish" onClick={() => setReplyTo(null)}>답글 취소</button>
-          </div>
-        )}
         <textarea ref={bodyRef} className="textarea short" maxLength={1000} required={!photo}
-          aria-label={replyTo ? `${replyTo.nickname}님에게 답글` : "댓글"}
-          placeholder={replyTo ? "답글" : "댓글"}
+          aria-label="댓글"
+          placeholder="댓글"
           value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
         {suggestions.length > 0 && (
           <div className="mention-suggest" role="group" aria-label="멘션할 닉네임">
@@ -580,7 +614,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
         <PhotoPreview photo={photo} onClear={() => setPhoto(null)} />
         <div className="row comment-submit-row">
           <PhotoButton fileRef={fileRef} onPick={pickPhoto} />
-          <button className="btn btn-primary" disabled={busy}>{busy ? "등록 중…" : replyTo ? "답글 등록" : "댓글 등록"}</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? "등록 중…" : "댓글 등록"}</button>
         </div>
       </form>
     </section>
