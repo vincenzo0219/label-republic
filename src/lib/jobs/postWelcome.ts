@@ -7,7 +7,7 @@ import { OPERATOR_NICKS } from "../repo/metrics";
 const LOCK_KEY = 4_823_093;
 const MAX_PER_RUN = 10;
 /**
- * ✍️ 사람이 새 글을 쓰면 20초 안에 운영 이름으로 반가운 댓글 하나 (10/30 대표님 "어떤 사람이 글을 쓰면 무조건 내 이름으로 댓글을
+ * ✍️ 사람이 글을 쓰면 20초~1분 사이에 운영 이름으로 반가운 댓글 하나 (10/30 "20초는 너무 짧고 20초~1분 사이에", "한번 다는데 닉네임을 번갈아") (10/30 대표님 "어떤 사람이 글을 쓰면 무조건 내 이름으로 댓글을
  * 달아줘. 20초 안에. 환영해요, 반갑습니다 등등 돌아가면서" + "동탄맨, 울트라매니아 번갈아가면서").
  * 새 글은 글에 댓글로, 댓글·수다방 말은 그 말에 답글로(한 글에서 한 사람에게 한 번). 시스템이 만든 글(seed_key) 자체에는 달지 않는다. POST_WELCOME_ENABLED=0 이면 끈다.
  */
@@ -44,7 +44,7 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
       const { rows } = await client.query<Fresh>(
         `SELECT p.id::text, p.nickname
            FROM posts p
-          WHERE p.created_at <= $1::timestamptz - interval '3 seconds' AND p.created_at > $1::timestamptz - interval '10 minutes'
+          WHERE p.created_at <= $1::timestamptz - make_interval(secs => 20 + (p.id % 41)) AND p.created_at > $1::timestamptz - interval '10 minutes'
             AND NOT p.is_ai_curated AND p.author_fingerprint IS NOT NULL AND p.ai_hidden_at IS NULL AND NOT p.is_blinded
             AND p.seed_key IS NULL
             AND p.nickname <> ALL($2::text[])
@@ -63,13 +63,15 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
       const { rows: cs } = await client.query<{ id: string; post_id: string; nickname: string }>(
         `SELECT c.id::text, c.post_id::text, c.nickname
            FROM comments c JOIN posts p ON p.id = c.post_id
-          WHERE c.created_at <= $1::timestamptz - interval '3 seconds' AND c.created_at > $1::timestamptz - interval '10 minutes'
+          WHERE c.created_at <= $1::timestamptz - make_interval(secs => 20 + (c.id % 41)) AND c.created_at > $1::timestamptz - interval '10 minutes'
             AND NOT c.is_ai_curated AND c.author_fingerprint IS NOT NULL AND c.ai_hidden_at IS NULL AND NOT p.is_blinded
             AND c.nickname <> ALL($2::text[])
             AND NOT EXISTS (
               SELECT 1 FROM comments r JOIN comments mine ON mine.id = r.parent_id
                WHERE r.post_id = c.post_id AND r.nickname = ANY($3::text[]) AND mine.author_fingerprint = c.author_fingerprint)
             AND NOT EXISTS (SELECT 1 FROM comments e WHERE e.post_id = c.post_id AND e.author_fingerprint = c.author_fingerprint AND e.id > c.id)
+            -- 글쓴이가 자기 글에 댓글을 달면, 글에 이미 환영 댓글이 달렸으면 또 달지 않는다 (한 사람에게 한 번)
+            AND NOT (p.author_fingerprint = c.author_fingerprint AND EXISTS (SELECT 1 FROM comments w WHERE w.post_id = c.post_id AND w.parent_id IS NULL AND w.nickname = ANY($3::text[])))
           ORDER BY c.id LIMIT $4`,
         [now.toISOString(), OPERATOR_NICKS, POST_WELCOME_NAMES, MAX_PER_RUN],
       );
@@ -87,7 +89,7 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
   }
 }
 
-/** 10초마다 확인 → 글이 올라오고 늦어도 20초 안에 댓글 */
+/** 10초마다 확인 → 글마다 20초~1분 사이(글 번호로 정한 대기 + 확인 간격)에 댓글 */
 export function startPostWelcomeScheduler(intervalMs = 10_000): () => void {
   const tick = guardJob("post-welcome", runPostWelcome);
   const timer = setInterval(tick, intervalMs);
