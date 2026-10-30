@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
 import { better, formatScore, GAMES, type GameId, shareText } from "@/lib/miniGames";
 import { LatteGame } from "./games/LatteGame";
+import { PkGame } from "./games/PkGame";
 import { RallyGame } from "./games/RallyGame";
 import { ReactionGame } from "./games/ReactionGame";
 import { WorldcupGame } from "./games/WorldcupGame";
@@ -88,6 +89,17 @@ export function MiniGame({ game }: { game: GameId }) {
   }
 
   const roomHref = `/c/${encodeURIComponent(g.room)}`;
+  // ⚽ 승부차기는 끝 화면(전적·팀별 승리)까지 스스로 그린다
+  if (game === "pk")
+    return (
+      <main className="mini-game" data-game={game}>
+        <header className="mg-head">
+          <Link href={roomHref} className="mg-back">← {g.roomName}</Link>
+          <h1 className="mg-title">{g.emoji} {g.name}</h1>
+        </header>
+        <PkGame />
+      </main>
+    );
   return (
     <main className="mini-game" data-game={game}>
       <header className="mg-head">

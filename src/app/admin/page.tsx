@@ -1,6 +1,8 @@
 import { quickReplyStats } from "@/lib/repo/quickReply";
 import { quizRetention } from "@/lib/repo/quizRetention";
 import { gameStats } from "@/lib/repo/miniGames";
+import { clickStats } from "@/lib/repo/clicks";
+import { pkStats } from "@/lib/repo/pk";
 import { quizStats, streakDistribution } from "@/lib/repo/roomQuizzes";
 import { listAutoHidden, listDuplicates, operatorReports, REPORT_TYPE_LABEL } from "@/lib/repo/reports";
 import { AdminHideButton } from "@/components/AdminHideButton";
@@ -99,6 +101,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const quizRows = await quizStats(7).catch(() => []);
   const retention = await quizRetention(7).catch(() => null);
   const games = await gameStats(7).catch(() => null);
+  const pk = await pkStats(7).catch(() => null);
+  const fanClicks = await clickStats("fan-test", "/fan-test", 7).catch(() => null);
   const streaks = await streakDistribution(today).catch(() => null);
   const [ear, hearing, firstLine, typing, aiT, month, daily7, states, people, readers, readers7, readers28] = await Promise.all([
     earFunnel(...cur),
@@ -306,6 +310,46 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               </tbody>
             </table>
           </div>
+        ) : (
+          <p className="hint">아직 기록이 없습니다.</p>
+        )}
+        {pk && (
+          <p className="hint">
+            ⚽ 승부차기 끝난 대결: 실시간 {pk.live} · 🤖 노방장 AI {pk.ai} (대결 찾기 {pk.started}번)
+          </p>
+        )}
+      </section>
+
+      <section aria-label="팬 테스트 버튼 클릭">
+        <h2 className="section-title">⚽ 팬 테스트 버튼 클릭 (최근 7일)</h2>
+        {fanClicks ? (
+          <>
+            <p className="hint">
+              /fan-test 본 수 {fanClicks.views} (사람 {fanClicks.viewers}). 비율 = 누른 사람 ÷ 본 사람. 10/30 배포 뒤부터 쌓여요.
+            </p>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>버튼</th>
+                    <th>클릭</th>
+                    <th>누른 사람</th>
+                    <th>비율</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fanClicks.rows.map((r) => (
+                    <tr key={r.key}>
+                      <td>{r.label}</td>
+                      <td>{r.clicks}</td>
+                      <td>{r.people}</td>
+                      <td>{fanClicks.viewers ? `${Math.round((r.people / fanClicks.viewers) * 100)}%` : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <p className="hint">아직 기록이 없습니다.</p>
         )}

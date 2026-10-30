@@ -2,7 +2,7 @@
  * 🎮 방 미니게임 (10/29 대표님 "1번 2번 3번 진행해. 테니스 랠리 탭도 진행해"). 방 "1분 테스트" 버튼 옆 버튼 하나로만 들어간다 (새 탭 X).
  * 서버·브라우저·테스트 공용 순수 함수.
  */
-export type GameId = "reaction" | "worldcup" | "latte" | "rally";
+export type GameId = "reaction" | "worldcup" | "latte" | "rally" | "pk";
 
 export type GameDef = {
   id: GameId;
@@ -17,6 +17,8 @@ export type GameDef = {
   max: number;
   /** 순위·최고 기록이 없는 게임 (월드컵) */
   noRecord?: boolean;
+  /** 점수를 브라우저가 보내지 않는 게임 (승부차기: 서버가 대결 결과로 남긴다) */
+  serverOnly?: boolean;
 };
 
 export const GAMES: Record<GameId, GameDef> = {
@@ -24,6 +26,8 @@ export const GAMES: Record<GameId, GameDef> = {
   worldcup: { id: "worldcup", room: "미혼남녀-만남-행사", roomName: "미혼남녀 만남 행사", emoji: "💘", name: "이상형 월드컵", lowerBetter: false, min: 0, max: 15, noRecord: true },
   latte: { id: "latte", room: "커피-덕후방", roomName: "커피 덕후방", emoji: "☕", name: "라떼아트 따르기", lowerBetter: false, min: 0, max: 500 },
   rally: { id: "rally", room: "테니스-덕후방", roomName: "테니스 덕후방", emoji: "🎾", name: "랠리 탭", lowerBetter: false, min: 0, max: 300 },
+  // ⚽ 승부차기 (10/30): 점수는 서버가 대결 결과로 직접 남긴다 (POST /api/games/pk 로는 받지 않음). score = 내가 넣은 골
+  pk: { id: "pk", room: "k리그-덕후방", roomName: "K리그 덕후방", emoji: "⚽", name: "승부차기 대결", lowerBetter: false, min: 0, max: 8, noRecord: true, serverOnly: true },
 };
 
 export const isGameId = (s: string): s is GameId => Object.prototype.hasOwnProperty.call(GAMES, s);
@@ -37,6 +41,7 @@ export function roomGameLink(slug: string): { href: string; label: string } | nu
 /** 점수가 정수이고 범위 안인지 */
 export function validScore(game: GameId, score: unknown): score is number {
   const g = GAMES[game];
+  if (g.serverOnly) return false;
   return typeof score === "number" && Number.isInteger(score) && score >= g.min && score <= g.max;
 }
 
@@ -46,6 +51,7 @@ export function formatScore(game: GameId, score: number): string {
   if (game === "reaction") return `${(score / 1000).toFixed(3)}초`;
   if (game === "latte") return `${score}점`;
   if (game === "rally") return `${score}번`;
+  if (game === "pk") return `${score}골`;
   return WORLDCUP_TRAITS[score] ?? "";
 }
 
