@@ -19,7 +19,8 @@ import {
 } from "@/lib/pk";
 import type { PkView } from "@/lib/repo/pk";
 import { buzz } from "../MiniGame";
-import { cheer, groan, kickSound, netSound, setSoundOn, soundOn, tick, whistle } from "@/lib/gameSound";
+import { cheer, fanfare, groan, kickSound, netSound, startMusic, stopMusic, tick, whistle } from "@/lib/gameSound";
+import { shake, VIBE, vibe } from "@/lib/juice";
 import { Confetti } from "../RoomQuiz";
 
 type Phase = "start" | "match" | "play" | "end";
@@ -62,10 +63,8 @@ export function PkGame() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  // 🔊 소리 (10/30 대표님 "소리는 없어?"): 휘슬·퍽·그물·관중 함성. 끄면 이 브라우저에 기억
-  const [sound, setSound] = useState(true);
-  useEffect(() => setSound(soundOn()), []);
   const alive = useRef(true);
+  const box = useRef<HTMLElement>(null);
   const animating = useRef(false);
 
   useEffect(() => {
@@ -75,6 +74,7 @@ export function PkGame() {
     setEditTeam(!t);
     return () => {
       alive.current = false;
+      stopMusic();
     };
   }, []);
 
@@ -107,6 +107,7 @@ export function PkGame() {
       setView(v);
       setPhase("play");
       whistle();
+      startMusic("pk");
     } catch (e) {
       setError((e as Error).message);
       setPhase("start");
@@ -118,8 +119,13 @@ export function PkGame() {
     if (!view || animating.current || shown >= view.kicks.length) {
       if (view && !animating.current && shown >= view.kicks.length && view.status === "done") {
         setPhase("end");
+        stopMusic();
         whistle(true);
-        if (view.outcome === "win") setTimeout(cheer, 500);
+        if (view.outcome === "win") {
+          setTimeout(fanfare, 450);
+          setTimeout(cheer, 900);
+          vibe(VIBE.win);
+        }
       }
       return;
     }
@@ -136,7 +142,9 @@ export function PkGame() {
       await wait(fast ? 150 : 650);
       setFlash({ kick, mine });
       const good = (mine && kick.goal) || (!mine && !kick.goal);
-      if (good) buzz(60);
+      // 맞는 순간 화면이 흔들리고(골은 크게), 좋으면 길게 떨린다
+      shake(box.current, kick.goal);
+      vibe(good ? VIBE.big : VIBE.bad);
       if (kick.goal) netSound();
       if (good) cheer();
       else groan();
@@ -252,19 +260,7 @@ export function PkGame() {
   const ended = phase === "end" && view.outcome;
 
   return (
-    <section className="pk-game" aria-label="승부차기">
-      <button
-        type="button"
-        className="pk-sound"
-        aria-pressed={sound}
-        aria-label={sound ? "소리 끄기" : "소리 켜기"}
-        onClick={() => {
-          setSoundOn(!sound);
-          setSound(!sound);
-        }}
-      >
-        {sound ? "🔊" : "🔇"}
-      </button>
+    <section ref={box} className="pk-game" aria-label="승부차기">
       <Confetti size={ended && view.outcome === "win" ? 34 : 0} />
       <p className="pk-vs">
         <b>{myName}</b> <span>vs</span> <b>{opName}</b>

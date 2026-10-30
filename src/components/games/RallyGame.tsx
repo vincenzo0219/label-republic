@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { buzz } from "../MiniGame";
+import { chime, pong, thud } from "@/lib/gameSound";
+import { burst, floatText, pointOf, shake, VIBE, vibe } from "@/lib/juice";
 
 /** 치는 칸 (공 위치 0 = 맞은편, 1 = 내 앞) */
 const ZONE: [number, number] = [0.74, 0.93];
@@ -16,7 +17,7 @@ export function RallyGame({ onFinish }: { onFinish: (hits: number) => void }) {
   const [phase, setPhase] = useState<Phase>("ready");
   const [, setTick] = useState(0);
   const [flash, setFlash] = useState<number | null>(null);
-  const s = useRef({ y: 0, lane: 0, dir: "in" as "in" | "out", speed: START_SPEED, hits: 0, side: 0, last: 0 });
+  const s = useRef({ y: 0, lane: 0, dir: "in" as "in" | "out", speed: START_SPEED, hits: 0, side: 0, last: 0, stopUntil: 0 });
   const raf = useRef(0);
   const court = useRef<HTMLDivElement>(null);
 
@@ -24,7 +25,9 @@ export function RallyGame({ onFinish }: { onFinish: (hits: number) => void }) {
 
   function end() {
     cancelAnimationFrame(raf.current);
-    buzz(60);
+    thud();
+    vibe(VIBE.bad);
+    shake(court.current, true);
     setPhase("miss");
     const hits = s.current.hits;
     setTimeout(() => onFinish(hits), 800);
@@ -32,6 +35,12 @@ export function RallyGame({ onFinish }: { onFinish: (hits: number) => void }) {
 
   function loop(t: number) {
     const st = s.current;
+    // 맞는 순간 아주 잠깐 멈춤(히트스톱) → 탁 하고 받아친 느낌
+    if (t < st.stopUntil) {
+      st.last = t;
+      raf.current = requestAnimationFrame(loop);
+      return;
+    }
     const dt = Math.min(0.05, (t - st.last) / 1000);
     st.last = t;
     if (st.dir === "in") {
@@ -50,7 +59,7 @@ export function RallyGame({ onFinish }: { onFinish: (hits: number) => void }) {
   }
 
   function start() {
-    s.current = { y: 0, lane: Math.random() < 0.5 ? 0 : 1, dir: "in", speed: START_SPEED, hits: 0, side: 0, last: performance.now() };
+    s.current = { y: 0, lane: Math.random() < 0.5 ? 0 : 1, dir: "in", speed: START_SPEED, hits: 0, side: 0, last: performance.now(), stopUntil: 0 };
     setPhase("play");
     raf.current = requestAnimationFrame(loop);
   }
@@ -67,7 +76,15 @@ export function RallyGame({ onFinish }: { onFinish: (hits: number) => void }) {
       st.hits += 1;
       st.speed = Math.min(MAX_SPEED, st.speed * 1.07);
       st.dir = "out";
-      buzz();
+      st.stopUntil = performance.now() + 70;
+      const { x, y } = pointOf(e);
+      pong(st.hits);
+      const streak = st.hits % 5 === 0;
+      if (streak) setTimeout(chime, 80);
+      vibe(streak ? VIBE.big : VIBE.hit);
+      shake(court.current, streak);
+      burst(x, y, streak ? 14 : 9, ["#c6f432", "#ffffff", "#ffd84d"]);
+      floatText(x, y - 24, streak ? `${st.hits}연속!` : "+1");
       setFlash(st.hits);
       return;
     }

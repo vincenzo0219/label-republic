@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { REACTION_TRIES } from "@/lib/miniGames";
-import { buzz } from "../MiniGame";
+import { chime, errorBuzz, goBeep, pop, readyBeep } from "@/lib/gameSound";
+import { burst, floatText, pointOf, popEl, shake, VIBE, vibe } from "@/lib/juice";
 
 type Phase = "ready" | "wait" | "go" | "early" | "shown";
 
@@ -20,21 +21,36 @@ export function ReactionGame({ onFinish }: { onFinish: (ms: number) => void }) {
 
   function arm() {
     setPhase("wait");
+    readyBeep();
     timer.current = setTimeout(() => {
       goAt.current = performance.now();
       setPhase("go");
+      goBeep();
     }, 1500 + Math.random() * 2500);
   }
 
-  function tap() {
-    if (phase === "ready" || phase === "early" || phase === "shown") return arm();
+  function tap(e: React.PointerEvent<HTMLButtonElement>) {
+    const pad = e.currentTarget;
+    if (phase === "ready" || phase === "early" || phase === "shown") {
+      popEl(pad);
+      return arm();
+    }
     if (phase === "wait") {
       if (timer.current) clearTimeout(timer.current);
-      buzz(40);
+      errorBuzz();
+      vibe(VIBE.bad);
+      shake(pad, true);
       return setPhase("early");
     }
     const ms = Math.max(1, Math.round(performance.now() - goAt.current));
-    buzz();
+    const { x, y } = pointOf(e);
+    const fastest = tries.length === 0 || ms < Math.min(...tries);
+    pop();
+    if (fastest && tries.length > 0) setTimeout(chime, 90);
+    vibe(fastest ? VIBE.hit : VIBE.tap);
+    popEl(pad);
+    burst(x, y, fastest ? 14 : 9);
+    floatText(x, y - 20, fastest && tries.length > 0 ? "최고!" : `${(ms / 1000).toFixed(3)}초`);
     const next = [...tries, ms];
     setTries(next);
     setLast(ms);

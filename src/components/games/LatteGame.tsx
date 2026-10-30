@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LATTE_CUPS, LATTE_HALF, latteCupScore, latteHeart } from "@/lib/miniGames";
-import { buzz } from "../MiniGame";
+import { pourStart, pourStop, pourUpdate, softTap, sparkle, splash } from "@/lib/gameSound";
+import { burst, floatText, shake, VIBE, vibe } from "@/lib/juice";
 
 type Cup = { center: number; speed: number };
 const newCup = (): Cup => ({ center: 55 + Math.random() * 30, speed: 0.85 + Math.random() * 0.3 });
@@ -20,11 +21,15 @@ export function LatteGame({ onFinish }: { onFinish: (total: number) => void }) {
   const raf = useRef(0);
   const lastT = useRef(0);
   const stoppedAt = useRef(0);
+  const stage = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // 목표 띠·속도는 브라우저에서 정한다 (서버 화면과 어긋나지 않게)
     setCup(newCup());
-    return () => cancelAnimationFrame(raf.current);
+    return () => {
+      cancelAnimationFrame(raf.current);
+      pourStop();
+    };
   }, []);
 
   function step(t: number) {
@@ -38,12 +43,15 @@ export function LatteGame({ onFinish }: { onFinish: (total: number) => void }) {
       return stop();
     }
     setFill(fillRef.current);
+    pourUpdate(fillRef.current);
     raf.current = requestAnimationFrame(step);
   }
 
   function startPour() {
     if (done !== null || pouring) return;
     setPouring(true);
+    pourStart();
+    vibe(VIBE.tap);
     lastT.current = performance.now();
     raf.current = requestAnimationFrame(step);
   }
@@ -51,10 +59,28 @@ export function LatteGame({ onFinish }: { onFinish: (total: number) => void }) {
   function stop() {
     cancelAnimationFrame(raf.current);
     setPouring(false);
+    pourStop();
     stoppedAt.current = performance.now();
     if (fillRef.current <= 0) return;
     const s = latteCupScore(fillRef.current, cup.center);
-    if (latteHeart(fillRef.current, cup.center)) buzz(30);
+    const r = stage.current?.getBoundingClientRect();
+    const cx = r ? r.left + r.width / 2 : 0;
+    const cy = r ? r.top + r.height * (0.2 + (1 - Math.min(fillRef.current, 100) / 100) * 0.6) : 0;
+    if (fillRef.current >= 100) {
+      // 넘침: 철퍽 + 크게 흔들림
+      splash();
+      vibe(VIBE.bad);
+      shake(stage.current, true);
+    } else if (latteHeart(fillRef.current, cup.center)) {
+      sparkle();
+      vibe(s >= 90 ? VIBE.big : VIBE.hit);
+      shake(stage.current);
+      burst(cx, cy, s >= 90 ? 14 : 10, ["#fffaf2", "#f6e7d2", "#ff7eb6", "#ffd84d"]);
+      floatText(cx, cy - 10, s >= 90 ? "❤️ 완벽!" : `❤️ +${s}`);
+    } else {
+      softTap();
+      floatText(cx, cy - 10, s > 0 ? `+${s}` : "아쉬워요");
+    }
     setDone(s);
     setScores((x) => [...x, s]);
   }
@@ -62,6 +88,7 @@ export function LatteGame({ onFinish }: { onFinish: (total: number) => void }) {
   function nextCup() {
     // 손을 뗀 그 탭이 바로 다음 잔으로 넘어가지 않게
     if (performance.now() - stoppedAt.current < 350) return;
+    softTap();
     if (scores.length >= LATTE_CUPS) return onFinish(scores.reduce((a, b) => a + b, 0));
     fillRef.current = 0;
     setFill(0);
@@ -77,6 +104,7 @@ export function LatteGame({ onFinish }: { onFinish: (total: number) => void }) {
         {Math.min(scores.length + (done === null ? 1 : 0), LATTE_CUPS)}/{LATTE_CUPS}잔 · {total}점
       </p>
       <div
+        ref={stage}
         className={`latte-stage${pouring ? " pouring" : ""}`}
         onPointerDown={done === null ? startPour : undefined}
         onPointerUp={pouring ? stop : undefined}

@@ -6,6 +6,8 @@ import { api } from "@/lib/client-api";
 import { STREAK_SHOW } from "@/lib/kospiGame";
 import { pct } from "@/lib/roomQuizzes";
 import { Confetti } from "./RoomQuiz";
+import { softTap, sparkle } from "@/lib/gameSound";
+import { pressFx } from "@/lib/juice";
 
 type Tally = { up: number; down: number };
 type Last = { day: string; label: string; mine: 1 | -1; move: 1 | -1 | 0 | null; ok: boolean | null };
@@ -92,6 +94,7 @@ export function KospiGame({ slug }: { slug: string }) {
     try {
       setD(await api<Card>("/api/kospi", "POST", { slug, side: s, nickname }));
       setConfetti(10);
+      sparkle();
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -124,7 +127,11 @@ export function KospiGame({ slug }: { slug: string }) {
               type="button"
               className={`quiz-opt${d.mine ? " done" : ""}${mine ? " mine" : ""}`}
               disabled={busy || d.mine !== null}
-              onClick={() => void pick(s)}
+              onClick={(e) => {
+                pressFx(e, 10);
+                softTap();
+                void pick(s);
+              }}
               aria-pressed={mine}
             >
               {d.tally && <span className="quiz-bar" style={{ width: `${pct(n, total)}%` }} />}
