@@ -95,36 +95,12 @@ function useOrder(n: number, key: string, shuffle: boolean): number[] {
   }, [n, key, shuffle, seed]);
 }
 
-/** 다음 할 일은 하나만: 안 푼 방이 있으면 그 방, 없으면 내 노트 */
-function NextStep({ slug, notes }: { slug: string; notes: number }) {
-  const [next, setNext] = useState<
-    { slug: string; name: string } | null | undefined
-  >(undefined);
-  useEffect(() => {
-    api<{ slug: string; name: string } | null>(
-      `/api/room-quiz/next?slug=${encodeURIComponent(slug)}`,
-      "GET",
-    )
-      .then(setNext)
-      .catch(() => setNext(null));
-  }, [slug]);
-  if (next === undefined) return null;
+/** 답한 뒤에는 내 카드 장수만 (10/30 대표님 "다른방 퀴즈는 안내하지마") */
+function NextStep({ notes }: { slug: string; notes: number }) {
   return (
     <div className="quiz-next">
-      {next ? (
-        <Link
-          href={`/c/${encodeURIComponent(next.slug)}`}
-          className="quiz-next-btn"
-        >
-          다른 방 퀴즈 풀기 → {roomEmoji(next.slug)} {roomShortName(next)}
-        </Link>
-      ) : (
-        <Link href="/my#notes" className="quiz-next-btn">
-          🃏 내 카드 모음
-        </Link>
-      )}
       <Link href="/my#notes" className="quiz-notes-count">
-        🃏 {notes}장
+        🃏 내 카드 {notes}장
       </Link>
     </div>
   );
