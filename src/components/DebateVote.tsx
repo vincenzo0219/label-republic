@@ -6,6 +6,7 @@ import type { DebateSide, DebateTally } from "@/lib/repo/debateVotes";
 import { markDailyAction } from "@/lib/streak";
 import { GENDER_KEY, GENDER_LABEL, GENDER_MIN, genderSplit, type VoteGender } from "@/lib/genderSplit";
 import { PushButton } from "./PushButton";
+import { Confetti } from "./RoomQuiz";
 
 const pct = (x: number, n: number) => (n ? Math.round((x / n) * 100) : 0);
 
@@ -16,6 +17,8 @@ export function DebateVote({ postId, initial, push = true }: { postId: string; i
   const [mine, setMine] = useState<DebateSide | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [streak, setStreak] = useState(0);
+  // 🎉 누르는 손맛 (10/30 대표님 "선택버튼을 눌러봤는데 아무런 손맛이 안느껴지고, 폭죽도 없는데")
+  const [burst, setBurst] = useState(0);
   // 👫 남녀를 나눠 세는 투표(미혼남녀방)만: "나는 남/여" 한 번 고르면 이 브라우저에 기억 (10/29)
   const split = !!initial.gender;
   const [gender, setGender] = useState<VoteGender | null>(null);
@@ -38,6 +41,10 @@ export function DebateVote({ postId, initial, push = true }: { postId: string; i
 
   const vote = async (side: DebateSide) => {
     if (side === mine) return;
+    try {
+      navigator.vibrate?.(15);
+    } catch {}
+    setBurst((b) => b + 1);
     // 서버 응답 전에 내 표를 먼저 반영
     setT((cur) => {
       const human = { ...cur.human, [side]: cur.human[side] + 1 };
@@ -61,6 +68,7 @@ export function DebateVote({ postId, initial, push = true }: { postId: string; i
   const gs = split ? genderSplit(t.gender) : null;
   return (
     <section className="debate-vote" aria-label="투표">
+      {burst > 0 && <Confetti key={burst} size={14} />}
       {split && !mine && (
         <p className="vote-gender" role="group" aria-label="나는">
           <span className="hint">나는</span>
@@ -74,7 +82,7 @@ export function DebateVote({ postId, initial, push = true }: { postId: string; i
       )}
       <div className="debate-sides">
         {(["A", "B"] as const).map((s) => (
-          <button key={s} type="button" className={`btn${mine === s ? " btn-primary" : ""}`} onClick={() => vote(s)} aria-pressed={mine === s}>
+          <button key={s} type="button" className={`btn vote-btn${mine === s ? " btn-primary" : ""}${mine === s && burst ? " vote-pop" : ""}`} onClick={() => vote(s)} aria-pressed={mine === s}>
             {s === "A" ? t.a : t.b}
           </button>
         ))}
