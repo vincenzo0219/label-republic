@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { chime, pong, thud } from "@/lib/gameSound";
 import { burst, floatText, pointOf, shake, VIBE, vibe } from "@/lib/juice";
+import { seededRandom } from "@/lib/rallyChallenge";
 
 /** 치는 칸 (공 위치 0 = 맞은편, 1 = 내 앞) */
 const ZONE: [number, number] = [0.74, 0.93];
@@ -12,14 +13,18 @@ const MAX_SPEED = 2.2;
 
 type Phase = "ready" | "play" | "miss";
 
-/** 🎾 랠리 탭: 공이 오는 쪽(왼쪽·오른쪽 절반)을 치는 칸에서 탭. 받을수록 빨라지고, 놓치면 끝 */
-export function RallyGame({ onFinish }: { onFinish: (hits: number) => void }) {
+/**
+ * 🎾 랠리 탭: 공이 오는 쪽(왼쪽·오른쪽 절반)을 치는 칸에서 탭. 받을수록 빨라지고, 놓치면 끝.
+ * seed 가 같으면 공이 같은 순서로 온다 (🎾 도전장, 10/30). target = 도전장 목표
+ */
+export function RallyGame({ onFinish, seed, target }: { onFinish: (hits: number) => void; seed: number; target?: number | null }) {
   const [phase, setPhase] = useState<Phase>("ready");
   const [, setTick] = useState(0);
   const [flash, setFlash] = useState<number | null>(null);
   const s = useRef({ y: 0, lane: 0, dir: "in" as "in" | "out", speed: START_SPEED, hits: 0, side: 0, last: 0, stopUntil: 0 });
   const raf = useRef(0);
   const court = useRef<HTMLDivElement>(null);
+  const rand = useRef(seededRandom(seed));
 
   useEffect(() => () => cancelAnimationFrame(raf.current), []);
 
@@ -51,7 +56,7 @@ export function RallyGame({ onFinish }: { onFinish: (hits: number) => void }) {
       if (st.y <= 0) {
         st.y = 0;
         st.dir = "in";
-        st.lane = Math.random() < 0.5 ? 0 : 1;
+        st.lane = rand.current() < 0.5 ? 0 : 1;
       }
     }
     setTick((x) => x + 1);
@@ -59,7 +64,8 @@ export function RallyGame({ onFinish }: { onFinish: (hits: number) => void }) {
   }
 
   function start() {
-    s.current = { y: 0, lane: Math.random() < 0.5 ? 0 : 1, dir: "in", speed: START_SPEED, hits: 0, side: 0, last: performance.now(), stopUntil: 0 };
+    rand.current = seededRandom(seed);
+    s.current = { y: 0, lane: rand.current() < 0.5 ? 0 : 1, dir: "in", speed: START_SPEED, hits: 0, side: 0, last: performance.now(), stopUntil: 0 };
     setPhase("play");
     raf.current = requestAnimationFrame(loop);
   }
@@ -84,7 +90,12 @@ export function RallyGame({ onFinish }: { onFinish: (hits: number) => void }) {
       vibe(streak ? VIBE.big : VIBE.hit);
       shake(court.current, streak);
       burst(x, y, streak ? 14 : 9, ["#c6f432", "#ffffff", "#ffd84d"]);
-      floatText(x, y - 24, streak ? `${st.hits}연속!` : "+1");
+      const passed = target != null && st.hits === target + 1;
+      if (passed) {
+        setTimeout(chime, 160);
+        vibe(VIBE.big);
+      }
+      floatText(x, y - 24, passed ? "목표 돌파!" : streak ? `${st.hits}연속!` : "+1");
       setFlash(st.hits);
       return;
     }
@@ -96,7 +107,10 @@ export function RallyGame({ onFinish }: { onFinish: (hits: number) => void }) {
   const size = 14 + st.y * 16;
   return (
     <>
-      <p className="mg-sub">{st.hits}번 이어 받기</p>
+      <p className="mg-sub">
+        {st.hits}번 이어 받기
+        {target != null && <b className={`rally-target${st.hits > target ? " passed" : ""}`}> · 목표 {target}번</b>}
+      </p>
       <div ref={court} className={`rally-court rally-${phase}`} onPointerDown={tap} role="button" tabIndex={0} aria-label="공이 오는 쪽을 탭">
         <span className="rally-net" aria-hidden />
         <span className="rally-mid" aria-hidden />

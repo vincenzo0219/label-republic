@@ -3,6 +3,7 @@ import { quizRetention } from "@/lib/repo/quizRetention";
 import { gameStats } from "@/lib/repo/miniGames";
 import { clickStats } from "@/lib/repo/clicks";
 import { pkStats } from "@/lib/repo/pk";
+import { challengeStats } from "@/lib/repo/rallyChallenges";
 import { quizStats, streakDistribution } from "@/lib/repo/roomQuizzes";
 import { listAutoHidden, listDuplicates, operatorReports, REPORT_TYPE_LABEL } from "@/lib/repo/reports";
 import { AdminHideButton } from "@/components/AdminHideButton";
@@ -102,6 +103,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const retention = await quizRetention(7).catch(() => null);
   const games = await gameStats(7).catch(() => null);
   const pk = await pkStats(7).catch(() => null);
+  const rallyCh = await challengeStats(7).catch(() => null);
   const fanClicks = await clickStats("fan-test", "/fan-test", 7).catch(() => null);
   const streaks = await streakDistribution(today).catch(() => null);
   const [ear, hearing, firstLine, typing, aiT, month, daily7, states, people, readers, readers7, readers28] = await Promise.all([
@@ -316,6 +318,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         {pk && (
           <p className="hint">
             ⚽ 승부차기 끝난 대결: 실시간 {pk.live} · 🤖 노방장 AI {pk.ai} (대결 찾기 {pk.started}번)
+          </p>
+        )}
+        {rallyCh && (
+          <p className="hint">
+            🎾 랠리 도전장: 만든 수 {rallyCh.created} · 링크로 연 수 {rallyCh.opens} (그날 처음 온 사람 {rallyCh.newVisitors}) · 도전 {rallyCh.attempts}판 ({rallyCh.challengers}명) · 이긴 판 {rallyCh.wins}
           </p>
         )}
       </section>
