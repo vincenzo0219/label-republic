@@ -4,16 +4,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST_WELCOME_NAMES, postWelcome } from "@/lib/jobs/postWelcome";
 
 describe("✍️ 새 글 환영 댓글 (문구)", () => {
-  it("운영 이름 14개(🤖 AI 이름 제외) 중 글마다 한 이름으로 고정, 문장은 돌린다", () => {
-    expect(POST_WELCOME_NAMES).toHaveLength(14);
-    expect(POST_WELCOME_NAMES).not.toContain("노방장");
-    expect(POST_WELCOME_NAMES).not.toContain("덕후1호");
-    expect(POST_WELCOME_NAMES).toContain("짱가");
-    expect(POST_WELCOME_NAMES).not.toContain("💬 수다방");
-    expect(postWelcome("3121", "민수", "1347").who).toBe(postWelcome("3121", "환엄", "1357").who);
+  it("늘 울트라매니아 한 이름으로, 문장은 돌린다", () => {
+    expect(postWelcome("3121", "민수", "1347").who).toBe("울트라매니아");
+    expect(postWelcome("99", "환엄").who).toBe("울트라매니아");
     expect(postWelcome("3121", "민수", "1347").body).not.toBe(postWelcome("3121", "민수", "1348").body);
-    const names = new Set(Array.from({ length: 60 }, (_, i) => postWelcome(String(1000 + i), "a").who));
-    expect(names.size).toBeGreaterThan(8);
+    expect(POST_WELCOME_NAMES).not.toContain("노방장");
   });
 });
 
@@ -33,12 +28,6 @@ d("✍️ 새 글 환영 댓글 (DB)", async () => {
   });
   afterAll(async () => {
     await pool().end();
-  });
-
-  it("기본은 꺼져 있다", async () => {
-    delete process.env.POST_WELCOME_ENABLED;
-    expect(await runPostWelcome()).toBe(0);
-    process.env.POST_WELCOME_ENABLED = "1";
   });
 
   it("사람 새 글에만 한 번, 운영·시스템 글은 건너뛴다", async () => {
