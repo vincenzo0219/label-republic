@@ -971,7 +971,12 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .book-pick-head a { color: var(--text); }
 .book-same { margin-top: 8px; }
 .book-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.debate-vote { margin: 16px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.debate-vote { margin: 16px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); position: relative; overflow: hidden; }
+.vote-btn { border-width: 2px; transition: transform 0.08s ease; }
+.vote-btn:active { transform: scale(0.95); }
+.vote-pop { animation: vote-pop 0.32s ease-out; }
+@keyframes vote-pop { 0% { transform: scale(0.94); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .vote-btn, .vote-pop { transition: none; animation: none; } }
 .debate-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .debate-sides .btn { font-size: 16px; font-weight: 800; padding: 12px; }
 /* 보기 글이 길면 버튼 안에서 줄을 바꾼다 (10/29 폰에서 화면 밖으로 밀림) */
