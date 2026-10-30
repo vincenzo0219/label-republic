@@ -12,6 +12,8 @@ const MAX_PER_RUN = 10;
  * 새 글은 글에 댓글로, 댓글·수다방 말은 그 말에 답글로(한 글에서 한 사람에게 한 번). 시스템이 만든 글(seed_key) 자체에는 달지 않는다. POST_WELCOME_ENABLED=0 이면 끈다.
  */
 // 10/30 대표님 "18개로 랜덤 번갈아가며": 운영 이름 전부 ("💬 수다방"은 사람 이름이 아니라 뺐다)
+/** 대표님이 휴대폰에서 쓰는 이름: 환영 답글을 달지 않는다 (10/30 "내가 다는 댓글에는 댓글 달지마", "밑에는 내가 쓴거니까") */
+export const OWNER_NICKS = ["김하연작가"];
 export const POST_WELCOME_NAMES = OPERATOR_NICKS.filter((n) => n !== "💬 수다방");
 
 const LINES = [
@@ -25,14 +27,14 @@ const LINES = [
   () => "좋은 글 감사해요",
 ] as const;
 
-let lastWho = "";
-/** 이름은 랜덤(바로 앞과 같은 이름은 피함), 문장은 글 번호로 돌린다 */
-export function postWelcome(postId: string, nickname: string, pick: (n: number) => number = randomInt): { who: string; body: string } {
+/**
+ * 이름은 글마다 하나로 고정 (10/30 대표님 "가급적 하나의 닉네임으로"): 같은 글에 달리는 환영 답글은 늘 같은 이름,
+ * 글이 바뀌면 17개 중 다른 이름(글 번호를 섞어 고른다). 문장은 댓글·글 번호로 돌린다.
+ */
+export function postWelcome(postId: string, nickname: string, lineId: string = postId): { who: string; body: string } {
   const id = Number(postId) || 0;
-  let who = POST_WELCOME_NAMES[pick(POST_WELCOME_NAMES.length)]!;
-  if (who === lastWho && POST_WELCOME_NAMES.length > 1) who = POST_WELCOME_NAMES[(POST_WELCOME_NAMES.indexOf(who) + 1) % POST_WELCOME_NAMES.length]!;
-  lastWho = who;
-  const line = LINES[id % LINES.length]!;
+  const who = POST_WELCOME_NAMES[Math.floor(Math.abs(Math.sin(id + 1) * 10_000)) % POST_WELCOME_NAMES.length]!;
+  const line = LINES[(Number(lineId) || 0) % LINES.length]!;
   return { who, body: line(nickname) };
 }
 
@@ -54,7 +56,7 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
             AND p.nickname <> ALL($2::text[])
             AND NOT EXISTS (SELECT 1 FROM comments c WHERE c.post_id = p.id AND c.nickname = ANY($3::text[]))
           ORDER BY p.id LIMIT $4`,
-        [now.toISOString(), OPERATOR_NICKS, POST_WELCOME_NAMES, MAX_PER_RUN],
+        [now.toISOString(), [...OPERATOR_NICKS, ...OWNER_NICKS], POST_WELCOME_NAMES, MAX_PER_RUN],
       );
       let n = 0;
       for (const p of rows) {
@@ -77,10 +79,16 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
             -- 글쓴이가 자기 글에 댓글을 달면, 글에 이미 환영 댓글이 달렸으면 또 달지 않는다 (한 사람에게 한 번)
             AND NOT (p.author_fingerprint = c.author_fingerprint AND EXISTS (SELECT 1 FROM comments w WHERE w.post_id = c.post_id AND w.parent_id IS NULL AND w.nickname = ANY($3::text[])))
           ORDER BY c.id LIMIT $4`,
-        [now.toISOString(), OPERATOR_NICKS, POST_WELCOME_NAMES, MAX_PER_RUN],
+        [now.toISOString(), [...OPERATOR_NICKS, ...OWNER_NICKS], POST_WELCOME_NAMES, MAX_PER_RUN],
       );
       for (const c of cs) {
-        const { who, body } = postWelcome(c.id, c.nickname);
+        let { who, body } = postWelcome(c.post_id, c.nickname, c.id);
+        // 이미 이 글에 운영 이름으로 답한 적이 있으면 그 이름을 그대로 (10/30 "한번 답글을 달기 시작할때는 같은 닉네임으로")
+        const { rows: first } = await client.query<{ nickname: string }>(
+          "SELECT nickname FROM comments WHERE post_id = $1 AND nickname = ANY($2::text[]) ORDER BY id LIMIT 1",
+          [c.post_id, POST_WELCOME_NAMES],
+        );
+        if (first[0]) who = first[0].nickname;
         await createComment(c.post_id, { nickname: who, pin: String(randomInt(1000, 10000)), body, parentId: c.id });
         n++;
       }
