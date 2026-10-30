@@ -38,7 +38,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const all = sp.all !== undefined;
   // 내 방이 2개 이상이면 홈은 내 방 글만 (전체는 /?all=1)
   const onlyMine = !all && (mine?.length ?? 0) >= 2;
-  const rooms = mine?.length || legacy ? await listCategories().catch(() => []) : [];
+  // ＋ 방 추가 창에 전체 방이 필요해서 늘 받는다
+  const rooms = crawler ? [] : await listCategories().catch(() => []);
   // PMF 설문 카드는 뺐다 (Sprint 78, 효과 없음)
   // 검색엔진 사이트 이름·사이트 내 검색창(SearchAction)용 구조화 데이터
   const jsonLd = {

@@ -205,13 +205,14 @@ export function MyRoomsBar({ rooms, initial, legacy, filtered, redirect }: { roo
   const byslug = new Map(rooms.map((r) => [r.slug, r]));
   const my = mine.map((s) => byslug.get(s)).filter((r): r is Room => !!r);
   const rings = useRings(my.map((r) => r.slug).join(","));
+  const [adding, setAdding] = useState(false);
   // 🏠 홈 맨 위는 늘 "내 방" (10/30 대표님 "네이버카페나 네이버밴드처럼 내카페, 내밴드 이런식으로 앞에"): 큰 아이콘 + ＋ 방 추가, 오른쪽 전체보기
   return (
     <>
       <section className="home-sec" aria-label="내 방">
+        {/* 전체보기는 아래 방 둘러보기 칸 하나만 (10/30 대표님 "전체보기가 2개야") */}
         <div className="home-sec-head">
           <h2>내 방</h2>
-          <Link href="/?all=1#rooms">전체보기 →</Link>
         </div>
         <ul className="room-icons row">
           {ringOrder(my, rings).map((r) => {
@@ -229,18 +230,79 @@ export function MyRoomsBar({ rooms, initial, legacy, filtered, redirect }: { roo
             );
           })}
           <li>
-            <Link href="/?all=1#rooms" className="room-icon-tile">
+            <button type="button" className="room-icon-tile room-add-btn" onClick={() => setAdding(true)} disabled={live === null}>
               <span className="room-icon add" aria-hidden>＋</span>
               <span className="room-icon-name">방 추가</span>
-            </Link>
+            </button>
           </li>
         </ul>
       </section>
+      {adding && <AddRoomSheet rooms={rooms} mine={mine} onClose={() => setAdding(false)} />}
       {filtered && (
         <p className="my-all">
           <RoomAlertButton className="my-alert-btn" />
         </p>
       )}
     </>
+  );
+}
+
+/**
+ * ＋ 방 추가 (10/30 대표님 "내방 추가하기가 안돼"): 방에 들어가서 ☆을 찾지 않아도, 홈에서 바로 방을 눌러 내 방에 담는다.
+ * 누르면 담기고(✓) 다시 누르면 뺀다. 완료를 누르거나 바깥을 누르면 닫힌다.
+ */
+function AddRoomSheet({ rooms, mine, onClose }: { rooms: Room[]; mine: string[]; onClose: () => void }) {
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+  const pick = (slug: string) => {
+    const r = toggleMyRoom(slug);
+    if (r !== "full") {
+      syncInterest(slug, r === "added");
+      scheduleRoomAlertsSync();
+    }
+    try {
+      navigator.vibrate?.(r === "added" ? 25 : 10);
+    } catch {}
+    setMsg(r === "added" ? "내 방에 담았어요" : r === "removed" ? "내 방에서 뺐어요" : "내 방은 8개까지예요");
+  };
+  return (
+    <div className="room-sheet-back" onClick={onClose}>
+      <div className="room-sheet" role="dialog" aria-modal="true" aria-label="내 방 추가" onClick={(e) => e.stopPropagation()}>
+        <div className="room-sheet-head">
+          <h2>내 방에 담을 방을 눌러요</h2>
+          <button type="button" className="btn btn-sm btn-primary" onClick={onClose}>
+            완료
+          </button>
+        </div>
+        <p className="room-sheet-msg" role="status">
+          {msg ?? `${mine.length}/8개 담음`}
+        </p>
+        <ul className="room-icons grid">
+          {rooms.map((c) => {
+            const on = mine.includes(c.slug);
+            return (
+              <li key={c.slug}>
+                <button type="button" className={`room-icon-tile room-pick${on ? " on" : ""}`} aria-pressed={on} onClick={() => pick(c.slug)}>
+                  <span className="room-icon" style={{ "--acc": roomColor(c.slug) } as React.CSSProperties} aria-hidden>
+                    {roomEmoji(c.slug)}
+                    {on && <span className="room-pick-check">✓</span>}
+                  </span>
+                  <span className="room-icon-name">{roomShortName(c)}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
   );
 }

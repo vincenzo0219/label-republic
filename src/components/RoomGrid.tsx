@@ -32,7 +32,6 @@ export async function RoomGrid({ all, mine = [] }: { all: boolean; mine?: string
         <h2>
           🏠 방 둘러보기 <span>· {rooms.length}개</span>
         </h2>
-        {!all && <Link href="/?all=1#rooms">전체보기 →</Link>}
       </div>
       <ul className="room-icons grid">
         {shown.map((c) => (
