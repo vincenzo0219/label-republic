@@ -7,11 +7,12 @@ import { OPERATOR_NICKS } from "../repo/metrics";
 const LOCK_KEY = 4_823_093;
 const MAX_PER_RUN = 10;
 /**
- * ✍️ 사람이 글을 쓰면 20초~1분 사이에 운영 이름으로 반가운 댓글 하나 (10/30 "20초는 너무 짧고 20초~1분 사이에", "한번 다는데 닉네임을 번갈아") (10/30 대표님 "어떤 사람이 글을 쓰면 무조건 내 이름으로 댓글을
+ * ✍️ 사람이 글을 쓰면 20초~1분 사이에 운영 이름으로 반가운 댓글 하나 (10/30 운영 이름 17개 랜덤) (10/30 "20초는 너무 짧고 20초~1분 사이에", "한번 다는데 닉네임을 번갈아") (10/30 대표님 "어떤 사람이 글을 쓰면 무조건 내 이름으로 댓글을
  * 달아줘. 20초 안에. 환영해요, 반갑습니다 등등 돌아가면서" + "동탄맨, 울트라매니아 번갈아가면서").
  * 새 글은 글에 댓글로, 댓글·수다방 말은 그 말에 답글로(한 글에서 한 사람에게 한 번). 시스템이 만든 글(seed_key) 자체에는 달지 않는다. POST_WELCOME_ENABLED=0 이면 끈다.
  */
-export const POST_WELCOME_NAMES = ["동탄맨", "울트라매니아"] as const;
+// 10/30 대표님 "18개로 랜덤 번갈아가며": 운영 이름 전부 ("💬 수다방"은 사람 이름이 아니라 뺐다)
+export const POST_WELCOME_NAMES = OPERATOR_NICKS.filter((n) => n !== "💬 수다방");
 
 const LINES = [
   (n: string) => `${n}님 환영해요`,
@@ -24,11 +25,14 @@ const LINES = [
   () => "좋은 글 감사해요",
 ] as const;
 
-/** 글 번호로 이름과 문장을 돌린다 (이름 순번과 문장 순번을 따로 세서 같은 이름이 늘 같은 말을 하지 않게) */
-export function postWelcome(postId: string, nickname: string): { who: string; body: string } {
+let lastWho = "";
+/** 이름은 랜덤(바로 앞과 같은 이름은 피함), 문장은 글 번호로 돌린다 */
+export function postWelcome(postId: string, nickname: string, pick: (n: number) => number = randomInt): { who: string; body: string } {
   const id = Number(postId) || 0;
-  const who = POST_WELCOME_NAMES[id % POST_WELCOME_NAMES.length]!;
-  const line = LINES[Math.floor(id / POST_WELCOME_NAMES.length) % LINES.length]!;
+  let who = POST_WELCOME_NAMES[pick(POST_WELCOME_NAMES.length)]!;
+  if (who === lastWho && POST_WELCOME_NAMES.length > 1) who = POST_WELCOME_NAMES[(POST_WELCOME_NAMES.indexOf(who) + 1) % POST_WELCOME_NAMES.length]!;
+  lastWho = who;
+  const line = LINES[id % LINES.length]!;
   return { who, body: line(nickname) };
 }
 

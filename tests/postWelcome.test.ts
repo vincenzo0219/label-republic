@@ -1,13 +1,16 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { postWelcome } from "@/lib/jobs/postWelcome";
+import { POST_WELCOME_NAMES, postWelcome } from "@/lib/jobs/postWelcome";
 
 describe("✍️ 새 글 환영 댓글 (문구)", () => {
-  it("동탄맨·울트라매니아를 번갈아, 문장도 돌린다", () => {
-    expect(postWelcome("10", "철수").who).toBe("동탄맨");
-    expect(postWelcome("11", "철수").who).toBe("울트라매니아");
-    expect(postWelcome("10", "철수").body).not.toBe(postWelcome("12", "철수").body);
+  it("운영 이름 17개 중 랜덤(같은 이름 연달아 X), 문장도 돌린다", () => {
+    expect(POST_WELCOME_NAMES).toHaveLength(17);
+    expect(POST_WELCOME_NAMES).toContain("짱가");
+    expect(POST_WELCOME_NAMES).not.toContain("💬 수다방");
+    const a = postWelcome("10", "철수", () => 3).who;
+    expect(postWelcome("11", "철수", () => 3).who).not.toBe(a);
+    expect(postWelcome("10", "철수").body).not.toBe(postWelcome("11", "철수").body);
   });
 });
 
@@ -39,7 +42,7 @@ d("✍️ 새 글 환영 댓글 (DB)", async () => {
     expect(await runPostWelcome()).toBe(0);
     const c = await query<{ nickname: string; body: string }>("SELECT nickname, body FROM comments WHERE post_id = $1", [human]);
     expect(c).toHaveLength(1);
-    expect(["동탄맨", "울트라매니아"]).toContain(c[0]!.nickname);
+    expect(POST_WELCOME_NAMES).toContain(c[0]!.nickname);
     // 댓글: 한 글에서 한 사람에게 한 번만 (운영 답글에 다시 답해도 또 달지 않음)
     const [c1] = await query<{ id: string }>("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, created_at) VALUES ($1, '대니', 'x', '안녕', 'fpc', now() - interval '70 seconds') RETURNING id::text", [human]);
     expect(await runPostWelcome()).toBe(1);
