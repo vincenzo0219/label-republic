@@ -152,6 +152,7 @@ export const TESTS: { path: string; name: string; description: string; room: str
   { path: "/game-test", name: "게이머 타입 테스트", description: "랭크 올인파? 밤샘 스토리파? 나의 게임 타입", room: "게임-덕후방" },
   { path: "/drama-test", name: "드라마러 타입 테스트", description: "정주행파? 본방 사수파? 나의 드라마 타입", room: "드라마-덕후방" },
   { path: "/coffee-test", name: "커피러 타입 테스트", description: "아아 직진파? 핸드드립 탐험가? 나의 커피 타입", room: "커피-덕후방" },
+  { path: "/love-test", name: "연애 성향 테스트", description: "직진형? 대화 우선형? 나의 연애 성향", room: "미혼남녀-만남-행사" },
   { path: "/anime-test", name: "덕질 타입 테스트", description: "굿즈 수집가? 정주행 시청파? 나의 애니·만화 덕질 타입", room: "애니-만화-덕후방" },
   { path: "/wine-test", name: "술 취향 테스트", description: "묵직 레드파? 스모키 피트파? 와인·위스키 취향 (만 19세 이상)", room: "와인-위스키-덕후방" },
   { path: "/dog-test", name: "견주 타입 테스트", description: "산책왕? 성분표 박사? 나의 견주 타입", room: "반려견-덕후방" },

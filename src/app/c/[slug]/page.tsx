@@ -111,6 +111,7 @@ const ROOM_LINKS: Record<string, { href: string; label: string }[]> = {
   "드라마-덕후방": [{ href: "/drama-test", label: "📺 1분 테스트" }],
   "커피-덕후방": [{ href: "/coffee-test", label: "☕ 1분 테스트" }],
   "애니-만화-덕후방": [{ href: "/anime-test", label: "🎨 1분 테스트" }],
+  "미혼남녀-만남-행사": [{ href: "/love-test", label: "💘 연애 성향 1분 테스트" }],
   "와인-위스키-덕후방": [{ href: "/wine-test", label: "🍷 1분 테스트" }],
   "육아-덕후방": [{ href: "/parent-test", label: "👶 1분 테스트" }],
   "작가지망생방": [{ href: "/writer-test", label: "✍️ 1분 테스트" }],
