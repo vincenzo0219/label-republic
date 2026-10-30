@@ -1,6 +1,6 @@
 "use client";
 
-import { CHAT_CHIPS, CHAT_STARTERS, chatChipTargets, chatChipText, REPLY_CHIPS } from "@/lib/quickReplies";
+import { CHAT_CHIPS, CHAT_STARTERS, chatChipTargets, REPLY_CHIPS } from "@/lib/quickReplies";
 import { badgeOf, type BadgeMap } from "@/lib/badges";
 import { NickBadge } from "./NickBadge";
 import Link from "next/link";
@@ -79,6 +79,9 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
   const [live, setLive] = useState(false);
   const [form, setForm] = useState({ nickname: "", pw: "", body: "" });
   const [replyTo, setReplyTo] = useState<{ id: string; nickname: string } | null>(null);
+  // 💬 수다방 답장은 카톡처럼 (10/30 대표님 "자동 골뱅이가 생기고 이상해. 카톡과 똑같이"): 입력창 위에 원문 미리보기, 보낸 말풍선 안에 원문 인용
+  const [chatReply, setChatReply] = useState<{ id: string; nickname: string; body: string } | null>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
   // 리포트·알림의 "#c번호" 링크로 온 댓글 — 앱 안 이동(pushState)에서는 :target 이 바뀌지 않아 직접 강조한다
   const [target, setTarget] = useState<string | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -267,7 +270,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
     }
     const payload = rt
       ? { ...form, body: text.trim(), parentId: rt.id }
-      : { ...form, body: form.body.trim() || (image ? "📷" : form.body), ...(image ? { image } : {}) };
+      : { ...form, body: form.body.trim() || (image ? "📷" : form.body), ...(image ? { image } : {}), ...(chat && chatReply ? { parentId: chatReply.id } : {}) };
     try {
       const pid = postId || (ensurePost ? await ensurePost() : "");
       if (!pid) throw new Error("잠시 후 다시 시도해 주세요.");
@@ -283,6 +286,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
       } else {
         setForm((f) => ({ ...f, body: "" }));
         setPhoto(null);
+        setChatReply(null);
       }
       try {
         saveNick(form.nickname);
@@ -327,6 +331,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
       if (parentId) {
         setReplyTo(null);
         setReplyBody("");
+        setChatReply(null);
       }
       try {
         saveNick(nickname);
@@ -410,6 +415,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                 <div className="chat-bubble comment-hidden">{c.hidden_reason === "reported" ? REPORTED_TEXT : c.hidden_reason === "operator" ? OPERATOR_TEXT : <>🤖 AI 자동 운영이 <b>{abuseLabel(c.hidden_reason)}</b>이(가) 담긴 것으로 판단해 가렸어요.</>}</div>
               ) : (
                 <div className="chat-bubble">
+                  {c.parent_id && <ChatQuote parent={comments.find((x) => x.id === c.parent_id)} />}
                   <Photo id={c.image_id} />
                   {c.image_id && c.body === "📷" ? null : splitMentions(c.body, nicknames).map((p, i) => (p.mention ? <span key={i} className="mention">{p.text}</span> : p.text))}
                 </div>
@@ -419,7 +425,15 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                   <button className={`linkish like${liked.has(c.id) ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={liked.has(c.id)} aria-label={`${c.nickname}님 말에 공감`}>
                     👍{likes[c.id] ? ` ${likes[c.id]}` : ""}
                   </button>
-                  <button className="linkish" onClick={() => setForm((f) => ({ ...f, body: f.body.includes(`@${c.nickname}`) ? f.body : `@${c.nickname} ${f.body}` }))}>답하기</button>
+                  <button
+                    className="linkish"
+                    onClick={() => {
+                      setChatReply({ id: c.id, nickname: c.nickname, body: c.image_id && c.body === "📷" ? "📷 사진" : c.body });
+                      requestAnimationFrame(() => chatInputRef.current?.focus());
+                    }}
+                  >
+                    답장
+                  </button>
                   {!c.is_ai_curated && c.nickname === form.nickname.trim() && (
                     <>
                       <button className="linkish" onClick={() => edit(c)}>수정</button>
@@ -446,7 +460,28 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
             </label>
           )}
           {!savedNick && <NickCheck nickname={form.nickname} />}
-          {starter && !starterSent ? (
+          {chatReply && (
+            <div className="chat-reply-bar" role="status">
+              <span className="chat-reply-to">
+                <span>
+                  ↩ <b>{chatReply.nickname}</b>에게 답장
+                </span>
+                <span className="chat-reply-text">{chatReply.body.slice(0, 60)}</span>
+              </span>
+              <button type="button" className="chat-reply-x" aria-label="답장 취소" onClick={() => setChatReply(null)}>
+                ✕
+              </button>
+            </div>
+          )}
+          {chatReply ? (
+            <div className="quick-replies chat-starter" role="group" aria-label={`${chatReply.nickname}님께 한 번 눌러 답장`}>
+              {CHAT_CHIPS.map((ch) => (
+                <button key={ch} type="button" className="chip quick-reply" disabled={busy} onClick={() => sendChip(ch, chatReply.id)}>
+                  {ch}
+                </button>
+              ))}
+            </div>
+          ) : starter && !starterSent ? (
             <div className="quick-replies chat-starter" role="group" aria-label="한 번 눌러 인사">
               {CHAT_STARTERS.map((q) => (
                 <button
@@ -474,7 +509,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                   disabled={busy}
                   onClick={async () => {
                     setChatChipped((s) => new Set(s).add(chipTo.id));
-                    await sendChip(chatChipText(chipTo.nickname, ch));
+                    await sendChip(ch, chipTo.id);
                   }}
                 >
                   {ch}
@@ -485,7 +520,7 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
           <PhotoPreview photo={photo} onClear={() => setPhoto(null)} />
           <div className="row chat-row">
             <PhotoButton fileRef={fileRef} onPick={pickPhoto} />
-            <input className="input" placeholder="메시지" value={form.body} maxLength={1000} required={!photo} aria-label="메시지"
+            <input ref={chatInputRef} className="input" placeholder="메시지" value={form.body} maxLength={1000} required={!photo} aria-label="메시지"
               onChange={(e) => setForm({ ...form, body: e.target.value })} />
             <button className="btn btn-primary" disabled={busy || (!form.body.trim() && !photoReady)}>{busy ? "…" : "보내기"}</button>
           </div>
@@ -618,6 +653,18 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
         </div>
       </form>
     </section>
+  );
+}
+
+/** 💬 답장 말풍선 안의 원문 인용 (카톡처럼). 누르면 원문으로 */
+function ChatQuote({ parent }: { parent?: Comment }) {
+  if (!parent) return <span className="chat-quote gone">지워진 말에 답장</span>;
+  const text = parent.hidden_reason ? "가려진 말" : parent.image_id && parent.body === "📷" ? "📷 사진" : parent.body;
+  return (
+    <a className="chat-quote" href={`#c${parent.id}`}>
+      <b>{parent.nickname}</b>
+      <span>{text.slice(0, 50)}</span>
+    </a>
   );
 }
 

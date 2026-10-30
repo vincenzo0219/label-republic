@@ -41,11 +41,19 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
   const [report, setReport] = useState<(Report & { mode: ReportMode }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  // 처음 온 사람이나 새 글이 하나도 없을 때는 "0"만 보이지 않게 최근 7일로 (10/30 대표님 "처음 온 사람 7일 보기로 고쳐")
+  const [fellBack, setFellBack] = useState(false);
   const openedAt = useRef(new Date().toISOString());
   const marked = useRef(false);
+  const userPicked = useRef(false);
 
   useEffect(() => {
-    setSince(getSeenAt());
+    const seen = getSeenAt();
+    setSince(seen);
+    if (!seen) {
+      setMode("week");
+      setFellBack(true);
+    }
     setLocal(readBoards());
     setWatched(readWatch());
     // 내용이 같은 변경 알림(확인 시각 저장 등)으로는 다시 불러오지 않는다
@@ -72,6 +80,10 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
       const res = await fetch(`/api/report?${qs}`);
       if (!res.ok) throw new Error(`리포트를 불러오지 못했어요 (${res.status})`);
       const r: Report = await res.json();
+      if (m === "new" && r.total === 0 && r.posts.length === 0 && !userPicked.current) {
+        setFellBack(true);
+        setMode("week");
+      }
       setReport({ ...r, mode: m });
       // 병합된 제품은 새 번호로, 지워진 글은 목록에서 뺀다
       reconcile(
@@ -91,10 +103,10 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
   // "새 글" 목록이 화면에 그려진 뒤에만 "확인함"으로 기록 → 다음 방문은 이 페이지를 연 시각 이후 새 글만.
   // (최근 7일 화면이나 관심 방을 고르기 전 온보딩 화면만 본 경우에는 기록하지 않는다)
   useEffect(() => {
-    if (!report || report.mode !== "new" || marked.current) return;
+    if (!report || marked.current || (report.mode !== "new" && !fellBack)) return;
     marked.current = true;
     setSeenAt(openedAt.current);
-  }, [report]);
+  }, [report, fellBack]);
 
   const toggleBoard = (slug: string) => {
     const on = !interests?.includes(slug);
@@ -151,7 +163,11 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
           {watched.comments.length > 0 && ` · 내 댓글 ${watched.comments.length}개`}
         </p>
         <div style={{ display: "flex", gap: 6 }}>
-          <button type="button" className="btn btn-sm" aria-pressed={mode === "week"} onClick={() => setMode((m) => (m === "week" ? "new" : "week"))}>
+          <button type="button" className="btn btn-sm" aria-pressed={mode === "week"} onClick={() => {
+              userPicked.current = true;
+              setFellBack(false);
+              setMode((m) => (m === "week" ? "new" : "week"));
+            }}>
             {mode === "week" ? "새 글만" : "최근 7일 전체"}
           </button>
           <button type="button" className="btn btn-sm" aria-expanded={editing} onClick={() => setEditing((v) => !v)}>
@@ -194,6 +210,7 @@ export function MyReport({ allBoards }: { allBoards: Board[] }) {
         <h2 className="section-title">
           {mode === "week" ? "🗓 관심 방 최근 7일" : "🆕 관심 방 새 글"} {report?.mode === mode ? report.total : ""}
         </h2>
+        {fellBack && mode === "week" && <p className="hint" style={{ marginTop: -4 }}>{since ? "새 글은 아직 없어요. 최근 7일 글을 보여 드려요." : "처음 오셨네요. 관심 방의 최근 7일 글이에요."}</p>}
         {report && report.boards.length > 1 && (
           <p className="hint" style={{ marginTop: -4 }}>
             {report.boards.map((b) => `${b.name} ${b.newCount}`).join(" · ")}
