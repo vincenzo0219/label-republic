@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { WORLDCUP_TRAITS } from "@/lib/miniGames";
-import { buzz } from "../MiniGame";
+import { chime, pop, whoosh } from "@/lib/gameSound";
+import { burst, pointOf, popEl, VIBE, vibe } from "@/lib/juice";
 
 const ROUND_NAME: Record<number, string> = { 16: "16강", 8: "8강", 4: "4강", 2: "결승" };
 
@@ -25,8 +26,13 @@ export function WorldcupGame({ onFinish }: { onFinish: (winner: number) => void 
   const a = pool[i]!;
   const b = pool[i + 1]!;
 
-  function pick(w: number) {
-    buzz();
+  function pick(w: number, e: React.MouseEvent<HTMLButtonElement>) {
+    const { x, y } = pointOf(e);
+    whoosh();
+    setTimeout(pop, 60);
+    vibe(VIBE.tap);
+    popEl(e.currentTarget);
+    burst(x, y, 10, ["#ff7eb6", "#ff9fc8", "#ffd1e3", "#c79bff"]);
     const won = [...next, w];
     if (i + 2 < pool.length) {
       setNext(won);
@@ -34,6 +40,9 @@ export function WorldcupGame({ onFinish }: { onFinish: (winner: number) => void 
       return;
     }
     if (won.length === 1) return onFinish(won[0]!);
+    // 다음 라운드(8강·4강·결승)로 올라갈 때 딩동
+    setTimeout(chime, 150);
+    vibe(VIBE.hit);
     setPool(won);
     setNext([]);
     setI(0);
@@ -45,9 +54,9 @@ export function WorldcupGame({ onFinish }: { onFinish: (winner: number) => void 
         {ROUND_NAME[pool.length]} {pool.length > 2 ? `${i / 2 + 1}/${pool.length / 2}` : ""}
       </p>
       <div className="wc-pair">
-        <button type="button" className="wc-card" onClick={() => pick(a)}>{WORLDCUP_TRAITS[a]}</button>
+        <button type="button" className="wc-card" onClick={(e) => pick(a, e)}>{WORLDCUP_TRAITS[a]}</button>
         <span className="wc-vs" aria-hidden>VS</span>
-        <button type="button" className="wc-card" onClick={() => pick(b)}>{WORLDCUP_TRAITS[b]}</button>
+        <button type="button" className="wc-card" onClick={(e) => pick(b, e)}>{WORLDCUP_TRAITS[b]}</button>
       </div>
     </>
   );

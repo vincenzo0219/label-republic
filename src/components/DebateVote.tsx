@@ -7,6 +7,8 @@ import { markDailyAction } from "@/lib/streak";
 import { GENDER_KEY, GENDER_LABEL, GENDER_MIN, genderSplit, type VoteGender } from "@/lib/genderSplit";
 import { PushButton } from "./PushButton";
 import { Confetti } from "./RoomQuiz";
+import { softTap, sparkle } from "@/lib/gameSound";
+import { pressFx } from "@/lib/juice";
 
 const pct = (x: number, n: number) => (n ? Math.round((x / n) * 100) : 0);
 
@@ -82,7 +84,14 @@ export function DebateVote({ postId, initial, push = true }: { postId: string; i
       )}
       <div className="debate-sides">
         {(["A", "B"] as const).map((s) => (
-          <button key={s} type="button" className={`btn vote-btn${mine === s ? " btn-primary" : ""}${mine === s && burst ? " vote-pop" : ""}`} onClick={() => vote(s)} aria-pressed={mine === s}>
+          <button key={s} type="button" className={`btn vote-btn${mine === s ? " btn-primary" : ""}${mine === s && burst ? " vote-pop" : ""}`} onClick={(e) => {
+            if (s !== mine) {
+              pressFx(e, 10);
+              softTap();
+              setTimeout(sparkle, 120);
+            }
+            void vote(s);
+          }} aria-pressed={mine === s}>
             {s === "A" ? t.a : t.b}
           </button>
         ))}

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { fanfare, onSoundChange, soundOn, startMusic, stopMusic, toggleSound } from "@/lib/gameSound";
+import { VIBE, vibe } from "@/lib/juice";
 import { api } from "@/lib/client-api";
 import { better, formatScore, GAMES, type GameId, shareText } from "@/lib/miniGames";
 import { LatteGame } from "./games/LatteGame";
@@ -35,6 +37,20 @@ export function buzz(ms = 15) {
   } catch {}
 }
 
+/** 🔊/🔇 모든 미니게임 공통 (이 브라우저에 기억). 끄면 음악도 바로 멈춘다 */
+export function SoundToggle() {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    setOn(soundOn());
+    return onSoundChange(setOn);
+  }, []);
+  return (
+    <button type="button" className="mg-sound" aria-pressed={on} aria-label={on ? "소리 끄기" : "소리 켜기"} onClick={() => toggleSound()}>
+      {on ? "🔊" : "🔇"}
+    </button>
+  );
+}
+
 /** 🎮 방 미니게임 껍데기: 게임 → 끝 화면(내 최고 기록 · 오늘 이 방 최고 기록 · 다시 하기 · 기록 공유 · 방으로) */
 export function MiniGame({ game }: { game: GameId }) {
   const g = GAMES[game];
@@ -42,6 +58,12 @@ export function MiniGame({ game }: { game: GameId }) {
   const [score, setScore] = useState<number | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // 🎵 배경 음악: 게임 칸을 처음 탭한 뒤부터(브라우저 규칙), 끝 화면에서는 멈춘다. 승부차기는 PkGame 이 직접
+  useEffect(() => () => stopMusic(), []);
+  useEffect(() => {
+    if (score !== null) stopMusic();
+  }, [score]);
 
   useEffect(() => {
     const src = new URLSearchParams(location.search).get("from") === "room" ? "room" : "direct";
@@ -65,6 +87,10 @@ export function MiniGame({ game }: { game: GameId }) {
       r = { ...r, myBest: mine, best: saved ? r.best : better(game, n, prev) };
     }
     setResult(r);
+    if (r.best || game === "worldcup") {
+      fanfare();
+      vibe(VIBE.win);
+    }
   }
 
   function again() {
@@ -95,7 +121,10 @@ export function MiniGame({ game }: { game: GameId }) {
       <main className="mini-game" data-game={game}>
         <header className="mg-head">
           <Link href={roomHref} className="mg-back">← {g.roomName}</Link>
-          <h1 className="mg-title">{g.emoji} {g.name}</h1>
+          <div className="mg-title-row">
+            <h1 className="mg-title">{g.emoji} {g.name}</h1>
+            <SoundToggle />
+          </div>
         </header>
         <PkGame />
       </main>
@@ -104,10 +133,13 @@ export function MiniGame({ game }: { game: GameId }) {
     <main className="mini-game" data-game={game}>
       <header className="mg-head">
         <Link href={roomHref} className="mg-back">← {g.roomName}</Link>
-        <h1 className="mg-title">{g.emoji} {g.name}</h1>
+        <div className="mg-title-row">
+          <h1 className="mg-title">{g.emoji} {g.name}</h1>
+          <SoundToggle />
+        </div>
       </header>
       {score === null ? (
-        <div key={round} className="mg-stage">
+        <div key={round} className="mg-stage" onPointerDownCapture={() => startMusic(game)}>
           {game === "reaction" && <ReactionGame onFinish={finish} />}
           {game === "worldcup" && <WorldcupGame onFinish={finish} />}
           {game === "latte" && <LatteGame onFinish={finish} />}

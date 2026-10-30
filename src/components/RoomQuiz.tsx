@@ -6,6 +6,8 @@ import { api } from "@/lib/client-api";
 import { roomEmoji, roomShortName } from "@/lib/myRooms";
 import { pct, streakTier, type RoomQuiz as Quiz } from "@/lib/roomQuizzes";
 import { RoomPoll } from "./RoomPoll";
+import { chime, softTap, sparkle } from "@/lib/gameSound";
+import { pressFx } from "@/lib/juice";
 
 type Tally = { total: number; counts: Record<string, number> };
 type Me = { streak: number; best: number; freezeLeft: 0 | 1 };
@@ -224,6 +226,9 @@ export function RoomQuiz({ slug, name }: { slug: string; name: string }) {
       const justTitled = r.progress === TITLE_MIN;
       window.setTimeout(() => {
         setRevealed(true);
+        // 결과가 열릴 때: 맞혔거나 기념일이면 딩동, 아니면 반짝
+        if (right || milestone || justTitled) chime();
+        sparkle();
         setConfetti(
           milestone
             ? r.streak >= 30
@@ -324,7 +329,9 @@ export function RoomQuiz({ slug, name }: { slug: string; name: string }) {
                 type="button"
                 className="quiz-opt"
                 disabled={busy || answered}
-                onClick={() => {
+                onClick={(e) => {
+                  pressFx(e);
+                  softTap();
                   const next = [...picks, i];
                   setPicks(next);
                   if (next.length === q.questions.length)
@@ -362,7 +369,9 @@ export function RoomQuiz({ slug, name }: { slug: string; name: string }) {
                   type="button"
                   className={`quiz-opt${answered ? " done" : ""}${mineHere ? " mine" : ""}${correct ? " correct" : ""}${wrongMine ? " wrong" : ""}`}
                   disabled={busy || answered}
-                  onClick={() => {
+                  onClick={(e) => {
+                    pressFx(e, 10);
+                    softTap();
                     setChosen(i);
                     void send({ choice: i });
                   }}
