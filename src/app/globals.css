@@ -1784,3 +1784,13 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .rally-target { color: var(--muted); font-weight: 700; }
 .rally-target.passed { color: #2f8f4e; }
 .rally-verdict.win { color: #2f8f4e; font-size: 20px; }
+
+/* 💬 수다방 답장 (카톡처럼, 10/30) */
+.chat-reply-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 8px 10px; border-left: 3px solid var(--brand); border-radius: 8px; background: color-mix(in srgb, var(--brand) 8%, var(--surface)); font-size: 13px; }
+.chat-reply-to { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.chat-reply-text { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-reply-x { border: 0; background: none; font-size: 16px; color: var(--muted); padding: 4px 6px; cursor: pointer; }
+.chat-quote { display: grid; gap: 1px; margin: 0 0 6px; padding: 5px 8px; border-left: 3px solid color-mix(in srgb, var(--brand) 60%, var(--line)); border-radius: 6px; background: color-mix(in srgb, var(--line) 35%, transparent); font-size: 12.5px; color: var(--muted); text-decoration: none; max-width: 100%; }
+.chat-quote b { color: inherit; font-weight: 700; }
+.chat-quote span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-quote.gone { font-style: italic; }
