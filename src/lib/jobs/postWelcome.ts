@@ -10,7 +10,7 @@ const MAX_PER_RUN = 10;
 /**
  * ✍️ 사람이 글을 쓰면 20초~1분 사이에 운영 이름으로 반가운 댓글 하나 (10/30 운영 이름 17개 랜덤) (10/30 "20초는 너무 짧고 20초~1분 사이에", "한번 다는데 닉네임을 번갈아") (10/30 대표님 "어떤 사람이 글을 쓰면 무조건 내 이름으로 댓글을
  * 달아줘. 20초 안에. 환영해요, 반갑습니다 등등 돌아가면서" + "동탄맨, 울트라매니아 번갈아가면서").
- * 새 글은 글에 댓글로, 댓글·수다방 말은 그 말에 답글로(한 글에서 한 사람에게 한 번). 시스템이 만든 글(seed_key) 자체에는 달지 않는다. POST_WELCOME_ENABLED=0 이면 끈다.
+ * 새 글은 글에 댓글로, 댓글·수다방 말은 그 말에 답글로(한 글에서 한 사람에게 한 번). 시스템이 만든 글(seed_key) 자체에는 달지 않는다. 10/30 밤부터 기본 꺼짐(POST_WELCOME_ENABLED=1 일 때만).
  */
 // 10/30 대표님 "18개로 랜덤 번갈아가며": 운영 이름 전부 ("💬 수다방"은 사람 이름이 아니라 뺐다)
 /** 대표님이 휴대폰에서 쓰는 이름: 환영 답글을 달지 않는다 (10/30 "내가 다는 댓글에는 댓글 달지마", "밑에는 내가 쓴거니까") */
@@ -45,7 +45,8 @@ export function postWelcome(postId: string, nickname: string, lineId: string = p
 type Fresh = { id: string; nickname: string };
 
 export async function runPostWelcome(now = new Date()): Promise<number> {
-  if (process.env.POST_WELCOME_ENABLED === "0") return 0;
+  // 10/30 밤 대표님 "너가 자동으로 답글 달지마": 기본은 꺼짐, POST_WELCOME_ENABLED=1 일 때만
+  if (process.env.POST_WELCOME_ENABLED !== "1") return 0;
   const client = await pool().connect();
   try {
     const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [LOCK_KEY]);

@@ -22,6 +22,7 @@ const d = url ? describe : describe.skip;
 
 d("✍️ 새 글 환영 댓글 (DB)", async () => {
   process.env.DATABASE_URL = url;
+  process.env.POST_WELCOME_ENABLED = "1";
   const { pool, query } = await import("@/lib/db");
   const { runPostWelcome } = await import("@/lib/jobs/postWelcome");
   beforeAll(async () => {
@@ -32,6 +33,12 @@ d("✍️ 새 글 환영 댓글 (DB)", async () => {
   });
   afterAll(async () => {
     await pool().end();
+  });
+
+  it("기본은 꺼져 있다", async () => {
+    delete process.env.POST_WELCOME_ENABLED;
+    expect(await runPostWelcome()).toBe(0);
+    process.env.POST_WELCOME_ENABLED = "1";
   });
 
   it("사람 새 글에만 한 번, 운영·시스템 글은 건너뛴다", async () => {
@@ -66,6 +73,6 @@ d("✍️ 새 글 환영 댓글 (DB)", async () => {
     process.env.POST_WELCOME_ENABLED = "0";
     await add("손님3");
     expect(await runPostWelcome()).toBe(0);
-    delete process.env.POST_WELCOME_ENABLED;
+    process.env.POST_WELCOME_ENABLED = "1";
   });
 });
