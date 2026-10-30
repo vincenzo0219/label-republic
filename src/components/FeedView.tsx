@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { listPosts } from "@/lib/repo/posts";
-import { INGREDIENT_ROOMS, listCategories, quietRoomSlugs, roomTools } from "@/lib/repo/categories";
+import { INGREDIENT_ROOMS, listCategories, roomTools } from "@/lib/repo/categories";
 import type { Category, PostType } from "@/lib/types";
 import type { SortKey } from "@/lib/validation";
 import { THIN_BOARD_POSTS } from "@/lib/onboarding";
 import { boardNeeds } from "@/lib/repo/onboarding";
-import { CategoryTabs } from "./CategoryTabs";
 import { MyRoomStar } from "./MyRooms";
 import { Pagination } from "./Pagination";
 import { PostCard } from "./PostCard";
@@ -21,6 +20,7 @@ import { CalendarSubscribe } from "./CalendarSubscribe";
 import { CheerButton } from "./CheerButton";
 import { LiveComments } from "./LiveComments";
 import { RoomVisitors } from "./RoomVisitors";
+import { AllRoomsCta } from "./AllRoomsCta";
 import { SeenTracker } from "./SeenTracker";
 import { badgeOf, ROOM_BADGES, type BadgeMap } from "@/lib/badges";
 import { badgesSafe } from "@/lib/repo/badges";
@@ -31,7 +31,8 @@ import { eventCardCounts } from "@/lib/repo/eventGoing";
 
 // 방 상단 도구 유무·조용한 방 목록은 자주 바뀌지 않아 60초씩 재사용 (10/24 속도)
 const cachedRoomTools = ttlMemo(roomTools, 60_000);
-const cachedQuiet = ttlMemo((_: number) => quietRoomSlugs(), 60_000);
+// 방 안 "☰ 다른 방 n개"용 공개 방 수
+const cachedRoomCount = ttlMemo(async (_: number) => (await listCategories()).length, 60_000);
 // 방 탭: 손가락이 닿는(hover·touchstart) 순간 그 탭 화면 전체를 미리 받는다. next/link 의 공개 타입에는 아직 없는 App Router 옵션
 const PREFETCH_ON_TOUCH = { unstable_dynamicOnHover: true } as object;
 
@@ -75,13 +76,11 @@ export async function FeedView({
 }) {
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced && !head && !chat && !roomTab;
-  const [categories, feed, needs, tools, quiet] = await Promise.all([
-    // 방 목록·조용한 방은 홈의 방 탭(CategoryTabs)에만 쓰여서, 방 안에서는 조회하지 않는다
-    category ? Promise.resolve([]) : listCategories(),
+  const [feed, needs, tools, roomCount] = await Promise.all([
     chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, categorySlugs: !category && onlyMine && mine?.length ? mine : undefined, sort, page, type, head, notHeads: type === "info" && !head && category ? headsFor(category.slug).flatMap((h) => tabMembers(h.key)) : undefined, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category, pinnedTab: pinnedTabFor(category?.slug, { head, type, sourced }) }),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? cachedRoomTools(category.id) : Promise.resolve(null),
-    category ? Promise.resolve(new Set<string>()) : cachedQuiet(0).catch(() => new Set<string>()),
+    category ? cachedRoomCount(0).catch(() => 0) : Promise.resolve(0),
   ]);
   // 방 배지 (작가지망생방: 장르 작가 테스트 결과)
   const badges = category && feed && Object.hasOwn(ROOM_BADGES, category.slug) ? await badgesSafe(category.slug, feed.items.map((p) => p.nickname)) : undefined;
@@ -123,13 +122,12 @@ export async function FeedView({
     <>
       <h1 className="sr-only">{category ? `${category.name} 방` : "노방장: 같은 취향끼리 일정·정보·수다"}</h1>
       {/* 방 안에서는 다른 방 목록을 숨긴다 — 방 이름과 홈으로 가는 길만 */}
-      {!category && !onlyMine && <CategoryTabs categories={categories} active={undefined} quiet={[...quiet]} mine={mine} />}
       {category && (
         <div className="board-head">
           <span className="room-title">
             <span className="room-name">{category.name}</span>
             <MyRoomStar slug={category.slug} />
-            <Link href="/?all=1" className="all-rooms-link">☰ 전체 방</Link>
+            <Link href="/?all=1#rooms" className="all-rooms-link other-rooms">☰ 다른 방{roomCount > 1 ? ` ${roomCount - 1}개` : ""}</Link>
             <RoomVisitors slug={category.slug} />
           </span>
           <div className="board-actions">
@@ -152,6 +150,7 @@ export async function FeedView({
           </div>
         </div>
       )}
+      {category && <AllRoomsCta count={roomCount} />}
       {banner}
       {category && (
       <nav className="type-filter" aria-label="글 유형">
@@ -205,7 +204,8 @@ export async function FeedView({
       {lead}
       {/* 머리글에 글쓰기가 없어서 (어제 방문자 자리) 목록 위 이 버튼 하나가 글쓰기 */}
       {ruleNotice && <p className="room-rule-note" role="note">{ruleNotice}</p>}
-      {(
+      {/* 홈에서는 큰 글쓰기 대신 맨 위 내 방·방 둘러보기가 첫 행동 (10/30 대표님 "네이버 카페·밴드처럼"). 글쓰기는 방 안에서 */}
+      {category && (
         <Link className="btn btn-primary tab-write" href={writeHref}>
           {writeLabel}
         </Link>
@@ -214,6 +214,7 @@ export async function FeedView({
       {/* 📅 웹 푸시가 안 닿는 폰도 달력 앱이 알려 주게 (10/26). 숨긴 방은 구독 달력에서 빠지므로 버튼도 없다 */}
       {category && head === "행사" && !category.is_hidden && <CalendarSubscribe room={category.slug} />}
       {/* 방 안에서는 정렬 버튼 없이 최신순 (10/21 단순화) */}
+      {!category && <h2 className="feed-title">추천 글</h2>}
       {!category && <SortBar basePath={basePath} params={typeParam} sort={sort} total={feed.total} />}
       {items.length === 0 ? (
         <div className="empty">

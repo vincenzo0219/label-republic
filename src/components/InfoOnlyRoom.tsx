@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { listCategories } from "@/lib/repo/categories";
+import { AllRoomsCta } from "./AllRoomsCta";
 import type { Category } from "@/lib/types";
 import { listSinglesEvents } from "@/lib/repo/singlesEvents";
 import { ensureSinglesTalks } from "@/lib/repo/singlesTalk";
@@ -28,16 +30,18 @@ export async function SinglesTab() {
  * 💌 미혼남녀 만남 행사 방은 098 부터 다른 방처럼 글·채팅이 있고, 행사 화면은 그 방의 💌 만남 행사 탭이다.
  */
 export async function InfoOnlyRoom({ category }: { category: Category }) {
+  const count = (await listCategories().catch(() => [])).length;
   return (
     <>
       <h1 className="sr-only">{category.name} 방</h1>
       <div className="board-head singles-head">
         <span className="room-title">
           <span className="room-name">{category.name}</span>
-          <Link href="/?all=1" className="all-rooms-link">☰ 전체 방</Link>
+          <Link href="/?all=1#rooms" className="all-rooms-link other-rooms">☰ 다른 방{count > 1 ? ` ${count - 1}개` : ""}</Link>
         </span>
         <p className="room-desc">{category.description}</p>
       </div>
+      <AllRoomsCta count={count} />
       {category.slug === SINGLES_ROOM ? <SinglesTab /> : <p className="empty">이 방은 정보만 모아 보여 줘요.</p>}
     </>
   );

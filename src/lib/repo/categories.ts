@@ -48,6 +48,24 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
   return rows[0] ?? null;
 }
 
+/**
+ * 🏠 홈 방 고르기 (10/30 대표님 "첫 화면은 방 고르기"): 방마다 최근 24시간 사람(🤖 아닌) 글·댓글 수.
+ * 방 카드 아래 "오늘 이야기 n"과 순서(많은 방 먼저)에 쓴다. 방이 몇 개 안 돼 가볍다
+ */
+export async function roomActivity(): Promise<Record<string, number>> {
+  const rows = await query<{ slug: string; n: number }>(
+    `SELECT c.slug,
+            (SELECT count(*)::int FROM posts p
+              WHERE p.category_id = c.id AND NOT p.is_ai_curated AND NOT p.is_blinded
+                AND p.created_at > now() - interval '24 hours')
+          + (SELECT count(*)::int FROM comments m JOIN posts p ON p.id = m.post_id
+              WHERE p.category_id = c.id AND NOT m.is_ai_curated AND m.ai_hidden_at IS NULL
+                AND m.created_at > now() - interval '24 hours') AS n
+       FROM categories c WHERE NOT c.is_hidden`,
+  );
+  return Object.fromEntries(rows.filter((r) => r.n > 0).map((r) => [r.slug, r.n]));
+}
+
 /** 방별로 since 이후 올라온 (보이는) 글 수 — 방 탭 "새 글 N" (Sprint 41). 방당 100에서 멈춘다 */
 export async function newPostCounts(pairs: { slug: string; since: Date }[]): Promise<Record<string, number>> {
   const rows = await query<{ slug: string; n: number }>(

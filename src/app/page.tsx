@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { ForgetRoom } from "@/components/RoomMemory";
 import { getCategoryBySlug, listCategories } from "@/lib/repo/categories";
+import { RoomGrid } from "@/components/RoomGrid";
 import { MyRoomsBar } from "@/components/MyRooms";
 import { MY_ROOMS_COOKIE, parseMyRoomsCookie } from "@/lib/myRooms";
 import { FeedView } from "@/components/FeedView";
@@ -56,11 +57,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return (
     <>
       {all && <ForgetRoom />}
+      {/* 홈 맨 위 순서 (10/30 대표님 "네이버 카페·밴드처럼, 헷갈리지 않게"): 내 방 → 방 둘러보기 → 넣어둬·오늘의 문제 줄 → 추천 글 */}
       {!crawler && <MyRoomsBar rooms={rooms.map((r) => ({ slug: r.slug, name: r.name }))} initial={mine} legacy={legacy} filtered={onlyMine} redirect={!all} />}
+      {!sp.page && (all || !mine?.length) && <RoomGrid all={all} mine={mine ?? []} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      {!sp.page && <EarTestBanner />}
       {onlyMine && !sp.page && mine && <MyRoomEvents rooms={mine} />}
       {!crawler && !sp.page && !!mine?.length && <TodayCards rooms={mine} showRoom={mine.length > 1} />}
-      {!sp.page && <EarTestBanner />}
       {!crawler && <RoomOpenedNotice />}
       <OpenVotesBanner />
       <RenewalsBanner />
