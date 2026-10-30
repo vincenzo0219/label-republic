@@ -43,7 +43,8 @@ export function postWelcome(postId: string, nickname: string, lineId: string = p
 type Fresh = { id: string; nickname: string };
 
 export async function runPostWelcome(now = new Date()): Promise<number> {
-  if (process.env.POST_WELCOME_ENABLED === "0") return 0;
+  // 10/30 밤 대표님 "자동댓글 완전 멈춰": 기본 꺼짐, POST_WELCOME_ENABLED=1 일 때만
+  if (process.env.POST_WELCOME_ENABLED !== "1") return 0;
   const client = await pool().connect();
   try {
     const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [LOCK_KEY]);

@@ -349,6 +349,8 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
       setBusy(false);
     }
   }
+  // 닉네임 오류가 났으면 닉네임 칸에 빨간 테두리 (10/30 대표님 "닉네임 넣는 칸 안내가 있었는데 이제 없어졌어?")
+  const nickBad = !!error && error.includes("닉네임") && form.nickname.trim().length < 2;
   const commented = !!form.nickname.trim() && allComments.some((c) => !c.is_ai_curated && c.nickname === form.nickname.trim());
 
   async function remove(id: string) {
@@ -457,9 +459,9 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
           <span className={`live-dot${live ? " on" : ""}`} title={live ? "실시간 연결됨" : "연결 중…"} />
           {!savedNick && (
             <label className="chat-nick">
-              닉네임
-              <input ref={nickRef} value={form.nickname} maxLength={20} required aria-label="닉네임" placeholder="처음 한 번만 정해요"
-                onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
+              닉네임 (2자 이상)
+              <input ref={nickRef} value={form.nickname} maxLength={20} required aria-label="닉네임" placeholder="처음 한 번만 정해요" aria-invalid={nickBad || undefined}
+                onChange={(e) => setForm({ ...form, nickname: e.target.value.replace(/^\s+/, "") })} />
             </label>
           )}
           {!savedNick && <NickCheck nickname={form.nickname} />}
@@ -588,8 +590,11 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
                       ))}
                     </div>
                     {!savedNick && (
-                      <input className="input" placeholder="닉네임 (처음 한 번만)" value={form.nickname} maxLength={20} required aria-label="닉네임"
-                        onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
+                      <>
+                      <span className="nick-label">닉네임 (처음 한 번만, 2자 이상)</span>
+                      <input className="input" placeholder="예: 팝콘러버" value={form.nickname} maxLength={20} required aria-label="닉네임" aria-invalid={nickBad || undefined}
+                        onChange={(e) => setForm({ ...form, nickname: e.target.value.replace(/^\s+/, "") })} />
+                      </>
                     )}
                     <div className="row chat-row">
                       <input ref={replyRef} className="input" placeholder={`${c.nickname}님에게 답글`} value={replyBody} maxLength={1000} aria-label={`${c.nickname}님에게 답글`}
@@ -620,8 +625,9 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
         {/* 닉네임은 처음 한 번만, 비밀번호는 자동 (Sprint 96) */}
         {!savedNick && (
           <>
-            <input ref={nickRef} className="input" placeholder="닉네임 (처음 한 번만)" value={form.nickname} maxLength={20} required
-              onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
+            <span className="nick-label">닉네임 (처음 한 번만, 2자 이상)</span>
+            <input ref={nickRef} className="input" placeholder="예: 팝콘러버" value={form.nickname} maxLength={20} required aria-invalid={nickBad || undefined}
+              onChange={(e) => setForm({ ...form, nickname: e.target.value.replace(/^\s+/, "") })} />
             <NickCheck nickname={form.nickname} />
           </>
         )}
