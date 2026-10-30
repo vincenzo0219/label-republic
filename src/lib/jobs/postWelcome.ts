@@ -9,7 +9,7 @@ const MAX_PER_RUN = 10;
 /**
  * ✍️ 사람이 새 글을 쓰면 20초 안에 운영 이름으로 반가운 댓글 하나 (10/30 대표님 "어떤 사람이 글을 쓰면 무조건 내 이름으로 댓글을
  * 달아줘. 20초 안에. 환영해요, 반갑습니다 등등 돌아가면서" + "동탄맨, 울트라매니아 번갈아가면서").
- * 새 글(posts)만: 댓글·수다방 말·넣어둬·게임 모집처럼 시스템이 만든 글(seed_key)에는 달지 않는다. POST_WELCOME_ENABLED=0 이면 끈다.
+ * 새 글은 글에 댓글로, 댓글·수다방 말은 그 말에 답글로(한 글에서 한 사람에게 한 번). 시스템이 만든 글(seed_key) 자체에는 달지 않는다. POST_WELCOME_ENABLED=0 이면 끈다.
  */
 export const POST_WELCOME_NAMES = ["동탄맨", "울트라매니아"] as const;
 
@@ -56,6 +56,26 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
       for (const p of rows) {
         const { who, body } = postWelcome(p.id, p.nickname);
         await createComment(p.id, { nickname: who, pin: String(randomInt(1000, 10000)), body });
+        n++;
+      }
+      // 댓글·수다방 말에도 (10/30 대표님 "오늘 사람이 쓴 글에 전부 ... 답글"): 한 글에서 한 사람에게 한 번만 답글로.
+      // 그 사람이 운영 답글에 다시 답해도 또 달지 않아 끝없이 주고받지 않는다
+      const { rows: cs } = await client.query<{ id: string; post_id: string; nickname: string }>(
+        `SELECT c.id::text, c.post_id::text, c.nickname
+           FROM comments c JOIN posts p ON p.id = c.post_id
+          WHERE c.created_at <= $1::timestamptz - interval '3 seconds' AND c.created_at > $1::timestamptz - interval '10 minutes'
+            AND NOT c.is_ai_curated AND c.author_fingerprint IS NOT NULL AND c.ai_hidden_at IS NULL AND NOT p.is_blinded
+            AND c.nickname <> ALL($2::text[])
+            AND NOT EXISTS (
+              SELECT 1 FROM comments r JOIN comments mine ON mine.id = r.parent_id
+               WHERE r.post_id = c.post_id AND r.nickname = ANY($3::text[]) AND mine.author_fingerprint = c.author_fingerprint)
+            AND NOT EXISTS (SELECT 1 FROM comments e WHERE e.post_id = c.post_id AND e.author_fingerprint = c.author_fingerprint AND e.id > c.id)
+          ORDER BY c.id LIMIT $4`,
+        [now.toISOString(), OPERATOR_NICKS, POST_WELCOME_NAMES, MAX_PER_RUN],
+      );
+      for (const c of cs) {
+        const { who, body } = postWelcome(c.id, c.nickname);
+        await createComment(c.post_id, { nickname: who, pin: String(randomInt(1000, 10000)), body, parentId: c.id });
         n++;
       }
       return n;

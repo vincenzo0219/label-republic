@@ -40,6 +40,13 @@ d("✍️ 새 글 환영 댓글 (DB)", async () => {
     const c = await query<{ nickname: string; body: string }>("SELECT nickname, body FROM comments WHERE post_id = $1", [human]);
     expect(c).toHaveLength(1);
     expect(["동탄맨", "울트라매니아"]).toContain(c[0]!.nickname);
+    // 댓글: 한 글에서 한 사람에게 한 번만 (운영 답글에 다시 답해도 또 달지 않음)
+    const [c1] = await query<{ id: string }>("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, created_at) VALUES ($1, '대니', 'x', '안녕', 'fpc', now() - interval '5 seconds') RETURNING id::text", [human]);
+    expect(await runPostWelcome()).toBe(1);
+    const r1 = await query<{ parent_id: string }>("SELECT parent_id::text FROM comments WHERE post_id = $1 AND parent_id IS NOT NULL", [human]);
+    expect(r1.map((r) => r.parent_id)).toEqual([c1!.id]);
+    await query("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, created_at) VALUES ($1, '대니', 'x', '고마워요', 'fpc', now() - interval '4 seconds')", [human]);
+    expect(await runPostWelcome()).toBe(0);
     process.env.POST_WELCOME_ENABLED = "0";
     await add("손님3");
     expect(await runPostWelcome()).toBe(0);
