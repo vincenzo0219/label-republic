@@ -1,5 +1,6 @@
 "use client";
 
+import { celebrateWrite } from "./Celebrate";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
@@ -246,6 +247,7 @@ export function NeoBoard({ open, closed, saved, now, talks = {} }: { open: NeoIt
     setMsg(null);
     try {
       const { item } = await api<{ item: NeoItem }>("/api/neo", "POST", { title, price: priceNum, reason, alt, photo });
+      celebrateWrite();
       setItems((cur) => [item, ...cur]);
       setPhoto(null);
       setPreview(null);
