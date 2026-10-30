@@ -1817,3 +1817,5 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .feed-title { font-size: 17px; margin: 18px 0 6px; }
 .all-rooms-cta { display: block; margin: 2px 0 12px; padding: 11px 14px; border: 1px solid color-mix(in srgb, var(--brand) 30%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--brand) 7%, var(--surface)); color: inherit; font-weight: 700; font-size: 15px; text-align: center; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .room-icon { transition: none; } }
+
+.rooms-cta-on .all-rooms-link.other-rooms { display: none; }

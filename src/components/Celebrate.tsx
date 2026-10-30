@@ -76,7 +76,8 @@ export function Celebrate() {
           />
         ))}
       </div>
-      <p className="celebrate-text">{show.kind === "first" ? "🎉 환영해요!" : "🎉 고마워요!"}</p>
+      {/* 10/30 대표님 "고마워요! 는 빼": 두 번째부터는 폭죽만 */}
+      {show.kind === "first" && <p className="celebrate-text">🎉 환영해요!</p>}
       {show.kind === "first" && <p className="celebrate-sub">첫 글이 올라갔어요</p>}
     </div>
   );

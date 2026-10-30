@@ -21,10 +21,16 @@ export function AllRoomsCta({ count }: { count: number }) {
     } catch {}
     setShow(fromSns || getMyRooms().length === 0);
   }, []);
+  // 큰 버튼이 보이면 제목 옆 작은 "☰ 다른 방 n개"는 숨긴다 (10/30 대표님 "다른방 7개는 뭐고? 방 8개 모두보기는 뭐야?": 둘이 같이 보여 헷갈림)
+  useEffect(() => {
+    if (!show || count < 2) return;
+    document.body.classList.add("rooms-cta-on");
+    return () => document.body.classList.remove("rooms-cta-on");
+  }, [show, count]);
   if (!show || count < 2) return null;
   return (
     <Link href="/?all=1#rooms" className="all-rooms-cta">
-      🏠 노방장 방 {count}개 모두 보기 →
+      🏠 다른 방도 둘러보기 · {count - 1}개 →
     </Link>
   );
 }
