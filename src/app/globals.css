@@ -1778,3 +1778,9 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 @keyframes fx-float { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.6); } 20% { opacity: 1; transform: translate(-50%, -70%) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -190%) scale(1); } }
 .mg-sound { margin-left: auto; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); font-size: 17px; line-height: 1; cursor: pointer; flex: none; }
 @media (prefers-reduced-motion: reduce) { .fx-shake, .fx-shake-big, .fx-pop { animation: none; } .fx-burst, .fx-float { display: none; } }
+/* 🎾 랠리 도전장 (10/30) */
+.rally-challenge-banner { display: grid; gap: 2px; margin: 0 0 10px; padding: 10px 12px; border: 2px solid #c6f432; border-radius: 12px; background: color-mix(in srgb, #c6f432 14%, var(--surface)); font-size: 15px; }
+.rally-challenge-banner span { font-size: 13px; color: var(--muted); }
+.rally-target { color: var(--muted); font-weight: 700; }
+.rally-target.passed { color: #2f8f4e; }
+.rally-verdict.win { color: #2f8f4e; font-size: 20px; }

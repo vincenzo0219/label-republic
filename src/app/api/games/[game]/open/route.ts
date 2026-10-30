@@ -9,7 +9,7 @@ import { hit } from "@/lib/rate-limit";
 import { recordOpen } from "@/lib/repo/miniGames";
 
 const cookieOf = (req: Request) => req.headers.get("cookie")?.match(new RegExp(`(?:^|;\\s*)${VISITOR_COOKIE}=([0-9a-f-]{36})`))?.[1];
-const schema = z.object({ src: z.enum(["room", "direct"]) });
+const schema = z.object({ src: z.enum(["room", "direct", "challenge"]) });
 
 /** POST /api/games/:game/open {src} — 🎮 게임 화면을 연 기록 (관리자 "방 버튼 클릭" 수) */
 export const POST = route<{ game: string }>(async (req, { game }) => {

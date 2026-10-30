@@ -31,6 +31,8 @@ const NOT_CHECKED: Record<string, string> = {
   game_plays: "🎮 미니게임 판 기록 (익명 게임 기록)",
   game_opens: "🎮 미니게임 화면 연 기록 (방문 통계)",
   pk_matches: "⚽ 승부차기 대결 기록 (익명 게임 기록)",
+  rally_challenges: "🎾 랠리 도전장 (익명 게임 기록)",
+  rally_attempts: "🎾 랠리 도전 판 기록 (익명 게임 기록)",
   click_events: "페이지 버튼 클릭 수 (방문 통계)",
   court_open_push_log: "코트 오픈 알림 보낸 기록 (중복 발송 방지)",
   page_dwell: "체류시간·스크롤 통계 (400일 뒤 지운다)",

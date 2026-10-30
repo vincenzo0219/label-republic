@@ -43,7 +43,7 @@ export async function recordPlay(game: GameId, visitor: string, score: number, n
   return { ...after, best };
 }
 
-export async function recordOpen(game: GameId, visitor: string, src: "room" | "direct", now = new Date()): Promise<void> {
+export async function recordOpen(game: GameId, visitor: string, src: "room" | "direct" | "challenge", now = new Date()): Promise<void> {
   await query("INSERT INTO game_opens (game, visitor_hash, src, day) VALUES ($1, $2, $3, $4)", [game, visitor, src, kstDay(now)]);
 }
 
