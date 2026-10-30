@@ -13,7 +13,7 @@ const MAX_PER_RUN = 10;
  */
 // 10/30 대표님 "18개로 랜덤 번갈아가며": 운영 이름 전부 ("💬 수다방"은 사람 이름이 아니라 뺐다)
 /** 대표님이 휴대폰에서 쓰는 이름: 환영 답글을 달지 않는다 (10/30 "내가 다는 댓글에는 댓글 달지마", "밑에는 내가 쓴거니까") */
-export const OWNER_NICKS = ["김하연작가", "뭐해"];
+export const OWNER_NICKS = ["김하연작가"];
 export const POST_WELCOME_NAMES = OPERATOR_NICKS.filter((n) => n !== "💬 수다방");
 
 const LINES = [
@@ -82,7 +82,13 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
         [now.toISOString(), [...OPERATOR_NICKS, ...OWNER_NICKS], POST_WELCOME_NAMES, MAX_PER_RUN],
       );
       for (const c of cs) {
-        const { who, body } = postWelcome(c.post_id, c.nickname, c.id);
+        let { who, body } = postWelcome(c.post_id, c.nickname, c.id);
+        // 이미 이 글에 운영 이름으로 답한 적이 있으면 그 이름을 그대로 (10/30 "한번 답글을 달기 시작할때는 같은 닉네임으로")
+        const { rows: first } = await client.query<{ nickname: string }>(
+          "SELECT nickname FROM comments WHERE post_id = $1 AND nickname = ANY($2::text[]) ORDER BY id LIMIT 1",
+          [c.post_id, POST_WELCOME_NAMES],
+        );
+        if (first[0]) who = first[0].nickname;
         await createComment(c.post_id, { nickname: who, pin: String(randomInt(1000, 10000)), body, parentId: c.id });
         n++;
       }

@@ -49,6 +49,9 @@ d("✍️ 새 글 환영 댓글 (DB)", async () => {
     expect(await runPostWelcome()).toBe(1);
     const r1 = await query<{ parent_id: string }>("SELECT parent_id::text FROM comments WHERE post_id = $1 AND parent_id IS NOT NULL", [human]);
     expect(r1.map((r) => r.parent_id)).toEqual([c1!.id]);
+    // 글에 처음 단 이름을 이어서 쓴다
+    const names = await query<{ nickname: string }>("SELECT DISTINCT nickname FROM comments WHERE post_id = $1 AND parent_id IS NOT NULL OR (post_id = $1 AND nickname = $2)", [human, c[0]!.nickname]);
+    expect(names.map((n) => n.nickname)).toEqual([c[0]!.nickname]);
     await query("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, created_at) VALUES ($1, '대니', 'x', '고마워요', 'fpc', now() - interval '65 seconds')", [human]);
     expect(await runPostWelcome()).toBe(0);
     // 글쓴이가 자기 글에 댓글을 달아도 또 달지 않는다, 막 쓴 글(10초)은 아직 기다린다
