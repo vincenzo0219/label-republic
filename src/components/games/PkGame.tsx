@@ -19,6 +19,7 @@ import {
 } from "@/lib/pk";
 import type { PkView } from "@/lib/repo/pk";
 import { buzz } from "../MiniGame";
+import { cheer, groan, kickSound, netSound, setSoundOn, soundOn, tick, whistle } from "@/lib/gameSound";
 import { Confetti } from "../RoomQuiz";
 
 type Phase = "start" | "match" | "play" | "end";
@@ -61,6 +62,9 @@ export function PkGame() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // 🔊 소리 (10/30 대표님 "소리는 없어?"): 휘슬·퍽·그물·관중 함성. 끄면 이 브라우저에 기억
+  const [sound, setSound] = useState(true);
+  useEffect(() => setSound(soundOn()), []);
   const alive = useRef(true);
   const animating = useRef(false);
 
@@ -102,6 +106,7 @@ export function PkGame() {
       if (!alive.current) return;
       setView(v);
       setPhase("play");
+      whistle();
     } catch (e) {
       setError((e as Error).message);
       setPhase("start");
@@ -111,7 +116,11 @@ export function PkGame() {
   // 새로 끝난 킥이 있으면 하나씩 보여 준다 (공이 날아가고, 골키퍼가 몸을 날리고, 골!! / 선방!)
   useEffect(() => {
     if (!view || animating.current || shown >= view.kicks.length) {
-      if (view && !animating.current && shown >= view.kicks.length && view.status === "done") setPhase("end");
+      if (view && !animating.current && shown >= view.kicks.length && view.status === "done") {
+        setPhase("end");
+        whistle(true);
+        if (view.outcome === "win") setTimeout(cheer, 500);
+      }
       return;
     }
     const kick = view.kicks[shown]!;
@@ -123,9 +132,14 @@ export function PkGame() {
       await wait(30);
       setAnim({ shot: kick.shot, dive: kick.dive, go: true });
       buzz(20);
+      kickSound();
       await wait(fast ? 150 : 650);
       setFlash({ kick, mine });
-      if ((mine && kick.goal) || (!mine && !kick.goal)) buzz(60);
+      const good = (mine && kick.goal) || (!mine && !kick.goal);
+      if (good) buzz(60);
+      if (kick.goal) netSound();
+      if (good) cheer();
+      else groan();
       await wait(fast ? 500 : 1000);
       setFlash(null);
       setAnim(null);
@@ -239,6 +253,18 @@ export function PkGame() {
 
   return (
     <section className="pk-game" aria-label="승부차기">
+      <button
+        type="button"
+        className="pk-sound"
+        aria-pressed={sound}
+        aria-label={sound ? "소리 끄기" : "소리 켜기"}
+        onClick={() => {
+          setSoundOn(!sound);
+          setSound(!sound);
+        }}
+      >
+        {sound ? "🔊" : "🔇"}
+      </button>
       <Confetti size={ended && view.outcome === "win" ? 34 : 0} />
       <p className="pk-vs">
         <b>{myName}</b> <span>vs</span> <b>{opName}</b>
@@ -383,6 +409,7 @@ function Gauge({ sweepMs, onStop }: { sweepMs: number; onStop: (accuracy: number
     done.current = true;
     const acc = timeout ? 0.5 : 1 - Math.abs(pos.current - 0.5) / 0.5;
     buzz(25);
+    tick();
     setStopped(acc);
     setTimeout(() => onStop(acc), 250);
   }
@@ -414,6 +441,7 @@ function Reflex({ dive, onTap }: { dive: number; onTap: (reflex: number) => void
     done.current = true;
     const dt = performance.now() - began.current;
     buzz(25);
+    tick();
     onTap(timeout ? 0.5 : Math.max(0, 1 - Math.abs(dt - RING_MS) / 500));
   }
   return (

@@ -1711,6 +1711,7 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .pk-ball-spin { font-size: 40px; animation: pk-spin 1s linear infinite; }
 @keyframes pk-spin { to { transform: rotate(360deg); } }
 .pk-game { position: relative; overflow: hidden; display: grid; gap: 8px; }
+.pk-sound { position: absolute; top: 0; right: 0; z-index: 2; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); font-size: 17px; line-height: 1; cursor: pointer; }
 .pk-vs { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: baseline; font-size: 15px; text-align: center; word-break: keep-all; }
 .pk-vs span { color: var(--muted); font-size: 13px; }
 .pk-kind { margin: -4px 0 0; text-align: center; font-size: 12.5px; color: var(--muted); }
