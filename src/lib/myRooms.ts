@@ -190,6 +190,7 @@ const EMOJI: Record<string, string> = {
   "오늘도-장사중": "🏪",
   "와인-위스키-덕후방": "🍷",
   "요가-필라테스-덕후방": "🧘",
+  "요가-필라테스-강사방": "🧘‍♀️",
   "육아-덕후방": "👶",
   "읽는-책-제목을-교환해-보자": "📚",
   "작가지망생방": "✍️",
@@ -245,6 +246,8 @@ const SHORT: Record<string, string> = {
   "보드게임-방탈출-덕후방": "보드게임",
   "필름카메라-덕후방": "필름카메라",
   "미혼남녀-만남-행사": "미혼남녀 행사",
+  // 10/31 대표님 "요가/필라테스 강사방만 이름이 이상해": "🧘 요가·필라테스 강사방" 이 이모지 한 글자로 잘리던 것
+  "요가-필라테스-강사방": "요가 강사",
 };
 
 /** 이모지를 따로 붙이는 자리에서 쓰는 이름 — 방 이름이 그 이모지로 시작하면 뗀다 ("🏪 오늘도 장사중" → "오늘도 장사중") */
@@ -256,7 +259,8 @@ export function roomPlainName(room: { slug: string; name: string }): string {
 /** "육아 덕후방" → "육아", "미국주식방" → "미국주식", "애니·만화 덕후방" → "애니·만화" */
 export function roomShortName(room: { slug: string; name: string }): string {
   if (SHORT[room.slug]) return SHORT[room.slug]!;
-  let n = room.name.trim().replace(/[.!~]+$/, "");
+  // 앞에 붙은 이모지는 떼고 줄인다 (이모지 한 글자만 남던 것)
+  let n = room.name.trim().replace(/^[^\p{L}\p{N}]+/u, "").replace(/[.!~]+$/, "");
   n = n.replace(/\s*덕후방$/, "").replace(/(.{2,})방$/, "$1");
   if ([...n].length > 8) n = n.split(/\s+/)[0]!;
   return n || room.name;
