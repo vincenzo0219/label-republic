@@ -4,7 +4,7 @@ import { RoomTopBar } from "./RoomTopBar";
 import type { Category } from "@/lib/types";
 import { listSinglesEvents } from "@/lib/repo/singlesEvents";
 import { ensureSinglesTalks } from "@/lib/repo/singlesTalk";
-import { SINGLES_ROOM, SINGLES_SCOPE_NOTE, todayKst } from "@/lib/singlesEvents";
+import { SINGLES_ROOM, todayKst } from "@/lib/singlesEvents";
 import { SinglesRoom } from "./SinglesRoom";
 import { SinglesCalendar } from "./SinglesCalendar";
 import { DebateVote } from "./DebateVote";
@@ -18,7 +18,6 @@ export async function SinglesTab() {
   const talks = await ensureSinglesTalks(events).catch(() => ({}));
   return (
     <>
-      <p className="hint singles-scope">{SINGLES_SCOPE_NOTE}</p>
       {/* hidden 필드는 화면에 넘기지 않는다 */}
       <SinglesRoom events={events.map(({ hidden: _h, ...e }) => e)} today={today} talks={talks} />
     </>

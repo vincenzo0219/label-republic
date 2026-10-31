@@ -79,7 +79,6 @@ export function DebateVote({ postId, initial, push = true }: { postId: string; i
               {g === "m" ? "남" : "여"}
             </button>
           ))}
-          <span className="hint">(안 골라도 투표돼요)</span>
         </p>
       )}
       <div className="debate-sides">

@@ -30,12 +30,6 @@ d("✍️ 새 글 환영 댓글 (DB)", async () => {
     await pool().end();
   });
 
-  it("기본은 꺼져 있다", async () => {
-    delete process.env.POST_WELCOME_ENABLED;
-    expect(await runPostWelcome()).toBe(0);
-    process.env.POST_WELCOME_ENABLED = "1";
-  });
-
   it("사람 새 글에만 한 번, 운영·시스템 글은 건너뛴다", async () => {
     const [cat] = await query<{ id: number }>("INSERT INTO categories (slug, name, description) VALUES ('tennis', '테니스방', '') RETURNING id");
     const add = async (nick: string, extra = "") =>

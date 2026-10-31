@@ -20,15 +20,14 @@ export const POST_WELCOME_NAMES = OPERATOR_NICKS.filter((n) => n !== "💬 수�
 /** 자동 환영 답글은 늘 이 이름 하나로 (10/30 밤 대표님 "자동 답글을 무조건 울트라매니아로만 진행. 로봇표시 없고 20초~1분 사이") */
 export const WELCOME_NAME = "울트라매니아";
 
+// 10/31 대표님 "환영해요, 반가워요 같은 간단한 인사말로"
 const LINES = [
   (n: string) => `${n}님 환영해요`,
-  (n: string) => `반갑습니다 ${n}님`,
-  (n: string) => `${n}님 글 잘 봤어요`,
+  (n: string) => `반가워요 ${n}님`,
   () => "환영합니다 ^^",
   (n: string) => `${n}님 어서 오세요`,
   () => "반가워요 ㅎㅎ",
-  (n: string) => `${n}님 글 고마워요`,
-  () => "좋은 글 감사해요",
+  (n: string) => `${n}님 반갑습니다`,
 ] as const;
 
 /**
@@ -43,8 +42,8 @@ export function postWelcome(postId: string, nickname: string, lineId: string = p
 type Fresh = { id: string; nickname: string };
 
 export async function runPostWelcome(now = new Date()): Promise<number> {
-  // 10/30 밤 대표님 "자동댓글 완전 멈춰": 기본 꺼짐, POST_WELCOME_ENABLED=1 일 때만
-  if (process.env.POST_WELCOME_ENABLED !== "1") return 0;
+  // 10/31 대표님 "사람이 글을 쓰면 30초~1분 사이에 울트라매니아 닉네임으로 답글": 다시 켬. POST_WELCOME_ENABLED=0 이면 끈다
+  if (process.env.POST_WELCOME_ENABLED === "0") return 0;
   const client = await pool().connect();
   try {
     const lock = await client.query<{ ok: boolean }>("SELECT pg_try_advisory_lock($1) AS ok", [LOCK_KEY]);
@@ -53,7 +52,7 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
       const { rows } = await client.query<Fresh>(
         `SELECT p.id::text, p.nickname
            FROM posts p
-          WHERE p.created_at <= $1::timestamptz - make_interval(secs => 20 + (p.id % 41)) AND p.created_at > $1::timestamptz - interval '10 minutes'
+          WHERE p.created_at <= $1::timestamptz - make_interval(secs => 30 + (p.id % 21)) AND p.created_at > $1::timestamptz - interval '10 minutes'
             AND NOT p.is_ai_curated AND p.author_fingerprint IS NOT NULL AND p.ai_hidden_at IS NULL AND NOT p.is_blinded
             AND p.seed_key IS NULL
             AND p.nickname <> ALL($2::text[])
@@ -72,7 +71,7 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
       const { rows: cs } = await client.query<{ id: string; post_id: string; nickname: string }>(
         `SELECT c.id::text, c.post_id::text, c.nickname
            FROM comments c JOIN posts p ON p.id = c.post_id
-          WHERE c.created_at <= $1::timestamptz - make_interval(secs => 20 + (c.id % 41)) AND c.created_at > $1::timestamptz - interval '10 minutes'
+          WHERE c.created_at <= $1::timestamptz - make_interval(secs => 30 + (c.id % 21)) AND c.created_at > $1::timestamptz - interval '10 minutes'
             AND NOT c.is_ai_curated AND c.author_fingerprint IS NOT NULL AND c.ai_hidden_at IS NULL AND NOT p.is_blinded
             AND c.nickname <> ALL($2::text[])
             AND NOT EXISTS (
