@@ -10,7 +10,7 @@ import { addSeen } from "@/lib/metrics";
 import { listComments } from "@/lib/repo/comments";
 import { getSinglesEvent, listSinglesEvents, type StoredSinglesEvent } from "@/lib/repo/singlesEvents";
 import { ensureSinglesTalks } from "@/lib/repo/singlesTalk";
-import { ORGANIZER_TYPES, SINGLES_PATH, SINGLES_ROOM_NAME, SINGLES_SCOPE_NOTE, birthLabel, periodLabel, todayKst, type SinglesEvent } from "@/lib/singlesEvents";
+import { ORGANIZER_TYPES, SINGLES_PATH, SINGLES_ROOM_NAME, birthLabel, periodLabel, todayKst, type SinglesEvent } from "@/lib/singlesEvents";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +43,6 @@ export default async function SinglesEventPage({ params }: Props) {
         <Link href={SINGLES_PATH}>← {SINGLES_ROOM_NAME}</Link>
       </p>
       <SinglesDetail event={strip(e)} events={events.map(strip)} today={today} />
-      <p className="hint singles-scope">{SINGLES_SCOPE_NOTE}</p>
       {talk && (
         <section id="talk" className="singles-talk" aria-label="행사 댓글">
           <h2 className="section-title">💬 이 행사 이야기 <span className="hint" aria-label={`${talk.views}명 봤어요`}>👁 {talk.views.toLocaleString("ko-KR")}</span></h2>
