@@ -47,6 +47,7 @@ export async function FeedView({
   chat,
   banner,
   lead,
+  pinned,
   roomTab,
   mine,
   onlyMine = false,
@@ -64,6 +65,8 @@ export async function FeedView({
   chat?: { postId: string; initial: Comment[]; badges?: BadgeMap };
   /** 방 이름 바로 아래, 탭 위 (책 덕후방: 📖 오늘 책 한입) */
   banner?: React.ReactNode;
+  /** 탭 줄 바로 아래, 어느 탭이든 늘 (10/30 📰 브리핑 줄 고정) */
+  pinned?: React.ReactNode;
   /** 탭 아래, 글 목록 위 (작가지망생방 📸 자랑: ✍️ 오늘 몇 자) */
   lead?: React.ReactNode;
   /** 💬 채팅 뒤 방 전용 탭 (육아방 📍동네 체험): 글 목록 대신 이 화면 */
@@ -192,6 +195,7 @@ export async function FeedView({
         )}
       </nav>
       )}
+      {pinned}
       {chat ? (
         <LiveComments postId={chat.postId} initial={chat.initial} casual chat badges={chat.badges} notice={ruleNotice} report={!!ruleNotice} />
       ) : roomTab ? (

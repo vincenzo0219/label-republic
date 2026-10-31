@@ -166,17 +166,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       {marketBox}
     </>
   );
-  // 📰 오늘 브리핑 (10/27): 주식·미국주식·적립식 방 맨 위 한 줄
-  const briefings = plain && BRIEFING_KINDS[category.slug] ? await roomBriefings(category.slug).catch(() => []) : [];
-  const baseBox = writingBox || savingsBox || mealBox || marketBoxes;
-  const roomBox = briefings.length ? (
-    <>
-      <BriefingStrip items={briefings} />
-      {baseBox}
-    </>
-  ) : (
-    baseBox
-  );
+  // 📰 오늘 브리핑 (10/27): 주식·미국주식·적립식 방. 10/30 대표님 "고정해": 어느 탭이든 탭 줄 바로 아래 한 줄
+  const briefings = BRIEFING_KINDS[category.slug] ? await roomBriefings(category.slug).catch(() => []) : [];
+  const roomBox = writingBox || savingsBox || mealBox || marketBoxes;
   // 📍 동네 체험 (육아방): 💬 채팅 뒤 탭 + 전체 탭 맨 위 한 줄. 지역은 브라우저에 저장돼 있어 화면에서 불러온다
   // 강사방: 탭 없이 들어오면 📋 대강·구인, 전체 글은 ?tab=all (10/25)
   const defaultTab = ROOM_DEFAULT_TAB[category.slug];
@@ -229,7 +221,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           ),
         )}
       </nav>}
-      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? (head === "자랑" ? <>{roomBox}{fanDays(false)}</> : roomBox) : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : (kidsLine ?? fanLine)} roomTab={roomTabProps} />
+      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? (head === "자랑" ? <>{roomBox}{fanDays(false)}</> : roomBox) : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : (kidsLine ?? fanLine)} roomTab={roomTabProps} pinned={briefings.length ? <BriefingStrip items={briefings} /> : undefined} />
     </>
   );
 }
