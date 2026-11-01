@@ -1,4 +1,5 @@
 import { markWelcome } from "./quickReply";
+import { echoTestResult, shouldEcho } from "./testEcho";
 import { trollCheck } from "../troll";
 import { tokenOk } from "./images";
 import { aiAbuse, aiImageAbuse, heuristicAbuse, hideParams, maskPersonalInfo } from "../abuse";
@@ -147,6 +148,8 @@ export async function createComment(
   });
   // 🔔 사람이 쓴 댓글이면 운영자 기기로 바로 (기다리지 않음, 10/25). 운영 초안·환영 답글은 지문이 없어 빠진다
   ownerAlertAfter({ kind: "comment", nickname: input.nickname, fingerprint: input.fingerprint }, { kind: "comment", postId, commentId: String(comment.id), body: input.body });
+  // 🧪 테스트 결과 댓글이면 그 방 수다방에도 한 줄 (11/1). 기다리지 않는다
+  if (shouldEcho(postId, { parentId: input.parentId, fingerprint: input.fingerprint })) void echoTestResult(postId, String(comment.id));
   return comment;
 }
 

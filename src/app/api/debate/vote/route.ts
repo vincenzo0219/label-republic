@@ -5,7 +5,8 @@ import { fingerprint } from "@/lib/fingerprint";
 import { json, parseBody, route } from "@/lib/http";
 import { kstDay, newVisitorId, VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
 import { hit } from "@/lib/rate-limit";
-import { debateTally, latestBookPoll, latestRoomPoll, voteDebate } from "@/lib/repo/debateVotes";
+import { debateTally, latestBookPoll, latestRoomPoll, roomPollOn, voteDebate } from "@/lib/repo/debateVotes";
+import { nextRoomPollAt } from "@/lib/roomPolls";
 import { notePollVote, recordQuizDay, roomPollDay } from "@/lib/repo/roomQuizzes";
 
 const schema = z.object({ postId: z.string().regex(/^\d{1,18}$/), side: z.enum(["A", "B"]), gender: z.enum(["m", "f"]).optional() });
@@ -33,5 +34,13 @@ export const GET = route(async (req) => {
   const slug = sp.get("kind") === "room" ? (sp.get("slug") ?? "").slice(0, 60) : null;
   const poll = slug ? await latestRoomPoll(slug) : await latestBookPoll();
   if (!poll) return json(null);
-  return json({ postId: poll.id, title: poll.title, tally: await debateTally(poll.id) });
+  const tally = await debateTally(poll.id);
+  if (!slug) return json({ postId: poll.id, title: poll.title, tally });
+  // 📅 내일 다시 올 이유 (11/1): 어제 질문의 사람 결과 + 다음 질문이 열리는 시각
+  const today = kstDay();
+  const prevDay = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const prev = await roomPollOn(slug, prevDay).catch(() => null);
+  const yt = prev && prev.id !== poll.id ? await debateTally(prev.id).catch(() => null) : null;
+  const yesterday = yt && yt.human.A + yt.human.B > 0 ? { a: yt.a, b: yt.b, A: yt.human.A, B: yt.human.B } : null;
+  return json({ postId: poll.id, title: poll.title, tally, yesterday, nextAt: nextRoomPollAt(slug) });
 });
