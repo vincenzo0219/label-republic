@@ -249,7 +249,8 @@ export const streakTier = (n: number): 0 | 3 | 7 | 30 => (n >= 30 ? 30 : n >= 7 
 export function builtinQuiz(slug: string, day: string): RoomQuiz | null {
   if (QUIZ_EXCLUDED.has(slug)) return null;
   if (isTypeDay(day)) return GENERIC_TYPE;
-  const poll = ROOM_POLLS[slug] ? roomPollTopic(slug, day) : null;
+  // 자기 퀴즈(BUILTIN_PICKS)가 있는 방은 그걸 쓴다 (11/1 오늘의 질문이 새로 붙은 방에서 퀴즈와 질문이 똑같아지지 않게)
+  const poll = ROOM_POLLS[slug] && !BUILTIN_PICKS[slug] ? roomPollTopic(slug, day) : null;
   if (poll) return { kind: "pick", q: `${ROOM_POLLS[slug]!.emoji} 오늘의 질문, 당신은?`, options: [poll[0], poll[1]] } as RoomQuiz;
   const i = dayIndex(day);
   const trivia = BUILTIN_TRIVIA[slug];

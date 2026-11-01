@@ -77,6 +77,12 @@ export async function latestRoomPoll(slug: string): Promise<{ id: string; title:
   return row ?? null;
 }
 
+/** 그 날짜의 🗳 방 오늘의 질문 글 (11/1 "내일 다시 올 이유": 어제 결과를 오늘 질문 위에) */
+export async function roomPollOn(slug: string, day: string): Promise<{ id: string; title: string } | null> {
+  const [row] = await query<{ id: string; title: string }>("SELECT id::text, title FROM posts WHERE seed_key = $1 AND NOT is_blinded", [`roompoll:${slug}:${day}`]);
+  return row ?? null;
+}
+
 /** 가장 최근 📚 오늘의 책 질문 글 (홈 맨 위) */
 export async function latestBookPoll(): Promise<{ id: string; title: string } | null> {
   const [row] = await query<{ id: string; title: string }>(

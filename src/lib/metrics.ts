@@ -263,3 +263,47 @@ export async function roomTabStats(fromDay: string, toDay: string, limit = 60): 
   );
   return views.map((v) => ({ ...v, median_s: dwell.find((d) => d.room === v.room && d.tab === v.tab)?.median_s ?? null }));
 }
+
+export type RoomRevisitRow = {
+  room: string;
+  /** 기간 안에 이 방 화면을 연 사람 (방문자 쿠키 기준) */
+  visitors: number;
+  /** 그중 서로 다른 날 2일 이상 온 사람 */
+  returners: number;
+  /** returners ÷ visitors (%) */
+  rate: number;
+  /** 처음 온 날로부터 7일 안에 다시 온 비율 (%). 처음 온 날이 7일 이상 지난 사람만 센다. 그런 사람이 없으면 null */
+  d7: number | null;
+  /** d7 을 센 사람 수 */
+  d7Base: number;
+};
+
+/**
+ * 📊 방별 재방문율 (11/1 대표님 "방별 재방문율 측정을 추가"). page_views 의 방 화면 기록(방문자 쿠키 해시)으로 센다.
+ * 같은 사람이 같은 날 여러 번 와도 하루로 센다. 방문자가 적은 방은 숫자가 크게 흔들리니 visitors 와 같이 본다.
+ */
+export async function roomRevisitStats(fromDay: string, toDay: string): Promise<RoomRevisitRow[]> {
+  const rows = await query<{ room: string; visitors: number; returners: number; d7_base: number; d7_back: number }>(
+    `WITH v AS (
+       SELECT DISTINCT category_slug AS room, day, visitor_hash FROM page_views
+        WHERE day BETWEEN $1 AND $2 AND category_slug IS NOT NULL
+     ), per AS (
+       SELECT room, visitor_hash, count(*) AS days, min(day) AS first FROM v GROUP BY room, visitor_hash
+     )
+     SELECT per.room, count(*)::int AS visitors, count(*) FILTER (WHERE days >= 2)::int AS returners,
+            count(*) FILTER (WHERE first <= $2::date - 7)::int AS d7_base,
+            count(*) FILTER (WHERE first <= $2::date - 7 AND EXISTS (
+              SELECT 1 FROM v v2 WHERE v2.room = per.room AND v2.visitor_hash = per.visitor_hash AND v2.day > per.first AND v2.day <= per.first + 7))::int AS d7_back
+       FROM per GROUP BY per.room ORDER BY visitors DESC`,
+    [fromDay, toDay],
+  );
+  const pc = (x: number, n: number) => (n ? Math.round((x / n) * 1000) / 10 : 0);
+  return rows.map((r) => ({
+    room: r.room,
+    visitors: r.visitors,
+    returners: r.returners,
+    rate: pc(r.returners, r.visitors),
+    d7: r.d7_base ? pc(r.d7_back, r.d7_base) : null,
+    d7Base: r.d7_base,
+  }));
+}

@@ -12,6 +12,7 @@ import {
   type MetricKey,
 } from "@/lib/business";
 import { getBusinessMetrics, listBizReports } from "@/lib/repo/business";
+import { kstDay, roomRevisitStats, type RoomRevisitRow } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "사업 지표", robots: { index: false, follow: false } };
@@ -43,7 +44,12 @@ function fmtTime(iso: string) {
 }
 
 export default async function BusinessPage() {
-  const [m, reports] = await Promise.all([getBusinessMetrics(), listBizReports()]);
+  const [m, reports, revisit] = await Promise.all([
+    getBusinessMetrics(),
+    listBizReports(),
+    // 📊 방별 재방문율 (11/1). 실패하면 표만 안 보인다
+    roomRevisitStats(kstDay(new Date(Date.now() - 13 * 86400_000)), kstDay()).catch((): RoomRevisitRow[] => []),
+  ]);
   const verdict = overallVerdict(m.values);
   const last = m.weeks[m.weeks.length - 1];
   const prev = m.weeks[m.weeks.length - 2];
@@ -190,6 +196,36 @@ export default async function BusinessPage() {
                   </tbody>
                 </table>
               </div>
+              {revisit.length > 0 && (
+                <>
+                  <h3>방별 재방문율 (최근 14일, 방 화면을 연 사람 기준)</h3>
+                  <p className="hint">2일 이상 = 서로 다른 날 두 번 이상 온 사람 비율 · 7일 안 = 처음 온 날부터 7일 안에 다시 온 비율(처음 온 지 7일 지난 사람만). 방문자 30명 미만은 참고만.</p>
+                  <div className="table-scroll">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>방</th>
+                          <th className="num">방문자</th>
+                          <th className="num">2일 이상</th>
+                          <th className="num">7일 안 재방문</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {revisit.map((r) => (
+                          <tr key={r.room}>
+                            <td>
+                              <Link href={`/c/${encodeURIComponent(r.room)}`}>{m.rooms.find((x) => x.slug === r.room)?.name ?? r.room}</Link>
+                            </td>
+                            <td className="num">{r.visitors.toLocaleString("ko-KR")}</td>
+                            <td className="num">{r.rate}%</td>
+                            <td className="num">{r.d7 === null ? "·" : `${r.d7}% (${r.d7Base})`}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </>
           )}
 
