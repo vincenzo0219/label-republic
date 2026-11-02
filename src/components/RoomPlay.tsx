@@ -2,7 +2,7 @@ import Link from "next/link";
 import { playItems } from "@/lib/roomPlay";
 import { typeTestOf } from "@/lib/typeTests";
 import { weekEvents, type WeekEvent } from "@/lib/repo/roomBoards";
-import { BookTasteTable } from "./BookTasteTable";
+import { SentencePick } from "./SentencePick";
 import { GoingWeek, RoomBoard, WeekRank } from "./RoomBoard";
 import { SavingsCard } from "./SavingsCard";
 import { TypeTest } from "./TypeTest";
@@ -18,7 +18,7 @@ export async function RoomPlay({ slug }: { slug: string }) {
     <div className="room-play">
       {items.map((it, i) => {
         if (it.kind === "savings") return <SavingsCard key="savings" />;
-        if (it.kind === "bookTaste") return <BookTasteTable key="bookTaste" />;
+        if (it.kind === "bookTaste") return <SentencePick key="bookTaste" />; // 11/2 대표님: 체크표 대신 문장 바로 고르기
         if (it.kind === "board") return <RoomBoard key={it.key} boardKey={it.key} />;
         if (it.kind === "going") return <GoingWeek key="going" events={events} why="새 행사 글이 올라오면 여기에 떠요." />;
         if (it.kind === "rank") return <WeekRank key={`rank-${it.game}`} game={it.game} />;
