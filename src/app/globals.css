@@ -1847,3 +1847,15 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .chat-actions .like-chip { margin-top: 0; }
 @keyframes like-pop { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .like-chip, .like-chip.on span[aria-hidden] { transition: none; animation: none; } }
+/* 🎯 승부 예측 (11/2) */
+.predict { display: grid; gap: 12px; margin: 12px 0; }
+.predict > * { min-width: 0; overflow-wrap: anywhere; word-break: keep-all; }
+.predict-me { padding: 10px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.predict-nick { display: grid; gap: 4px; font-size: 14px; }
+.predict-nick input { min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg, #fff); color: inherit; }
+.predict-q { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.predict-q h3 { margin: 0; font-size: 16px; }
+.predict-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.predict-pct { opacity: 0.8; font-weight: 400; }
+.predict-recent ul { margin: 6px 0 0; padding-left: 4px; list-style: none; display: grid; gap: 4px; font-size: 14px; }
+.predict-board-title { margin: 4px 0 0; font-size: 15px; }

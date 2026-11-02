@@ -3,6 +3,7 @@
  * 모든 방: 자랑·행사·혜택. 방마다 더 있을 수 있다 (책 덕후방: 같이 읽기·밑줄, Sprint 96).
  * 혜택(10/23 사용자 미션 "정보·재미·실리를 어떤 커뮤니티보다 잘하자"): 무료 행사·할인·응모·티켓 오픈·굿즈 드롭
  */
+import { PREDICT_ROOMS, PREDICT_TAB } from "./predictions";
 export const HEADS = [
   { key: "자랑", label: "📸 자랑" },
   { key: "행사", label: "🎫 행사" },
@@ -96,6 +97,8 @@ export const ROOM_CHAT_TABS: Record<string, { key: string; label: string }[]> = 
   ],
   // 🎾 게임 모집 (10/29 대표님 "카톡 단톡방의 지역별 시합 어딨어?"): 지역·날짜·종목으로 거르는 모집 게시판 (106)
   "테니스-덕후방": [{ key: "games", label: "🎾 게임 모집" }],
+  // 🎯 승부 예측 (11/2 대표님): 경기 승자·시청률·나스닥 맞히기, 점수와 연속 배지 (src/lib/predictions.ts)
+  ...Object.fromEntries(Object.entries(PREDICT_ROOMS).map(([slug, r]) => [slug, [{ key: PREDICT_TAB, label: r.label }]])),
 };
 /** 탭 없이 들어오면 이 탭 (강사방: 📋 대강, 💌 만남 행사 방: 💌 만남 행사). 이런 방의 "전체" 는 ?tab=all */
 export const ROOM_DEFAULT_TAB: Record<string, string> = { [INSTRUCTOR]: "gigs", [SINGLES]: "meet" };

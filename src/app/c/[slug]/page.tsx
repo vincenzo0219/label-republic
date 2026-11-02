@@ -21,6 +21,8 @@ import { getCategoryBySlug as getCategoryUncached } from "@/lib/repo/categories"
 import { postTypeFilterSchema, sortSchema } from "@/lib/validation";
 import { WritingLog } from "@/components/WritingLog";
 import { badgesSafe } from "@/lib/repo/badges";
+import { PredictionBoard } from "@/components/PredictionBoard";
+import { isPredictRoom, PREDICT_TAB } from "@/lib/predictions";
 import { recentWriting, weeklyWriters } from "@/lib/repo/writingLog";
 import { WRITING_ROOMS } from "@/lib/writingLog";
 import { SavingsLog } from "@/components/SavingsLog";
@@ -191,6 +193,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
                   ? { key: "mycal", node: <SinglesCalendarTab /> }
               : roomTab?.key === GAMES_TAB
                 ? { key: GAMES_TAB, node: <TennisGames /> }
+                : roomTab?.key === PREDICT_TAB && isPredictRoom(category.slug)
+                  ? { key: PREDICT_TAB, node: <PredictionBoard room={category.slug} /> }
         : undefined;
   const kidsLine = !ad && category.slug === KIDS_ROOM && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? <KidsTopLine /> : null;
   // 🎉 내 덕질 기념일 (10/26): 📸 자랑 탭에는 카드, 전체 탭 첫 페이지에는 작게. 숨긴 방·만남 연결 기능 없는 방(098)은 빼고 (정보만 보여 주는 방은 위에서 이미 끝)

@@ -1,6 +1,9 @@
 /** 방 배지 조회·저장 (10/24). 사람 = 닉네임 (nickname_claims 와 같은 키) */
 import { identityKey, ROOM_BADGES, TEST_RESULT_KEYS, type BadgeMap } from "../badges";
 import { query } from "../db";
+import { streakBadge } from "../predictions";
+import { predictStreaks } from "./predictions";
+import { kospiStreaksByNick } from "./kospi";
 
 /** 테스트 결과 저장 (사람마다 마지막 결과). 모르는 테스트·결과면 false */
 export async function saveTestResult(test: string, nickname: string, result: string): Promise<boolean> {
@@ -15,10 +18,25 @@ export async function saveTestResult(test: string, nickname: string, result: str
   return true;
 }
 
-/** 이 방에서 닉네임들의 배지 (키: identityKey) */
+/** 이 방에서 닉네임들의 배지 (키: identityKey). 방 테스트 배지 + 🎯 승부 예측·📈 코스피 연속 배지 (11/2, 어느 방에서나) */
 export async function badgesFor(roomSlug: string, nicknames: readonly string[]): Promise<BadgeMap> {
-  const b = Object.hasOwn(ROOM_BADGES, roomSlug) ? ROOM_BADGES[roomSlug] : undefined;
   const keys = [...new Set(nicknames.map(identityKey).filter(Boolean))];
+  if (!keys.length) return {};
+  const [room, pred, kospi] = await Promise.all([
+    roomBadgesFor(roomSlug, keys),
+    predictStreaks(keys).catch(() => ({}) as Record<string, number>),
+    kospiStreaksByNick(keys).catch(() => ({}) as Record<string, number>),
+  ]);
+  const out: BadgeMap = {};
+  for (const k of keys) {
+    const parts = [room[k], streakBadge(pred[k] ?? 0, "🎯"), streakBadge(kospi[k] ?? 0, "📈")].filter(Boolean);
+    if (parts.length) out[k] = parts.join(" ");
+  }
+  return out;
+}
+
+async function roomBadgesFor(roomSlug: string, keys: readonly string[]): Promise<BadgeMap> {
+  const b = Object.hasOwn(ROOM_BADGES, roomSlug) ? ROOM_BADGES[roomSlug] : undefined;
   if (!b || !keys.length) return {};
   const rows = await query<{ author_key: string; result_key: string }>(
     "SELECT author_key, result_key FROM test_results WHERE test_key = $1 AND author_key = ANY($2::text[])",

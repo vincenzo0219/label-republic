@@ -174,3 +174,19 @@ export async function kospiPending(items: { slug: string; since: Date }[], visit
   for (const r of rooms) out[r.slug] = !row?.picked || settled > r.since.getTime();
   return out;
 }
+
+/** 닉네임들의 📈 코스피 맞히기 연속 (11/2 대표님 "코스피 연속으로 맞추면 닉네임에 배지"). 키: identityKey(공백 빼고 소문자) */
+export async function kospiStreaksByNick(nickKeys: readonly string[]): Promise<Record<string, number>> {
+  if (!nickKeys.length) return {};
+  const rows = await query<{ k: string; streak: number }>(
+    `WITH ${MOVES},
+     g AS (SELECT DISTINCT ON (k, p.day) lower(regexp_replace(p.nickname, '\\s', '', 'g')) AS k, p.day, (p.side = r.move) AS ok
+             FROM kospi_picks p JOIN r ON r.day = p.day
+            WHERE p.nickname IS NOT NULL AND lower(regexp_replace(p.nickname, '\\s', '', 'g')) = ANY($1::text[])
+            ORDER BY k, p.day, p.created_at),
+     n AS (SELECT k, ok, row_number() OVER (PARTITION BY k ORDER BY day DESC) AS rn FROM g)
+     SELECT k, coalesce(min(rn) FILTER (WHERE NOT ok) - 1, count(*))::int AS streak FROM n GROUP BY k`,
+    [nickKeys],
+  );
+  return Object.fromEntries(rows.map((r) => [r.k, r.streak]));
+}
