@@ -98,7 +98,7 @@ const BASE_CHAT_TABS: Record<string, { key: string; label: string }[]> = {
   ],
   // 🎾 게임 모집 (10/29 대표님 "카톡 단톡방의 지역별 시합 어딨어?"): 지역·날짜·종목으로 거르는 모집 게시판 (106)
   "테니스-덕후방": [{ key: "games", label: "🎾 게임 모집" }],
-  // 🎯 승부 예측 (11/2 대표님): 경기 승자·시청률·나스닥 맞히기, 점수와 연속 배지 (src/lib/predictions.ts)
+  // 🎯 승부 예측 (11/2 대표님): 경기 승자·드라마 다음 화·나스닥 맞히기, 점수와 연속 배지 (src/lib/predictions.ts)
   ...Object.fromEntries(Object.entries(PREDICT_ROOMS).map(([slug, r]) => [slug, [{ key: PREDICT_TAB, label: r.label }]])),
 };
 /** 🧩 놀이 (11/2 대표님 "전부 탭 새로 추가해서 전부 다 진행"): 놀이 거리가 있는 방마다 맨 뒤에 (src/lib/roomPlay.ts) */
