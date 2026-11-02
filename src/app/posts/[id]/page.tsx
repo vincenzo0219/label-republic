@@ -11,6 +11,8 @@ import { AppealBox } from "@/components/AppealBox";
 import { CorrectionsPanel } from "@/components/CorrectionsPanel";
 import { Gallery } from "@/components/Gallery";
 import { LiveComments } from "@/components/LiveComments";
+import { TeamPredict } from "@/components/TeamPredict";
+import { FAN_INTRO_POST_ID } from "@/lib/fanTest";
 import { quickRepliesFor, showQuickReplies } from "@/lib/quickReplies";
 import { quickReplyContext } from "@/lib/repo/quickReply";
 import { INVEST_NOTICE, isInvestRoom } from "@/lib/investRooms";
@@ -311,6 +313,8 @@ export default async function PostPage({ params }: Props) {
       )}
 
       {debate && <DebateVote postId={post.id} initial={debate} />}
+      {/* ⚽ 팀 자기소개 글: 댓글 단 사람이 바로 경기 예측으로 (11/2) */}
+      {String(post.id) === FAN_INTRO_POST_ID && <TeamPredict />}
       {!infoOnly && <LiveComments postId={post.id} initial={comments} casual={post.post_type !== "info"} badges={badges} notice={ruleNotice} report={!!ruleNotice} quick={quick} />}
       {isInvestRoom(post.category.slug) && <p className="invest-note">{INVEST_NOTICE}</p>}
     </article>

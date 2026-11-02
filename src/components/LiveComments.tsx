@@ -282,6 +282,10 @@ export function LiveComments({ postId: initialPostId, initial, casual = false, c
       });
       sending.current = undefined;
       celebrateWrite();
+      // 🎯 팀 예측 카드가 듣는다 (11/2): 댓글에 쓴 팀 경기를 바로 위로
+      try {
+        window.dispatchEvent(new CustomEvent("lr:commented", { detail: String(payload.body ?? "") }));
+      } catch {}
       setComments((list) => (list.some((x) => String(x.id) === String(comment.id)) ? list : [...list, norm(comment)]));
       if (rt) {
         setReplyBody("");

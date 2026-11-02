@@ -79,3 +79,18 @@ d("predictions (database)", async () => {
     expect(b["코스피고수"]).toBe("📈3연속");
   });
 });
+
+describe("⚽ 내 팀 경기 찾기", async () => {
+  const { kTeamIn, kTeamPlays } = await import("@/lib/peers");
+  it("finds a team in free text and in match titles", () => {
+    expect(kTeamIn("🚌 원정 직관러 / 광주FC")).toBe("광주");
+    expect(kTeamIn("📣 직관 응원단 / 충북청주fc")).toBe("청주");
+    expect(kTeamIn("원정 / 수원삼성")).toBe("수원삼성");
+    expect(kTeamIn("수원FC 팬")).toBe("수원FC");
+    expect(kTeamIn("그냥 축구 좋아요")).toBeUndefined();
+    expect(kTeamPlays("K리그1 35R 11/07(토) 14:00 제주 vs 광주, 결과는?", "광주")).toBe(true);
+    expect(kTeamPlays("K리그1 35R 11/08(일) 14:00 서울 vs 울산, 결과는?", "FC서울")).toBe(true);
+    expect(kTeamPlays("K리그1 35R 11/08(일) 14:00 서울 vs 울산, 결과는?", "광주")).toBe(false);
+    expect(kTeamPlays("수원FC vs 울산", "수원삼성")).toBe(false);
+  });
+});

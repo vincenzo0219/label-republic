@@ -36,6 +36,21 @@ const TEAMS: [string, string[]][] = [
 /** K리그 구단 이름 (🤝 직관 메이트 궁합 링크의 팀 고르기, 11/2) */
 export const K_LEAGUE_TEAMS: readonly string[] = TEAMS.map(([name]) => name);
 
+/** 자유 글에서 K리그 팀 찾기 ("🚌 원정 직관러 / 광주FC" → 광주). 긴 별칭부터 봐서 수원FC·수원삼성이 섞이지 않게 */
+export function kTeamIn(text: string): string | undefined {
+  const t = text.toLowerCase().replace(/\s+/g, "");
+  const pairs = TEAMS.flatMap(([name, keys]) => keys.map((k) => [name, k] as const)).sort((a, b) => b[1].length - a[1].length);
+  return pairs.find(([, k]) => t.includes(k))?.[0];
+}
+
+/** 예측 문제 제목에 이 팀 경기가 있는지 ("제주 vs 광주" 에 광주) */
+export function kTeamPlays(title: string, team: string): boolean {
+  const t = title.toLowerCase().replace(/\s+/g, "");
+  const keys = TEAMS.find(([name]) => name === team)?.[1] ?? [];
+  // "수원" 은 수원삼성 별칭이지만 "수원fc" 경기에는 걸리지 않게
+  return keys.some((k) => t.includes(k) && !(k === "수원" && t.includes("수원fc") && !t.replace(/수원fc/g, "").includes("수원")));
+}
+
 // KBO 10개 구단 (10/21 야구 팬 테스트). 결과 한 줄이 "응원 구단:" 이라 K리그 "응원 팀:" 과 섞이지 않는다
 const KBO_TEAMS: [string, string[]][] = [
   ["KIA", ["kia", "기아", "타이거즈"]],

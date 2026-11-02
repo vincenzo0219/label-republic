@@ -11,6 +11,7 @@ import { PK_TEAM_KEY } from "@/lib/pk";
 import { FriendLink, MateCard, useFromQuery } from "./FriendLink";
 import { QuickBrag } from "./QuickBrag";
 import { RoomPoll } from "./RoomPoll";
+import { TeamPredict } from "./TeamPredict";
 
 type Q = { key: keyof FanAnswers; q: string; options: { label: string; value: FanAnswers[keyof FanAnswers] }[] };
 
@@ -138,6 +139,7 @@ export function FanTest() {
         prompt="⚽ 다른 팬들은 어떤 타입일까? 결과와 응원 팀 한 줄"
         placeholder="예) 전남드래곤즈 / 광양 직관파"
       />
+      <TeamPredict team={team || null} />
       <Link href="/games/pk?from=fan" className="btn btn-primary pk-cta" data-click="pk">
         ⚽ 다른 팬과 승부차기 대결
       </Link>

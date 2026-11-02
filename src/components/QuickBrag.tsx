@@ -80,6 +80,9 @@ export function QuickBrag({ postId, line, bragApi, placeholder, prompt, onPosted
       });
       sending.current = undefined;
       celebrateWrite();
+      try {
+        window.dispatchEvent(new CustomEvent("lr:commented", { detail: payload.body }));
+      } catch {}
       saveNick(payload.nickname);
       watchPost(postId);
       if (notifyRef) addMyComment(notifyRef);
