@@ -107,7 +107,7 @@ export function FilterCount({ k }: { k: string }) {
   const n = useSyncExternalStore(subscribeFilter, () => filter[k] ?? 0, () => 0);
   if (!n) return null;
   return (
-    <span className="tab-count" aria-label={`새 글 ${n}개`}>
+    <span className="tab-count" aria-label={k === "play" ? `오늘 ${n}명 참여` : `새 글 ${n}개`}>
       {n > 98 ? "99+" : n}
     </span>
   );
