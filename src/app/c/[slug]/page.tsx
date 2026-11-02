@@ -6,6 +6,7 @@ import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { RoomQuiz } from "@/components/RoomQuiz";
+import { SentencePick } from "@/components/SentencePick";
 import { RoomTopBar } from "@/components/RoomTopBar";
 import { listCategories } from "@/lib/repo/categories";
 import { KospiGame } from "@/components/KospiGame";
@@ -199,7 +200,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
                 : roomTab?.key === PREDICT_TAB && isPredictRoom(category.slug)
                   ? { key: PREDICT_TAB, node: <PredictionBoard room={category.slug} /> }
                   : roomTab?.key === PLAY_TAB && isPlayRoom(category.slug)
-                    ? { key: PLAY_TAB, node: <RoomPlay slug={category.slug} /> }
+                    ? { key: PLAY_TAB, node: <RoomPlay slug={category.slug} name={category.name} /> }
         : undefined;
   const kidsLine = !ad && category.slug === KIDS_ROOM && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? <KidsTopLine /> : null;
   // 🎉 내 덕질 기념일 (10/26): 📸 자랑 탭에는 카드, 전체 탭 첫 페이지에는 작게. 숨긴 방·만남 연결 기능 없는 방(098)은 빼고 (정보만 보여 주는 방은 위에서 이미 끝)
@@ -212,7 +213,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       <RoomTopBar count={roomCount} />
       {adTop}
       {/* 🧩 오늘의 1분 퀴즈 (10/29 대표님): 어느 탭이든 방 맨 위. 기존 오늘의 질문이 있는 방은 그 카드. 👫 남녀 생각 차이 탭은 같은 투표를 목록으로 보여 주니 뺀다 */}
-      {!category.is_hidden && roomTab?.key !== "gender" && <RoomQuiz slug={category.slug} name={category.name} />}
+      {/* 📖 책 덕후방 (11/2 대표님 "1분 퀴즈 자리에 놀이의 이걸 넣어줘"): 맨 위는 매일 새 "더 끌리는 문장", 1분 퀴즈는 🧩 놀이 탭으로 */}
+      {!category.is_hidden && category.slug === BOOK_ROOM_SLUG && sp.tab !== "play" && <SentencePick from="book" />}
+      {!category.is_hidden && roomTab?.key !== "gender" && category.slug !== BOOK_ROOM_SLUG && <RoomQuiz slug={category.slug} name={category.name} />}
       {/* 📈 코스피 맞히기 (10/29 대표님): 퀴즈를 뺀 투자방 3곳 맨 위 자리 */}
       {!category.is_hidden && KOSPI_ROOMS.has(category.slug) && <KospiGame slug={category.slug} />}
       {/* 🎉 오늘 축하할 덕후 (10/26): 오늘 올라온 기념일·응원 카드, 줄 안에서 바로 누른다 */}

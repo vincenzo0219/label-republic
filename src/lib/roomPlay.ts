@@ -15,6 +15,7 @@ export type PlayItem =
   | { kind: "link"; href: string; emoji: string; title: string; sub: string; duel?: boolean; mate?: boolean; adult?: boolean }
   | { kind: "savings" }
   | { kind: "bookTaste" }
+  | { kind: "quiz" } // 🧩 오늘의 1분 퀴즈를 방 맨 위 대신 놀이 탭에 (11/2 대표님, 책 덕후방)
   | { kind: "board"; key: string }
   | { kind: "going" }
   | { kind: "rank"; game: "rally" | "kospi" };
@@ -24,7 +25,7 @@ const test = (key: string): PlayItem => ({ kind: "test", key });
 const board = (key: string): PlayItem => ({ kind: "board", key });
 
 export const ROOM_PLAY: Record<string, readonly PlayItem[]> = {
-  "읽는-책-제목을-교환해-보자": [board("book-pages"), test("book-sentence"), link("/first-line-test", "📖", "첫 문장 테스트", "첫 문장만 보고 책 제목 맞히기", { duel: true })],
+  "읽는-책-제목을-교환해-보자": [board("book-pages"), test("book-sentence"), { kind: "quiz" }, link("/first-line-test", "📖", "첫 문장 테스트", "첫 문장만 보고 책 제목 맞히기", { duel: true })],
   "kbo-덕후방": [test("kbo-team"), link("/kbo-test", "⚾", "야구 팬 타입 테스트", "직관 응원단? 기록 분석가?")],
   "러닝-덕후방": [board("run-km"), link("/run-test", "🏃", "러너 타입 테스트", "새벽 혼런러? 크루 러너? 기록 사냥꾼? 풍경 산책러?")],
   "커피-덕후방": [board("coffee-cups"), board("coffee-vote"), link("/coffee-test", "☕", "커피 타입 테스트", "아아 직진파? 핸드드립 탐험가? 달달 라떼파?"), link("/games/latte?from=play", "☕", "라떼아트 따르기", "미니게임, 점수 순위")],
