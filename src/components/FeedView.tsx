@@ -21,7 +21,7 @@ import { CheerButton } from "./CheerButton";
 import { LiveComments } from "./LiveComments";
 import { RoomVisitors } from "./RoomVisitors";
 import { SeenTracker } from "./SeenTracker";
-import { badgeOf, ROOM_BADGES, type BadgeMap } from "@/lib/badges";
+import { badgeOf, type BadgeMap } from "@/lib/badges";
 import { badgesSafe } from "@/lib/repo/badges";
 import { ttlMemo } from "@/lib/ttlMemo";
 import { eventDday, eventDdayLabel, sortByEventDday, type EventDday } from "@/lib/adSchedule";
@@ -85,7 +85,7 @@ export async function FeedView({
     category ? cachedRoomCount(0).catch(() => 0) : Promise.resolve(0),
   ]);
   // 방 배지 (작가지망생방: 장르 작가 테스트 결과)
-  const badges = category && feed && Object.hasOwn(ROOM_BADGES, category.slug) ? await badgesSafe(category.slug, feed.items.map((p) => p.nickname)) : undefined;
+  const badges = category && feed ? await badgesSafe(category.slug, feed.items.map((p) => p.nickname)) : undefined;
   const showGuide = category && needs && needs.infoPosts < THIN_BOARD_POSTS;
   // 🎫 [행사]·[혜택] 카드에 D-day (10/25): 이 페이지의 그런 글만 번호로 본문을 한 번 더 읽는다
   const eventIds = feed ? feed.items.filter((p) => /^\[(행사|혜택)\]/.test(p.title)).map((p) => p.id) : [];
