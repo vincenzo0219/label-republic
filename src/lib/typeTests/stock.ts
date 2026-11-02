@@ -8,7 +8,7 @@ export const STOCK_TEST: TypeTest = {
   emoji: "📈",
   title: "투자 생활 성향 테스트",
   resultLabel: "나의 투자 생활 성향",
-  intro: "투자와 함께하는 하루 습관으로 나의 성향을 알아봐요. 종목 이야기는 없어요.",
+  intro: "나의 투자 습관 성향이 나와요. 종목 이야기는 없어요.",
   description: "공부파? 뉴스파? 장기파? 기록파? 질문 6개로 알아보는 나의 투자 생활 습관.",
   note: "생활 습관을 재미로 나눈 결과예요. 종목 추천이 아니에요.",
   types: [

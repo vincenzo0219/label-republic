@@ -8,7 +8,7 @@ export const BOARDGAME_TEST: TypeTest = {
   emoji: "🎲",
   title: "보드게임 스타일 테스트",
   resultLabel: "나의 보드게임 스타일",
-  intro: "게임할 때의 나를 떠올리며 골라요. 나에게 맞는 보드게임 장르가 나와요.",
+  intro: "나에게 맞는 보드게임 장르가 나와요.",
   description: "전략가? 파티러? 협력러? 추리러? 질문 7개로 알아보는 나의 보드게임 스타일.",
   types: [
     { key: "strategist", emoji: "🧠", name: "전략가", what: "세 수 앞을 내다보는 타입. 자원 관리·일꾼 놓기 같은 전략 게임이 잘 맞아요." },

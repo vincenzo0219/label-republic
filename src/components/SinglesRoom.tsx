@@ -16,6 +16,7 @@ import {
 import type { SinglesTalk } from "@/lib/repo/singlesTalk";
 import { SeenTracker } from "./SeenTracker";
 import { SinglesBingo } from "./SinglesBingo";
+import { SentencePick } from "./SentencePick";
 import { SinglesStar } from "./SinglesStar";
 import { SinglesAlert } from "./SinglesAlert";
 import { SinglesChecker } from "./SinglesChecker";
@@ -122,13 +123,18 @@ export function SinglesRoom({ events, today, talks = {} }: { events: SinglesEven
         ))}
       </nav>
       {shown.length === 0 ? (
-        <p className="empty">{events.length === 0 ? "아직 모은 행사가 없어요. 원문 공지를 확인하는 대로 올려요." : "이 칸에 맞는 행사가 없어요."}</p>
+        <>
+          <p className="empty">{events.length === 0 ? "아직 모은 행사가 없어요. 원문 공지를 확인하는 대로 올려요." : "이 칸에 맞는 행사가 없어요."}</p>
+          {tab !== "past" && <SentencePick />}
+        </>
       ) : (
         <div className="singles-list">
           {shown.map((e, i) => (
             <Fragment key={e.id}>
               {/* 🎯 행사 빙고는 행사 카드 3개 뒤 (10/29 대표님: 빙고가 위에서 행사 글을 가려서) */}
               {i === BINGO_AFTER && <SinglesBingo events={events} today={today} />}
+              {/* 📖 어느 문장이 더 끌려요? (11/2): 행사 카드 1개 뒤, 바로 고를 수 있게 */}
+              {i === 1 && tab !== "past" && <SentencePick />}
               <div data-post-id={talks[e.id]?.postId} {...(i === 0 ? { "data-dwell-mark": "first-event" } : {})}>
                 <SinglesEventCard event={e} today={today} eligibility={judged ? checkEligibility(e, profile, today) : null}>
                   {tab !== "past" && <SinglesStar id={e.id} />}
@@ -138,6 +144,7 @@ export function SinglesRoom({ events, today, talks = {} }: { events: SinglesEven
               </div>
             </Fragment>
           ))}
+          {shown.length <= 1 && tab !== "past" && <SentencePick />}
           {shown.length <= BINGO_AFTER && <SinglesBingo events={events} today={today} />}
           <SeenTracker key={tab} />
         </div>

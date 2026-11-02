@@ -1977,3 +1977,12 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .rb-answer.no { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .rb-answer p { margin: 2px 0; }
 .rb-today li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+/* 📖 어느 문장이 더 끌려요? (11/2) */
+.sentence-pick { display: grid; gap: 10px; margin: 12px 0; padding: 16px; border: 2px dashed #f2a7b8; border-radius: 16px; background: color-mix(in srgb, #f2a7b8 12%, var(--surface, #fff)); }
+.sentence-pick > * { min-width: 0; overflow-wrap: anywhere; word-break: keep-all; }
+.sentence-pick-title { font-size: 17px; }
+.sentence-pick-opt { display: flex; justify-content: space-between; gap: 10px; align-items: center; width: 100%; padding: 14px 16px; border: 1px solid transparent; border-radius: 14px; background: var(--bg, #fff); color: inherit; font: inherit; font-size: 16px; line-height: 1.5; text-align: left; cursor: pointer; }
+.sentence-pick-opt.on { border-color: #e0708a; font-weight: 700; }
+.sentence-pick-opt.off { opacity: 0.6; }
+.sentence-pick-pct { flex: none; font-weight: 800; }
+.sentence-pick .hint { margin: 0; }

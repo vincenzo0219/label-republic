@@ -39,7 +39,7 @@ export const ROOM_PLAY: Record<string, readonly PlayItem[]> = {
   주식: [{ kind: "rank", game: "kospi" }, test("stock-life"), link("/margin-calc", "🧮", "반대매매 계산기", "담보 비율 계산")],
   미국주식방: [test("us-night")],
   "적립식-투자방": [board("savings-done"), { kind: "savings" }],
-  "육아-덕후방": [link("/c/육아-덕후방?tab=near", "📍", "이번 주 동네 체험", "우리 동네 체험 프로그램을 골라 봐요. 새 프로그램은 알림으로 받아요."), link("/parent-test", "👶", "육아 스타일 테스트", "꼼꼼 정보러? 기록 장인? 나들이 대장?")],
+  "육아-덕후방": [link("/c/육아-덕후방?tab=near", "📍", "이번 주 동네 체험", "새 프로그램은 알림으로 받아요"), link("/parent-test", "👶", "육아 스타일 테스트", "꼼꼼 정보러? 기록 장인? 나들이 대장?")],
   "와인-위스키-덕후방": [board("wine-note"), link("/wine-test", "🍷", "맛 취향 테스트", "묵직 레드파? 스모키 피트파? 만 19세 이상만 해 주세요", { adult: true })],
   "애니-만화-덕후방": [board("anime-stars"), link("/anime-test", "🎨", "덕질 타입 테스트", "굿즈 수집가? 정주행 시청파? 원작 만화파?")],
   "드라마-덕후방": [link("/drama-test", "📺", "드라마 타입 테스트", "정주행 몰아보기파? 본방 사수파? 명대사 수집파?")],
