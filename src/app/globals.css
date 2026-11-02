@@ -1995,3 +1995,4 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .team-predict .hint { margin: 0; }
 .team-predict .predict-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .team-predict .vote-btn { min-width: 0; width: 100%; min-height: 44px; padding: 8px 4px; font-size: 14px; white-space: normal; }
+.sentence-pick-next { display: block; width: 100%; min-height: 56px; padding: 14px; font-size: 20px; font-weight: 800; text-align: center; border-radius: 14px; }
