@@ -8,7 +8,7 @@ export const POPUP_TEST: TypeTest = {
   emoji: "🛍️",
   title: "팝업 취향 테스트",
   resultLabel: "나의 팝업 취향",
-  intro: "팝업과 전시를 즐기는 방식으로 나의 취향 타입을 알아봐요.",
+  intro: "나의 팝업·전시 취향이 나와요.",
   description: "오픈런 헌터? 인증샷 장인? 굿즈 수집가? 질문 7개로 알아보는 나의 팝업 취향.",
   types: [
     { key: "openrun", emoji: "🏃", name: "오픈런 헌터", what: "첫날 첫 타임이 제일 좋아요. 대기 번호 앞자리가 자부심이에요." },

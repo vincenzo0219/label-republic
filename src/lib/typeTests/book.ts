@@ -11,7 +11,7 @@ export const BOOK_TEST: TypeTest = {
   emoji: "📚",
   title: "문장 취향 테스트",
   resultLabel: "나의 문장 취향",
-  intro: "두 문장 중 더 끌리는 쪽을 골라요. 12번이면 나의 독서 타입이 나와요.",
+  intro: "12번 고르면 나의 독서 타입이 나와요.",
   description: "두 문장 중 더 끌리는 쪽만 고르면 돼요. 12번 고르면 나의 독서 타입이 나와요.",
   long: true,
   types: [

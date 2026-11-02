@@ -8,7 +8,7 @@ export const CAMPING_TEST: TypeTest = {
   emoji: "⛺",
   title: "캠핑 스타일 테스트",
   resultLabel: "나의 캠핑 스타일",
-  intro: "캠핑장에서의 나를 떠올리며 골라요. 나의 캠핑 스타일이 나와요.",
+  intro: "나의 캠핑 스타일이 나와요.",
   description: "장비 덕후? 차박러? 캠핑 요리사? 질문 7개로 알아보는 나의 캠핑 스타일.",
   types: [
     { key: "gear", emoji: "🔦", name: "장비 덕후", what: "새 장비를 펼칠 때가 제일 설레요. 사이트 세팅이 곧 작품이에요." },

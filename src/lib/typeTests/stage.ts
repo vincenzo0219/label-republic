@@ -8,7 +8,7 @@ export const STAGE_TEST: TypeTest = {
   emoji: "🎭",
   title: "관극 스타일 테스트",
   resultLabel: "나의 관극 스타일",
-  intro: "공연을 고르고, 보고, 기억하는 방식으로 나의 관극 스타일을 알아봐요.",
+  intro: "나의 관극 스타일이 나와요.",
   description: "회전문 관객? 넘버 덕후? 서사 분석러? 질문 7개로 알아보는 나의 관극 스타일.",
   types: [
     { key: "repeat", emoji: "🔁", name: "회전문 관객", what: "마음에 든 작품은 몇 번이고 다시 봐요. 볼 때마다 새로운 장면을 찾아내요." },

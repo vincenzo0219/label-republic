@@ -23,7 +23,7 @@ export const KBO_TEST: TypeTest = {
   emoji: "⚾",
   title: "내 인생 구단 찾기",
   resultLabel: "나와 어울리는 구단",
-  intro: "질문 8개로 나와 분위기가 닮은 KBO 구단을 찾아요. 재미로만 봐 주세요.",
+  intro: "나와 닮은 KBO 구단이 나와요. 재미로만 봐 주세요.",
   description: "주말 여행지, 응원 스타일, 좋아하는 경기로 찾는 나와 닮은 KBO 구단. 질문 8개, 1분이면 나와요.",
   note: "도시 분위기와 유니폼 색으로 재미 삼아 고른 결과예요. 응원 팀은 마음 가는 대로!",
   types: [
