@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { fanTestClickKey } from "@/lib/clicks";
+import { decodeFanMate, encodeMate, fanCompat, SAME_TEAM_BONUS } from "@/lib/friendLink";
 import { fanBragLine, fanPick, type FanAnswers, FAN_INTRO_POST_ID } from "@/lib/fanTest";
+import { myNick } from "@/lib/me";
+import { K_LEAGUE_TEAMS, teamOf } from "@/lib/peers";
 import { PK_TEAM_KEY } from "@/lib/pk";
+import { FriendLink, MateCard, useFromQuery } from "./FriendLink";
 import { QuickBrag } from "./QuickBrag";
 import { RoomPoll } from "./RoomPoll";
 
@@ -38,11 +42,24 @@ function rememberTeam(root: HTMLElement) {
 export function FanTest() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Partial<FanAnswers>>({});
+  // 🤝 직관 메이트 궁합 링크(?m=타입&t=팀&n=닉네임, 11/2)
+  const mate = useFromQuery(decodeFanMate);
+  const [team, setTeam] = useState("");
+  useEffect(() => {
+    try {
+      setTeam(teamOf(`응원 팀: ${localStorage.getItem(PK_TEAM_KEY) ?? ""}`) ?? "");
+    } catch {}
+  }, []);
 
   if (step < QUESTIONS.length) {
     const q = QUESTIONS[step]!;
     return (
       <section className="ear-card">
+        {step === 0 && mate && (
+          <p className="vs-banner">
+            🤝 <b>{mate.name}</b>님({mate.type.emoji} {mate.type.name}{mate.team ? ` · ${mate.team}` : ""})이 직관 메이트 궁합을 보냈어요. 끝까지 하면 궁합이 나와요.
+          </p>
+        )}
         <p className="ear-kicker">⚽ 축구 팬 1분 테스트 · {step + 1}/{QUESTIONS.length}</p>
         <h1 className="ear-title">{step === 0 ? "나는 어떤 축구 팬?" : q.q}</h1>
         {step === 0 && <p className="hint">{q.q}</p>}
@@ -66,6 +83,13 @@ export function FanTest() {
   }
 
   const pick = fanPick(answers as FanAnswers);
+  const compat = mate ? fanCompat(mate.type.key, pick.key, mate.team, team || null) : null;
+  const pickTeam = (t: string) => {
+    setTeam(t);
+    try {
+      if (t) localStorage.setItem(PK_TEAM_KEY, t);
+    } catch {}
+  };
   return (
     <section
       className="ear-card"
@@ -81,6 +105,33 @@ export function FanTest() {
         <span aria-hidden>{pick.emoji}</span> {pick.name}
       </p>
       <p>{pick.what}</p>
+      <label className="mate-team">
+        응원 팀
+        <select value={team} onChange={(e) => pickTeam(e.target.value)}>
+          <option value="">고르지 않음</option>
+          {K_LEAGUE_TEAMS.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </label>
+      {mate && compat && (
+        <MateCard
+          kicker={`🤝 ${mate.name}님과 직관 메이트 궁합`}
+          friend={`${mate.type.emoji} ${mate.type.name}${mate.team ? ` (${mate.team})` : ""}`}
+          me={`${pick.emoji} ${pick.name}${team ? ` (${team})` : ""}`}
+          pct={compat.pct}
+          line={compat.line}
+          note={compat.sameTeam ? `같은 ${team} 팬이라 +${SAME_TEAM_BONUS}%. 같은 응원석으로 가요.` : compat.rival ? "응원 팀이 달라요. 맞대결 날엔 반대편 응원석에서 만나요." : undefined}
+        />
+      )}
+      <FriendLink
+        label={mate ? "🤝 다른 친구와도 궁합 보기" : "🤝 직관 메이트 궁합 링크 보내기"}
+        text={`⚽ 나는 ${pick.emoji} ${pick.name}${team ? ` (${team})` : ""}. 너도 해 보고 직관 메이트 궁합 확인해 봐!`}
+        makeUrl={() => encodeMate("/fan-test", pick.key, myNick(), team || null)}
+        click="mate"
+      />
       <QuickBrag
         postId={FAN_INTRO_POST_ID}
         line={fanBragLine(pick)}

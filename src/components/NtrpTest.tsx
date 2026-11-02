@@ -2,18 +2,25 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SCORE_TESTS } from "@/lib/friendLink";
 import { NTRP_QUESTIONS, ntrpBand, ntrpScore } from "@/lib/ntrpTest";
 import { RoomPoll } from "./RoomPoll";
+import { Versus, VsIntro, useVs } from "./Versus";
+
+const T = SCORE_TESTS.ntrp;
 
 /** 🎾 NTRP 1분 자가진단 (10/28) */
 export function NtrpTest() {
   const [picks, setPicks] = useState<number[]>([]);
+  // 🎾 파트너 비교 링크(?vs=합계점수, 11/2): 시작 화면에 상대 등급, 끝나면 나란히
+  const vs = useVs(T.max, T.min);
   const step = picks.length;
 
   if (step < NTRP_QUESTIONS.length) {
     const q = NTRP_QUESTIONS[step]!;
     return (
       <section className="ear-card">
+        {step === 0 && <VsIntro vs={vs} format={T.format} />}
         <p className="ear-kicker">🎾 NTRP 1분 자가진단 · {step + 1}/{NTRP_QUESTIONS.length}</p>
         <h1 className="ear-title">{step === 0 ? "내 테니스 NTRP는?" : q.q}</h1>
         {step === 0 && <p className="hint">{q.q}</p>}
@@ -28,16 +35,8 @@ export function NtrpTest() {
     );
   }
 
-  const band = ntrpBand(ntrpScore(picks) ?? 0);
-  const share = async () => {
-    const url = `${window.location.origin}/ntrp-test`;
-    const text = `내 NTRP 자가진단은 ${band.level} (${band.name})! 너는 몇이야?`;
-    try {
-      if (navigator.share) return await navigator.share({ title: "🎾 NTRP 1분 자가진단", text, url });
-      await navigator.clipboard.writeText(`${text}\n${url}`);
-      alert("링크를 복사했어요.");
-    } catch {}
-  };
+  const score = ntrpScore(picks) ?? T.min;
+  const band = ntrpBand(score);
   return (
     <section className="ear-card">
       <p className="ear-kicker">나의 NTRP 자가진단</p>
@@ -46,11 +45,9 @@ export function NtrpTest() {
       </p>
       <p>{band.what}</p>
       <p className="hint">👉 {band.next}</p>
+      <Versus vs={vs} mine={score} path={T.path} label={`🎾 NTRP 자가진단 (${band.name})`} format={T.format} rank={(n) => ntrpBand(n).min} cta="🎾 파트너에게 NTRP 비교 보내기" />
       <RoomPoll slug="테니스-덕후방" />
       <div className="ear-actions">
-        <button type="button" className="btn btn-primary" onClick={share}>
-          파트너 NTRP도 물어보기
-        </button>
         <button type="button" className="btn btn-ghost" onClick={() => setPicks([])}>
           다시 하기
         </button>

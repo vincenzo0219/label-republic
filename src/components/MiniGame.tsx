@@ -14,6 +14,10 @@ import { RallyGame } from "./games/RallyGame";
 import { ReactionGame } from "./games/ReactionGame";
 import { WorldcupGame } from "./games/WorldcupGame";
 import { Confetti } from "./RoomQuiz";
+import { Versus, VsIntro, useVs } from "./Versus";
+import { SCORE_TESTS } from "@/lib/friendLink";
+
+const RX = SCORE_TESTS.reaction;
 
 type Challenge = { id: string; score: number; name: string; seed: number; tries: number; wins: number };
 type Attempt = { beat: boolean; target: number; challenge: Challenge };
@@ -68,6 +72,9 @@ export function MiniGame({ game }: { game: GameId }) {
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [seed, setSeed] = useState<number | null>(null);
   const [sent, setSent] = useState<"" | "busy" | "copied" | "shared">("");
+  // ⚡ 반응속도 친구 대결 (11/2): ?vs=ms&n=닉네임
+  const rxVs = useVs(RX.max, RX.min);
+  const vs = game === "reaction" ? rxVs : null;
 
   useEffect(() => {
     if (game !== "rally") return;
@@ -203,6 +210,7 @@ export function MiniGame({ game }: { game: GameId }) {
           {challenge.tries > 0 && <span>지금까지 {challenge.tries}명 도전, {challenge.wins}명 성공</span>}
         </p>
       )}
+      {score === null && <VsIntro vs={vs} format={RX.format} />}
       {score === null ? (
         <div key={round} className="mg-stage" onPointerDownCapture={() => startMusic(game)}>
           {game === "reaction" && <ReactionGame onFinish={finish} />}
@@ -239,13 +247,14 @@ export function MiniGame({ game }: { game: GameId }) {
               {result?.todayBest != null && <p className="mg-end-line">오늘 이 방 최고 기록 {formatScore(game, result.todayBest)}</p>}
             </>
           )}
+          {game === "reaction" && <Versus vs={vs} mine={score} path={RX.path} label="⚡ 반응속도 결투" format={RX.format} lowerBetter />}
           <div className="mg-end-actions">
             <button type="button" className="btn btn-primary" onClick={again}>{attempt && !attempt.beat ? "다시 도전" : "다시 하기"}</button>
             {game === "rally" ? (
               <button type="button" className="btn rally-send" disabled={sent === "busy"} onClick={() => void sendChallenge()}>
                 {sent === "copied" ? "도전장 복사됨" : sent === "shared" ? "도전장 보냄" : !challenge ? "🎾 도전장 보내기" : attempt?.beat ? "🎾 내 도전장 보내기" : "🎾 되갚기 도전장 보내기"}
               </button>
-            ) : (
+            ) : game === "reaction" ? null : (
               <button type="button" className="btn" onClick={() => void share()}>{copied ? "링크 복사됨" : "기록 공유"}</button>
             )}
             <Link href={roomHref} className="btn">방으로 돌아가기</Link>

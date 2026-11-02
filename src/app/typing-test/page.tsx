@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { friendMetadata, type SearchParams } from "@/lib/friendMeta";
 import { TypingTest } from "@/components/TypingTest";
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
   title: "한글 타자 테스트 — 1분에 몇 타?",
   description: "짧은 문장 5개를 치고 타수와 정확도를 재는 1분 한글 타자 테스트. PC·휴대폰 참가자 중 몇 %인지, 다른 사람은 무슨 키보드로 쳤는지 확인해 보세요.",
   alternates: { canonical: "/typing-test" },
@@ -11,6 +12,11 @@ export const metadata: Metadata = {
     images: [{ url: "/ear/og-typing-test.png", width: 1200, height: 630 }],
   },
 };
+
+/** 🤝 친구 대결·궁합 링크(?vs= · ?m=)면 미리보기를 친구 기록 카드로 */
+export function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
+  return friendMetadata(metadata, "typing", searchParams);
+}
 
 export default function TypingTestPage() {
   return <TypingTest />;

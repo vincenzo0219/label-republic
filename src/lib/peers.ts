@@ -33,6 +33,9 @@ const TEAMS: [string, string[]][] = [
   ["화성", ["화성"]],
 ];
 
+/** K리그 구단 이름 (🤝 직관 메이트 궁합 링크의 팀 고르기, 11/2) */
+export const K_LEAGUE_TEAMS: readonly string[] = TEAMS.map(([name]) => name);
+
 // KBO 10개 구단 (10/21 야구 팬 테스트). 결과 한 줄이 "응원 구단:" 이라 K리그 "응원 팀:" 과 섞이지 않는다
 const KBO_TEAMS: [string, string[]][] = [
   ["KIA", ["kia", "기아", "타이거즈"]],

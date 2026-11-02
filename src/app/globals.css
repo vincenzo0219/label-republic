@@ -986,7 +986,22 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .debate-result p { margin: 0; }
 .vs-banner { margin: 0 0 12px; padding: 10px 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--brand) 12%, var(--surface)); font-size: 15px; }
 .vs-box { display: grid; gap: 8px; margin: 14px 0; }
-.vs-result { margin: 0; font-size: 16px; }
+/* 🤝 친구 대결·궁합 카드 (11/2) */
+.vs-card, .mate-card { padding: 14px 16px; border-radius: var(--radius); border: 1px solid var(--line); background: color-mix(in srgb, var(--brand) 8%, var(--surface)); text-align: center; }
+.vs-card.vs-win { border-color: var(--brand); }
+.vs-verdict { margin: 0 0 8px; font-size: 22px; font-weight: 800; }
+.vs-sides { display: flex; justify-content: center; align-items: center; gap: 14px; font-size: 14px; color: var(--muted); }
+.vs-sides > span { display: grid; gap: 2px; min-width: 0; flex: 1 1 0; }
+.vs-sides b { font-size: 18px; color: var(--text); word-break: keep-all; }
+.vs-sides > .vs-x { flex: none; font-weight: 800; color: var(--accent); }
+.mate-card { margin: 14px 0; }
+.mate-kicker { margin: 0; font-size: 14px; color: var(--muted); }
+.mate-pct { margin: 2px 0 6px; font-size: 44px; font-weight: 800; color: var(--brand); line-height: 1.1; }
+.mate-line { margin: 8px 0 0; font-size: 16px; word-break: keep-all; }
+.friend-link { display: grid; gap: 6px; }
+.friend-link .hint { margin: 0; }
+.mate-team { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 15px; }
+.mate-team select { min-height: 40px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 15px; }
 .data-page h1 { font-size: 24px; margin: 8px 0; }
 .data-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 15px; }
 .data-table th, .data-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }

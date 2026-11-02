@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { decodeLoveMate, encodeMate, loveCompat } from "@/lib/friendLink";
 import { loveBragLine, lovePick, type LoveAnswers, LOVE_INTRO_POST_ID } from "@/lib/loveTest";
+import { myNick } from "@/lib/me";
+import { FriendLink, MateCard, useFromQuery } from "./FriendLink";
 import { QuickBrag } from "./QuickBrag";
 import { RoomPoll } from "./RoomPoll";
 
@@ -22,11 +25,18 @@ const QUESTIONS: Q[] = [
 export function LoveTest() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Partial<LoveAnswers>>({});
+  // 💞 친구·연인 궁합 링크(?m=타입&n=닉네임, 11/2). 연락처·만남 기능 없이 성향만 비교한다
+  const mate = useFromQuery(decodeLoveMate);
 
   if (step < QUESTIONS.length) {
     const q = QUESTIONS[step]!;
     return (
       <section className="ear-card">
+        {step === 0 && mate && (
+          <p className="vs-banner">
+            💞 <b>{mate.name}</b>님이 궁합 링크를 보냈어요. 끝까지 하면 둘의 궁합이 나와요.
+          </p>
+        )}
         <p className="ear-kicker">💘 연애 성향 1분 테스트 · {step + 1}/{QUESTIONS.length}</p>
         <h1 className="ear-title">{step === 0 ? "나의 연애 성향은?" : q.q}</h1>
         {step === 0 && <p className="hint">{q.q}</p>}
@@ -50,6 +60,7 @@ export function LoveTest() {
   }
 
   const pick = lovePick(answers as LoveAnswers);
+  const compat = mate ? loveCompat(mate.type.key, pick.key) : null;
   return (
     <section className="ear-card">
       <p className="ear-kicker">나의 연애 성향</p>
@@ -57,6 +68,14 @@ export function LoveTest() {
         <span aria-hidden>{pick.emoji}</span> {pick.name}
       </p>
       <p>{pick.what}</p>
+      {mate && compat && (
+        <MateCard kicker={`💞 ${mate.name}님과 나의 궁합`} friend={`${mate.type.emoji} ${mate.type.name}`} me={`${pick.emoji} ${pick.name}`} pct={compat.pct} line={compat.line} />
+      )}
+      <FriendLink
+        label={mate ? "💞 다른 친구와도 궁합 보기" : "💞 친구·연인에게 궁합 링크 보내기"}
+        text={`💘 내 연애 성향은 ${pick.emoji} ${pick.name}. 너도 해 보고 우리 궁합 확인해 봐!`}
+        makeUrl={() => encodeMate("/love-test", pick.key, myNick())}
+      />
       <QuickBrag
         postId={LOVE_INTRO_POST_ID}
         line={loveBragLine(pick)}
