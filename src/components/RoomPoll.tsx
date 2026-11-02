@@ -41,7 +41,7 @@ export function RoomPoll({ slug }: { slug: string }) {
   const until = poll.nextAt && now !== null ? untilLabel(poll.nextAt, now) : null;
   return (
     <section className="come-back" aria-label="오늘의 질문">
-      <p className="hint">📅 매일 바뀌는 오늘의 질문 · 다음 날 최종 결과가 여기 올라와요</p>
+      <p className="hint">📅 오늘의 질문</p>
       {y && yn > 0 && (
         <p className="poll-yesterday">
           📊 어제 결과: {y.a} {ya}% vs {y.b} {100 - ya}% ({yn}명)
@@ -49,7 +49,7 @@ export function RoomPoll({ slug }: { slug: string }) {
       )}
       <b>{poll.title}</b>
       <DebateVote postId={poll.postId} initial={poll.tally} />
-      {until && <p className="hint poll-next">⏰ 다음 질문까지 {until} · 내일 또 와서 오늘 결과를 확인해요</p>}
+      {until && <p className="hint poll-next">⏰ {until} 뒤 결과 공개</p>}
     </section>
   );
 }

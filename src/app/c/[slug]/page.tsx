@@ -136,7 +136,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   // 💬 수다방은 방 탭의 "자유채팅"으로 옮김
   // 🎮 방 미니게임 (10/29 대표님): "1분 테스트" 버튼 바로 옆 하나 (새 탭 X)
   const game = roomGameLink(category.slug);
-  const links = [...(ROOM_LINKS[category.slug] ?? []), ...(game ? [game] : [])];
+  // 🧩 놀이 탭에서는 같은 테스트·게임 카드가 아래에 있으니 위 바로가기는 숨긴다 (11/2 대표님 "중복표현 없애고 간결하게")
+  const links = sp.tab === "play" ? [] : [...(ROOM_LINKS[category.slug] ?? []), ...(game ? [game] : [])];
   const bite = category.slug === BOOK_ROOM_SLUG && !sp.tab ? await todayBite().catch(() => null) : null;
   const chat = sp.tab === "chat" ? await ensureRoomChat(category.slug) : null;
   const initial = chat ? await listComments(chat.postId, await viewerFp()) : [];
