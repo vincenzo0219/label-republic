@@ -1917,3 +1917,63 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .play-body { display: grid; gap: 2px; min-width: 0; }
 .play-body b { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .play-tag { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+
+/* 🧩 놀이판 2단계 (11/2): 기록판·사진 투표·살까 말까·퀴즈·별점판·달력 */
+.rb-card { overflow-wrap: anywhere; word-break: keep-all; min-width: 0; }
+.rb-card .hint { margin: 4px 0; }
+.rb-tag { margin-left: 6px; vertical-align: 1px; }
+.rb-body { display: grid; gap: 10px; margin-top: 10px; min-width: 0; }
+.rb-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.rb-row > .btn { flex: none; }
+.rb-grow { flex: 1 1 8em; min-width: 0; }
+.rb-num { width: 7em; min-width: 0; font-size: 18px; }
+.rb-unit { font-weight: 700; }
+.rb-count { min-width: 3em; text-align: center; font-weight: 700; }
+.rb-big { width: 100%; justify-content: center; min-height: 44px; box-sizing: border-box; text-align: center; }
+.rb-form { display: grid; gap: 8px; min-width: 0; }
+.rb-form .input, .rb-form .select { width: 100%; box-sizing: border-box; min-width: 0; }
+.rb-form .rb-row .select { width: auto; flex: 1 1 5em; }
+.rb-nick { display: grid; gap: 4px; }
+.rb-nick .input { width: 100%; box-sizing: border-box; max-width: 16em; }
+.rb-stats p { margin: 2px 0; font-size: 15px; }
+.rb-streak { font-weight: 800; color: var(--accent); }
+.rb-me { font-weight: 700; }
+.rb-why { margin: 14px 0 0; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 13.5px; color: var(--brand); font-weight: 700; }
+.rb-err { color: var(--danger, #b42318); }
+.rb-bars, .rb-top, .rb-wait, .rb-mine-list, .rb-votes, .rb-photos, .rb-today { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; min-width: 0; }
+.rb-bars li { display: grid; grid-template-columns: minmax(0, 7.5em) minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 14px; }
+.rb-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-bar { display: block; height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; min-width: 0; }
+.rb-bar > span { display: block; height: 100%; background: var(--brand); }
+.rb-bar-n { white-space: nowrap; font-size: 13px; color: var(--muted); }
+.rb-mine { font-weight: 800; }
+.rb-top li, .rb-wait li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.rb-rate-label { min-width: 0; flex: 1 1 8em; }
+.rb-mine-tag { display: inline-flex; align-items: center; gap: 2px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.rb-mine-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 10px; background: color-mix(in srgb, var(--brand) 8%, transparent); font-size: 14px; }
+.rb-winner { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.rb-winner img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; flex: none; }
+.rb-winner p { margin: 0; min-width: 0; }
+.rb-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rb-photos li { display: grid; gap: 4px; min-width: 0; }
+.rb-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: var(--line); display: block; }
+.rb-photo-bar { display: flex; justify-content: space-between; align-items: center; gap: 4px; min-width: 0; }
+.rb-photo-nick { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rb-photo-actions { display: flex; justify-content: flex-end; }
+.rb-vote { padding: 10px 0; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+.rb-vote p { margin: 0; }
+.rb-tally { display: grid; gap: 4px; font-size: 14px; }
+.rb-closed summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+.rb-cloud { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.rb-cloud .rb-size-1 { font-size: 13px; }
+.rb-cloud .rb-size-2 { font-size: 14.5px; }
+.rb-cloud .rb-size-3 { font-size: 16px; }
+.rb-cloud .rb-size-4 { font-size: 18px; font-weight: 700; }
+.rb-cloud .rb-size-5 { font-size: 21px; font-weight: 800; }
+.rb-chip-n { font-size: .8em; opacity: .75; }
+.rb-question { margin: 0; font-size: 16px; }
+.rb-question b { display: block; font-size: 26px; margin-top: 4px; }
+.rb-answer { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--brand) 8%, transparent); }
+.rb-answer.no { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.rb-answer p { margin: 2px 0; }
+.rb-today li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }

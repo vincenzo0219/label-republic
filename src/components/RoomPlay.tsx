@@ -1,21 +1,27 @@
 import Link from "next/link";
 import { playItems } from "@/lib/roomPlay";
 import { typeTestOf } from "@/lib/typeTests";
+import { weekEvents, type WeekEvent } from "@/lib/repo/roomBoards";
 import { BookTasteTable } from "./BookTasteTable";
+import { GoingWeek, RoomBoard, WeekRank } from "./RoomBoard";
 import { SavingsCard } from "./SavingsCard";
 import { TypeTest } from "./TypeTest";
 
 /**
  * 🧩 방 놀이 탭 (?tab=play, 11/2). 설정은 src/lib/roomPlay.ts. 첫 새 테스트는 탭 안에서 바로, 나머지는 카드로
  */
-export function RoomPlay({ slug }: { slug: string }) {
+export async function RoomPlay({ slug }: { slug: string }) {
   const items = playItems(slug);
   const firstTest = items.find((i) => i.kind === "test");
+  const events: WeekEvent[] = items.some((i) => i.kind === "going") ? await weekEvents(slug).catch(() => []) : [];
   return (
     <div className="room-play">
       {items.map((it, i) => {
         if (it.kind === "savings") return <SavingsCard key="savings" />;
         if (it.kind === "bookTaste") return <BookTasteTable key="bookTaste" />;
+        if (it.kind === "board") return <RoomBoard key={it.key} boardKey={it.key} />;
+        if (it.kind === "going") return <GoingWeek key="going" events={events} why="새 행사 글이 올라오면 여기에 떠요." />;
+        if (it.kind === "rank") return <WeekRank key={`rank-${it.game}`} game={it.game} />;
         if (it.kind === "test") {
           const t = typeTestOf(it.key);
           if (!t) return null;

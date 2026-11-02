@@ -98,6 +98,7 @@ describe("🧩 방 놀이 탭", () => {
           const p = it.href.split("?")[0]!;
           if (p.startsWith("/t/")) expect(TYPE_TESTS[p.slice(3)]).toBeTruthy();
           else if (p.startsWith("/games/")) expect(existsSync(path.join("src/app/games/[game]/page.tsx"))).toBe(true);
+          else if (p.startsWith("/c/")) expect(Object.hasOwn(ROOM_PLAY, p.slice(3)), p).toBe(true); // 방 탭 링크 (📍 동네 체험)
           else expect(existsSync(path.join("src/app", p, "page.tsx")), p).toBe(true);
         }
       }
