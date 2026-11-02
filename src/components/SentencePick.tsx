@@ -51,10 +51,10 @@ export function SentencePick({ from = "singles" }: { from?: string }) {
       {card.mine === null ? (
         <p className="hint">고르면 나와 같은 사람이 몇 %인지 보여요 · 매일 새 문장</p>
       ) : (
-        <p className="hint">
-          {n}명 중 {card.counts![card.mine]}명이 같은 선택{card.type ? ` · ${card.type} 문장` : ""} ·{" "}
-          <Link href={`/t/book-sentence?from=${from}`}>12문장으로 내 유형 보기 →</Link>
-        </p>
+        // 11/2 대표님 "100% 밑에 긴 설명 빼고. 다음 크게": 고른 뒤에는 큰 다음 버튼 하나만
+        <Link href={`/t/book-sentence?from=${from}`} className="btn btn-primary sentence-pick-next">
+          다음 →
+        </Link>
       )}
       {error && <p className="error">{error}</p>}
     </section>
