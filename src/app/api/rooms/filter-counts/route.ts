@@ -4,6 +4,8 @@ import { ALL_HEADS, headsFor, tabMembers } from "@/lib/heads";
 import { json, route } from "@/lib/http";
 import { hit } from "@/lib/rate-limit";
 import { filterCounts } from "@/lib/repo/categories";
+import { playCountToday } from "@/lib/repo/playCount";
+import { ROOM_PLAY } from "@/lib/roomPlay";
 
 const WEEK = 7 * 86_400_000;
 
@@ -24,6 +26,11 @@ export const GET = route(async (req) => {
   for (const h of ALL_HEADS) {
     const n = tabMembers(h.key).reduce((a, k) => a + (counts[k] ?? 0), 0);
     if (n > 0) counts[h.key] = Math.min(n, 99);
+  }
+  // 🧩 놀이 탭: 오늘 참여한 사람 수 (0이면 숨김, 11/2)
+  if (Object.hasOwn(ROOM_PLAY, slug)) {
+    const n = await playCountToday(slug).catch(() => 0);
+    if (n > 0) counts.play = Math.min(n, 99);
   }
   return json({ counts });
 });

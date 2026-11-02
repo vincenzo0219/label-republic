@@ -170,6 +170,7 @@ export async function FeedView({
         {roomTabsAround(category.slug).after.map((t) => (
           <Link key={t.key} href={`${basePath}?tab=${t.key}`} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
             {t.label}
+            {t.key === "play" && <FilterCount k="play" />}
           </Link>
         ))}
         {tabHeadsFor(category.slug).map((h) => (
