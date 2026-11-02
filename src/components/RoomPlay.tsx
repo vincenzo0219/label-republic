@@ -2,6 +2,7 @@ import Link from "next/link";
 import { playItems } from "@/lib/roomPlay";
 import { typeTestOf } from "@/lib/typeTests";
 import { weekEvents, type WeekEvent } from "@/lib/repo/roomBoards";
+import { RoomQuiz } from "./RoomQuiz";
 import { SentencePick } from "./SentencePick";
 import { GoingWeek, RoomBoard, WeekRank } from "./RoomBoard";
 import { SavingsCard } from "./SavingsCard";
@@ -10,13 +11,14 @@ import { TypeTest } from "./TypeTest";
 /**
  * 🧩 방 놀이 탭 (?tab=play, 11/2). 설정은 src/lib/roomPlay.ts. 첫 새 테스트는 탭 안에서 바로, 나머지는 카드로
  */
-export async function RoomPlay({ slug }: { slug: string }) {
+export async function RoomPlay({ slug, name = "" }: { slug: string; name?: string }) {
   const items = playItems(slug);
   const firstTest = items.find((i) => i.kind === "test");
   const events: WeekEvent[] = items.some((i) => i.kind === "going") ? await weekEvents(slug).catch(() => []) : [];
   return (
     <div className="room-play">
       {items.map((it, i) => {
+        if (it.kind === "quiz") return <RoomQuiz key="quiz" slug={slug} name={name} />;
         if (it.kind === "savings") return <SavingsCard key="savings" />;
         if (it.kind === "bookTaste") return <SentencePick key="bookTaste" />; // 11/2 대표님: 체크표 대신 문장 바로 고르기
         if (it.kind === "board") return <RoomBoard key={it.key} boardKey={it.key} />;

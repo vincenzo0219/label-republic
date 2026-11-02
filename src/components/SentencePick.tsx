@@ -10,7 +10,7 @@ type Card = { day: string; options: [string, string]; mine: 0 | 1 | null; counts
 const pct = (x: number, n: number) => (n ? Math.round((x / n) * 100) : 0);
 
 /** 📖 어느 문장이 더 끌려요? (11/2 대표님 "오른쪽처럼 바로 문장을 선택할 수 있게"). 만남 행사 목록 사이에 끼는 카드 */
-export function SentencePick() {
+export function SentencePick({ from = "singles" }: { from?: string }) {
   const [card, setCard] = useState<Card | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -53,7 +53,7 @@ export function SentencePick() {
       ) : (
         <p className="hint">
           {n}명 중 {card.counts![card.mine]}명이 같은 선택{card.type ? ` · ${card.type} 문장` : ""} ·{" "}
-          <Link href="/t/book-sentence?from=singles">12문장으로 내 유형 보기 →</Link>
+          <Link href={`/t/book-sentence?from=${from}`}>12문장으로 내 유형 보기 →</Link>
         </p>
       )}
       {error && <p className="error">{error}</p>}
