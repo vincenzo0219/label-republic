@@ -108,7 +108,7 @@ export function MiniGame({ game }: { game: GameId }) {
     let r: Result;
     let saved = true;
     try {
-      r = await api<Result>(`/api/games/${game}`, "POST", { score: n });
+      r = await api<Result>(`/api/games/${game}`, "POST", { score: n, ...(game === "rally" && myNick() ? { nickname: myNick() } : {}) });
     } catch {
       saved = false;
       r = { myBest: null, todayBest: null, best: false };

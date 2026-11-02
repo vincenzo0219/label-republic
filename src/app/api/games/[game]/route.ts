@@ -7,6 +7,7 @@ import { newVisitorId, VISITOR_COOKIE, visitorHash } from "@/lib/metrics";
 import { isGameId, validScore } from "@/lib/miniGames";
 import { hit } from "@/lib/rate-limit";
 import { gameBoard, recordPlay } from "@/lib/repo/miniGames";
+import { cleanNick } from "@/lib/repo/roomBoards";
 
 const cookieOf = (req: Request) => req.headers.get("cookie")?.match(new RegExp(`(?:^|;\\s*)${VISITOR_COOKIE}=([0-9a-f-]{36})`))?.[1];
 const gameOf = (s: string) => {
@@ -21,17 +22,17 @@ export const GET = route<{ game: string }>(async (req, { game }) => {
   return json(await gameBoard(g, vid ? visitorHash(vid) : null));
 });
 
-const schema = z.object({ score: z.number() });
+const schema = z.object({ score: z.number(), nickname: z.string().max(20).nullish() });
 
-/** POST /api/games/:game {score} — 한 판 저장. 범위 밖 점수는 받지 않는다 */
+/** POST /api/games/:game {score, nickname?}: 한 판 저장. 범위 밖 점수는 받지 않는다. 닉네임은 🎾 이번 주 순위에만 (11/2) */
 export const POST = route<{ game: string }>(async (req, { game }) => {
   const g = gameOf(game);
   if (!(await hit(`games:play:${fingerprint(req.headers)}`, 120, 3600_000))) throw tooMany();
-  const { score } = await parseBody(req, schema);
+  const { score, nickname } = await parseBody(req, schema);
   if (!validScore(g, score)) throw new HttpError(400, "bad_score", "기록을 저장하지 못했어요");
   const cookie = cookieOf(req);
   const vid = cookie ?? newVisitorId();
-  const res = json(await recordPlay(g, visitorHash(vid), score));
+  const res = json(await recordPlay(g, visitorHash(vid), score, new Date(), cleanNick(nickname)));
   if (!cookie) res.cookies.set(VISITOR_COOKIE, vid, { httpOnly: true, sameSite: "lax", secure: config.siteUrl.startsWith("https://"), maxAge: 60 * 60 * 24 * 365, path: "/" });
   return res;
 });

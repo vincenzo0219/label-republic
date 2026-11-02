@@ -6,6 +6,7 @@ import { query, tx } from "../db";
 import { HttpError } from "../errors";
 import { dayLabel, KOSPI_ROOMS, lockAt, moveOf, questionDay, RANK_MIN_GAMES, RANK_TOP } from "../kospiGame";
 import { kstDay } from "../metrics";
+import { weekStart } from "../predictions";
 import { addNote } from "./roomQuizzes";
 
 /** 결과 난 날: 바로 앞에 넣은 종가와 비교, 보합은 뺀다 */
@@ -133,17 +134,24 @@ export async function pickKospi(
 /** 순위에는 닉네임과 이번 달 맞힌 수만 (다른 사람 승패·배지는 보이지 않는다, 10/29) */
 export type RankRow = { name: string; wins: number; me: boolean };
 
-/** 🏆 이번 달(KST) 순위: 결과 난 판 RANK_MIN_GAMES 이상, 많이 맞힌 순, 같으면 덜 틀린 순 */
-export async function kospiRanking(visitor: string | null, now = new Date()): Promise<RankRow[]> {
+/** 이번 주 순위는 결과 난 판 2개부터 (한 주에 장이 5일뿐이라) */
+export const WEEK_RANK_MIN_GAMES = 2;
+
+/**
+ * 🏆 이번 달(KST) 순위: 결과 난 판 RANK_MIN_GAMES 이상, 많이 맞힌 순, 같으면 덜 틀린 순.
+ * period "week": 이번 주(월요일 0시 KST부터) 적중 순위 (11/2 놀이 탭), 판 WEEK_RANK_MIN_GAMES 이상
+ */
+export async function kospiRanking(visitor: string | null, now = new Date(), period: "month" | "week" = "month"): Promise<RankRow[]> {
   const month = kstDay(now).slice(0, 7);
+  const monday = kstDay(new Date(weekStart(now)));
   const rows = await query<{ key: string; wins: number; nickname: string | null }>(
     `WITH ${GAMES}
      SELECT k.key, count(*) FILTER (WHERE k.ok)::int AS wins, count(*) FILTER (WHERE NOT k.ok)::int AS losses,
             (SELECT p.nickname FROM kospi_picks p WHERE 'v:' || p.visitor_hash = k.key AND p.nickname IS NOT NULL ORDER BY p.day DESC LIMIT 1) AS nickname
-       FROM k WHERE k.key LIKE 'v:%' AND to_char(k.day, 'YYYY-MM') = $1
+       FROM k WHERE k.key LIKE 'v:%' AND (CASE WHEN $4 = 'week' THEN k.day >= $5::date AND k.day < $5::date + 7 ELSE to_char(k.day, 'YYYY-MM') = $1 END)
       GROUP BY k.key HAVING count(*) >= $2
       ORDER BY wins DESC, losses ASC, k.key LIMIT $3`,
-    [month, RANK_MIN_GAMES, RANK_TOP],
+    [month, period === "week" ? WEEK_RANK_MIN_GAMES : RANK_MIN_GAMES, RANK_TOP, period, monday],
   );
   return rows.map((r) => ({
     name: r.nickname ?? `손님 ${r.key.slice(2, 6)}`,

@@ -119,6 +119,11 @@ d("📈 코스피 맞히기 (DB)", async () => {
     expect(rank.some((r) => r.name.includes("few"))).toBe(false);
     // a(11/2 1승, 10월 아님) 는 1판이라 순위 X
     expect(rank).toHaveLength(2);
+    // 🏆 이번 주(11/30 월요일부터) 적중 순위 (11/2 놀이 탭): 2판부터, 고수님만 이번 주 판이 있다 (11/30·12/1)
+    const week = await k.kospiRanking("m", new Date("2026-11-30T09:00:00Z"), "week");
+    expect(week).toEqual([{ name: "고수님", wins: 2, me: true }]);
+    // 11/16 주 (일요일에 봐도 그 주): 11/16~11/20 다섯 판만, 다음 주 판은 넣지 않는다
+    expect(await k.kospiRanking(null, new Date("2026-11-22T09:00:00Z"), "week")).toEqual([{ name: "고수님", wins: 5, me: false }]);
   });
   it("⭕ 투자방 동그라미: 안 골랐으면 켜고, 고른 뒤엔 끄고, 결과가 새로 나오면 다시 켠다", async () => {
     const t = new Date("2027-01-05T20:00:00Z"); // 1/6(수) 05:00 KST
