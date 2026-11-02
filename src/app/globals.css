@@ -1874,3 +1874,46 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .predict-pct { opacity: 0.8; font-weight: 400; }
 .predict-recent ul { margin: 6px 0 0; padding-left: 4px; list-style: none; display: grid; gap: 4px; font-size: 14px; }
 .predict-board-title { margin: 4px 0 0; font-size: 15px; }
+
+/* 🧩 방 놀이 탭 · 타입 테스트 (11/2) */
+.room-play { display: grid; gap: 12px; margin: 8px 0 24px; min-width: 0; }
+.room-play .ear-card { margin: 0; width: 100%; max-width: none; box-sizing: border-box; }
+.tt-test { overflow-wrap: anywhere; word-break: keep-all; }
+.tt-embedded { padding: 20px 16px; }
+.tt-progress { height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 6px 0 4px; }
+.tt-progress > span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.tt-back { margin-top: 10px; font-size: 14px; }
+.tt-card { margin: 4px 0 14px; padding: 22px 18px; border-radius: var(--radius); text-align: center; color: #fff; background: linear-gradient(140deg, #1f5f4a, #2f7d63 60%, #3c8f74); }
+.tt-card p { margin: 0; }
+.tt-card-kicker { font-size: 13px; font-weight: 700; opacity: .85; }
+.tt-card-emoji { font-size: 56px; line-height: 1.2; margin: 8px 0 2px !important; }
+.tt-card-name { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+.tt-card-what { margin-top: 8px !important; font-size: 15px; line-height: 1.5; opacity: .95; }
+.tt-card-same { margin-top: 12px !important; display: inline-block; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.16); font-size: 13.5px; font-weight: 700; }
+.tt-card-site { margin-top: 14px !important; font-size: 12px; opacity: .7; }
+.tt-dist { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; font-size: 13.5px; }
+.tt-dist li { display: grid; grid-template-columns: minmax(0, 8.5em) 1fr 3em; align-items: center; gap: 8px; }
+.tt-dist-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-dist-bar { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.tt-dist-bar > span { display: block; height: 100%; background: var(--muted); }
+.tt-dist li.is-me { font-weight: 800; }
+.tt-dist li.is-me .tt-dist-bar > span { background: var(--accent); }
+.tt-dist-pct { text-align: right; }
+.tt-note { margin: 0 0 10px; }
+.tt-share { display: grid; gap: 8px; margin: 6px 0 10px; }
+.tt-share .btn { width: 100%; }
+.tt-field { display: grid; gap: 6px; margin: 10px 0 12px; font-size: 14px; }
+.tt-field .input { width: 100%; box-sizing: border-box; font-size: 18px; }
+.tt-savings { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; text-align: left; }
+.tt-savings li { display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.12); font-size: 15px; }
+.tt-savings b { font-size: 17px; white-space: nowrap; }
+.tt-savings li > span { min-width: 0; }
+.tt-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.tt-chips .chip:disabled { opacity: .45; }
+.tt-taste-board { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.tt-top, .tt-topics { margin: 6px 0 12px; padding-left: 1.4em; display: grid; gap: 4px; }
+.play-card { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: inherit; text-decoration: none; min-width: 0; }
+.play-emoji { font-size: 28px; flex: none; }
+.play-body { display: grid; gap: 2px; min-width: 0; }
+.play-body b { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.play-tag { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }

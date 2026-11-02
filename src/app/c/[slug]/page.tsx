@@ -55,6 +55,8 @@ import { SINGLES_ROOM, SINGLES_TAB } from "@/lib/singlesEvents";
 import { roomGameLink } from "@/lib/miniGames";
 import { GAMES_TAB } from "@/lib/tennisGames";
 import { TennisGames } from "@/components/TennisGames";
+import { RoomPlay } from "@/components/RoomPlay";
+import { isPlayRoom, PLAY_TAB } from "@/lib/roomPlay";
 
 /** ✍️ 오늘 몇 자 (작가지망생방): 이번 주 순위 + 어제·오늘 인증 + 배지. 실패하면 안 보인다 */
 async function loadWriting(slug: string) {
@@ -195,6 +197,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
                 ? { key: GAMES_TAB, node: <TennisGames /> }
                 : roomTab?.key === PREDICT_TAB && isPredictRoom(category.slug)
                   ? { key: PREDICT_TAB, node: <PredictionBoard room={category.slug} /> }
+                  : roomTab?.key === PLAY_TAB && isPlayRoom(category.slug)
+                    ? { key: PLAY_TAB, node: <RoomPlay slug={category.slug} /> }
         : undefined;
   const kidsLine = !ad && category.slug === KIDS_ROOM && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? <KidsTopLine /> : null;
   // 🎉 내 덕질 기념일 (10/26): 📸 자랑 탭에는 카드, 전체 탭 첫 페이지에는 작게. 숨긴 방·만남 연결 기능 없는 방(098)은 빼고 (정보만 보여 주는 방은 위에서 이미 끝)

@@ -4,6 +4,7 @@
  * 혜택(10/23 사용자 미션 "정보·재미·실리를 어떤 커뮤니티보다 잘하자"): 무료 행사·할인·응모·티켓 오픈·굿즈 드롭
  */
 import { PREDICT_ROOMS, PREDICT_TAB } from "./predictions";
+import { PLAY_LABEL, PLAY_TAB, ROOM_PLAY } from "./roomPlay";
 export const HEADS = [
   { key: "자랑", label: "📸 자랑" },
   { key: "행사", label: "🎫 행사" },
@@ -79,7 +80,7 @@ export const ROOM_TAB_LINKS: Record<string, { href: string; label: string }[]> =
 };
 
 /** 💬 채팅 바로 뒤에 붙는 방 전용 탭 (?tab=키, 글 목록 대신 그 화면) — 육아방 📍동네 체험 (10/24) */
-export const ROOM_CHAT_TABS: Record<string, { key: string; label: string }[]> = {
+const BASE_CHAT_TABS: Record<string, { key: string; label: string }[]> = {
   "육아-덕후방": [{ key: "near", label: "📍동네 체험" }],
   // 강사방 (10/26): 📋 대강 · 💼 구인구직 두 탭. 기본 탭이 있는 방은 이 탭들이 💬 채팅 앞에 온다
   [INSTRUCTOR]: [
@@ -100,6 +101,13 @@ export const ROOM_CHAT_TABS: Record<string, { key: string; label: string }[]> = 
   // 🎯 승부 예측 (11/2 대표님): 경기 승자·시청률·나스닥 맞히기, 점수와 연속 배지 (src/lib/predictions.ts)
   ...Object.fromEntries(Object.entries(PREDICT_ROOMS).map(([slug, r]) => [slug, [{ key: PREDICT_TAB, label: r.label }]])),
 };
+/** 🧩 놀이 (11/2 대표님 "전부 탭 새로 추가해서 전부 다 진행"): 놀이 거리가 있는 방마다 맨 뒤에 (src/lib/roomPlay.ts) */
+export const ROOM_CHAT_TABS: Record<string, { key: string; label: string }[]> = Object.fromEntries(
+  [...new Set([...Object.keys(BASE_CHAT_TABS), ...Object.keys(ROOM_PLAY)])].map((slug) => [
+    slug,
+    [...(BASE_CHAT_TABS[slug] ?? []), ...(Object.hasOwn(ROOM_PLAY, slug) ? [{ key: PLAY_TAB, label: PLAY_LABEL }] : [])],
+  ]),
+);
 /** 탭 없이 들어오면 이 탭 (강사방: 📋 대강, 💌 만남 행사 방: 💌 만남 행사). 이런 방의 "전체" 는 ?tab=all */
 export const ROOM_DEFAULT_TAB: Record<string, string> = { [INSTRUCTOR]: "gigs", [SINGLES]: "meet" };
 export const ALL_TAB = "all";
