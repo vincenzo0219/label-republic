@@ -986,7 +986,22 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .debate-result p { margin: 0; }
 .vs-banner { margin: 0 0 12px; padding: 10px 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--brand) 12%, var(--surface)); font-size: 15px; }
 .vs-box { display: grid; gap: 8px; margin: 14px 0; }
-.vs-result { margin: 0; font-size: 16px; }
+/* 🤝 친구 대결·궁합 카드 (11/2) */
+.vs-card, .mate-card { padding: 14px 16px; border-radius: var(--radius); border: 1px solid var(--line); background: color-mix(in srgb, var(--brand) 8%, var(--surface)); text-align: center; }
+.vs-card.vs-win { border-color: var(--brand); }
+.vs-verdict { margin: 0 0 8px; font-size: 22px; font-weight: 800; }
+.vs-sides { display: flex; justify-content: center; align-items: center; gap: 14px; font-size: 14px; color: var(--muted); }
+.vs-sides > span { display: grid; gap: 2px; min-width: 0; flex: 1 1 0; }
+.vs-sides b { font-size: 18px; color: var(--text); word-break: keep-all; }
+.vs-sides > .vs-x { flex: none; font-weight: 800; color: var(--accent); }
+.mate-card { margin: 14px 0; }
+.mate-kicker { margin: 0; font-size: 14px; color: var(--muted); }
+.mate-pct { margin: 2px 0 6px; font-size: 44px; font-weight: 800; color: var(--brand); line-height: 1.1; }
+.mate-line { margin: 8px 0 0; font-size: 16px; word-break: keep-all; }
+.friend-link { display: grid; gap: 6px; }
+.friend-link .hint { margin: 0; }
+.mate-team { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 15px; }
+.mate-team select { min-height: 40px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 15px; }
 .data-page h1 { font-size: 24px; margin: 8px 0; }
 .data-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 15px; }
 .data-table th, .data-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
@@ -1859,3 +1874,106 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .predict-pct { opacity: 0.8; font-weight: 400; }
 .predict-recent ul { margin: 6px 0 0; padding-left: 4px; list-style: none; display: grid; gap: 4px; font-size: 14px; }
 .predict-board-title { margin: 4px 0 0; font-size: 15px; }
+
+/* 🧩 방 놀이 탭 · 타입 테스트 (11/2) */
+.room-play { display: grid; gap: 12px; margin: 8px 0 24px; min-width: 0; }
+.room-play .ear-card { margin: 0; width: 100%; max-width: none; box-sizing: border-box; }
+.tt-test { overflow-wrap: anywhere; word-break: keep-all; }
+.tt-embedded { padding: 20px 16px; }
+.tt-progress { height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 6px 0 4px; }
+.tt-progress > span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.tt-back { margin-top: 10px; font-size: 14px; }
+.tt-card { margin: 4px 0 14px; padding: 22px 18px; border-radius: var(--radius); text-align: center; color: #fff; background: linear-gradient(140deg, #1f5f4a, #2f7d63 60%, #3c8f74); }
+.tt-card p { margin: 0; }
+.tt-card-kicker { font-size: 13px; font-weight: 700; opacity: .85; }
+.tt-card-emoji { font-size: 56px; line-height: 1.2; margin: 8px 0 2px !important; }
+.tt-card-name { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+.tt-card-what { margin-top: 8px !important; font-size: 15px; line-height: 1.5; opacity: .95; }
+.tt-card-same { margin-top: 12px !important; display: inline-block; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.16); font-size: 13.5px; font-weight: 700; }
+.tt-card-site { margin-top: 14px !important; font-size: 12px; opacity: .7; }
+.tt-dist { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; font-size: 13.5px; }
+.tt-dist li { display: grid; grid-template-columns: minmax(0, 8.5em) 1fr 3em; align-items: center; gap: 8px; }
+.tt-dist-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-dist-bar { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.tt-dist-bar > span { display: block; height: 100%; background: var(--muted); }
+.tt-dist li.is-me { font-weight: 800; }
+.tt-dist li.is-me .tt-dist-bar > span { background: var(--accent); }
+.tt-dist-pct { text-align: right; }
+.tt-note { margin: 0 0 10px; }
+.tt-share { display: grid; gap: 8px; margin: 6px 0 10px; }
+.tt-share .btn { width: 100%; }
+.tt-field { display: grid; gap: 6px; margin: 10px 0 12px; font-size: 14px; }
+.tt-field .input { width: 100%; box-sizing: border-box; font-size: 18px; }
+.tt-savings { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; text-align: left; }
+.tt-savings li { display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.12); font-size: 15px; }
+.tt-savings b { font-size: 17px; white-space: nowrap; }
+.tt-savings li > span { min-width: 0; }
+.tt-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.tt-chips .chip:disabled { opacity: .45; }
+.tt-taste-board { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.tt-top, .tt-topics { margin: 6px 0 12px; padding-left: 1.4em; display: grid; gap: 4px; }
+.play-card { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: inherit; text-decoration: none; min-width: 0; }
+.play-emoji { font-size: 28px; flex: none; }
+.play-body { display: grid; gap: 2px; min-width: 0; }
+.play-body b { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.play-tag { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+
+/* 🧩 놀이판 2단계 (11/2): 기록판·사진 투표·살까 말까·퀴즈·별점판·달력 */
+.rb-card { overflow-wrap: anywhere; word-break: keep-all; min-width: 0; }
+.rb-card .hint { margin: 4px 0; }
+.rb-tag { margin-left: 6px; vertical-align: 1px; }
+.rb-body { display: grid; gap: 10px; margin-top: 10px; min-width: 0; }
+.rb-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.rb-row > .btn { flex: none; }
+.rb-grow { flex: 1 1 8em; min-width: 0; }
+.rb-num { width: 7em; min-width: 0; font-size: 18px; }
+.rb-unit { font-weight: 700; }
+.rb-count { min-width: 3em; text-align: center; font-weight: 700; }
+.rb-big { width: 100%; justify-content: center; min-height: 44px; box-sizing: border-box; text-align: center; }
+.rb-form { display: grid; gap: 8px; min-width: 0; }
+.rb-form .input, .rb-form .select { width: 100%; box-sizing: border-box; min-width: 0; }
+.rb-form .rb-row .select { width: auto; flex: 1 1 5em; }
+.rb-nick { display: grid; gap: 4px; }
+.rb-nick .input { width: 100%; box-sizing: border-box; max-width: 16em; }
+.rb-stats p { margin: 2px 0; font-size: 15px; }
+.rb-streak { font-weight: 800; color: var(--accent); }
+.rb-me { font-weight: 700; }
+.rb-why { margin: 14px 0 0; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 13.5px; color: var(--brand); font-weight: 700; }
+.rb-err { color: var(--danger, #b42318); }
+.rb-bars, .rb-top, .rb-wait, .rb-mine-list, .rb-votes, .rb-photos, .rb-today { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; min-width: 0; }
+.rb-bars li { display: grid; grid-template-columns: minmax(0, 7.5em) minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 14px; }
+.rb-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-bar { display: block; height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; min-width: 0; }
+.rb-bar > span { display: block; height: 100%; background: var(--brand); }
+.rb-bar-n { white-space: nowrap; font-size: 13px; color: var(--muted); }
+.rb-mine { font-weight: 800; }
+.rb-top li, .rb-wait li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.rb-rate-label { min-width: 0; flex: 1 1 8em; }
+.rb-mine-tag { display: inline-flex; align-items: center; gap: 2px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.rb-mine-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 10px; background: color-mix(in srgb, var(--brand) 8%, transparent); font-size: 14px; }
+.rb-winner { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.rb-winner img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; flex: none; }
+.rb-winner p { margin: 0; min-width: 0; }
+.rb-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rb-photos li { display: grid; gap: 4px; min-width: 0; }
+.rb-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: var(--line); display: block; }
+.rb-photo-bar { display: flex; justify-content: space-between; align-items: center; gap: 4px; min-width: 0; }
+.rb-photo-nick { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rb-photo-actions { display: flex; justify-content: flex-end; }
+.rb-vote { padding: 10px 0; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+.rb-vote p { margin: 0; }
+.rb-tally { display: grid; gap: 4px; font-size: 14px; }
+.rb-closed summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+.rb-cloud { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.rb-cloud .rb-size-1 { font-size: 13px; }
+.rb-cloud .rb-size-2 { font-size: 14.5px; }
+.rb-cloud .rb-size-3 { font-size: 16px; }
+.rb-cloud .rb-size-4 { font-size: 18px; font-weight: 700; }
+.rb-cloud .rb-size-5 { font-size: 21px; font-weight: 800; }
+.rb-chip-n { font-size: .8em; opacity: .75; }
+.rb-question { margin: 0; font-size: 16px; }
+.rb-question b { display: block; font-size: 26px; margin-top: 4px; }
+.rb-answer { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--brand) 8%, transparent); }
+.rb-answer.no { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.rb-answer p { margin: 2px 0; }
+.rb-today li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }

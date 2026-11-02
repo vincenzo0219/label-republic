@@ -5,6 +5,7 @@ import { listPostIdsForSitemap } from "@/lib/repo/posts";
 import { listProductIdsForSitemap } from "@/lib/repo/products";
 import { listBoardAttributes } from "@/lib/repo/facts";
 import { topRenewalBrands } from "@/lib/repo/renewal-feed";
+import { TYPE_TESTS } from "@/lib/typeTests";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,8 @@ async function build(): Promise<MetadataRoute.Sitemap> {
     { url: `${config.siteUrl}/writer-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/dog-test`, changeFrequency: "weekly" as const, priority: 0.7 },
     { url: `${config.siteUrl}/ntrp-test`, changeFrequency: "weekly" as const, priority: 0.7 },
+    // 🧩 방 놀이 탭 타입 테스트 (11/2)
+    ...Object.keys(TYPE_TESTS).map((k) => ({ url: `${config.siteUrl}/t/${k}`, changeFrequency: "weekly" as const, priority: 0.7 })),
     { url: `${config.siteUrl}/chat`, changeFrequency: "hourly" as const, priority: 0.6 },
     { url: `${config.siteUrl}/daily`, changeFrequency: "daily" as const, priority: 0.8 },
     { url: `${config.siteUrl}/data/ear-test`, changeFrequency: "daily" as const, priority: 0.7 },

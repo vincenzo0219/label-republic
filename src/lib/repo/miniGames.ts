@@ -34,9 +34,9 @@ export async function worldcupStat(winner: number): Promise<WorldcupStat> {
 export type PlayResult = GameBoard & { best: boolean; worldcup?: WorldcupStat };
 
 /** 한 판 저장. best = 이 브라우저 최고 기록을 새로 냈다 */
-export async function recordPlay(game: GameId, visitor: string, score: number, now = new Date()): Promise<PlayResult> {
+export async function recordPlay(game: GameId, visitor: string, score: number, now = new Date(), nickname: string | null = null): Promise<PlayResult> {
   const before = await gameBoard(game, visitor, now);
-  await query("INSERT INTO game_plays (game, room, visitor_hash, score, day) VALUES ($1, $2, $3, $4, $5)", [game, GAMES[game].room, visitor, score, kstDay(now)]);
+  await query("INSERT INTO game_plays (game, room, visitor_hash, score, day, nickname) VALUES ($1, $2, $3, $4, $5, $6)", [game, GAMES[game].room, visitor, score, kstDay(now), nickname]);
   if (game === "worldcup") return { myBest: null, todayBest: null, best: false, worldcup: await worldcupStat(score) };
   const after = await gameBoard(game, visitor, now);
   const best = before.myBest === null || (GAMES[game].lowerBetter ? score < before.myBest : score > before.myBest);

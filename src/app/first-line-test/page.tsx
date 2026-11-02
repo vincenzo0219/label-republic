@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { friendMetadata, type SearchParams } from "@/lib/friendMeta";
 import { FirstLineTest } from "@/components/FirstLineTest";
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
   title: "첫 문장 테스트 — 첫 문장만 보고 무슨 책인지 알아요?",
   description: "어린 왕자, 1984, 날개… 유명한 책 10권의 첫 문장만 보고 제목을 맞히는 1분 테스트. 다른 독자는 몇 권 맞혔는지 확인해 보세요.",
   alternates: { canonical: "/first-line-test" },
@@ -11,6 +12,11 @@ export const metadata: Metadata = {
     images: [{ url: "/ear/og-first-line-test.png", width: 1200, height: 630 }],
   },
 };
+
+/** 🤝 친구 대결·궁합 링크(?vs= · ?m=)면 미리보기를 친구 기록 카드로 */
+export function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
+  return friendMetadata(metadata, "first-line", searchParams);
+}
 
 export default function FirstLineTestPage() {
   return <FirstLineTest />;

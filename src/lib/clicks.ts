@@ -9,6 +9,7 @@ export const CLICK_KEYS: Record<string, Record<string, string>> = {
     brag: "결과 남기기",
     poll: "오늘의 질문 투표",
     pk: "⚽ 승부차기 대결",
+    mate: "🤝 직관 메이트 궁합 링크 보내기",
     retry: "다시 하기",
     room: "⚽ K리그 덕후방 가기",
   },

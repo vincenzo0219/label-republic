@@ -73,11 +73,12 @@ describe("🧘 강사방 규칙", () => {
     expect(ROOM_CHAT_TABS[ROOM]).toEqual([
       { key: "gigs", label: "📋 대강" },
       { key: "jobs", label: "💼 구인구직" },
+      { key: "play", label: "🧩 놀이" },
     ]);
     expect(roomTabsAround(ROOM)).toEqual({ before: ROOM_CHAT_TABS[ROOM], after: [] });
     // 기본 탭이 없는 방은 그대로 💬 채팅 뒤
-    expect(roomTabsAround("육아-덕후방")).toEqual({ before: [], after: [{ key: "near", label: "📍동네 체험" }] });
-    expect(roomTabsAround("요가-필라테스-덕후방")).toEqual({ before: [], after: [{ key: "lesson", label: "🙋 1대1 레슨 구해요" }] });
+    expect(roomTabsAround("육아-덕후방")).toEqual({ before: [], after: [{ key: "near", label: "📍동네 체험" }, { key: "play", label: "🧩 놀이" }] });
+    expect(roomTabsAround("요가-필라테스-덕후방")).toEqual({ before: [], after: [{ key: "lesson", label: "🙋 1대1 레슨 구해요" }, { key: "play", label: "🧩 놀이" }] });
     expect(headsFor(ROOM).map((h) => h.key)).toEqual(["수업팁", "행사", "혜택"]);
     expect(tabHeadsFor(ROOM)).toEqual([
       { key: "수업팁", label: "🧘 수업 팁" },

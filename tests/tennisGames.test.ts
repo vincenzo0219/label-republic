@@ -47,7 +47,7 @@ describe("🎾 게임 규칙", () => {
     expect(needLabel({ needM: 1, needF: 2, needAny: 0 })).toBe("남1 · 여2");
   });
   it("테니스방에 🎾 게임 모집 탭", () => {
-    expect(ROOM_CHAT_TABS["테니스-덕후방"]?.map((t) => t.key)).toEqual(["games"]);
+    expect(ROOM_CHAT_TABS["테니스-덕후방"]?.map((t) => t.key)).toEqual(["games", "play"]);
   });
 });
 
