@@ -1986,3 +1986,12 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .sentence-pick-opt.off { opacity: 0.6; }
 .sentence-pick-pct { flex: none; font-weight: 800; }
 .sentence-pick .hint { margin: 0; }
+/* ⚽ 내 팀 경기 맞히기 (11/2) */
+.team-predict { display: grid; gap: 10px; margin: 12px 0; padding: 14px; border: 2px solid #2f8cff; border-radius: 16px; background: color-mix(in srgb, #2f8cff 8%, var(--surface, #fff)); }
+.team-predict > * { min-width: 0; overflow-wrap: anywhere; word-break: keep-all; }
+.team-predict-q { display: grid; gap: 6px; }
+.team-predict-q p { margin: 0; font-size: 15px; }
+.team-predict-q.mine p { font-weight: 700; }
+.team-predict .hint { margin: 0; }
+.team-predict .predict-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.team-predict .vote-btn { min-width: 0; width: 100%; min-height: 44px; padding: 8px 4px; font-size: 14px; white-space: normal; }
