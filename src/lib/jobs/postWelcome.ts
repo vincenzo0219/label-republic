@@ -52,7 +52,7 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
       const { rows } = await client.query<Fresh>(
         `SELECT p.id::text, p.nickname
            FROM posts p
-          WHERE p.created_at <= $1::timestamptz - make_interval(secs => 30 + (p.id % 21)) AND p.created_at > $1::timestamptz - interval '10 minutes'
+          WHERE p.created_at <= $1::timestamptz - make_interval(secs => 30 + (p.id % 21)) AND p.created_at > $1::timestamptz - interval '3 hours'
             AND NOT p.is_ai_curated AND p.author_fingerprint IS NOT NULL AND p.ai_hidden_at IS NULL AND NOT p.is_blinded
             AND p.seed_key IS NULL
             AND p.nickname <> ALL($2::text[])
@@ -66,12 +66,13 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
         await createComment(p.id, { nickname: who, pin: String(randomInt(1000, 10000)), body });
         n++;
       }
+      // 11/3: 10분만 보던 것을 3시간으로 (서버 재시작·DB 끊김 때 놓친 말도 늦게라도 답한다, 애니방 수다방 #c1583 놓침)
       // 댓글·수다방 말에도 (10/30 대표님 "오늘 사람이 쓴 글에 전부 ... 답글"): 한 글에서 한 사람에게 한 번만 답글로.
       // 그 사람이 운영 답글에 다시 답해도 또 달지 않아 끝없이 주고받지 않는다
       const { rows: cs } = await client.query<{ id: string; post_id: string; nickname: string }>(
         `SELECT c.id::text, c.post_id::text, c.nickname
            FROM comments c JOIN posts p ON p.id = c.post_id
-          WHERE c.created_at <= $1::timestamptz - make_interval(secs => 30 + (c.id % 21)) AND c.created_at > $1::timestamptz - interval '10 minutes'
+          WHERE c.created_at <= $1::timestamptz - make_interval(secs => 30 + (c.id % 21)) AND c.created_at > $1::timestamptz - interval '3 hours'
             AND NOT c.is_ai_curated AND c.author_fingerprint IS NOT NULL AND c.ai_hidden_at IS NULL AND NOT p.is_blinded
             AND c.nickname <> ALL($2::text[])
             AND NOT EXISTS (
