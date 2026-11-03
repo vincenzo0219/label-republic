@@ -2,7 +2,8 @@
 import { identityKey } from "../badges";
 import { query } from "../db";
 import { HttpError, notFound } from "../errors";
-import { BOARD_TOP, isPredictRoom, predictionProblem, streakOf, weekStart } from "../predictions";
+import { BOARD_TOP, correctRate, isPredictRoom, predictionProblem, resultPushText, streakOf, weekStart } from "../predictions";
+import { sendPush, type PushMessage, type PushTarget, type SendResult } from "../push";
 
 export type PredictionRow = {
   id: string; room: string; title: string; options: string[]; closes_at: string;
@@ -10,7 +11,7 @@ export type PredictionRow = {
 };
 
 export type OpenItem = { id: string; title: string; options: string[]; closesAt: string; mine: number | null; tally: number[] | null };
-export type DoneItem = { id: string; title: string; options: string[]; answer: number; mine: number | null; ok: boolean | null; points: number; sourceUrl: string | null };
+export type DoneItem = { id: string; title: string; options: string[]; answer: number; mine: number | null; ok: boolean | null; points: number; sourceUrl: string | null; rate: number | null };
 export type MyScore = { score: number; wins: number; losses: number; streak: number };
 export type BoardRow = { name: string; score: number; wins: number; me: boolean };
 export type PredictCard = { room: string; open: OpenItem[]; recent: DoneItem[]; me: MyScore; board: BoardRow[] };
@@ -77,6 +78,8 @@ export async function predictCard(room: string, visitor: string | null, nickname
       )
     : [];
   const mineMap = new Map(mineOpen.map((m) => [m.prediction_id, m.choice]));
+  const rates = new Map<string, number | null>();
+  for (const r of recent) rates.set(r.id, correctRate(await tally(r.id, r.options.length), r.answer!));
   const openItems: OpenItem[] = [];
   for (const o of open) {
     const mine = mineMap.get(o.id) ?? null;
@@ -88,7 +91,7 @@ export async function predictCard(room: string, visitor: string | null, nickname
     open: openItems,
     recent: recent.map((r) => ({
       id: r.id, title: r.title, options: r.options, answer: r.answer!, mine: r.mine,
-      ok: r.mine === null ? null : r.mine === r.answer, points: r.points, sourceUrl: r.source_url,
+      ok: r.mine === null ? null : r.mine === r.answer, points: r.points, sourceUrl: r.source_url, rate: rates.get(r.id) ?? null,
     })),
     me,
     board: await predictBoard(room, nickKey, now),
@@ -126,7 +129,7 @@ export async function createPrediction(p: { room: string; title: string; options
 }
 
 /** 운영자: 결과 넣기·고치기. answer 가 null 이면 무효(문제 지움 대신 결과 비우기) */
-export async function resolvePrediction(id: string, answer: number, sourceUrl?: string): Promise<PredictionRow> {
+export async function resolvePrediction(id: string, answer: number, sourceUrl?: string, opts: { notify?: boolean; send?: Send } = {}): Promise<PredictionRow & { notified?: number }> {
   const [q] = await query<PredictionRow>(`SELECT ${COLS} FROM predictions WHERE id = $1`, [id]);
   if (!q) throw notFound("예측 문제");
   if (!Number.isInteger(answer) || answer < 0 || answer >= q.options.length) throw new HttpError(400, "invalid_input", "answer 는 보기 번호(0부터)");
@@ -134,7 +137,33 @@ export async function resolvePrediction(id: string, answer: number, sourceUrl?: 
     `UPDATE predictions SET answer = $2, resolved_at = coalesce(resolved_at, now()), source_url = coalesce($3, source_url) WHERE id = $1 RETURNING ${COLS}`,
     [id, answer, sourceUrl ?? null],
   );
+  // 🔔 결과 알림 (11/3): 처음 결과를 넣을 때만 한 번 (고칠 때는 다시 안 보냄)
+  if (q.answer === null && opts.notify !== false) {
+    const notified = await notifyResult(r!, opts.send).catch(() => 0);
+    return { ...r!, notified };
+  }
   return r!;
+}
+
+type Send = (target: PushTarget, msg: PushMessage) => Promise<SendResult>;
+
+/** 이 문제를 고른 사람의 알림 구독(같은 브라우저 지문)으로 결과를 한 번씩 보낸다 */
+async function notifyResult(q: PredictionRow, send: Send = (t, m) => sendPush(t, m)): Promise<number> {
+  const subs = await query<{ id: string; endpoint: string; p256dh: string; auth: string; choice: number }>(
+    `SELECT DISTINCT ON (s.id) s.id::text, s.endpoint, s.p256dh, s.auth, p.choice
+       FROM prediction_picks p JOIN push_subscriptions s ON s.fingerprint = p.fp
+      WHERE p.prediction_id = $1 AND p.fp IS NOT NULL
+      ORDER BY s.id, p.created_at`,
+    [q.id],
+  );
+  let sent = 0;
+  for (const s of subs) {
+    const t = resultPushText(q.title, q.options, q.answer!, s.choice, q.points);
+    const r = await send(s, { ...t, url: `/c/${encodeURIComponent(q.room)}?tab=predict`, tag: `predict-${q.id}` }).catch(() => "failed" as const);
+    if (r === "sent") sent++;
+    if (r === "gone") await query("DELETE FROM push_subscriptions WHERE id = $1", [s.id]).catch(() => {});
+  }
+  return sent;
 }
 
 export async function deletePrediction(id: string): Promise<boolean> {
@@ -151,17 +180,42 @@ export async function listPredictions(limit = 50): Promise<(PredictionRow & { pi
   );
 }
 
-/** 닉네임들의 연속 (배지용, 전체 방). 키: identityKey */
+/** 닉네임들의 연속·7일 안 적중 (배지용, 전체 방). 키: identityKey */
 export async function predictStreaks(nickKeys: readonly string[]): Promise<Record<string, number>> {
+  return Object.fromEntries(Object.entries(await predictStats(nickKeys)).map(([k, v]) => [k, v.streak]));
+}
+
+export async function predictStats(nickKeys: readonly string[], now = new Date()): Promise<Record<string, { streak: number; recentWin: boolean }>> {
   if (!nickKeys.length) return {};
-  const rows = await query<{ nick_key: string; ok: boolean }>(
-    `SELECT p.nick_key, (p.choice = q.answer) AS ok
+  const rows = await query<{ nick_key: string; ok: boolean; resolved_at: string }>(
+    `SELECT p.nick_key, (p.choice = q.answer) AS ok, q.resolved_at
        FROM prediction_picks p JOIN predictions q ON q.id = p.prediction_id
       WHERE p.nick_key = ANY($1::text[]) AND q.answer IS NOT NULL
       ORDER BY p.nick_key, q.resolved_at DESC, q.id DESC`,
     [nickKeys],
   );
-  const by = new Map<string, boolean[]>();
-  for (const r of rows) by.set(r.nick_key, [...(by.get(r.nick_key) ?? []), r.ok]);
-  return Object.fromEntries([...by].map(([k, oks]) => [k, streakOf(oks)]));
+  const since = now.getTime() - 7 * 86_400_000;
+  const by = new Map<string, { oks: boolean[]; recentWin: boolean }>();
+  for (const r of rows) {
+    const e = by.get(r.nick_key) ?? { oks: [], recentWin: false };
+    e.oks.push(r.ok);
+    if (r.ok && new Date(r.resolved_at).getTime() >= since) e.recentWin = true;
+    by.set(r.nick_key, e);
+  }
+  return Object.fromEntries([...by].map(([k, e]) => [k, { streak: streakOf(e.oks), recentWin: e.recentWin }]));
+}
+
+/** 🏆 지난주(월~일 KST) 방별 1등 닉네임 키 (점수 > 0, 같으면 먼저 그 점수에 닿은 사람) */
+export async function lastWeekTop(room: string, now = new Date()): Promise<string | null> {
+  const thisWeek = weekStart(now);
+  const prev = new Date(new Date(thisWeek).getTime() - 7 * 86_400_000).toISOString();
+  const [r] = await query<{ nick_key: string }>(
+    `SELECT p.nick_key
+       FROM prediction_picks p JOIN predictions q ON q.id = p.prediction_id
+      WHERE q.room = $1 AND q.answer IS NOT NULL AND q.resolved_at >= $2 AND q.resolved_at < $3 AND p.nick_key IS NOT NULL AND p.choice = q.answer
+      GROUP BY p.nick_key
+      ORDER BY sum(q.points) DESC, max(q.resolved_at) ASC, p.nick_key LIMIT 1`,
+    [room, prev, thisWeek],
+  );
+  return r?.nick_key ?? null;
 }

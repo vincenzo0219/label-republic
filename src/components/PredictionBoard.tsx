@@ -8,7 +8,7 @@ import { softTap, sparkle } from "@/lib/gameSound";
 import { Confetti } from "./RoomQuiz";
 
 type Open = { id: string; title: string; options: string[]; closesAt: string; mine: number | null; tally: number[] | null };
-type Done = { id: string; title: string; options: string[]; answer: number; mine: number | null; ok: boolean | null; points: number; sourceUrl: string | null };
+type Done = { id: string; title: string; options: string[]; answer: number; mine: number | null; ok: boolean | null; points: number; sourceUrl: string | null; rate: number | null };
 type Me = { score: number; wins: number; losses: number; streak: number };
 type Board = { name: string; score: number; wins: number; me: boolean };
 type Card = { room: string; open: Open[]; recent: Done[]; me: Me; board: Board[] };
@@ -123,6 +123,7 @@ export function PredictionBoard({ room }: { room: string }) {
               <li key={r.id}>
                 {r.ok === true ? "✅" : r.ok === false ? "❌" : "·"} {r.title}: <b>{r.options[r.answer]}</b>
                 {r.ok === true && <span> +{r.points}점</span>}
+                {r.rate !== null && <span className="hint"> · 맞힌 사람 {r.rate}%</span>}
                 {r.sourceUrl && (
                   <>
                     {" "}

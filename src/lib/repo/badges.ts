@@ -1,8 +1,8 @@
 /** 방 배지 조회·저장 (10/24). 사람 = 닉네임 (nickname_claims 와 같은 키) */
 import { identityKey, ROOM_BADGES, TEST_RESULT_KEYS, type BadgeMap } from "../badges";
 import { query } from "../db";
-import { streakBadge } from "../predictions";
-import { predictStreaks } from "./predictions";
+import { predictBadge, streakBadge } from "../predictions";
+import { lastWeekTop, predictStats } from "./predictions";
 import { kospiStreaksByNick } from "./kospi";
 import { photoWinnerBadges } from "./roomBoards";
 
@@ -23,15 +23,17 @@ export async function saveTestResult(test: string, nickname: string, result: str
 export async function badgesFor(roomSlug: string, nicknames: readonly string[]): Promise<BadgeMap> {
   const keys = [...new Set(nicknames.map(identityKey).filter(Boolean))];
   if (!keys.length) return {};
-  const [room, pred, kospi, photo] = await Promise.all([
+  const [room, pred, top, kospi, photo] = await Promise.all([
     roomBadgesFor(roomSlug, keys),
-    predictStreaks(keys).catch(() => ({}) as Record<string, number>),
+    predictStats(keys).catch(() => ({}) as Record<string, { streak: number; recentWin: boolean }>),
+    lastWeekTop(roomSlug).catch(() => null),
     kospiStreaksByNick(keys).catch(() => ({}) as Record<string, number>),
     photoWinnerBadges(keys).catch(() => ({}) as Record<string, string>),
   ]);
   const out: BadgeMap = {};
   for (const k of keys) {
-    const parts = [room[k], streakBadge(pred[k] ?? 0, "🎯"), streakBadge(kospi[k] ?? 0, "📈"), photo[k]].filter(Boolean);
+    const p = pred[k];
+    const parts = [room[k], predictBadge({ streak: p?.streak ?? 0, recentWin: !!p?.recentWin, lastWeekTop: top === k }), streakBadge(kospi[k] ?? 0, "📈"), photo[k]].filter(Boolean);
     if (parts.length) out[k] = parts.join(" ");
   }
   return out;

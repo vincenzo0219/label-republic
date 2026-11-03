@@ -47,4 +47,12 @@ d("📖 어느 문장이 더 끌려요? (database)", async () => {
     await pickSentence(day, "v2", 0);
     expect((await sentenceCard(day, "v2")).counts).toEqual([1, 1]);
   });
+  it("관리자 숫자: 오늘·누적 사람 수", async () => {
+    const { sentenceStats } = await import("@/lib/repo/sentencePick");
+    await pickSentence("2031-01-02", "v1", 0);
+    const s = await sentenceStats("2031-01-02");
+    expect(s.today).toBe(1);
+    expect(s.total).toBe(2);
+    expect(s.days[0]).toMatchObject({ day: "2031-01-02", people: 1, a: 1, b: 0 });
+  });
 });
