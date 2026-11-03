@@ -37,6 +37,27 @@ export function streakBadge(streak: number, icon = "🎯"): string | undefined {
 }
 
 /** 이번 주 월요일 0시(KST)의 ISO */
+/** 🎯 배지 하나 고르기 (11/3 대표님 "진행"): 🏆 지난주 1등 > 🎯n연속(3+) > 🎯적중(7일 안 맞힌 적 있음) */
+export function predictBadge(p: { streak: number; recentWin: boolean; lastWeekTop: boolean }): string | undefined {
+  const parts = [p.lastWeekTop ? "🏆지난주 1등" : undefined, streakBadge(p.streak) ?? (p.recentWin && !p.lastWeekTop ? "🎯적중" : undefined)].filter(Boolean);
+  return parts.length ? parts.join(" ") : undefined;
+}
+
+/** 결과 알림 문구 */
+export function resultPushText(title: string, options: readonly string[], answer: number, mine: number, points: number): { title: string; body: string } {
+  const q = title.replace(/, 결과는\?$/, "").replace(/\?$/, "");
+  return mine === answer
+    ? { title: `🎯 맞혔어요! +${points}점`, body: q }
+    : { title: "아쉽게 빗나갔어요", body: `${q} · 정답 ${options[answer] ?? ""}` };
+}
+
+/** 맞힌 사람 비율: 5명 미만이면 숨김 */
+export const RATE_MIN = 5;
+export function correctRate(tally: readonly number[], answer: number): number | null {
+  const n = tally.reduce((a, b) => a + b, 0);
+  return n >= RATE_MIN ? Math.round(((tally[answer] ?? 0) / n) * 100) : null;
+}
+
 export function weekStart(now = new Date()): string {
   const k = new Date(now.getTime() + 9 * 3600_000);
   const dow = (k.getUTCDay() + 6) % 7; // 월=0

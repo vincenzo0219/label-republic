@@ -9,7 +9,8 @@ import { kTeamIn, kTeamPlays } from "@/lib/peers";
 import { PK_TEAM_KEY } from "@/lib/pk";
 
 type Open = { id: string; title: string; options: string[]; closesAt: string; mine: number | null; tally: number[] | null };
-type Card = { open: Open[] };
+type Done = { id: string; title: string; options: string[]; answer: number; ok: boolean | null; points: number; rate: number | null };
+type Card = { open: Open[]; recent?: Done[] };
 
 const KLEAGUE = "k리그-덕후방";
 const SHOW = 3;
@@ -83,6 +84,15 @@ export function TeamPredict({ team: initialTeam, room = KLEAGUE }: { team?: stri
           </article>
         );
       })}
+      {card.recent?.[0] && (() => {
+        const r = card.recent[0]!;
+        return (
+          <p className="hint team-predict-last">
+            {r.ok === true ? `✅ 맞혔어요 +${r.points}점 · ` : r.ok === false ? "❌ " : ""}지난 결과 {r.title.replace(/, 결과는\?$/, "")}: <b>{r.options[r.answer]}</b>
+            {r.rate !== null && ` · 맞힌 사람 ${r.rate}%`}
+          </p>
+        );
+      })()}
       <p className="hint">
         맞히면 10점, 3연속이면 닉네임 옆 🎯 ·{" "}
         <Link href={`/c/${encodeURIComponent(ROOM)}?tab=predict`}>{card.open.length > SHOW ? `전체 ${card.open.length}개·순위 →` : "순위 보기 →"}</Link>

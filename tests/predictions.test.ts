@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { predictionProblem, streakBadge, streakOf, weekStart } from "@/lib/predictions";
+import { correctRate, predictBadge, predictionProblem, resultPushText, streakBadge, streakOf, weekStart } from "@/lib/predictions";
 
 // 🎯 승부 예측 (11/2 대표님 "보상은 배지, 그리고 스코어까지")
 describe("predictions rules", () => {
@@ -18,6 +18,17 @@ describe("predictions rules", () => {
     expect(weekStart(new Date("2026-11-02T01:00:00Z"))).toBe("2026-11-01T15:00:00.000Z");
     // 11/1 (일) 23:00 KST → 지난주 월요일 10/26
     expect(weekStart(new Date("2026-11-01T14:00:00Z"))).toBe("2026-10-25T15:00:00.000Z");
+  });
+  it("rewards: badge priority, push text, correct rate (11/3)", () => {
+    expect(predictBadge({ streak: 0, recentWin: false, lastWeekTop: false })).toBeUndefined();
+    expect(predictBadge({ streak: 1, recentWin: true, lastWeekTop: false })).toBe("🎯적중");
+    expect(predictBadge({ streak: 4, recentWin: true, lastWeekTop: false })).toBe("🎯4연속");
+    expect(predictBadge({ streak: 1, recentWin: true, lastWeekTop: true })).toBe("🏆지난주 1등");
+    expect(predictBadge({ streak: 3, recentWin: true, lastWeekTop: true })).toBe("🏆지난주 1등 🎯3연속");
+    expect(resultPushText("1차전 승자는?", ["KT", "삼성"], 0, 0, 10)).toEqual({ title: "🎯 맞혔어요! +10점", body: "1차전 승자는" });
+    expect(resultPushText("K리그 제주 vs 광주, 결과는?", ["제주 승", "무", "광주 승"], 2, 0, 10).body).toBe("K리그 제주 vs 광주 · 정답 광주 승");
+    expect(correctRate([1, 2], 1)).toBeNull();
+    expect(correctRate([3, 1, 1], 0)).toBe(60);
   });
   it("validates operator questions", () => {
     const ok = { room: "kbo-덕후방", title: "한국시리즈 1차전 승자는?", options: ["KT", "삼성"], closesAt: "2026-11-03T09:30:00Z" };
@@ -69,6 +80,30 @@ d("predictions (database)", async () => {
     expect(badges["수원직관러"]).toBe("🎯3연속");
     expect(badges["대구"]).toBeUndefined();
     expect((await repo.listPredictions()).length).toBe(3);
+  });
+
+  it("notifies pickers once on first resolve, shows rate and 🏆 for last week's top (11/3)", async () => {
+    const now = new Date("2026-11-03T03:00:00Z");
+    const q = await repo.createPrediction({ room: "kbo-덕후방", title: "알림 테스트 승자는?", options: ["A", "B"], closesAt: "2026-11-03T09:00:00Z", seedKey: "kbo:notify" });
+    await query("INSERT INTO push_subscriptions (endpoint, p256dh, auth, fingerprint) VALUES ('https://fcm.googleapis.com/fcm/send/x1', 'k', 'a', $1)", ["f".repeat(64)]);
+    await repo.pickPrediction({ id: q.id, visitor: "n1", fp: "f".repeat(64), choice: 1 }, now);
+    for (const v of ["n2", "n3", "n4", "n5"]) await repo.pickPrediction({ id: q.id, visitor: v, choice: 0 }, now);
+    const sent: { title: string; url: string }[] = [];
+    const send = async (_t: unknown, m: { title: string; url: string }) => { sent.push(m); return "sent" as const; };
+    const r = await repo.resolvePrediction(q.id, 1, undefined, { send });
+    expect(r.notified).toBe(1);
+    expect(sent[0]!.title).toBe("🎯 맞혔어요! +10점");
+    expect(sent[0]!.url).toContain("tab=predict");
+    await repo.resolvePrediction(q.id, 1, undefined, { send }); // 다시 넣어도 또 안 보냄
+    expect(sent.length).toBe(1);
+    const card = await repo.predictCard("kbo-덕후방", "n1", null, new Date("2026-11-04T00:00:00Z"));
+    expect(card.recent.find((x) => x.id === q.id)?.rate).toBe(20);
+    // 🏆: 지난주(10/26~11/1) 1등
+    const old = await repo.createPrediction({ room: "kbo-덕후방", title: "지난주 문제?", options: ["A", "B"], closesAt: "2026-10-29T09:00:00Z", seedKey: "kbo:lastweek" });
+    await query("INSERT INTO prediction_picks (prediction_id, visitor_hash, nickname, nick_key, choice) VALUES ($1, 'w1', '지난주왕', '지난주왕', 0)", [old.id]);
+    await query("UPDATE predictions SET answer = 0, resolved_at = '2026-10-29T12:00:00Z' WHERE id = $1", [old.id]);
+    expect(await repo.lastWeekTop("kbo-덕후방", now)).toBe("지난주왕");
+    expect(await repo.lastWeekTop("kbo-덕후방", new Date("2030-01-20T00:00:00Z"))).toBeNull();
   });
 
   it("gives a 📈 streak badge for KOSPI picks by nickname", async () => {
