@@ -80,7 +80,8 @@ export async function runPostWelcome(now = new Date()): Promise<number> {
                WHERE r.post_id = c.post_id AND r.nickname = ANY($3::text[]) AND mine.author_fingerprint = c.author_fingerprint)
             AND NOT EXISTS (SELECT 1 FROM comments e WHERE e.post_id = c.post_id AND e.author_fingerprint = c.author_fingerprint AND e.id > c.id)
             -- 글쓴이가 자기 글에 댓글을 달면, 글에 이미 환영 댓글이 달렸으면 또 달지 않는다 (한 사람에게 한 번)
-            AND NOT (p.author_fingerprint = c.author_fingerprint AND EXISTS (SELECT 1 FROM comments w WHERE w.post_id = c.post_id AND w.parent_id IS NULL AND w.nickname = ANY($3::text[])))
+            -- 11/3: 수다방 글은 글쓴이 지문이 NULL 이라 "=" 비교가 NULL 이 되어 사람 말이 통째로 빠졌다 → IS NOT DISTINCT 대신 COALESCE 로 거짓 처리
+            AND NOT (COALESCE(p.author_fingerprint = c.author_fingerprint, false) AND EXISTS (SELECT 1 FROM comments w WHERE w.post_id = c.post_id AND w.parent_id IS NULL AND w.nickname = ANY($3::text[])))
           ORDER BY c.id LIMIT $4`,
         [now.toISOString(), [...OPERATOR_NICKS, ...OWNER_NICKS], [...POST_WELCOME_NAMES, ...AI_OPS_NICKS], MAX_PER_RUN],
       );

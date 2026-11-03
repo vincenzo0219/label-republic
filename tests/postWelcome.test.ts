@@ -64,4 +64,15 @@ d("✍️ 새 글 환영 댓글 (DB)", async () => {
     expect(await runPostWelcome()).toBe(0);
     process.env.POST_WELCOME_ENABLED = "1";
   });
+
+  // 11/3: 방 수다방 글은 글쓴이 지문이 없다(NULL). 운영 이름 새 말이 하나라도 있으면 NULL 비교 때문에 사람 말이 전부 빠지던 버그 (애니방 #c1583)
+  it("수다방: 운영 이름 말이 있어도 사람 말에 답글", async () => {
+    const [cat] = await query<{ id: number }>("INSERT INTO categories (slug, name, description) VALUES ('anime', '애니방', '') RETURNING id");
+    const [chat] = await query<{ id: string }>("INSERT INTO posts (category_id, nickname, pw_hash, title, body, seed_key, post_type) VALUES ($1, '💬 수다방', 'room-chat', 't', 'b', 'roomchat:anime', 'chat') RETURNING id::text", [cat!.id]);
+    await query("INSERT INTO comments (post_id, nickname, pw_hash, body, created_at) VALUES ($1, '동탄맨', 'x', '반가워요', now() - interval '3 days')", [chat!.id]);
+    const [c] = await query<{ id: string }>("INSERT INTO comments (post_id, nickname, pw_hash, body, author_fingerprint, created_at) VALUES ($1, '다다', 'x', '안녕하세요', 'fpd', now() - interval '70 seconds') RETURNING id::text", [chat!.id]);
+    await runPostWelcome(); // 앞 테스트에서 남은 글(손님3)도 같이 처리될 수 있어 이 말의 답글만 본다
+    const r = await query<{ nickname: string }>("SELECT nickname FROM comments WHERE parent_id = $1", [c!.id]);
+    expect(r.map((x) => x.nickname)).toEqual(["울트라매니아"]);
+  });
 });
