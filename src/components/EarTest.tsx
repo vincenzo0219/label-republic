@@ -112,18 +112,22 @@ export function EarTest() {
           <br />
           구분할 수 있을까?
         </h1>
-        <ul className="ear-how">
-          <li>같은 6초 구간을 A·B로 들려 드려요. 하나는 원본, 하나는 MP3 압축본이에요.</li>
-          <li>둘 다 들어 보고 <b>원본</b>을 고르세요. 10문제, 뒤로 갈수록 압축이 덜 돼서 어려워요 (64→192kbps).</li>
-          <li>정답은 끝나고 한꺼번에 알려 드려요.</li>
-        </ul>
-        <p className="hint">🎧 이어폰·헤드폰을 끼고 조용한 곳에서 해 주세요. 한 문제에 약 2MB씩 받아요(와이파이 권장).</p>
+        {/* 11/3 대표님 "1,2번 진행": 첫 화면 2.9초 이탈 → 설명은 접고 시작 버튼을 바로 */}
+        <p className="hint">A·B 둘 다 듣고 원본을 고르면 끝 · 10문제 · 🎧 이어폰 추천</p>
         <button type="button" className="btn btn-primary ear-start" onClick={start}>
-          테스트 시작
+          ▶ 바로 시작
         </button>
-        <p className="hint ear-note">
-          음원은 노방장이 직접 만든 곡이에요. 블루투스 코덱이 아니라 MP3 압축 음질을 비교하는 테스트예요. 결과는 익명으로 참가자 통계에만 쓰여요.
-        </p>
+        <details className="ear-more">
+          <summary>어떻게 하나요?</summary>
+          <ul className="ear-how">
+            <li>같은 6초 구간을 A·B로 들려 드려요. 하나는 원본, 하나는 MP3 압축본이에요.</li>
+            <li>뒤로 갈수록 압축이 덜 돼서 어려워요 (64→192kbps). 정답은 끝나고 한꺼번에 알려 드려요.</li>
+            <li>한 문제에 약 2MB씩 받아요(와이파이 권장).</li>
+          </ul>
+          <p className="hint ear-note">
+            음원은 노방장이 직접 만든 곡이에요. 블루투스 코덱이 아니라 MP3 압축 음질을 비교하는 테스트예요. 결과는 익명으로 참가자 통계에만 쓰여요.
+          </p>
+        </details>
       </section>
     );
   }

@@ -7,6 +7,7 @@ import { FeedView } from "@/components/FeedView";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { RoomQuiz } from "@/components/RoomQuiz";
 import { SentencePick } from "@/components/SentencePick";
+import { TeamPredict } from "@/components/TeamPredict";
 import { RoomTopBar } from "@/components/RoomTopBar";
 import { listCategories } from "@/lib/repo/categories";
 import { KospiGame } from "@/components/KospiGame";
@@ -216,6 +217,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       {/* 📖 책 덕후방 (11/2 대표님 "1분 퀴즈 자리에 놀이의 이걸 넣어줘"): 맨 위는 매일 새 "더 끌리는 문장", 1분 퀴즈는 🧩 놀이 탭으로 */}
       {!category.is_hidden && category.slug === BOOK_ROOM_SLUG && sp.tab !== "play" && <SentencePick from="book" />}
       {!category.is_hidden && roomTab?.key !== "gender" && category.slug !== BOOK_ROOM_SLUG && <RoomQuiz slug={category.slug} name={category.name} />}
+      {/* 🎯 예측 방 맨 위 (11/3 대표님 "1,2번 진행"): 예측 탭 안은 거의 안 누르고 바로 보이는 카드에서만 고른다 (K리그 23명). 열린 문제 3개를 그 자리에서 */}
+      {!category.is_hidden && isPredictRoom(category.slug) && sp.tab !== PREDICT_TAB && <TeamPredict room={category.slug} />}
       {/* 📈 코스피 맞히기 (10/29 대표님): 퀴즈를 뺀 투자방 3곳 맨 위 자리 */}
       {!category.is_hidden && KOSPI_ROOMS.has(category.slug) && <KospiGame slug={category.slug} />}
       {/* 🎉 오늘 축하할 덕후 (10/26): 오늘 올라온 기념일·응원 카드, 줄 안에서 바로 누른다 */}
