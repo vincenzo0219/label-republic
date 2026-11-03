@@ -11,7 +11,7 @@ import { PK_TEAM_KEY } from "@/lib/pk";
 type Open = { id: string; title: string; options: string[]; closesAt: string; mine: number | null; tally: number[] | null };
 type Card = { open: Open[] };
 
-const ROOM = "k리그-덕후방";
+const KLEAGUE = "k리그-덕후방";
 const SHOW = 3;
 const pct = (x: number, n: number) => (n ? Math.round((x / n) * 100) : 0);
 
@@ -19,7 +19,9 @@ const pct = (x: number, n: number) => (n ? Math.round((x / n) * 100) : 0);
  * ⚽ 내 팀 경기 맞히기 (11/2 대표님 "응원하는 팀 한 줄 자기소개 한 사람들이 경기 예측도 이어서 하게, 승부 예측 탭과 연결").
  * 팀 자기소개 글·팬 테스트 결과 아래에서 🎯 예측 탭 문제를 바로 고른다. 내 팀(팬 테스트에서 고른 팀, 방금 단 댓글의 팀) 경기가 맨 위
  */
-export function TeamPredict({ team: initialTeam }: { team?: string | null }) {
+export function TeamPredict({ team: initialTeam, room = KLEAGUE }: { team?: string | null; room?: string }) {
+  const ROOM = room;
+  const teamRoom = room === KLEAGUE;
   const [card, setCard] = useState<Card | null>(null);
   const [team, setTeam] = useState<string | null>(initialTeam ?? null);
   const [error, setError] = useState<string | null>(null);
@@ -45,9 +47,10 @@ export function TeamPredict({ team: initialTeam }: { team?: string | null }) {
   }, [initialTeam]);
 
   if (!card || card.open.length === 0) return null;
-  const mineFirst = [...card.open].sort((a, b) => Number(!!team && kTeamPlays(b.title, team)) - Number(!!team && kTeamPlays(a.title, team)));
+  const team_ = teamRoom ? team : null;
+  const mineFirst = [...card.open].sort((a, b) => Number(!!team_ && kTeamPlays(b.title, team_)) - Number(!!team_ && kTeamPlays(a.title, team_)));
   const shown = mineFirst.slice(0, SHOW);
-  const hasMine = !!team && shown.some((q) => kTeamPlays(q.title, team));
+  const hasMine = !!team_ && shown.some((q) => kTeamPlays(q.title, team_));
 
   const pick = async (id: string, choice: number) => {
     softTap();
@@ -62,10 +65,10 @@ export function TeamPredict({ team: initialTeam }: { team?: string | null }) {
 
   return (
     <section className="team-predict" aria-label="경기 맞히기">
-      <b>🎯 {hasMine ? `${team} 경기, 맞혀 볼래요?` : "이번 라운드, 맞혀 볼래요?"}</b>
+      <b>{room === "드라마-덕후방" ? "🔮" : "🎯"} {hasMine ? `${team_} 경기, 맞혀 볼래요?` : room === "드라마-덕후방" ? "다음 화, 맞혀 볼래요?" : teamRoom ? "이번 라운드, 맞혀 볼래요?" : "맞혀 볼래요?"}</b>
       {shown.map((q) => {
         const n = q.tally ? q.tally.reduce((a, b) => a + b, 0) : 0;
-        const my = !!team && kTeamPlays(q.title, team);
+        const my = !!team_ && kTeamPlays(q.title, team_);
         return (
           <article key={q.id} className={`team-predict-q${my ? " mine" : ""}`}>
             <p>{my ? "⭐ " : ""}{q.title.replace(/, 결과는\?$/, "")}</p>
@@ -82,7 +85,7 @@ export function TeamPredict({ team: initialTeam }: { team?: string | null }) {
       })}
       <p className="hint">
         맞히면 10점, 3연속이면 닉네임 옆 🎯 ·{" "}
-        <Link href={`/c/${encodeURIComponent(ROOM)}?tab=predict`}>{card.open.length > SHOW ? `전체 ${card.open.length}경기·순위 →` : "순위 보기 →"}</Link>
+        <Link href={`/c/${encodeURIComponent(ROOM)}?tab=predict`}>{card.open.length > SHOW ? `전체 ${card.open.length}개·순위 →` : "순위 보기 →"}</Link>
       </p>
       {error && <p className="error">{error}</p>}
     </section>
