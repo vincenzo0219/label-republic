@@ -32,3 +32,17 @@ export async function pickSentence(day: string, visitor: string, choice: 0 | 1):
   );
   return sentenceCard(day, visitor);
 }
+
+export type SentenceStats = { today: number; total: number; days: { day: string; people: number; a: number; b: number }[] };
+
+/** 📖 관리자 화면 (11/3 대표님 "진행"): 문장 고르기 오늘·누적 사람 수와 최근 7일 */
+export async function sentenceStats(today: string, days = 7): Promise<SentenceStats> {
+  const from = new Date(Date.parse(`${today}T00:00:00Z`) - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+  const [tot] = await query<{ total: number }>("SELECT count(DISTINCT visitor_hash)::int AS total FROM room_picks WHERE board = $1", [SENTENCE_BOARD]);
+  const rows = await query<{ day: string; people: number; a: number; b: number }>(
+    `SELECT period::text AS day, count(*)::int AS people, count(*) FILTER (WHERE choice = '0')::int AS a, count(*) FILTER (WHERE choice = '1')::int AS b
+       FROM room_picks WHERE board = $1 AND period BETWEEN $2::date AND $3::date GROUP BY period ORDER BY period DESC`,
+    [SENTENCE_BOARD, from, today],
+  );
+  return { today: rows.find((r) => r.day === today)?.people ?? 0, total: tot?.total ?? 0, days: rows };
+}

@@ -5,6 +5,7 @@ import { clickStats } from "@/lib/repo/clicks";
 import { pkStats } from "@/lib/repo/pk";
 import { challengeStats } from "@/lib/repo/rallyChallenges";
 import { quizStats, streakDistribution } from "@/lib/repo/roomQuizzes";
+import { sentenceStats } from "@/lib/repo/sentencePick";
 import { listAutoHidden, listDuplicates, operatorReports, REPORT_TYPE_LABEL } from "@/lib/repo/reports";
 import { AdminHideButton } from "@/components/AdminHideButton";
 import { HIDE_TYPES } from "@/lib/repo/opHide";
@@ -100,6 +101,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const monthStart = `${today.slice(0, 8)}01`;
   const quick = await quickReplyStats().catch(() => null);
   const quizRows = await quizStats(7).catch(() => []);
+  const sentence = await sentenceStats(kstDay()).catch(() => null);
   const retention = await quizRetention(7).catch(() => null);
   const games = await gameStats(7).catch(() => null);
   const pk = await pkStats(7).catch(() => null);
@@ -202,6 +204,17 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <DailyBars title="페이지뷰" unit="회" data={chartDays.map((r) => ({ day: r.day, value: r.page_views }))} />
         <DailyBars title="재방문자" unit="명" data={chartDays.map((r) => ({ day: r.day, value: r.returning_visitors }))} description="그날 방문자 중 이전 날짜에 처음 온 방문자" />
       </section>
+
+      {/* 📖 문장 고르기 (11/3 대표님 "진행"): 책 덕후방 맨 위·미혼남녀 행사 카드, 광고 book_sentence_1102 효과 보기 */}
+      {sentence && (
+        <section aria-label="문장 고르기">
+          <h2 className="section-title">📖 문장 고르기: 오늘 {sentence.today}명 · 누적 {sentence.total}명</h2>
+          <p className="hint">책 덕후방 맨 위·미혼남녀 만남 행사의 "어느 문장이 더 끌려요?" (한 브라우저 하루 한 번)</p>
+          {sentence.days.length > 0 && (
+            <p className="hint">{sentence.days.map((d) => `${d.day.slice(5)} ${d.people}명 (A ${d.a} · B ${d.b})`).join("  ")}</p>
+          )}
+        </section>
+      )}
 
       <section aria-label="오늘의 1분 퀴즈">
         <h2 className="section-title">🧩 오늘의 1분 퀴즈 응답률 (최근 7일)</h2>
