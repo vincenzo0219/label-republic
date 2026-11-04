@@ -1,9 +1,12 @@
 "use client";
 
+import { withShare } from "@/lib/friendLink";
+
 import { useEffect, useState } from "react";
 
 /** 공유 창(navigator.share)을 열고, 없거나 막히면 클립보드에 복사. 결과: shared · copied · failed */
-export async function shareLink(text: string, url: string): Promise<"shared" | "copied" | "failed"> {
+export async function shareLink(text: string, rawUrl: string): Promise<"shared" | "copied" | "failed"> {
+  const url = withShare(rawUrl);
   if (typeof navigator !== "undefined" && navigator.share) {
     try {
       await navigator.share({ text, url });

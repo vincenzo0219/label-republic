@@ -188,3 +188,10 @@ export function withHead(title: string, head: Head): string {
   const bare = cur ? title.slice(cur.length + 2).trimStart() : title;
   return cur === head ? bare : `[${head}] ${bare}`;
 }
+
+/**
+ * 🔎 검색 노출 (11/4 대표님 "무료 게시물로 자립" 7번): 잡담(chat) 글은 원래 검색에서 빼지만,
+ * 이 말머리로 시작하는 글은 잡담 종류로 올라가도 정보 글이라 검색에 내보낸다 (sitemap·robots 같은 기준)
+ */
+export const SEARCH_HEAD_PREFIXES = ["[행사]", "[혜택]", "[정보]", "[일본]"] as const;
+export const isSearchHeadTitle = (title: string) => SEARCH_HEAD_PREFIXES.some((h) => title.startsWith(h));

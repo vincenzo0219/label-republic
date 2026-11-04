@@ -207,3 +207,15 @@ export function friendCardUrl(test: FriendTestKey, sp: Record<string, string | s
 }
 
 export const isFriendTest = (s: string | null): s is FriendTestKey => s === "love" || s === "fan" || (!!s && Object.prototype.hasOwnProperty.call(SCORE_TESTS, s));
+
+/**
+ * 🔗 공유 링크에 ?from=share 를 붙인다 (11/4 대표님 "무료 게시물로 자립" 5번: 공유 고리).
+ * 관리자 유입 경로에 "공유 링크"로 잡힌다(classifySource). 이미 from 이 있으면 그대로 둔다. 상대·절대 주소 모두.
+ */
+export function withShare(url: string): string {
+  const hashAt = url.indexOf("#");
+  const base = hashAt >= 0 ? url.slice(0, hashAt) : url;
+  const hash = hashAt >= 0 ? url.slice(hashAt) : "";
+  if (/[?&]from=/.test(base)) return url;
+  return `${base}${base.includes("?") ? "&" : "?"}from=share${hash}`;
+}

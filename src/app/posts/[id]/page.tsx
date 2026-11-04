@@ -47,7 +47,7 @@ import { getAppeal } from "@/lib/repo/operator";
 import { getMyVote, getPost as getPostUncached, isShadowAuthor } from "@/lib/repo/posts";
 import { EXTRACTIVE_MODEL } from "@/lib/summary";
 import { typeChip } from "@/lib/adSchedule";
-import { headOf } from "@/lib/heads";
+import { headOf, isSearchHeadTitle } from "@/lib/heads";
 import { bareTitle, shopHeadLabel, stripsHead } from "@/lib/shopRoom";
 import { EventTogether } from "@/components/EventTogether";
 import { EventGroups } from "@/components/EventGroups";
@@ -95,7 +95,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: { card: ogImage ? "summary_large_image" : "summary", title: post.title, description, ...(ogImage ? { images: [ogImage.url] } : {}) },
     // 광고 의심 글과 잡담은 검색 노출에서 제외 (정보 아카이브로서의 SEO 품질 유지)
-    ...(post.is_suppressed || post.post_type === "chat" ? { robots: { index: false, follow: !post.is_suppressed } } : {}),
+    ...(post.is_suppressed || (post.post_type === "chat" && !isSearchHeadTitle(post.title)) ? { robots: { index: false, follow: !post.is_suppressed } } : {}),
   };
 }
 

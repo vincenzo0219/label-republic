@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { config } from "@/lib/config";
 import { listCategories } from "@/lib/repo/categories";
-import { listPostIdsForSitemap } from "@/lib/repo/posts";
+import { latestPostAtByCategory, listPostIdsForSitemap } from "@/lib/repo/posts";
 import { listProductIdsForSitemap } from "@/lib/repo/products";
 import { listBoardAttributes } from "@/lib/repo/facts";
 import { topRenewalBrands } from "@/lib/repo/renewal-feed";
@@ -25,8 +25,9 @@ export default function sitemap(): Promise<MetadataRoute.Sitemap> {
 }
 
 async function build(): Promise<MetadataRoute.Sitemap> {
-  const [categories, posts, products, brands] = await Promise.all([
+  const [categories, posts, products, brands, roomLatest] = await Promise.all([
     listCategories({ all: true }), listPostIdsForSitemap(), listProductIdsForSitemap(), topRenewalBrands({ limit: 500 }),
+    latestPostAtByCategory().catch(() => new Map<number, string>()),
   ]);
   // 성분 순위 페이지: 제품 3개 이상이 수치를 가진 항목만
   const ranks = (
@@ -79,6 +80,8 @@ async function build(): Promise<MetadataRoute.Sitemap> {
     ...["/policy", "/rules", "/transparency", "/terms", "/privacy", "/support"].map((p) => ({ url: `${config.siteUrl}${p}`, changeFrequency: "monthly" as const, priority: 0.3 })),
     ...categories.map((c) => ({
       url: `${config.siteUrl}/c/${encodeURIComponent(c.slug)}`,
+      // 🔎 방 페이지 lastmod = 그 방 최근 글 시각 (11/4)
+      ...(roomLatest.get(c.id) ? { lastModified: roomLatest.get(c.id) } : {}),
       changeFrequency: "hourly" as const,
       priority: 0.8,
     })),

@@ -168,7 +168,7 @@ export function MiniGame({ game }: { game: GameId }) {
 
   async function share() {
     if (score === null) return;
-    const url = `https://nobangjang.com/games/${game}`;
+    const url = `https://nobangjang.com/games/${game}?from=share`;
     const text = shareText(game, score);
     try {
       if (navigator.share) {
@@ -255,7 +255,7 @@ export function MiniGame({ game }: { game: GameId }) {
                 {sent === "copied" ? "도전장 복사됨" : sent === "shared" ? "도전장 보냄" : !challenge ? "🎾 도전장 보내기" : attempt?.beat ? "🎾 내 도전장 보내기" : "🎾 되갚기 도전장 보내기"}
               </button>
             ) : game === "reaction" ? null : (
-              <button type="button" className="btn" onClick={() => void share()}>{copied ? "링크 복사됨" : "기록 공유"}</button>
+              <button type="button" className="btn" onClick={() => void share()}>{copied ? "링크 복사됨" : "🔗 친구에게 도전장"}</button>
             )}
             <Link href={roomHref} className="btn">방으로 돌아가기</Link>
           </div>
