@@ -24,7 +24,7 @@ import { SeenTracker } from "./SeenTracker";
 import { badgeOf, type BadgeMap } from "@/lib/badges";
 import { badgesSafe } from "@/lib/repo/badges";
 import { ttlMemo } from "@/lib/ttlMemo";
-import { eventDday, eventDdayLabel, sortByEventDday, type EventDday } from "@/lib/adSchedule";
+import { eventDday, eventDdayLabel, type EventDday } from "@/lib/adSchedule";
 import { eventBodies } from "@/lib/repo/adSchedule";
 import { eventCardCounts } from "@/lib/repo/eventGoing";
 
@@ -98,8 +98,8 @@ export async function FeedView({
   const ddays = new Map<string, EventDday>(
     feed && bodies ? feed.items.filter((p) => bodies.has(p.id)).map((p) => [p.id, eventDday({ ...p, body: bodies.get(p.id)! })]) : [],
   );
-  // 🎫 행사 탭은 가까운 일정 먼저, 끝난 행사는 맨 뒤 (페이지 안에서만 — 행사 글은 한 방에 한 페이지를 넘는 일이 드물다)
-  const items = feed ? (category && head === "행사" ? sortByEventDday(feed.items, ddays) : feed.items) : [];
+  // 🎫 행사 탭도 최신순 (11/4 대표님 "날짜가 얼마 안 남은 순이 아니라 올린 최신순으로"). D-day 배지는 그대로
+  const items = feed ? feed.items : [];
   const basePath = category ? `/c/${encodeURIComponent(category.slug)}` : "/";
   const typeParam: Record<string, string> = { ...(type ? { type } : {}), ...(head ? { head } : {}), ...(sourced ? { sourced: "1" } : {}) };
   const params: Record<string, string> = { ...typeParam, ...(sort === "trust" ? {} : { sort }) };
