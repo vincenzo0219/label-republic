@@ -2,7 +2,8 @@
  * 🎮 방 미니게임 (10/29 대표님 "1번 2번 3번 진행해. 테니스 랠리 탭도 진행해"). 방 "1분 테스트" 버튼 옆 버튼 하나로만 들어간다 (새 탭 X).
  * 서버·브라우저·테스트 공용 순수 함수.
  */
-export type GameId = "reaction" | "worldcup" | "latte" | "rally" | "pk";
+import { formatSentenceScore, SCORE_MAX } from "./firstSentenceGame";
+export type GameId = "reaction" | "worldcup" | "latte" | "rally" | "pk" | "booksent";
 
 export type GameDef = {
   id: GameId;
@@ -28,6 +29,8 @@ export const GAMES: Record<GameId, GameDef> = {
   rally: { id: "rally", room: "테니스-덕후방", roomName: "테니스 덕후방", emoji: "🎾", name: "랠리 탭", lowerBetter: false, min: 0, max: 300 },
   // ⚽ 승부차기 (10/30): 점수는 서버가 대결 결과로 직접 남긴다 (POST /api/games/pk 로는 받지 않음). score = 내가 넣은 골
   pk: { id: "pk", room: "k리그-덕후방", roomName: "K리그 덕후방", emoji: "⚽", name: "승부차기 대결", lowerBetter: false, min: 0, max: 8, noRecord: true, serverOnly: true },
+  // 📖 첫 문장 맞히기 (11/4): 서버가 답을 채점해 남긴다 (POST /api/book-sentence-game). score = 맞힌 개수×10000 + 빠르기 (src/lib/firstSentenceGame.ts)
+  booksent: { id: "booksent", room: "읽는-책-제목을-교환해-보자", roomName: "책 덕후방", emoji: "📖", name: "첫 문장 맞히기", lowerBetter: false, min: 0, max: SCORE_MAX, noRecord: true, serverOnly: true },
 };
 
 export const isGameId = (s: string): s is GameId => Object.prototype.hasOwnProperty.call(GAMES, s);
@@ -48,6 +51,7 @@ export function validScore(game: GameId, score: unknown): score is number {
 export const better = (game: GameId, a: number, b: number | null): boolean => b === null || (GAMES[game].lowerBetter ? a < b : a > b);
 
 export function formatScore(game: GameId, score: number): string {
+  if (game === "booksent") return formatSentenceScore(score);
   if (game === "reaction") return `${(score / 1000).toFixed(3)}초`;
   if (game === "latte") return `${score}점`;
   if (game === "rally") return `${score}번`;
@@ -59,6 +63,7 @@ export function shareText(game: GameId, score: number): string {
   if (game === "worldcup") return `💘 나의 이상형: ${WORLDCUP_TRAITS[score]}. 너는?`;
   if (game === "reaction") return `⚡ 반응속도 ${formatScore(game, score)}, 이길 수 있어?`;
   if (game === "latte") return `☕ 라떼아트 ${formatScore(game, score)}, 이길 수 있어?`;
+  if (game === "booksent") return `📖 오늘의 첫 문장 맞히기 ${formatScore(game, score)}, 이길 수 있어?`;
   return `🎾 랠리 ${formatScore(game, score)} 이어 받기, 이길 수 있어?`;
 }
 

@@ -46,7 +46,7 @@ export type VsScore = { score: number; name: string };
 export function decodeVs(q: URLSearchParams, min: number, max: number): VsScore | null {
   if (!q.has("vs")) return null;
   const raw = q.get("vs") ?? "";
-  if (!/^\d{1,5}$/.test(raw)) return null;
+  if (!/^\d{1,6}$/.test(raw)) return null;
   const score = Number(raw);
   if (score < min || score > max) return null;
   return { score, name: cleanName(q.get("n")) || "친구" };

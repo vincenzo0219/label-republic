@@ -2028,3 +2028,10 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .gr-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .gr-score { font-variant-numeric: tabular-nums; }
 .gr-play { justify-self: center; }
+
+/* 📖 첫 문장 맞히기 (11/4) */
+.bs-tr { margin: -10px 0 12px; font-size: 12.5px; }
+.bs-played { margin: 10px 0; }
+.fl-choice.picked { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 16%, var(--surface)); }
+.bs-result .fl-review ol { margin: 8px 0 0; padding-left: 20px; }
+.bs-result .ear-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
