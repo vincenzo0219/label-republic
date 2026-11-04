@@ -151,7 +151,7 @@ function SimResult({ result, err, waits, onRetry }: { result: Result | null; err
   const slowS = slow >= 0 ? Math.round(waits[slow]! / 100) / 10 : 0;
   const max = 16;
   const share = async () => {
-    const url = `${window.location.origin}/some-sim`;
+    const url = `${window.location.origin}/some-sim?from=share`;
     const text = `다음 썸에서 내 날씨는 ${t.emoji} ${t.name}! 너는 무슨 날씨야?`;
     try {
       if (navigator.share) return await navigator.share({ title: "💬 썸 시뮬레이터", text, url });

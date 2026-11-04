@@ -8,7 +8,7 @@ import { hit } from "../rate-limit";
 import { aiSpam, combine, heuristicSpam, moderationNote, shouldSuppress, type SpamVerdict } from "../moderation";
 import { aiAbuse, heuristicAbuse, hideParams, maskPersonalInfo, type AbuseVerdict } from "../abuse";
 import { searchTerms } from "../highlight";
-import { tabMembers, type Head } from "../heads";
+import { SEARCH_HEAD_PREFIXES, tabMembers, type Head } from "../heads";
 import { OPERATOR_NICKS } from "./metrics";
 import { ownerAlertAfter, reportAlertAfter } from "./ownerAlert";
 import { investProblem } from "../investRooms";
@@ -772,8 +772,11 @@ export async function redactRevision(
 export async function listPostIdsForSitemap(limit = 5000): Promise<{ id: string; updated_at: string }[]> {
   // 잡담은 검색 노출 대상에서 제외 — 정보 아카이브로서의 SEO 품질 유지
   return query(
-    `SELECT id, updated_at FROM posts WHERE NOT is_blinded AND NOT is_suppressed AND post_type <> 'chat' ORDER BY id DESC LIMIT $1`,
-    [limit],
+    `SELECT id, updated_at FROM posts WHERE NOT is_blinded AND NOT is_suppressed
+        AND (post_type <> 'chat' OR title LIKE ANY($2::text[]))
+        AND (seed_key IS NULL OR seed_key NOT LIKE 'roomchat:%')
+      ORDER BY id DESC LIMIT $1`,
+    [limit, SEARCH_HEAD_PREFIXES.map((h) => `${h}%`)],
   );
 }
 
@@ -785,4 +788,12 @@ export async function isShadowAuthor(id: string, fp: string): Promise<boolean> {
     [id, fp],
   );
   return !!r?.ok;
+}
+
+/** 🔎 사이트맵 방 페이지 lastmod: 방마다 가장 최근 글 시각 (11/4) */
+export async function latestPostAtByCategory(): Promise<Map<number, string>> {
+  const rows = await query<{ category_id: number; at: string }>(
+    "SELECT category_id, max(created_at) AS at FROM posts WHERE NOT is_blinded AND NOT is_suppressed GROUP BY category_id",
+  );
+  return new Map(rows.map((r) => [r.category_id, r.at]));
 }

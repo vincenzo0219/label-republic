@@ -44,7 +44,8 @@ export function classifySource(opts: { landing: boolean; referrer?: string | nul
   // 자매 서비스 아이볼(ibol.kr)의 "후기·수다 → 노방장" 카드 (/kids/<id>?from=ibol, 10/24)
   if (opts.from?.toLowerCase() === "ibol") return { source: "referral", host: "ibol.kr" };
   // 🙋 행사 글 공유 버튼 (?from=share, 10/26): 카톡 등 앱 안 브라우저가 레퍼러를 지워도 "공유 링크"로 센다
-  if (opts.from?.toLowerCase() === "share") return { source: "social", host: SHARE_HOST };
+  // 🤝 친구 대결·궁합 링크(?from=vs·mate, 11/2)도 공유로 센다 (11/4 공유 고리)
+  if (["share", "vs", "mate"].includes(opts.from?.toLowerCase() ?? "")) return { source: "social", host: SHARE_HOST };
   const host = referrerHost(opts.referrer);
   if (!host) return { source: "direct", host: null };
   if (host === opts.siteHost.toLowerCase().replace(/:\d+$/, "")) return { source: "internal", host };

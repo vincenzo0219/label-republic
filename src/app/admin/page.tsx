@@ -97,6 +97,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       m.openBoardRequests(),
       m.openErrors(),
     ]);
+  const share = await m.shareLandings(...cur).catch(() => ({ people: 0, landings: 0 }));
   const campaigns = await m.campaignStats(...cur).catch(() => []);
   const monthStart = `${today.slice(0, 8)}01`;
   const quick = await quickReplyStats().catch(() => null);
@@ -412,6 +413,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <HBarList title={`유입 경로 (최근 ${range}일 랜딩)`} unit="회" empty="아직 수집된 방문이 없습니다." rows={sources.map((s) => ({ label: SOURCE_LABEL[s.source] ?? s.source, value: s.landings }))} />
         <HBarList title="검색엔진별 유입" unit="회" empty="검색 유입이 아직 없습니다." rows={searchRefs.map((r) => ({ label: r.host, value: r.landings }))} />
         <HBarList title="SNS별 유입" unit="회" empty="SNS 유입이 아직 없습니다." rows={socialRefs.map((r) => ({ label: r.host, value: r.landings }))} />
+        <p className="hint">🔗 공유로 들어온 사람 ({range}일): {share.people.toLocaleString("ko-KR")}명 · {share.landings.toLocaleString("ko-KR")}회 (테스트·게임 결과의 공유 링크, ?from=share)</p>
         <HBarList
           title={`🙋 같이 갈 사람 (최근 ${range}일, 남아 있는 것 기준)`}
           unit=""

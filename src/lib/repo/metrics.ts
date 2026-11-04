@@ -5,7 +5,7 @@
 import { query } from "../db";
 import { config } from "../config";
 import { curatorIntervalHours } from "../curator";
-import { kstDay } from "../metrics";
+import { kstDay, SHARE_HOST } from "../metrics";
 
 export type DailyRow = {
   day: string;
@@ -132,6 +132,16 @@ export async function topReferrers(fromDay: string, toDay: string, source: strin
       GROUP BY referrer_host ORDER BY landings DESC LIMIT $4`,
     [fromDay, toDay, source, limit],
   );
+}
+
+/** 🔗 공유 링크(?from=share)로 처음 들어온 사람·횟수 (11/4 대표님 "무료 게시물로 자립" 5번) */
+export async function shareLandings(fromDay: string, toDay: string): Promise<{ people: number; landings: number }> {
+  const [r] = await query<{ people: number; landings: number }>(
+    `SELECT count(DISTINCT visitor_hash)::int AS people, count(*)::int AS landings FROM page_views
+      WHERE is_landing AND referrer_host = $3 AND day BETWEEN $1::date AND $2::date`,
+    [fromDay, toDay, SHARE_HOST],
+  );
+  return r ?? { people: 0, landings: 0 };
 }
 
 export type TopPost = { id: string; title: string; category: string; is_ai_curated: boolean; n: number };

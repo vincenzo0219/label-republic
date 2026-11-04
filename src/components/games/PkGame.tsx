@@ -210,7 +210,7 @@ export function PkGame() {
 
   async function share() {
     if (!view?.outcome) return;
-    const url = "https://nobangjang.com/games/pk";
+    const url = "https://nobangjang.com/games/pk?from=share";
     const text = pkShareText(view.me, view.op, view.outcome, view.myTeam);
     try {
       if (navigator.share) return void (await navigator.share({ text, url }));
@@ -348,7 +348,7 @@ export function PkGame() {
           )}
           <div className="mg-end-actions">
             <button type="button" className="btn btn-primary" onClick={() => void start()}>다시 하기</button>
-            <button type="button" className="btn" onClick={() => void share()}>{copied ? "링크 복사됨" : "결과 공유"}</button>
+            <button type="button" className="btn" onClick={() => void share()}>{copied ? "링크 복사됨" : "🔗 친구에게 도전장"}</button>
             <Link href="/c/k리그-덕후방" className="btn">K리그 덕후방 가기</Link>
           </div>
         </div>

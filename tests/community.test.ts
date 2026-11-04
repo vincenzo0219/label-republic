@@ -96,6 +96,18 @@ d("chat tag and meetups (database)", async () => {
     expect((await posts.listPostIdsForSitemap()).map((r) => r.id)).toEqual([info.id]);
   });
 
+  it("puts chat-type [행사]·[정보] posts in the sitemap but keeps plain chat out (11/4)", async () => {
+    const chat = await create({ type: "chat", title: "그냥 잡담" });
+    const ev = await create({ type: "chat", title: "[행사] 서울카페쇼 (11/5~11/8)" });
+    const info = await create({ type: "info", title: "정보 글" });
+    const ids = (await posts.listPostIdsForSitemap()).map((r) => r.id);
+    expect(ids).toContain(ev.id);
+    expect(ids).toContain(info.id);
+    expect(ids).not.toContain(chat.id);
+    const latest = await posts.latestPostAtByCategory();
+    expect(latest.size).toBeGreaterThan(0);
+  });
+
   it("does not let meetups outrank pending info posts in trust order", async () => {
     const info = await create({ title: "새 정보 글" });
     await create({ type: "meetup", title: "정모" });

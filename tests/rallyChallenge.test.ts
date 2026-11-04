@@ -32,7 +32,7 @@ describe("🎾 랠리 도전장 (규칙)", () => {
     expect(isChallengeId("../etc")).toBe(false);
     expect(cleanName("  ")).toBe("테니스 덕후");
     expect(cleanName("가".repeat(30))).toHaveLength(20);
-    expect(challengeText(23, "abcd2345")).toBe("🎾 랠리 탭 23번 받았어요. 이길 수 있어요? nobangjang.com/games/rally?c=abcd2345");
+    expect(challengeText(23, "abcd2345")).toBe("🎾 랠리 탭 23번 받았어요. 이길 수 있어요? nobangjang.com/games/rally?c=abcd2345&from=share");
     expect(challengeText(1, "x")).not.toMatch(/—/);
   });
 });

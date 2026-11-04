@@ -46,5 +46,5 @@ export function seededRandom(seed: number): () => number {
   };
 }
 
-export const challengeUrl = (id: string) => `https://nobangjang.com/games/rally?c=${id}`;
-export const challengeText = (score: number, id: string) => `🎾 랠리 탭 ${score}번 받았어요. 이길 수 있어요? nobangjang.com/games/rally?c=${id}`;
+export const challengeUrl = (id: string) => `https://nobangjang.com/games/rally?c=${id}&from=share`;
+export const challengeText = (score: number, id: string) => `🎾 랠리 탭 ${score}번 받았어요. 이길 수 있어요? nobangjang.com/games/rally?c=${id}&from=share`;
