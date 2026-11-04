@@ -1,6 +1,8 @@
 import { quickReplyStats } from "@/lib/repo/quickReply";
 import { quizRetention } from "@/lib/repo/quizRetention";
 import { gameStats } from "@/lib/repo/miniGames";
+import { dailyRetention } from "@/lib/repo/dailyGames";
+import { DAILY } from "@/lib/dailyGames";
 import { clickStats } from "@/lib/repo/clicks";
 import { pkStats } from "@/lib/repo/pk";
 import { challengeStats } from "@/lib/repo/rallyChallenges";
@@ -105,6 +107,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const sentence = await sentenceStats(kstDay()).catch(() => null);
   const retention = await quizRetention(7).catch(() => null);
   const games = await gameStats(7).catch(() => null);
+  const dailyRet = await dailyRetention(14).catch(() => null);
   const pk = await pkStats(7).catch(() => null);
   const rallyCh = await challengeStats(7).catch(() => null);
   const fanClicks = await clickStats("fan-test", "/fan-test", 7).catch(() => null);
@@ -295,6 +298,49 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               </tbody>
             </table>
           </div>
+        ) : (
+          <p className="hint">아직 기록이 없습니다.</p>
+        )}
+      </section>
+
+      <section aria-label="하루 게임 재방문">
+        <h2 className="section-title">🎯 하루 게임 재방문 (최근 14일)</h2>
+        <p className="hint">
+          게임한 사람: 14일 안에 하루 게임을 한 사람(첫날 기준) · 안 한 사람: 그 방에 왔지만 게임은 안 한 사람 · 다음 날·7일: 사이트에 다시 온 비율(7일은 7일이 지난 사람만) · 🔥 2일+: 지금 2일 이상 연속인 사람 · 🔔: 알림 켠 수. 11/19 판단 기준: 게임한 사람 7일 재방문 10%
+        </p>
+        {dailyRet ? (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>게임</th>
+                <th>게임한 사람</th>
+                <th>다음 날</th>
+                <th>7일</th>
+                <th>안 한 사람</th>
+                <th>다음 날</th>
+                <th>7일</th>
+                <th>🔥 2일+</th>
+                <th>🔔</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dailyRet.map((r) => (
+                <tr key={r.game}>
+                  <td>
+                    {DAILY[r.game].emoji} {DAILY[r.game].name}
+                  </td>
+                  <td>{r.players}</td>
+                  <td>{r.playersNext === null ? "-" : `${r.playersNext}%`}</td>
+                  <td>{r.players7 === null ? "-" : `${r.players7}%`}</td>
+                  <td>{r.others}</td>
+                  <td>{r.othersNext === null ? "-" : `${r.othersNext}%`}</td>
+                  <td>{r.others7 === null ? "-" : `${r.others7}%`}</td>
+                  <td>{r.streak2}</td>
+                  <td>{r.pushOn}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
           <p className="hint">아직 기록이 없습니다.</p>
         )}

@@ -17,6 +17,7 @@ import { SAVINGS_ROOM } from "../investRooms";
 import { kstMonth } from "../savingsLog";
 import { runGigPush } from "./gigPush";
 import { runTennisPush } from "./tennisPush";
+import { runDailyGamePush } from "./dailyGamePush";
 import { flushOwnerAlerts } from "../repo/ownerAlert";
 import { runRoomPush } from "./roomPush";
 import { runSinglesPush } from "./singlesPush";
@@ -506,6 +507,9 @@ export function startPushScheduler(intervalMs: number): () => void {
     // 🎾 테니스방 (10/29): 우리 동네 새 게임 · 공공 코트 예약 오픈
     const tn = await runTennisPush();
     if (tn.games || tn.courts || tn.removed) console.log(`[push] 테니스 알림 게임 ${tn.games}건 · 코트 오픈 ${tn.courts}건 발송, 구독 ${tn.removed}개 정리`);
+    // 🎯 하루 한 판 게임 (11/4): 오늘 문제 열림 · 내 기록이 깨짐
+    const dg = await runDailyGamePush();
+    if (dg.daily || dg.beaten || dg.removed) console.log(`[push] 하루 게임 알림 오늘 문제 ${dg.daily}건 · 기록 깨짐 ${dg.beaten}건, 구독 ${dg.removed}개 정리`);
     // 🔔 사람 글·댓글 알림 (10/25): 쓰자마자 보내고, 60초 안에 묶인 것·놓친 것은 여기서
     await flushOwnerAlerts();
   });

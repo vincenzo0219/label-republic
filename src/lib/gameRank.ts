@@ -6,7 +6,7 @@
 import type { GameId } from "./miniGames";
 
 /** 랭킹이 있는 게임 (월드컵은 기록이 아니라 취향이라 뺀다) */
-export const RANK_GAMES = ["pk", "reaction", "latte", "rally", "booksent"] as const satisfies readonly GameId[];
+export const RANK_GAMES = ["booksent", "anichosung", "kmatch", "pk", "reaction", "latte", "rally"] as const satisfies readonly GameId[];
 export type RankGame = (typeof RANK_GAMES)[number];
 export const isRankGame = (s: string): s is RankGame => (RANK_GAMES as readonly string[]).includes(s);
 

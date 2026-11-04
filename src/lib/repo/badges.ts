@@ -5,6 +5,8 @@ import { predictBadge, streakBadge } from "../predictions";
 import { lastWeekTop, predictStats } from "./predictions";
 import { kospiStreaksByNick } from "./kospi";
 import { photoWinnerBadges } from "./roomBoards";
+import { dailyGameOfRoom, streakBadgeText } from "../dailyGames";
+import { dailyStreaksByNick } from "./dailyGames";
 
 /** 테스트 결과 저장 (사람마다 마지막 결과). 모르는 테스트·결과면 false */
 export async function saveTestResult(test: string, nickname: string, result: string): Promise<boolean> {
@@ -19,21 +21,24 @@ export async function saveTestResult(test: string, nickname: string, result: str
   return true;
 }
 
-/** 이 방에서 닉네임들의 배지 (키: identityKey). 방 테스트 배지 + 🎯 승부 예측·📈 코스피 연속 배지 + 📸 지난주 사진 투표 1등 (11/2, 어느 방에서나) */
+/** 이 방에서 닉네임들의 배지 (키: identityKey). 방 테스트 배지 + 🎯 승부 예측·📈 코스피 연속 배지 + 📸 지난주 사진 투표 1등 (11/2, 어느 방에서나) + 🔥 이 방 하루 게임 연속 (11/4) */
 export async function badgesFor(roomSlug: string, nicknames: readonly string[]): Promise<BadgeMap> {
   const keys = [...new Set(nicknames.map(identityKey).filter(Boolean))];
   if (!keys.length) return {};
-  const [room, pred, top, kospi, photo] = await Promise.all([
+  const daily = dailyGameOfRoom(roomSlug);
+  const [room, pred, top, kospi, photo, streaks] = await Promise.all([
     roomBadgesFor(roomSlug, keys),
     predictStats(keys).catch(() => ({}) as Record<string, { streak: number; recentWin: boolean }>),
     lastWeekTop(roomSlug).catch(() => null),
     kospiStreaksByNick(keys).catch(() => ({}) as Record<string, number>),
     photoWinnerBadges(keys).catch(() => ({}) as Record<string, string>),
+    // 🔥 하루 게임 연속 기록 (11/4): 이 방의 하루 게임을 2일 이상 이어서 한 사람
+    daily ? dailyStreaksByNick(daily, keys).catch(() => ({}) as Record<string, number>) : Promise.resolve({} as Record<string, number>),
   ]);
   const out: BadgeMap = {};
   for (const k of keys) {
     const p = pred[k];
-    const parts = [room[k], predictBadge({ streak: p?.streak ?? 0, recentWin: !!p?.recentWin, lastWeekTop: top === k }), streakBadge(kospi[k] ?? 0, "📈"), photo[k]].filter(Boolean);
+    const parts = [room[k], predictBadge({ streak: p?.streak ?? 0, recentWin: !!p?.recentWin, lastWeekTop: top === k }), streakBadge(kospi[k] ?? 0, "📈"), photo[k], streakBadgeText(streaks[k] ?? 0)].filter(Boolean);
     if (parts.length) out[k] = parts.join(" ");
   }
   return out;

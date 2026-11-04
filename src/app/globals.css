@@ -2035,3 +2035,33 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .fl-choice.picked { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 16%, var(--surface)); }
 .bs-result .fl-review ol { margin: 8px 0 0; padding-left: 20px; }
 .bs-result .ear-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+
+/* 🎯 하루 게임 재방문 장치 (11/4): 🔥 연속 · 오늘 순위 · 편 대결 · 알림 */
+.daily-extras { display: grid; gap: 10px; margin: 14px 0; }
+.dx-streak { margin: 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #f08a24 14%, var(--surface)); font-size: 15px; }
+.dx-rank { margin: 0; font-size: 15px; }
+.dx-team { padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+.dx-h { margin: 0 0 6px; font-size: 15px; }
+.dx-teams { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.dx-teams li { display: grid; grid-template-columns: 22px 1fr auto auto; gap: 8px; align-items: center; font-size: 14px; }
+.dx-teams li.me { font-weight: 800; color: var(--brand); }
+.dx-pick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
+.dx-pick select { min-height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: inherit; padding: 0 8px; }
+.dx-push .btn { width: 100%; }
+.dx-push .hint { margin: 6px 0 0; }
+
+/* 🎨 애니 제목 초성 · 🏟️ 구단 짝 맞추기 */
+.ac-top { display: flex; justify-content: space-between; font-weight: 800; margin-bottom: 10px; }
+.ac-time { color: var(--brand); }
+.ac-cho { margin: 6px 0; text-align: center; font-size: 34px; font-weight: 900; letter-spacing: 4px; word-break: keep-all; transition: color .2s; }
+.ac-cho.ok { color: var(--brand); }
+.ac-len { text-align: center; margin: 0 0 12px; }
+.ac-input { width: 100%; box-sizing: border-box; min-height: 52px; padding: 0 14px; font-size: 18px; border: 2px solid var(--line); border-radius: 12px; background: var(--bg); color: inherit; }
+.ac-input:focus { outline: none; border-color: var(--brand); }
+.ac-pass { width: 100%; margin-top: 10px; }
+.km-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.km-col { display: grid; gap: 8px; align-content: start; }
+.km-card { height: auto; min-height: 48px; padding: 8px 10px; white-space: normal; word-break: keep-all; font-size: 14.5px; font-weight: 700; }
+.km-card.on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 16%, var(--surface)); }
+.km-card.ok { opacity: .45; border-style: dashed; }
+.km-card.bad { border-color: #d65a5a; background: color-mix(in srgb, #d65a5a 14%, var(--surface)); }
