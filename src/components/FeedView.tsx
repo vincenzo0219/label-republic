@@ -79,7 +79,7 @@ export async function FeedView({
   // 글이 적은 방의 첫 화면(필터 없음)에만 안내 (Sprint 32) — boardNeeds 는 글 수부터 세고 많으면 바로 끝낸다 (Sprint 33)
   const guideCandidate = category && page === 1 && !type && !sourced && !head && !chat && !roomTab;
   const [feed, needs, tools, roomCount] = await Promise.all([
-    chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, categorySlugs: !category && onlyMine && mine?.length ? mine : undefined, sort, page, type, head, notHeads: type === "info" && !head && category ? headsFor(category.slug).flatMap((h) => tabMembers(h.key)) : undefined, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category, pinnedTab: pinnedTabFor(category?.slug, { head, type, sourced }) }),
+    chat || roomTab ? Promise.resolve(null) : listPosts({ categoryId: category?.id, categorySlugs: !category && onlyMine && mine?.length ? mine : undefined, sort, page, type, head, notHeads: type === "info" && !head && category ? [...headsFor(category.slug).flatMap((h) => tabMembers(h.key)), "일본"] : undefined, sourced, humanFirst, hotFirst: !type && !head && !sourced, hideHiddenRooms: !category, pinnedTab: pinnedTabFor(category?.slug, { head, type, sourced }) }),
     guideCandidate ? boardNeeds(category.id) : Promise.resolve(null),
     category ? cachedRoomTools(category.id) : Promise.resolve(null),
     category ? cachedRoomCount(0).catch(() => 0) : Promise.resolve(0),
