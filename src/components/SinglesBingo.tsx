@@ -75,7 +75,7 @@ export function SinglesBingo({ events, today }: { events: SinglesEvent[]; today:
       {cell && (
         <div className="bingo-pick">
           {cell.test === null ? (
-            <Link href="/some-sim">💬 썸 시뮬레이터 하고 가운데 칸 채우기 →</Link>
+            <Link href="/some-sim?start=1">💬 썸 시뮬레이터 하고 가운데 칸 채우기 →</Link>
           ) : picks.length ? (
             <ul>
               {picks.map((e) => (

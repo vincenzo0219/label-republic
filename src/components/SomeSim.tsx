@@ -44,6 +44,15 @@ export function SomeSim() {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [step, typing]);
 
+  const start = () => {
+    setTyping(true);
+    setStep(0);
+  };
+  // 방 배너·빙고에서 ?start=1 로 오면 시작 화면 없이 바로 첫 카톡 (11/4 대표님 "시뮬레이터 고쳐")
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("start") === "1") start();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const pick = async (i: number) => {
     const nextPicks = [...picks, i];
     setPicks(nextPicks);
@@ -68,13 +77,20 @@ export function SomeSim() {
         <header className="sim-hero">
           <p className="sim-kicker">💌 미혼남녀 만남 행사방</p>
           <h1>💬 썸 시뮬레이터</h1>
-          <p>솔로인 지금, 다음 소개팅이 잡혔다고 상상해 보세요. 소개팅 다음 날부터 3일간의 카톡, 답장만 고르면 당신의 <b>썸 날씨</b>가 나와요.</p>
-          <p className="hint">답장마다 3초 타이머가 돌아요. 오래 고민한 장면도 결과에 나와요.</p>
+          <p className="sim-hook">소개팅 다음 날, 그 사람에게서 카톡이 왔어요. 뭐라고 답할래요?</p>
         </header>
-        <button type="button" className="btn btn-primary sim-start" onClick={() => { setTyping(true); setStep(0); }}>
-          카톡 열기
+        <button type="button" className="btn btn-primary sim-start" onClick={start}>
+          ▶ 바로 시작
         </button>
-        <p className="hint sim-note">성인 애착 이론(Bartholomew &amp; Horowitz, 1991)을 참고한 재미용 테스트예요. 진단이 아니에요. 가입 없이, 결과는 익명으로 유형만 저장돼요.</p>
+        <p className="hint">답장 8번 · 1분 · 가입 없이</p>
+        <details className="ear-more">
+          <summary>어떻게 하나요?</summary>
+          <ul className="ear-how">
+            <li>3일간의 카톡에서 답장만 고르면 나의 썸 날씨(맑음·소나기·안개·태풍)가 나와요.</li>
+            <li>답장마다 3초 타이머가 돌아요. 오래 고민한 장면도 결과에 나와요.</li>
+            <li>성인 애착 이론(Bartholomew &amp; Horowitz, 1991)을 참고한 재미용 테스트예요. 진단이 아니에요. 결과는 익명으로 유형만 저장돼요.</li>
+          </ul>
+        </details>
       </div>
     );
 
@@ -201,7 +217,7 @@ function SimResult({ result, err, waits, onRetry }: { result: Result | null; err
 
       <div className="sim-actions">
         <button type="button" className="btn btn-primary" onClick={share}>
-          친구 날씨도 물어보기
+          🔗 결과 공유하고 친구 날씨 묻기
         </button>
         <button type="button" className="btn" onClick={onRetry}>
           다시 하기
@@ -209,7 +225,7 @@ function SimResult({ result, err, waits, onRetry }: { result: Result | null; err
       </div>
       <p>
         <Link href={SINGLES_PATH} className="ear-banner">
-          💌 진짜 만남은 여기서: 지자체 미혼남녀 만남 행사 모아 보기 →
+          💌 미혼남녀 방으로 돌아가기: 진짜 만남 행사 보기 →
         </Link>
       </p>
       <p className="hint sim-note">애착 유형은 경험에 따라 바뀔 수 있어요. 성인 애착 이론(Bartholomew &amp; Horowitz, 1991)을 참고한 재미용 테스트이고, 진단이 아니에요.</p>
