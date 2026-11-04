@@ -106,12 +106,12 @@ export function SinglesRoom({ events, today, talks = {} }: { events: SinglesEven
   return (
     <>
       {/* 💬 썸 시뮬레이터 (10/28): 행사만 보고 나가지 않게, 맨 위에 혼자 해 보는 1~2분 체험 */}
-      <Link href="/some-sim" className="ear-banner sim-banner">
+      <Link href="/some-sim?start=1" className="ear-banner sim-banner">
         <span aria-hidden>💬</span>
         <span>
-          <b>썸 시뮬레이터: 3일간의 카톡</b>
+          <b>소개팅 다음 날 카톡, 뭐라고 답할래요?</b>
           <br />
-          솔로인 지금, 다음 썸에서 나는? 답장만 고르면 나오는 썸 날씨 ☀️🌧🌫🌪
+          썸 시뮬레이터 ▶ 1분이면 내 썸 날씨가 나와요
         </span>
       </Link>
       <SinglesChecker profile={profile} onChange={update} onClear={clear} thisYear={Number(today.slice(0, 4))} />

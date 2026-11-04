@@ -54,7 +54,7 @@ export const ROOM_PLAY: Record<string, readonly PlayItem[]> = {
   "미혼남녀-만남-행사": [
     link("/love-test", "💘", "연애 성향 테스트", "1분, 나의 연애 스타일", { mate: true }),
     link("/games/worldcup?from=play", "💘", "이상형 월드컵", "따뜻한 성격·습관 16장"),
-    link("/some-sim", "💬", "썸 시뮬레이터", "3일간의 카톡, 답장 고르면 나오는 썸 날씨"),
+    link("/some-sim?start=1", "💬", "썸 시뮬레이터", "소개팅 다음 날 카톡, 1분이면 썸 날씨"),
     { kind: "bookTaste" },
   ],
   "테니스-덕후방": [{ kind: "rank", game: "rally" }, link("/ntrp-test", "🎾", "NTRP 자가진단", "1분 실력 등급", { duel: true }), link("/games/rally?from=play", "🎾", "랠리 탭", "몇 번 이어 받을 수 있을까?")],
