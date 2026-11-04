@@ -5,7 +5,7 @@ import { isRankGame } from "@/lib/gameRank";
 
 export const metadata: Metadata = {
   title: "🏆 미니게임 전국 랭킹",
-  description: "승부차기·반응속도·라떼아트·랠리 오늘·이번 주·전체 전국 순위",
+  description: "승부차기·반응속도·라떼아트·랠리·첫 문장 맞히기 오늘·이번 주·전체 전국 순위",
   alternates: { canonical: "/games/rank" },
 };
 

@@ -25,7 +25,8 @@ const test = (key: string): PlayItem => ({ kind: "test", key });
 const board = (key: string): PlayItem => ({ kind: "board", key });
 
 export const ROOM_PLAY: Record<string, readonly PlayItem[]> = {
-  "읽는-책-제목을-교환해-보자": [board("book-pages"), test("book-sentence"), { kind: "quiz" }, link("/first-line-test", "📖", "첫 문장 테스트", "첫 문장만 보고 책 제목 맞히기", { duel: true })],
+  // 📖 첫 문장 맞히기 (11/4 대표님 "책방도 책 게임으로 전국 랭킹"): 예전 10문제 첫 문장 테스트 자리를 하루 10문제·전국 랭킹 게임으로
+  "읽는-책-제목을-교환해-보자": [link("/games/booksent?from=play", "📖", "오늘의 첫 문장 맞히기", "하루 10문제 · 전국 랭킹", { duel: true }), board("book-pages"), test("book-sentence"), { kind: "quiz" }, link("/games/rank?game=booksent", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
   "kbo-덕후방": [test("kbo-team"), link("/kbo-test", "⚾", "야구 팬 타입 테스트", "직관 응원단? 기록 분석가?")],
   "러닝-덕후방": [board("run-km"), link("/run-test", "🏃", "러너 타입 테스트", "새벽 혼런러? 크루 러너? 기록 사냥꾼? 풍경 산책러?")],
   "커피-덕후방": [board("coffee-cups"), board("coffee-vote"), link("/coffee-test", "☕", "커피 타입 테스트", "아아 직진파? 핸드드립 탐험가? 달달 라떼파?"), link("/games/latte?from=play", "☕", "라떼아트 따르기", "다른 사람 기록에 도전"), link("/games/rank?game=latte", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
