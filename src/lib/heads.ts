@@ -98,6 +98,8 @@ const BASE_CHAT_TABS: Record<string, { key: string; label: string }[]> = {
   ],
   // 🎾 게임 모집 (10/29 대표님 "카톡 단톡방의 지역별 시합 어딨어?"): 지역·날짜·종목으로 거르는 모집 게시판 (106)
   "테니스-덕후방": [{ key: "games", label: "🎾 게임 모집" }],
+  // 🗾 일본 행사 (11/4 대표님 "일본 행사는 탭을 옆에 따로"): "[일본]" 말머리 글 (src/components/JapanEventsTab.tsx)
+  "애니-만화-덕후방": [{ key: "japan", label: "🗾 일본 행사" }],
   // 🎯 승부 예측 (11/2 대표님): 경기 승자·드라마 다음 화·나스닥 맞히기, 점수와 연속 배지 (src/lib/predictions.ts)
   ...Object.fromEntries(Object.entries(PREDICT_ROOMS).map(([slug, r]) => [slug, [{ key: PREDICT_TAB, label: r.label }]])),
 };

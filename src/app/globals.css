@@ -1996,3 +1996,12 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .team-predict .predict-opts { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
 .team-predict .vote-btn { min-width: 0; width: 100%; min-height: 44px; padding: 8px 4px; font-size: 14px; white-space: normal; }
 .sentence-pick-next { display: block; width: 100%; min-height: 56px; padding: 14px; font-size: 20px; font-weight: 800; text-align: center; border-radius: 14px; }
+
+/* 🗾 일본 행사 탭 (11/4) */
+.japan-tab { display: grid; gap: 12px; }
+.japan-latest h2 { font-size: 1.1rem; margin: 0 0 10px; line-height: 1.4; }
+.japan-latest h2 a { color: inherit; text-decoration: none; }
+.japan-body { white-space: pre-wrap; line-height: 1.7; overflow-wrap: anywhere; }
+.japan-past { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.japan-past a { color: var(--muted, inherit); }
+.japan-empty { padding: 16px 0; }
