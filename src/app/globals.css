@@ -2008,3 +2008,23 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .japan-empty { padding: 16px 0; }
 .sim-hook { font-size: 18px; font-weight: 700; line-height: 1.5; margin: 0; }
 .sim-start { font-size: 20px; padding: 16px; }
+
+/* 🏁 지난 기록 도전 · 🏆 전국 랭킹 (11/4) */
+.gr-target { margin: 8px 0 12px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--brand) 10%, var(--surface)); font-size: 0.95rem; line-height: 1.5; text-align: center; }
+.gr-verdict { margin: 6px 0; font-weight: 700; text-align: center; }
+.gr-verdict.win { color: var(--brand); }
+.gr-mine { margin: 6px 0; text-align: center; line-height: 1.6; }
+.gr-link { white-space: nowrap; font-weight: 600; }
+.pk-live { display: block; margin: 10px auto 4px; }
+.pk-start .gr-link { display: block; margin-top: 8px; text-align: center; }
+.gr-board { display: grid; gap: 10px; }
+.gr-tabs, .gr-periods { display: flex; gap: 6px; flex-wrap: wrap; }
+.gr-tabs button, .gr-periods button { min-width: 0; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line, #ddd); background: var(--surface); color: inherit; font: inherit; }
+.gr-tabs button.on, .gr-periods button.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.gr-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.gr-list li { display: grid; grid-template-columns: 2.2em 1fr auto; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface); }
+.gr-list li.me { outline: 2px solid var(--brand); }
+.gr-rank { text-align: center; font-weight: 700; }
+.gr-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.gr-score { font-variant-numeric: tabular-nums; }
+.gr-play { justify-self: center; }

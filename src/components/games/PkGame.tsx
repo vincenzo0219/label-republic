@@ -22,6 +22,10 @@ import { buzz } from "../MiniGame";
 import { cheer, fanfare, groan, kickSound, netSound, startMusic, stopMusic, tick, whistle } from "@/lib/gameSound";
 import { shake, VIBE, vibe } from "@/lib/juice";
 import { Confetti } from "../RoomQuiz";
+import { ChallengeIntro, ChallengeVerdict, MyRankLine, useChallenge, type ChallengeInfo } from "../GameRank";
+import { useVs } from "../Versus";
+import { encodeVs } from "@/lib/friendLink";
+import { myNick } from "@/lib/me";
 
 type Phase = "start" | "match" | "play" | "end";
 type Flash = { kick: Kick; mine: boolean } | null;
@@ -66,6 +70,12 @@ export function PkGame() {
   const alive = useRef(true);
   const box = useRef<HTMLElement>(null);
   const animating = useRef(false);
+  // 🏁 지난 기록 도전 (11/4): 다른 사람이 남긴 골 수를 목표로. 친구 링크(?vs=골)로 들어오면 그 기록이 목표
+  const [round, setRound] = useState(0);
+  const [liveMode, setLiveMode] = useState(false);
+  const friend = useVs(8, 0);
+  const past = useChallenge("pk", !!friend, round);
+  const target: ChallengeInfo | null = friend ? { target: { name: friend.name, score: friend.score }, myBest: null, others: 1 } : past;
 
   useEffect(() => {
     alive.current = true;
@@ -78,8 +88,10 @@ export function PkGame() {
     };
   }, []);
 
-  async function start() {
+  /** live = 실시간 상대를 10초 기다린다. 아니면 바로 노방장 AI (기다리는 사람이 이미 있으면 그 사람과) */
+  async function start(live = false) {
     const t = team.trim().slice(0, 20);
+    setLiveMode(live);
     try {
       if (t) localStorage.setItem(PK_TEAM_KEY, t);
     } catch {}
@@ -96,7 +108,7 @@ export function PkGame() {
       while (alive.current && v.status === "waiting") {
         const s = Math.floor((Date.now() - began) / 1000);
         setWaited(s);
-        if (s >= PK_WAIT_SEC) {
+        if (!live || s >= PK_WAIT_SEC) {
           v = await api<PkView>(`/api/pk/${m.id}/ai`, "POST", {});
           break;
         }
@@ -210,7 +222,7 @@ export function PkGame() {
 
   async function share() {
     if (!view?.outcome) return;
-    const url = "https://nobangjang.com/games/pk?from=share";
+    const url = encodeVs("/games/pk", view.me, myNick()).replace("from=vs", "from=share");
     const text = pkShareText(view.me, view.op, view.outcome, view.myTeam);
     try {
       if (navigator.share) return void (await navigator.share({ text, url }));
@@ -225,7 +237,8 @@ export function PkGame() {
   if (phase === "start") {
     return (
       <section className="pk-start">
-        <p className="mg-sub">한 번씩 번갈아 차고 막아요. 5번씩 차서 골이 많으면 승리!</p>
+        <p className="mg-sub">노방장 AI와 5번씩 번갈아 차고 막아요. 다른 사람이 넣은 골 수를 넘으면 순위가 올라가요.</p>
+        <ChallengeIntro game="pk" c={target} />
         {editTeam ? (
           <label className="pk-team">
             응원 팀
@@ -237,7 +250,9 @@ export function PkGame() {
             <button type="button" className="linkish" onClick={() => setEditTeam(true)}>바꾸기</button>
           </p>
         )}
-        <button type="button" className="btn btn-primary pk-go" onClick={() => void start()}>⚽ 대결 시작</button>
+        <button type="button" className="btn btn-primary pk-go" onClick={() => void start()}>🏁 지난 기록에 도전</button>
+        <button type="button" className="linkish pk-live" onClick={() => void start(true)}>실시간 상대 찾기 (10초 기다려요)</button>
+        <Link href="/games/rank?game=pk" className="gr-link">🏆 전국 랭킹 보기</Link>
         {error && <p className="error">{error}</p>}
       </section>
     );
@@ -247,8 +262,8 @@ export function PkGame() {
     return (
       <section className="pk-match" aria-live="polite">
         <div className="pk-ball-spin" aria-hidden>⚽</div>
-        <p className="pk-match-title">대결 찾는 중…</p>
-        <p className="mg-sub">{waited < PK_WAIT_SEC ? `${PK_WAIT_SEC - waited}초 안에 상대가 없으면 ${PK_AI_NAME}와 붙어요` : `${PK_AI_NAME} 준비 중`}</p>
+        <p className="pk-match-title">{liveMode ? "대결 찾는 중…" : "골대 세우는 중…"}</p>
+        <p className="mg-sub">{liveMode && waited < PK_WAIT_SEC ? `${PK_WAIT_SEC - waited}초 안에 상대가 없으면 ${PK_AI_NAME}와 붙어요` : `${PK_AI_NAME} 준비 중`}</p>
       </section>
     );
   }
@@ -265,7 +280,7 @@ export function PkGame() {
       <p className="pk-vs">
         <b>{myName}</b> <span>vs</span> <b>{opName}</b>
       </p>
-      <p className="pk-kind">{view.kind === "ai" ? "10초 안에 사람이 없어 노방장 AI와 대결해요" : "🟢 실시간 상대"}</p>
+      <p className="pk-kind">{view.kind === "ai" ? (target?.target ? `🏁 목표: ${target.target.name}님 ${target.target.score}골` : "노방장 AI와 대결해요") : "🟢 실시간 상대"}</p>
       <div className="pk-board">
         <Dots label={myName} kicks={kicks.filter((k) => k.shooter === view.side)} score={score(view.side)} />
         <Dots label={opName} kicks={kicks.filter((k) => k.shooter === opSide)} score={score(opSide)} />
@@ -328,6 +343,8 @@ export function PkGame() {
           <p className="mg-end-score">
             {view.me} : {view.op}
           </p>
+          <ChallengeVerdict game="pk" c={target} score={view.me} />
+          <MyRankLine key={view.id} game="pk" />
           {view.record && (
             <p className="mg-end-line">
               내 전적 {view.record.wins}승 {view.record.losses}패{view.record.draws ? ` ${view.record.draws}무` : ""}
@@ -347,8 +364,8 @@ export function PkGame() {
             </div>
           )}
           <div className="mg-end-actions">
-            <button type="button" className="btn btn-primary" onClick={() => void start()}>다시 하기</button>
-            <button type="button" className="btn" onClick={() => void share()}>{copied ? "링크 복사됨" : "🔗 친구에게 도전장"}</button>
+            <button type="button" className="btn btn-primary" onClick={() => { setRound((x) => x + 1); void start(); }}>🏁 다음 기록에 도전</button>
+            <button type="button" className="btn" onClick={() => void share()}>{copied ? "링크 복사됨" : "🔗 내 기록에 도전장"}</button>
             <Link href="/c/k리그-덕후방" className="btn">K리그 덕후방 가기</Link>
           </div>
         </div>
