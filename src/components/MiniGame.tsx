@@ -16,6 +16,8 @@ import { WorldcupGame } from "./games/WorldcupGame";
 import { Confetti } from "./RoomQuiz";
 import { Versus, VsIntro, useVs } from "./Versus";
 import { SCORE_TESTS } from "@/lib/friendLink";
+import { beatsTarget, isRankGame } from "@/lib/gameRank";
+import { ChallengeIntro, ChallengeVerdict, MyRankLine, useChallenge } from "./GameRank";
 
 const RX = SCORE_TESTS.reaction;
 
@@ -74,7 +76,12 @@ export function MiniGame({ game }: { game: GameId }) {
   const [sent, setSent] = useState<"" | "busy" | "copied" | "shared">("");
   // ⚡ 반응속도 친구 대결 (11/2): ?vs=ms&n=닉네임
   const rxVs = useVs(RX.max, RX.min);
-  const vs = game === "reaction" ? rxVs : null;
+  // ☕ 라떼아트도 친구 기록 링크(?vs=)로 겨룬다 (11/4 "🔗 내 기록에 도전장")
+  const latteVs = useVs(GAMES.latte.max, GAMES.latte.min);
+  const vs = game === "reaction" ? rxVs : game === "latte" ? latteVs : null;
+  // 🏁 지난 기록 도전 (11/4): 친구 링크·랠리 도전장으로 들어온 게 아니면 다른 사람의 진짜 기록을 목표로
+  const ranked = isRankGame(game) ? game : null;
+  const target = useChallenge(ranked ?? "rally", !ranked || !!vs || !!challenge || challenge === undefined, round);
 
   useEffect(() => {
     if (game !== "rally") return;
@@ -108,7 +115,7 @@ export function MiniGame({ game }: { game: GameId }) {
     let r: Result;
     let saved = true;
     try {
-      r = await api<Result>(`/api/games/${game}`, "POST", { score: n, ...(game === "rally" && myNick() ? { nickname: myNick() } : {}) });
+      r = await api<Result>(`/api/games/${game}`, "POST", { score: n, ...(myNick() ? { nickname: myNick() } : {}) });
     } catch {
       saved = false;
       r = { myBest: null, todayBest: null, best: false };
@@ -131,6 +138,7 @@ export function MiniGame({ game }: { game: GameId }) {
         setAttempt({ beat: won, target: challenge.score, challenge });
       }
     }
+    if (ranked && target?.target && beatsTarget(n, target.target.score, g.lowerBetter)) won = true;
     if (r.best || game === "worldcup" || won) {
       fanfare();
       vibe(VIBE.win);
@@ -210,7 +218,8 @@ export function MiniGame({ game }: { game: GameId }) {
           {challenge.tries > 0 && <span>지금까지 {challenge.tries}명 도전, {challenge.wins}명 성공</span>}
         </p>
       )}
-      {score === null && <VsIntro vs={vs} format={RX.format} />}
+      {score === null && <VsIntro vs={vs} format={game === "latte" ? (n) => formatScore("latte", n) : RX.format} />}
+      {score === null && ranked && <ChallengeIntro game={ranked} c={target} />}
       {score === null ? (
         <div key={round} className="mg-stage" onPointerDownCapture={() => startMusic(game)}>
           {game === "reaction" && <ReactionGame onFinish={finish} />}
@@ -247,14 +256,17 @@ export function MiniGame({ game }: { game: GameId }) {
               {result?.todayBest != null && <p className="mg-end-line">오늘 이 방 최고 기록 {formatScore(game, result.todayBest)}</p>}
             </>
           )}
-          {game === "reaction" && <Versus vs={vs} mine={score} path={RX.path} label="⚡ 반응속도 결투" format={RX.format} lowerBetter />}
+          {ranked && !vs && !attempt && <ChallengeVerdict game={ranked} c={target} score={score} />}
+          {ranked && result && <MyRankLine key={`${round}-${score}`} game={ranked} />}
+          {game === "reaction" && <Versus vs={vs} mine={score} path={RX.path} label="⚡ 반응속도 결투" format={RX.format} lowerBetter cta="🔗 내 기록에 도전장" />}
+          {game === "latte" && <Versus vs={vs} mine={score} path="/games/latte" label="☕ 라떼아트" format={(n) => formatScore("latte", n)} cta="🔗 내 기록에 도전장" />}
           <div className="mg-end-actions">
             <button type="button" className="btn btn-primary" onClick={again}>{attempt && !attempt.beat ? "다시 도전" : "다시 하기"}</button>
             {game === "rally" ? (
               <button type="button" className="btn rally-send" disabled={sent === "busy"} onClick={() => void sendChallenge()}>
                 {sent === "copied" ? "도전장 복사됨" : sent === "shared" ? "도전장 보냄" : !challenge ? "🎾 도전장 보내기" : attempt?.beat ? "🎾 내 도전장 보내기" : "🎾 되갚기 도전장 보내기"}
               </button>
-            ) : game === "reaction" ? null : (
+            ) : game === "reaction" || game === "latte" ? null : (
               <button type="button" className="btn" onClick={() => void share()}>{copied ? "링크 복사됨" : "🔗 친구에게 도전장"}</button>
             )}
             <Link href={roomHref} className="btn">방으로 돌아가기</Link>
