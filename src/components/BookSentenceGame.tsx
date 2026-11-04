@@ -6,6 +6,7 @@ import { api } from "@/lib/client-api";
 import { QUESTIONS_PER_DAY, SCORE_MAX, type DailyQuestion } from "@/lib/firstSentenceGame";
 import { myNick } from "@/lib/me";
 import { formatScore } from "@/lib/miniGames";
+import { DailyExtras } from "./DailyExtras";
 import { ChallengeIntro, ChallengeVerdict, MyRankLine, useChallenge } from "./GameRank";
 import { Versus, VsIntro, useVs } from "./Versus";
 
@@ -119,6 +120,7 @@ export function BookSentenceGame() {
       <p className="hint">{fmt(result.score)} · {result.ranked ? "오늘 랭킹에 올렸어요" : "연습 판이라 랭킹에는 넣지 않았어요"}</p>
       {!vs && <ChallengeVerdict game="booksent" c={target} score={result.score} />}
       <MyRankLine key={`${round}-${result.score}`} game="booksent" />
+      <DailyExtras game="booksent" refresh={round} />
       <Versus vs={vs} mine={result.score} path="/games/booksent" label="📖 오늘의 첫 문장 맞히기" format={fmt} cta="🔗 내 기록에 도전장" />
       <details className="fl-review">
         <summary>정답 보기</summary>

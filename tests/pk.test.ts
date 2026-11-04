@@ -128,7 +128,8 @@ describe("⚽ 승부차기 (규칙)", () => {
     expect(kstWeekStart(new Date("2026-11-01T15:30:00Z"))).toBe("2026-11-02"); // 11/2(월) 00:30 KST
   });
   it("방 버튼·점수는 서버만 남긴다", () => {
-    expect(roomGameLink("k리그-덕후방")).toEqual({ href: "/games/pk?from=room", label: "⚽ 승부차기 대결" });
+    // 11/4: K리그 방 맨 위 바로가기는 하루 게임(🏟️ 구단·홈구장 짝 맞추기). 승부차기는 🧩 놀이 탭에
+    expect(roomGameLink("k리그-덕후방")).toEqual({ href: "/games/kmatch?from=room", label: "🏟️ 구단·홈구장 짝 맞추기" });
     expect(validScore("pk", 3)).toBe(false);
   });
   it("버튼 클릭은 정해진 것만", () => {

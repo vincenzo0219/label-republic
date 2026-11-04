@@ -30,6 +30,8 @@ const NOT_CHECKED: Record<string, string> = {
   kospi_stats: "코스피 맞히기 성적 (종가를 넣을 때 다시 계산)",
   game_plays: "🎮 미니게임 판 기록 (익명 게임 기록)",
   game_opens: "🎮 미니게임 화면 연 기록 (방문 통계)",
+  game_teams: "🎯 하루 게임 편 고르기 (익명, 다시 고르면 된다)",
+  game_push_subs: "🎯 하루 게임 알림 켠 기록 (구독이 지워지면 같이 지워진다)",
   pk_matches: "⚽ 승부차기 대결 기록 (익명 게임 기록)",
   rally_challenges: "🎾 랠리 도전장 (익명 게임 기록)",
   rally_attempts: "🎾 랠리 도전 판 기록 (익명 게임 기록)",
