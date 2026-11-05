@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { animeSeasonTitles } from "@/lib/animeSeason";
 import { api } from "@/lib/client-api";
 import { myNick, saveNick } from "@/lib/me";
 import { thumbUrl } from "@/lib/media-url";
@@ -422,23 +423,40 @@ function RatingView({ b, c, send, busy }: P & { b: RatingBoard; c: RatingCard })
   const stars = b.scale === "stars";
   const show = (avg: number) => (stars ? `★ ${avg.toFixed(1)}` : `성공률 ${Math.round(avg * 100)}%`);
   const mineText = (m: number) => (stars ? `내 별점 ${"★".repeat(m)}` : m ? "나는 성공" : "나는 실패");
-  const submit = async () => {
-    if (score === null) return;
-    if (await send({ op: "rate", label, score, nickname: nickOrNull() })) {
+  const choices = b.choices === "anime-season" ? animeSeasonTitles() : [];
+  const [own, setOwn] = useState(false); // 목록에 없어요 → 직접 적기
+  const picking = choices.length > 0 && !own;
+  const submit = async (s = score) => {
+    if (s === null || !label.trim()) return;
+    if (await send({ op: "rate", label, score: s, nickname: nickOrNull() })) {
       setLabel("");
       setScore(null);
     }
   };
   const rows = [...c.shown, ...c.waiting];
+  const myScore = new Map(rows.filter((r) => r.mine !== null).map((r) => [r.label, r.mine!]));
   return (
     <div className="rb-body">
       <form className="rb-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-        <input className="input" maxLength={30} placeholder={b.labelHint} value={label} onChange={(e) => setLabel(e.target.value)} aria-label="제목" list={`rb-${b.key}-labels`} />
-        <datalist id={`rb-${b.key}-labels`}>{rows.map((r) => <option key={r.label} value={r.label} />)}</datalist>
+        {picking ? (
+          <div className="rb-row rb-titles" role="group" aria-label="작품 고르기">
+            {choices.map((t) => (
+              <button key={t} type="button" className="chip chip-sm" aria-pressed={label === t} onClick={() => setLabel(label === t ? "" : t)}>
+                {t}{myScore.has(t) ? ` ${"★".repeat(myScore.get(t)!)}` : ""}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <>
+            <input className="input" maxLength={30} placeholder={b.labelHint} value={label} onChange={(e) => setLabel(e.target.value)} aria-label="제목" list={`rb-${b.key}-labels`} />
+            <datalist id={`rb-${b.key}-labels`}>{rows.map((r) => <option key={r.label} value={r.label} />)}</datalist>
+          </>
+        )}
+        {picking && <p className="hint rb-pick-hint">{label ? `「${label}」 별을 누르면 바로 남아요` : "작품을 먼저 골라요"}</p>}
         <div className="rb-row" role="group" aria-label={stars ? "별점" : "결과"}>
           {stars
             ? [1, 2, 3, 4, 5].map((s) => (
-                <button key={s} type="button" className="chip chip-sm" aria-pressed={score === s} onClick={() => setScore(s)} aria-label={`별 ${s}개`}>{"★".repeat(s)}</button>
+                <button key={s} type="button" className="chip chip-sm" aria-pressed={score === s} disabled={picking && (!label || busy)} onClick={() => (picking ? void submit(s) : setScore(s))} aria-label={`별 ${s}개`}>{"★".repeat(s)}</button>
               ))
             : (
               <>
@@ -447,7 +465,12 @@ function RatingView({ b, c, send, busy }: P & { b: RatingBoard; c: RatingCard })
               </>
             )}
         </div>
-        <button type="submit" className="btn btn-primary" disabled={busy || !label.trim() || score === null}>남기기</button>
+        {!picking && <button type="submit" className="btn btn-primary" disabled={busy || !label.trim() || score === null}>남기기</button>}
+        {choices.length > 0 && (
+          <button type="button" className="linkish rb-own" onClick={() => { setOwn(!own); setLabel(""); setScore(null); }}>
+            {own ? "← 신작 목록에서 고르기" : "목록에 없어요 (직접 적기)"}
+          </button>
+        )}
       </form>
       {c.shown.length > 0 && (
         <ol className="rb-top" aria-label="순위">

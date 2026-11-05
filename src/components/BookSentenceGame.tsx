@@ -8,6 +8,7 @@ import { myNick } from "@/lib/me";
 import { formatScore } from "@/lib/miniGames";
 import { DailyExtras } from "./DailyExtras";
 import { ChallengeIntro, ChallengeVerdict, MyRankLine, useChallenge } from "./GameRank";
+import { useAutoGo } from "./AutoGo";
 import { Versus, VsIntro, useVs } from "./Versus";
 
 type Today = { day: string; no: number; questions: DailyQuestion[]; played: number | null };
@@ -43,6 +44,7 @@ export function BookSentenceGame() {
     setPicked(null);
     setStep(0);
   };
+  useAutoGo(!!today, start, false);
 
   const finish = async () => {
     const ms = Date.now() - started.current;

@@ -32,7 +32,7 @@ describe("🎮 방 미니게임 (규칙)", () => {
     expect(latteCupScore(20, 80)).toBe(0);
   });
   it("방 버튼과 표시 문구", () => {
-    expect(roomGameLink("게임-덕후방")).toEqual({ href: "/games/reaction?from=room", label: "⚡ 반응속도 결투" });
+    expect(roomGameLink("게임-덕후방")).toEqual({ href: "/games/reaction?from=room&go=1", label: "⚡ 반응속도 결투" });
     expect(roomGameLink("테니스-덕후방")?.label).toBe("🎾 랠리 탭");
     expect(roomGameLink("캠핑-덕후방")).toBeNull();
     expect(formatScore("reaction", 214)).toBe("0.214초");

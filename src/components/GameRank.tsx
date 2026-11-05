@@ -117,7 +117,7 @@ export function RankBoard({ initialGame = "pk", compact = false }: { initialGame
         </p>
       )}
       <p className="hint">한 사람당 가장 좋은 기록 하나로 줄 세워요. 닉네임을 정하면 이름이 보여요.</p>
-      <Link href={`/games/${game}?from=rank`} className="btn btn-primary gr-play">
+      <Link href={`/games/${game}?from=rank&go=1`} className="btn btn-primary gr-play">
         {g.emoji} {g.name} 하러 가기
       </Link>
     </section>

@@ -2072,3 +2072,13 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .daily-banner-title { margin: 0; font-size: 1.15rem; line-height: 1.35; }
 .daily-banner .hint { margin: 0; }
 .daily-banner-go { justify-self: stretch; text-align: center; font-size: 1.05rem; padding: 12px; margin-top: 4px; }
+.japan-meta { margin: -4px 0 10px; }
+
+/* go=1 한 번에 시작 (11/5) */
+.go-count { text-align: center; }
+.go-num { margin: 18px 0 8px; font-size: 88px; font-weight: 900; line-height: 1; color: var(--brand); animation: go-pop .8s ease-out; }
+@keyframes go-pop { from { transform: scale(1.6); opacity: 0; } 30% { opacity: 1; } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .go-num { animation: none; } }
+.rb-titles .chip { white-space: normal; text-align: left; }
+.rb-pick-hint { margin: 0; }
+.rb-own { justify-self: start; font-size: 13px; }

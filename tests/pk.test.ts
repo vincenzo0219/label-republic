@@ -129,7 +129,7 @@ describe("⚽ 승부차기 (규칙)", () => {
   });
   it("방 버튼·점수는 서버만 남긴다", () => {
     // 11/4: K리그 방 맨 위 바로가기는 하루 게임(🏟️ 구단·홈구장 짝 맞추기). 승부차기는 🧩 놀이 탭에
-    expect(roomGameLink("k리그-덕후방")).toEqual({ href: "/games/kmatch?from=room", label: "🏟️ 구단·홈구장 짝 맞추기" });
+    expect(roomGameLink("k리그-덕후방")).toEqual({ href: "/games/kmatch?from=room&go=1", label: "🏟️ 구단·홈구장 짝 맞추기" });
     expect(validScore("pk", 3)).toBe(false);
   });
   it("버튼 클릭은 정해진 것만", () => {

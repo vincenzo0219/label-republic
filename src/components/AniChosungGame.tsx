@@ -8,6 +8,7 @@ import { myNick } from "@/lib/me";
 import { formatScore } from "@/lib/miniGames";
 import { DailyExtras } from "./DailyExtras";
 import { ChallengeIntro, ChallengeVerdict, MyRankLine, useChallenge } from "./GameRank";
+import { GoCountdown, useAutoGo } from "./AutoGo";
 import { Versus, VsIntro, useVs } from "./Versus";
 
 type Today = { day: string; no: number; questions: AniQuestion[]; played: number | null };
@@ -78,6 +79,7 @@ export function AniChosungGame() {
     setPhase("play");
     window.setTimeout(() => input.current?.focus(), 50);
   };
+  const count = useAutoGo(!!today, start, true);
 
   const next = (answer: string) => {
     if (!today || ended.current) return;
@@ -103,6 +105,7 @@ export function AniChosungGame() {
   if (error && !today) return <p className="error">문제를 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.</p>;
   if (!today) return <p className="hint">문제를 불러오는 중이에요.</p>;
 
+  if (phase === "ready" && count !== null) return <GoCountdown n={count} label={`🎨 오늘의 애니 초성 · ${today.no}회`} />;
   if (phase === "ready")
     return (
       <section className="ear-card ac-start">

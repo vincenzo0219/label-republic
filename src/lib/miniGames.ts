@@ -47,7 +47,7 @@ export const isGameId = (s: string): s is GameId => Object.prototype.hasOwnPrope
 export function roomGameLink(slug: string): { href: string; label: string } | null {
   const all = Object.values(GAMES);
   const g = all.find((x) => x.room === slug && x.daily) ?? all.find((x) => x.room === slug);
-  return g ? { href: `/games/${g.id}?from=room`, label: `${g.emoji} ${g.name}` } : null;
+  return g ? { href: `/games/${g.id}?from=room&go=1`, label: `${g.emoji} ${g.name}` } : null;
 }
 
 /** 점수가 정수이고 범위 안인지 */

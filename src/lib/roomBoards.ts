@@ -55,7 +55,14 @@ export type LogBoard = Base & {
 export type PhotoBoard = Base & { kind: "photo"; prompt: string };
 export type VoteBoard = Base & { kind: "vote"; yes: string; no: string; titleHint: string; priceHint: string };
 export type PickBoard = Base & { kind: "pick"; mode: "quiz" | "vote"; period: "day" | "week"; options: readonly string[] };
-export type RatingBoard = Base & { kind: "rating"; scale: "stars" | "result"; period: "quarter" | "all"; labelHint: string };
+export type RatingBoard = Base & {
+  kind: "rating";
+  scale: "stars" | "result";
+  period: "quarter" | "all";
+  labelHint: string;
+  /** 고르기 목록 (11/5): 제목을 칩으로 고르고 별을 누르면 바로 남는다. "anime-season" = src/lib/animeSeason.ts */
+  choices?: "anime-season";
+};
 export type PetBoard = Base & { kind: "pet" };
 
 export type RoomBoard = LogBoard | PhotoBoard | VoteBoard | PickBoard | RatingBoard | PetBoard;
@@ -88,7 +95,7 @@ export const ROOM_BOARDS: Record<string, RoomBoard> = Object.fromEntries(
     B({ key: "vegan-quiz", kind: "pick", mode: "quiz", period: "day", room: "비건-덕후방", emoji: "🌱", title: "이 성분 동물성일까?", sub: "하루 한 문제. 성분표에서 자주 보는 이름이에요.", options: ["동물성", "동물성 아님"], why: "내일 새 문제가 나와요." }),
     B({ key: "wine-note", kind: "pick", mode: "vote", period: "week", room: "와인-위스키-덕후방", emoji: "🍷", title: "이번 주 향 한 단어", sub: "이번 주 마신 술에서 느낀 향을 하나 골라요. 만 19세 이상만 참여해 주세요.", options: WINE_NOTES, why: "월요일에 새 투표가 열려요.", adult: true }),
     B({ key: "escape-log", kind: "rating", scale: "result", period: "all", room: "보드게임-방탈출-덕후방", emoji: "🔐", title: "방탈출 성공 기록판", sub: "다녀온 테마와 성공·실패를 남겨요. 테마별 성공률이 보여요.", labelHint: "테마 이름 (30자까지)", why: "기록이 3개 모이면 그 테마 성공률이 열려요." }),
-    B({ key: "anime-stars", kind: "rating", scale: "stars", period: "quarter", room: "애니-만화-덕후방", emoji: "⭐", title: "이번 분기 신작 별점판", sub: "본 신작에 별점을 남겨요. 3명부터 방 평균이 보여요.", labelHint: "작품 제목 (30자까지)", why: "분기가 바뀌면 새 별점판이 열려요." }),
+    B({ key: "anime-stars", kind: "rating", scale: "stars", period: "quarter", room: "애니-만화-덕후방", emoji: "⭐", title: "이번 분기 신작 별점판", sub: "본 신작을 고르고 별을 눌러요. 3명부터 방 평균이 보여요.", labelHint: "작품 제목 (30자까지)", choices: "anime-season", why: "분기가 바뀌면 새 별점판이 열려요." }),
     B({ key: "dog-days", kind: "pet", room: "반려견-덕후방", emoji: "🐶", title: "우리 아이 생일·입양일 달력", sub: "이름과 월·일만 남겨요. 사진·연도는 받지 않아요.", why: "오늘 생일인 아이가 있으면 맨 위에 떠요." }),
   ].map((b) => [b.key, b]),
 );

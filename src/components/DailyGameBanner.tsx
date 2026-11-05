@@ -25,7 +25,7 @@ export function DailyGameBanner({ slug }: { slug: string }) {
         {g.emoji} {g.name}
       </h2>
       <p className="hint">{SUB[g.id] ?? "하루 한 판"} · 하루 한 판 · 전국 랭킹 · 🔥 연속 기록</p>
-      <Link href={`/games/${g.id}?from=room`} className="btn btn-primary daily-banner-go">
+      <Link href={`/games/${g.id}?from=room&go=1`} className="btn btn-primary daily-banner-go">
         ▶ 오늘 문제 풀기
       </Link>
     </section>
