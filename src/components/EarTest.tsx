@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAutoGo } from "./AutoGo";
 import { api } from "@/lib/client-api";
 import { drawShareCard, shareOrDownload } from "@/lib/shareCard";
 import { EAR_BRAG_POST_ID, EAR_MIN_PARTICIPANTS, EAR_ROUNDS, EAR_TOTAL, earBragLine, earTier, type EarStats } from "@/lib/earTest";
@@ -63,6 +64,8 @@ export function EarTest() {
     setError(null);
     setPhase("quiz");
   };
+  // 🎧 방 맨 위 칩·놀이 탭(?go=1)에서 들어오면 소개 없이 바로 1번 문제 (11/5). 소리는 A·B 를 누를 때 난다
+  useAutoGo(true, start, false);
 
   const play = (side: Side) => {
     const me = audio.current[side];

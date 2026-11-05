@@ -19,7 +19,7 @@ const BOOK_HEADS = [
 
 /** 🏪 오늘도 장사중 (10/25, 비즈파일럿 운영): 탭 다섯 개, 이 순서. 제목 앞 [계산]·[직원]… 로 나눈다 (src/lib/shopRoom.ts) */
 export const SHOP_HEADS = [
-  { key: "계산", label: "💸 남는 돈 계산" },
+  { key: "계산", label: "💸 남는 돈 이야기" }, // 11/5: 계산기가 아니라 글 목록이라 이름을 바꿨다 (비즈파일럿 피드의 옛 이름 "남는 돈 계산"도 같은 탭, src/lib/shopRoom.ts tabKeyOf)
   { key: "직원", label: "👥 직원·알바" },
   { key: "상권", label: "📍 상권·자리" },
   { key: "지원", label: "🎫 지원사업·마감" },

@@ -22,7 +22,8 @@ export type RoomQuiz = PickQuiz | TypeQuiz | TriviaQuiz;
 
 /** 퀴즈를 올리지 않는 방: 일하는 방, 숨은 방. 💌 미혼남녀방은 오늘의 썸 카톡이 그 역할 (ROOM_POLLS 로 나간다) */
 // 정보를 얻는 투자방은 맨 위 퀴즈를 뺀다 (10/29 대표님 "주식 같은 정보를 얻는 방은 맨 위 퀴즈 빼자")
-export const QUIZ_EXCLUDED = new Set(["요가-필라테스-강사방", "오늘도-장사중", "neo", "tennis-talk", "주식", "미국주식방", "적립식-투자방"]);
+// 🏪 오늘도 장사중은 11/5 시작 쉬움 점검으로 다시 넣었다 (첫 동작이 없던 방): 그 방 오늘의 질문(ROOM_POLLS)이 1분 퀴즈 카드로 나간다
+export const QUIZ_EXCLUDED = new Set(["요가-필라테스-강사방", "neo", "tennis-talk", "주식", "미국주식방", "적립식-투자방"]);
 
 const p = (q: string, ...options: string[]): PickQuiz => ({ kind: "pick", q, options });
 
@@ -246,9 +247,12 @@ export const isTriviaDay = (day: string) => dayIndex(day) % 2 === 1;
 export const streakTier = (n: number): 0 | 3 | 7 | 30 => (n >= 30 ? 30 : n >= 7 ? 7 : n >= 3 ? 3 : 0);
 
 /** 운영자 줄이 없을 때 오늘의 퀴즈. ROOM_POLLS 가 있는 방은 그 방의 오늘 질문을 같은 카드(손맛·폭죽·카드 모음)로 (10/29 대표님 "누르고 싶은 장치 진행") */
+/** 토요일 유형 테스트("이 취미에서…")가 맞지 않는 방: 그날도 그 방 오늘의 질문 */
+const NO_TYPE_DAY = new Set(["오늘도-장사중"]);
+
 export function builtinQuiz(slug: string, day: string): RoomQuiz | null {
   if (QUIZ_EXCLUDED.has(slug)) return null;
-  if (isTypeDay(day)) return GENERIC_TYPE;
+  if (isTypeDay(day) && !NO_TYPE_DAY.has(slug)) return GENERIC_TYPE;
   // 자기 퀴즈(BUILTIN_PICKS)가 있는 방은 그걸 쓴다 (11/1 오늘의 질문이 새로 붙은 방에서 퀴즈와 질문이 똑같아지지 않게)
   const poll = ROOM_POLLS[slug] && !BUILTIN_PICKS[slug] ? roomPollTopic(slug, day) : null;
   if (poll) return { kind: "pick", q: `${ROOM_POLLS[slug]!.emoji} 오늘의 질문, 당신은?`, options: [poll[0], poll[1]] } as RoomQuiz;

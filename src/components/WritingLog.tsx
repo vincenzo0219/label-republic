@@ -10,6 +10,8 @@ import type { WritingEntry } from "@/lib/repo/writingLog";
 import { fmtChars, MAX_CHARS, NOTE_MAX, writingLine, type WeeklyTop } from "@/lib/writingLog";
 import { NickBadge } from "./NickBadge";
 
+const CHAR_CHIPS = [500, 1000, 2000, 3000] as const;
+
 /** ✍️ 오늘 몇 자 인증 폼 (닉네임은 처음 한 번, 비밀번호 4자리는 이 브라우저가 기억한 번호) */
 function WritingForm({ room }: { room: string }) {
   const router = useRouter();
@@ -68,6 +70,14 @@ function WritingForm({ room }: { room: string }) {
         <button className="btn btn-primary" disabled={busy || nickname.trim().length < 2 || !chars}>
           {busy ? "올리는 중…" : "인증"}
         </button>
+      </div>
+      {/* 11/5 시작 쉬움 점검: 숫자를 치지 않아도 한 번에 (3000자 넘게 썼으면 눌러 놓고 숫자만 고치기) */}
+      <div className="chips writing-chips" role="group" aria-label="글자수 고르기">
+        {CHAR_CHIPS.map((n) => (
+          <button key={n} type="button" className="chip chip-sm" aria-pressed={chars === String(n)} onClick={() => setChars(String(n))}>
+            {n.toLocaleString("ko-KR")}자{n === 3000 ? "+" : ""}
+          </button>
+        ))}
       </div>
       <input className="input" placeholder="장르·화수 한 줄 (선택)" aria-label="장르·화수 한 줄" maxLength={NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} />
       {known ? (

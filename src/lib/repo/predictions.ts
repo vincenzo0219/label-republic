@@ -98,6 +98,27 @@ export async function predictCard(room: string, visitor: string | null, nickname
   };
 }
 
+/** 지금 고를 수 있는 문제가 하나라도 있는지 (11/5: 없으면 방 탭 줄에서 예측 탭을 숨긴다) */
+export async function hasOpenPrediction(room: string, now = new Date()): Promise<boolean> {
+  const [r] = await query<{ ok: boolean }>("SELECT EXISTS (SELECT 1 FROM predictions WHERE room = $1 AND answer IS NULL AND closes_at > $2) AS ok", [room, now.toISOString()]);
+  return !!r?.ok;
+}
+
+/** 내 표에 이름 붙이기 (11/5: 닉네임은 첫 선택 뒤에 묻는다). 이 방에서 이름 없이 고른 내 표에만 */
+export async function nameMyPicks(room: string, visitor: string, nickname: string): Promise<number> {
+  const nick = nickname.trim().slice(0, 20);
+  const key = nick ? identityKey(nick) || null : null;
+  if (!nick || !key) throw new HttpError(400, "invalid_input", "닉네임을 적어 주세요");
+  const rows = await query<{ id: string }>(
+    `UPDATE prediction_picks p SET nickname = $3, nick_key = $4
+       FROM predictions q
+      WHERE q.id = p.prediction_id AND q.room = $1 AND p.visitor_hash = $2 AND p.nick_key IS NULL
+      RETURNING p.prediction_id::text AS id`,
+    [room, visitor, nick, key],
+  );
+  return rows.length;
+}
+
 /** 고르기: 마감 전, 한 브라우저 한 표 (바꿀 수 없음) */
 export async function pickPrediction(input: { id: string; visitor: string; fp?: string | null; nickname?: string | null; choice: number }, now = new Date()): Promise<PredictCard> {
   if (!/^\d{1,18}$/.test(input.id)) throw notFound("예측 문제");

@@ -21,20 +21,23 @@ export function untilLabel(nextAt: string, now = Date.now()): string | null {
  * 🗳 방 맨 위 오늘의 질문 (Sprint 83) — 글에 들어가지 않아도 버튼 한 번으로 투표.
  * 📅 11/1 대표님 "테스트 끝에 내일 다시 올 이유": 어제 결과를 위에, 다음 질문이 열리는 시간을 아래에 보여 준다
  */
-export function RoomPoll({ slug }: { slug: string }) {
+/** reserve: 불러오는 동안 카드 자리를 먼저 잡아 둔다 (11/5, 늦게 떠서 아래가 밀리지 않게) */
+export function RoomPoll({ slug, reserve = false }: { slug: string; reserve?: boolean }) {
   const [poll, setPoll] = useState<Poll | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     api<Poll | null>(`/api/debate/vote?kind=room&slug=${encodeURIComponent(slug)}`, "GET")
       .then(setPoll)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoaded(true));
   }, [slug]);
   useEffect(() => {
     setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(t);
   }, []);
-  if (!poll) return null;
+  if (!poll) return reserve && !loaded ? <section className="come-back poll-skel" aria-hidden /> : null;
   const y = poll.yesterday;
   const yn = y ? y.A + y.B : 0;
   const ya = y && yn ? Math.round((y.A / yn) * 100) : 0;

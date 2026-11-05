@@ -1,6 +1,6 @@
 /**
  * 🏪 오늘도 장사중 (10/25, 비즈파일럿 bizpilot.kr 최종안). docs/promo/bizpilot-room.md
- * - 탭: 💬 자유채팅(그대로) · 💸 남는 돈 계산 · 👥 직원·알바 · 📍 상권·자리 · 🎫 지원사업·마감 · 🏆 잘된 가게 (제목 앞 [계산]…)
+ * - 탭: 💬 자유채팅(그대로) · 💸 남는 돈 이야기(11/5 전 이름 "남는 돈 계산") · 👥 직원·알바 · 📍 상권·자리 · 🎫 지원사업·마감 · 🏆 잘된 가게 (제목 앞 [계산]…)
  * - 매일 08:30·10:30·14:30·16:00·22:30 (KST) 비즈파일럿 글을 shop_queue 에서 꺼내 올린다 (src/lib/jobs/shopRoom.ts)
  * - 매일 07:30 방 전체 탭 맨 위 공지를 "오늘 올라올 글" 목록으로, 일요일 22:30 글 뒤에 "이번 주 모아 보기"
  * - 탭마다 맨 위 고정 글(자주 묻는 질문 정답)
@@ -123,10 +123,13 @@ export const FEED_EVERY_MS = 10 * 60_000;
 export const LATE_LIMIT_HOURS = 24;
 
 const squash = (s: string) => s.replace(/[\s\p{Extended_Pictographic}️‍]/gu, "");
-/** "💸 남는 돈 계산" → "계산" (💬 자유채팅·모르는 탭이면 null) */
+/** 바꾸기 전 탭 이름 (비즈파일럿 피드가 아직 옛 이름으로 보낼 수 있다) */
+const OLD_TAB_LABELS: Record<string, ShopHead> = { 남는돈계산: "계산" as ShopHead };
+/** "💸 남는 돈 이야기"(옛 이름 "💸 남는 돈 계산") → "계산" (💬 자유채팅·모르는 탭이면 null) */
 export function tabKeyOf(label: string): ShopHead | null {
   const l = squash(label);
   if (!l) return null;
+  if (Object.hasOwn(OLD_TAB_LABELS, l)) return OLD_TAB_LABELS[l]!;
   return (SHOP_HEADS.find((h) => l.includes(squash(h.label)) || squash(h.label).includes(l))?.key as ShopHead | undefined) ?? null;
 }
 

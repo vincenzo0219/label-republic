@@ -142,21 +142,25 @@ export function HearingTest() {
           <br />
           들릴까?
         </h1>
-        <ul className="ear-how">
-          <li>A·B 중 한쪽에서만 높은 &ldquo;삐&rdquo; 소리가 나요. 둘 다 들어 보고 소리 난 쪽을 고르세요.</li>
-          <li>8kHz에서 시작해 20kHz까지 점점 높아져요. 틀리거나 &ldquo;둘 다 안 들려요&rdquo;를 누르면 끝나요.</li>
-          <li>나이가 들수록 높은 소리부터 안 들리게 된다고 알려져 있어요.</li>
-        </ul>
+        {/* 11/5 시작 쉬움 점검: 시작 버튼이 첫 화면 밖 → 볼륨 맞추기와 시작을 위로, 설명은 접는다 */}
         <div className="hear-safe">
           <b>🔉 먼저 볼륨을 맞춰 주세요</b>
-          <p>아래 버튼의 소리(1kHz)가 편하게 들릴 만큼만. 높은 소리가 안 들린다고 볼륨을 올리지 마세요 — 귀에 무리가 갈 수 있어요.</p>
+          <p>아래 소리(1kHz)가 편하게 들릴 만큼만. 높은 소리가 안 들린다고 볼륨을 올리지 마세요. 귀에 무리가 갈 수 있어요.</p>
           <button type="button" className="btn" onClick={() => sound(1000, "check")} aria-pressed={playing === "check"}>
             {playing === "check" ? "🔊 소리 나는 중…" : "🔈 볼륨 맞추기 소리 듣기"}
           </button>
         </div>
         <button type="button" className="btn btn-primary ear-start" onClick={start}>
-          테스트 시작
+          ▶ 테스트 시작
         </button>
+        <details className="ear-more">
+          <summary>어떻게 하나요?</summary>
+          <ul className="ear-how">
+            <li>A·B 중 한쪽에서만 높은 &ldquo;삐&rdquo; 소리가 나요. 둘 다 들어 보고 소리 난 쪽을 고르세요.</li>
+            <li>8kHz에서 시작해 20kHz까지 점점 높아져요. 틀리거나 &ldquo;둘 다 안 들려요&rdquo;를 누르면 끝나요.</li>
+            <li>나이가 들수록 높은 소리부터 안 들리게 된다고 알려져 있어요.</li>
+          </ul>
+        </details>
         <p className="hint ear-note">
           청력 진단이 아니에요. 휴대폰·이어폰에 따라 높은 소리를 아예 못 내는 경우도 있어요. 이어폰을 끼고 조용한 곳에서 해 주세요. 결과는 익명으로 참가자 통계에만 쓰여요.
         </p>

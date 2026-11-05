@@ -106,6 +106,20 @@ d("predictions (database)", async () => {
     expect(await repo.lastWeekTop("kbo-덕후방", new Date("2030-01-20T00:00:00Z"))).toBeNull();
   });
 
+  it("hides an empty tab and names picks after the first choice (11/5)", async () => {
+    const now = new Date("2026-11-05T01:00:00Z");
+    expect(await repo.hasOpenPrediction("드라마-덕후방", now)).toBe(false);
+    const q = await repo.createPrediction({ room: "드라마-덕후방", title: "다음 화 고백할까?", options: ["한다", "안 한다"], closesAt: "2026-11-06T09:00:00Z", seedKey: "drama:name" });
+    expect(await repo.hasOpenPrediction("드라마-덕후방", now)).toBe(true);
+    expect(await repo.hasOpenPrediction("드라마-덕후방", new Date("2026-11-07T00:00:00Z"))).toBe(false);
+    await repo.pickPrediction({ id: q.id, visitor: "nm1", choice: 0 }, now);
+    expect(await repo.nameMyPicks("드라마-덕후방", "nm1", "본방사수")).toBe(1);
+    // 이미 이름이 붙은 표는 다시 바꾸지 않는다
+    expect(await repo.nameMyPicks("드라마-덕후방", "nm1", "다른이름")).toBe(0);
+    const [row] = await query<{ nickname: string }>("SELECT nickname FROM prediction_picks WHERE prediction_id = $1 AND visitor_hash = 'nm1'", [q.id]);
+    expect(row!.nickname).toBe("본방사수");
+  });
+
   it("gives a 📈 streak badge for KOSPI picks by nickname", async () => {
     await query("INSERT INTO kospi_closes (day, close) VALUES ('2026-10-26', 100), ('2026-10-27', 101), ('2026-10-28', 102), ('2026-10-29', 101.5)");
     for (const [day, side] of [["2026-10-27", 1], ["2026-10-28", 1], ["2026-10-29", -1]] as const)

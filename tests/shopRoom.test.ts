@@ -18,7 +18,7 @@ const post = (key: string): P => parsed.posts.find((p) => p.key === key)!;
 
 describe("🏪 오늘도 장사중 탭", () => {
   it("💬 채팅 뒤 다섯 탭, 이 순서 · 📋 정보 탭 없음", () => {
-    expect(tabHeadsFor(SHOP_ROOM).map((h) => h.label)).toEqual(["💸 남는 돈 계산", "👥 직원·알바", "📍 상권·자리", "🎫 지원사업·마감", "🏆 잘된 가게"]);
+    expect(tabHeadsFor(SHOP_ROOM).map((h) => h.label)).toEqual(["💸 남는 돈 이야기", "👥 직원·알바", "📍 상권·자리", "🎫 지원사업·마감", "🏆 잘된 가게"]);
     expect(NO_INFO_TAB.has(SHOP_ROOM)).toBe(true);
     expect(tabHeadsFor(SHOP_ROOM).some((h) => h.label.includes("우리 가게"))).toBe(false);
   });
@@ -146,6 +146,7 @@ describe("비즈파일럿 피드", () => {
   });
   it("탭 이름 → 말머리, 💬 자유채팅·모르는 탭은 없음", () => {
     expect(tabKeyOf("💸 남는 돈 계산")).toBe("계산");
+    expect(tabKeyOf("💸 남는 돈 이야기")).toBe("계산");
     expect(tabKeyOf("🎫 지원사업·마감")).toBe("지원");
     expect(tabKeyOf("💬 자유채팅")).toBeNull();
     expect(tabKeyOf("📸 우리 가게")).toBeNull();

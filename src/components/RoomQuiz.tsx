@@ -111,26 +111,29 @@ function NextStep({ notes }: { slug: string; notes: number }) {
  * 정답 퀴즈는 ✅/❌·정답·한 줄 설명·출처, 유형 테스트(주 1회)는 기분 좋은 결과 카드. 기존 오늘의 질문이 있는 방은 그 카드를 쓴다.
  * 알림(푸시)·진동은 쓰지 않는다: 화면 안에서만.
  */
-export function RoomQuiz({ slug, name }: { slug: string; name: string }) {
-  const [d, setD] = useState<Data | null>(null);
+/** initial: 방 화면이 서버에서 같이 불러온 카드 (11/5, 늦게 떠서 화면이 밀리지 않게). 없으면(undefined) 화면에서 불러온다 */
+export function RoomQuiz({ slug, name, initial }: { slug: string; name: string; initial?: Data | null }) {
+  const [d, setD] = useState<Data | null>(initial ?? null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [picks, setPicks] = useState<number[]>([]);
   const [chosen, setChosen] = useState<number | null>(null);
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(() => !!initial && initial.source !== "poll" && initial.mine !== null);
   const [confetti, setConfetti] = useState(0);
   const [plusOne, setPlusOne] = useState(false);
   const [copied, setCopied] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  const preloaded = initial !== undefined;
   useEffect(() => {
+    if (preloaded) return;
     api<Data | null>(`/api/room-quiz?slug=${encodeURIComponent(slug)}`, "GET")
       .then((x) => {
         setD(x);
         if (x && x.source !== "poll" && x.mine !== null) setRevealed(true);
       })
       .catch(() => {});
-  }, [slug]);
+  }, [slug, preloaded]);
 
   // 본 사람 (응답률 분모): 카드가 화면에 보이면 한 번
   useEffect(() => {
@@ -172,7 +175,7 @@ export function RoomQuiz({ slug, name }: { slug: string; name: string }) {
             <StreakChip me={d} />
           </div>
         )}
-        <RoomPoll slug={slug} />
+        <RoomPoll slug={slug} reserve />
       </div>
     );
   }

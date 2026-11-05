@@ -33,11 +33,13 @@ export function PredictionBoard({ room }: { room: string }) {
   const [error, setError] = useState<string | null>(null);
   const [burst, setBurst] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+  const [named, setNamed] = useState<string | null>(null);
   const info = PREDICT_ROOMS[room];
 
   useEffect(() => {
     const n = myNick();
     setNick(n);
+    if (n) setNamed(n);
     api<Card | null>(`/api/predictions?room=${encodeURIComponent(room)}${n ? `&nick=${encodeURIComponent(n)}` : ""}`, "GET")
       .then(setCard)
       .catch(() => setError("불러오지 못했어요. 잠시 후 다시 열어 주세요."));
@@ -62,6 +64,21 @@ export function PredictionBoard({ room }: { room: string }) {
     }
   };
 
+  /** 🏷 첫 선택 뒤 이름 남기기: 이름 없이 고른 내 표에도 붙인다 */
+  const saveName = async () => {
+    const n = nick.trim();
+    if (!n) return;
+    setError(null);
+    try {
+      const next = await api<Card | null>("/api/predictions", "POST", { op: "name", room, nickname: n });
+      saveNick(n);
+      if (next) setCard(next);
+      setNamed(n);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
   const share = async () => {
     if (!card) return;
     const text = `노방장 ${info?.label ?? "🎯 승부 예측"} · ${card.me.wins}승 ${card.me.losses}패 · ${card.me.score}점${card.me.streak >= BADGE_STREAK ? ` · 🔥${card.me.streak}연속` : ""}\n나도 맞혀 보기 👉`;
@@ -81,39 +98,67 @@ export function PredictionBoard({ room }: { room: string }) {
   return (
     <section className="predict" aria-label={info.label}>
       {burst > 0 && <Confetti key={burst} size={14} />}
-      <p className="hint">{info.intro}</p>
+      {card.open.length === 0 ? (
+        <div className="predict-wait">
+          <b>⏳ 다음 문제를 준비하고 있어요</b>
+          <p className="hint">{info.intro} 새 문제는 다음 경기·방송 전에 올라와요.</p>
+        </div>
+      ) : (
+        <>
+          <p className="hint">{info.intro}</p>
+          {card.open.map((q) => {
+            const n = q.tally ? q.tally.reduce((a, b) => a + b, 0) : 0;
+            return (
+              <article key={q.id} className="predict-q">
+                <h3>{q.title}</h3>
+                <p className="hint">⏰ 마감까지 {untilLabel(q.closesAt, now)}</p>
+                <div className="predict-opts">
+                  {q.options.map((o, i) => (
+                    <button key={o} type="button" className={`btn vote-btn${q.mine === i ? " btn-primary" : ""}`} disabled={q.mine !== null} aria-pressed={q.mine === i} onClick={() => void pick(q.id, i)}>
+                      {o}
+                      {q.tally && <span className="predict-pct"> {pct(q.tally[i] ?? 0, n)}%</span>}
+                    </button>
+                  ))}
+                </div>
+                {q.mine !== null && <p className="hint">✅ 골랐어요 · {n}명 참여 · 결과가 나오면 점수가 들어와요</p>}
+              </article>
+            );
+          })}
+        </>
+      )}
+
+      {/* 🏷 닉네임은 첫 선택 뒤에 (11/5: 선택 버튼 위에 있으면 꼭 적어야 하는 줄 알았다) */}
+      {card.open.some((q) => q.mine !== null) &&
+        (named ? (
+          <p className="hint">
+            🏷 <b>{named}</b> 이름으로 순위에 올라가요{" "}
+            <button type="button" className="linkish" onClick={() => setNamed(null)}>
+              바꾸기
+            </button>
+          </p>
+        ) : (
+          <form
+            className="predict-nick"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void saveName();
+            }}
+          >
+            <span>🏷 순위에 이름 남기기 (선택)</span>
+            <span className="row">
+              <input value={nick} maxLength={20} onChange={(e) => setNick(e.target.value)} placeholder="예) 수원직관러" aria-label="닉네임" />
+              <button type="submit" className="btn btn-sm" disabled={!nick.trim()}>
+                남기기
+              </button>
+            </span>
+          </form>
+        ))}
+
       <div className="predict-me">
         <b>내 기록</b> {card.me.wins}승 {card.me.losses}패 · <b>{card.me.score}점</b>
         {card.me.streak > 0 && <span> · 🔥 {card.me.streak}연속</span>}
         {card.me.streak < BADGE_STREAK && <span className="hint"> · {BADGE_STREAK}연속부터 닉네임 옆 🎯 배지</span>}
       </div>
-      <label className="predict-nick">
-        <span>닉네임 (순위에 보여요, 선택)</span>
-        <input value={nick} maxLength={20} onChange={(e) => setNick(e.target.value)} placeholder="예) 수원직관러" />
-      </label>
-
-      {card.open.length === 0 ? (
-        <p className="hint">지금 열린 문제가 없어요. 다음 경기·방송 전에 새 문제가 올라와요.</p>
-      ) : (
-        card.open.map((q) => {
-          const n = q.tally ? q.tally.reduce((a, b) => a + b, 0) : 0;
-          return (
-            <article key={q.id} className="predict-q">
-              <h3>{q.title}</h3>
-              <p className="hint">⏰ 마감까지 {untilLabel(q.closesAt, now)}</p>
-              <div className="predict-opts">
-                {q.options.map((o, i) => (
-                  <button key={o} type="button" className={`btn vote-btn${q.mine === i ? " btn-primary" : ""}`} disabled={q.mine !== null} aria-pressed={q.mine === i} onClick={() => void pick(q.id, i)}>
-                    {o}
-                    {q.tally && <span className="predict-pct"> {pct(q.tally[i] ?? 0, n)}%</span>}
-                  </button>
-                ))}
-              </div>
-              {q.mine !== null && <p className="hint">✅ 골랐어요 · {n}명 참여 · 결과가 나오면 점수가 들어와요</p>}
-            </article>
-          );
-        })
-      )}
 
       {card.recent.length > 0 && (
         <details className="predict-recent" open>
