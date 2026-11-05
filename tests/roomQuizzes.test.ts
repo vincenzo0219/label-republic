@@ -22,6 +22,11 @@ describe("🧩 오늘의 1분 퀴즈 (규칙)", () => {
     expect(a).not.toEqual(b);
     expect(isTypeDay("2026-10-31")).toBe(true);
     expect(builtinQuiz("캠핑-덕후방", "2026-10-31")!.kind).toBe("type");
+    // 🏪 장사중 (11/5): 토요일에도 유형 테스트 대신 그 방 오늘의 질문
+    expect(isTypeDay("2026-11-07")).toBe(true);
+    const shop = builtinQuiz("오늘도-장사중", "2026-11-07")!;
+    expect(shop.kind).toBe("pick");
+    expect(shop.kind === "pick" && shop.q).toContain("🏪");
     // 기존 오늘의 질문 방도 같은 카드로 (10/29): 그날의 A vs B 가 공감 퀴즈로
     const k = builtinQuiz("k리그-덕후방", "2026-10-29")!;
     expect(k.kind).toBe("pick");
@@ -81,9 +86,10 @@ d("🧩 오늘의 1분 퀴즈 (DB)", async () => {
     expect((await qz.todayQuiz("캠핑-덕후방", day))!.source).toBe("builtin");
     expect((await qz.todayQuiz("k리그-덕후방", day))!.source).toBe("builtin");
     expect((await qz.todayQuiz("미혼남녀-만남-행사", day))!.source).toBe("poll");
-    expect(await qz.todayQuiz("오늘도-장사중", day)).toBeNull();
+    expect(await qz.todayQuiz("요가-필라테스-강사방", day)).toBeNull();
+    expect((await qz.todayQuiz("오늘도-장사중", day))!.source).toBe("builtin");
     await qz.putRoomQuiz("캠핑-덕후방", day, { kind: "pick", q: "텐트 치고 제일 먼저?", options: ["의자", "불", "사진"] });
-    await expect(qz.putRoomQuiz("오늘도-장사중", day, { kind: "pick", q: "x", options: ["a", "b"] })).rejects.toThrow();
+    await expect(qz.putRoomQuiz("요가-필라테스-강사방", day, { kind: "pick", q: "x", options: ["a", "b"] })).rejects.toThrow();
     const t = await qz.todayQuiz("캠핑-덕후방", day);
     expect(t!.source).toBe("db");
     const a = await qz.answerQuiz("캠핑-덕후방", day, "v1", { choice: 1 }, "f1");

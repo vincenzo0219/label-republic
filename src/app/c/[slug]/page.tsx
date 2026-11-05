@@ -6,6 +6,10 @@ import Link from "next/link";
 import { FeedView } from "@/components/FeedView";
 import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { RoomQuiz } from "@/components/RoomQuiz";
+import { cookies } from "next/headers";
+import { VISITOR_COOKIE } from "@/lib/metrics";
+import { roomQuizCard } from "@/lib/repo/roomQuizCard";
+import { hasOpenPrediction } from "@/lib/repo/predictions";
 import { SentencePick } from "@/components/SentencePick";
 import { TeamPredict } from "@/components/TeamPredict";
 import { DailyGameBanner, dailyGameOf } from "@/components/DailyGameBanner";
@@ -110,7 +114,8 @@ const ROOM_LINKS: Record<string, { href: string; label: string }[]> = {
   [DEBATE_ROOM_SLUG]: [{ href: "/agents.md", label: "🤖 내 AI 참가" }, { href: "/debate-test", label: "⚖️ 1분 테스트" }],
   "비바리움-덕후방": [{ href: "/vivarium-test", label: "🦎 1분 테스트" }, { href: "/viv-test", label: "🌿 타입 테스트" }],
   "비건-덕후방": [{ href: "/vegan-test", label: "🌱 1분 테스트" }],
-  "k리그-덕후방": [{ href: "/fan-test", label: "⚽ 1분 테스트" }],
+  // 🥅 승부차기 (11/5 시작 쉬움 점검): 놀이 탭 안쪽 3탭 → 방 맨 위 칩 한 번에 "지난 기록 도전" 시작
+  "k리그-덕후방": [{ href: "/fan-test", label: "⚽ 1분 테스트" }, { href: "/games/pk?from=room&go=1", label: "🥅 승부차기" }],
   "kbo-덕후방": [{ href: "/kbo-test", label: "⚾ 1분 테스트" }],
   "러닝-덕후방": [{ href: "/run-test", label: "🏃 1분 테스트" }],
   "요가-필라테스-덕후방": [{ href: "/yoga-test", label: "🧘 1분 테스트" }],
@@ -126,6 +131,8 @@ const ROOM_LINKS: Record<string, { href: string; label: string }[]> = {
   "반려견-덕후방": [{ href: "/dog-test", label: "🐶 1분 테스트" }],
   "테니스-덕후방": [{ href: "/ntrp-test", label: "🎾 NTRP 1분 자가진단" }],
   keyboards: [{ href: "/typing-test", label: "⌨️ 타자 테스트" }],
+  // 🎧 11/5 시작 쉬움 점검: 놀이 탭 안에만 있던 귀 테스트를 방 맨 위 칩으로 (황금귀는 바로 1번 문제)
+  "perfume-audio": [{ href: "/ear-test?from=room&go=1", label: "🎧 황금귀 테스트" }, { href: "/hearing-test?from=room", label: "🔊 고음 청력 테스트" }],
   // 책 덕후방은 위 버튼 없이 (추천은 탭으로, 10/21 단순화)
 };
 
@@ -213,6 +220,13 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const fanDays = (compact: boolean) => (category.is_hidden || category.no_matching ? null : <FanDays slug={category.slug} roomName={category.name} compact={compact} />);
   const fanLine = !kidsLine && plain && !head && !roomTab && (Number(sp.page) || 1) === 1 ? fanDays(true) : null;
   const roomCount = (await listCategories().catch(() => [])).length;
+  // 🧩 오늘의 1분 퀴즈를 서버에서 같이 그린다 (11/5: 화면에서 늦게 떠서 아래가 밀리던 것). 실패하면 화면에서 다시 불러온다
+  // 예측 탭은 첫 문제가 첫 화면에 보이게, 📍 동네 체험 탭은 지역 고르기가 먼저 보이게 맨 위 퀴즈를 뺀다
+  const showQuiz = !category.is_hidden && roomTab?.key !== "gender" && roomTab?.key !== PREDICT_TAB && roomTab?.key !== KIDS_TAB && category.slug !== BOOK_ROOM_SLUG;
+  const vid = showQuiz ? (await cookies()).get(VISITOR_COOKIE)?.value : undefined;
+  const quizInit = showQuiz ? await roomQuizCard(category.slug, vid).catch(() => undefined) : undefined;
+  // 🎯 열린 예측 문제가 없으면 예측 탭을 숨긴다 (11/5: 눌러도 할 것이 없던 빈 탭). 그 탭을 열고 있으면 그대로 둔다
+  const hideTabs = isPredictRoom(category.slug) && roomTab?.key !== PREDICT_TAB && !(await hasOpenPrediction(category.slug).catch(() => true)) ? [PREDICT_TAB] : undefined;
   return (
     <>
       <RoomMemory slug={category.slug} />
@@ -221,9 +235,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       {/* 🧩 오늘의 1분 퀴즈 (10/29 대표님): 어느 탭이든 방 맨 위. 기존 오늘의 질문이 있는 방은 그 카드. 👫 남녀 생각 차이 탭은 같은 투표를 목록으로 보여 주니 뺀다 */}
       {/* 📖 책 덕후방 (11/2 대표님 "1분 퀴즈 자리에 놀이의 이걸 넣어줘"): 맨 위는 매일 새 "더 끌리는 문장", 1분 퀴즈는 🧩 놀이 탭으로 */}
       {/* 🎯 하루 게임 (11/5): 칩만 있을 때 첫날 연 사람 0명 → 책·애니·K리그 방 맨 위 큰 카드 */}
-      {!category.is_hidden && sp.tab !== "play" && <DailyGameBanner slug={category.slug} />}
+      {!category.is_hidden && sp.tab !== "play" && roomTab?.key !== PREDICT_TAB && <DailyGameBanner slug={category.slug} />}
       {!category.is_hidden && category.slug === BOOK_ROOM_SLUG && sp.tab !== "play" && <SentencePick from="book" />}
-      {!category.is_hidden && roomTab?.key !== "gender" && category.slug !== BOOK_ROOM_SLUG && <RoomQuiz slug={category.slug} name={category.name} />}
+      {showQuiz && <RoomQuiz slug={category.slug} name={category.name} initial={quizInit} />}
       {/* 🎯 예측 방 맨 위 (11/3 대표님 "1,2번 진행"): 예측 탭 안은 거의 안 누르고 바로 보이는 카드에서만 고른다 (K리그 23명). 열린 문제 3개를 그 자리에서 */}
       {!category.is_hidden && isPredictRoom(category.slug) && sp.tab !== PREDICT_TAB && <TeamPredict room={category.slug} />}
       {/* 📈 코스피 맞히기 (10/29 대표님): 퀴즈를 뺀 투자방 3곳 맨 위 자리 */}
@@ -243,7 +257,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           ),
         )}
       </nav>}
-      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? (head === "자랑" ? <>{roomBox}{fanDays(false)}</> : roomBox) : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : (kidsLine ?? fanLine)} roomTab={roomTabProps} pinned={briefings.length ? <BriefingStrip items={briefings} /> : undefined} />
+      <FeedView category={category} sort={sp.sort ? sortSchema.parse(sp.sort) : "latest"} page={Number(sp.page) || 1} type={postTypeFilterSchema.parse(sp.type)} head={head} sourced={sp.sourced === "1"} chat={chatProps} banner={bite ? <BookBite bite={bite} /> : !head && roomBox} lead={head ? (head === "자랑" ? <>{roomBox}{fanDays(false)}</> : roomBox) : category.slug === "주식" && sp.type === "info" ? <Link href="/margin-calc" className="ear-banner mc-link">🧮 반대매매 계산기</Link> : (kidsLine ?? fanLine)} roomTab={roomTabProps} hideTabs={hideTabs} pinned={briefings.length ? <BriefingStrip items={briefings} /> : undefined} />
     </>
   );
 }

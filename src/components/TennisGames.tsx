@@ -1,5 +1,6 @@
 "use client";
 
+import { SampleCard } from "./SampleCard";
 import { celebrateWrite } from "./Celebrate";
 import { useEffect, useState } from "react";
 import { LiveComments } from "./LiveComments";
@@ -136,9 +137,12 @@ export function TennisGames() {
       ) : items === null ? (
         <p className="hint kids-loading" aria-busy="true">불러오는 중</p>
       ) : items.length === 0 ? (
-        <p className="empty">
-          {f.sido || f.type || f.when ? "조건에 맞는 게임이 아직 없어요. 지역을 넓혀 보거나, 먼저 올려 보세요" : "아직 올라온 게임이 없어요. 첫 게임을 올려 보세요 🎾"}
-        </p>
+        <>
+          <p className="empty">
+            {f.sido || f.type || f.when ? "조건에 맞는 게임이 아직 없어요. 지역을 넓혀 보거나, 먼저 올려 보세요" : "아직 올라온 게임이 없어요. 첫 게임을 올려 보세요 🎾"}
+          </p>
+          <SampleCard title="토요일 오전 복식 1명 구해요" lines={["📍 ○○구 ○○코트 · 🗓 토 오전 10시~12시", "🎾 복식 · 비슷한 실력이면 좋아요"]} />
+        </>
       ) : (
         <>
           <div className="kids-grid">

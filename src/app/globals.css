@@ -2082,3 +2082,18 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .rb-titles .chip { white-space: normal; text-align: left; }
 .rb-pick-hint { margin: 0; }
 .rb-own { justify-self: start; font-size: 13px; }
+
+/* 11/5 시작 쉬움 점검 */
+.predict-wait { display: grid; gap: 4px; padding: 14px; border: 1px dashed var(--line); border-radius: 14px; background: var(--surface); }
+.predict-wait p { margin: 0; }
+.predict-nick .row { display: flex; gap: 6px; }
+.predict-nick .row input { flex: 1; min-width: 0; }
+.singles-checker.folded { padding: 0; border: 0; background: none; margin: 0 0 10px; }
+.singles-checker:not(.folded) .singles-cond { margin-bottom: 10px; }
+.singles-cond { max-width: 100%; white-space: normal; text-align: left; }
+.singles-cond.picked { border-color: var(--brand); font-weight: 700; }
+.sample-card { display: grid; gap: 4px; margin: 10px 0; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 14px; background: var(--surface); opacity: 0.7; filter: grayscale(1); }
+.sample-tag { justify-self: start; padding: 2px 8px; border-radius: 999px; background: var(--line); font-size: 12px; font-weight: 700; }
+.sample-foot { margin-top: 4px; }
+.kids-sido { flex: 1 1 100%; }
+.poll-skel { min-height: 230px; }

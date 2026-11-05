@@ -49,6 +49,7 @@ export async function FeedView({
   lead,
   pinned,
   roomTab,
+  hideTabs,
   mine,
   onlyMine = false,
 }: {
@@ -71,6 +72,8 @@ export async function FeedView({
   lead?: React.ReactNode;
   /** 💬 채팅 뒤 방 전용 탭 (육아방 📍동네 체험): 글 목록 대신 이 화면 */
   roomTab?: { key: string; node: React.ReactNode };
+  /** 방 탭 줄에서 숨길 방 전용 탭 키 (열린 예측 문제가 없는 🎯 예측 탭, 11/5) */
+  hideTabs?: string[];
   /** 내 방 slug (쿠키) — 홈 탭에 ★, 내 방 먼저 */
   mine?: string[];
   /** 홈: 내 방 글만 */
@@ -157,7 +160,7 @@ export async function FeedView({
         <FilterCountsLoader room={category.slug} />
         {/* 방 탭 (10/21 단순화): 전체 · 채팅 · 말머리 · (정보) — 정모·잡담 탭은 없음. 손가락이 닿는 순간 탭 내용을 미리 받는다 (10/24 속도) */}
         {/* 강사방처럼 기본 탭이 따로 있는 방은 그 탭이 맨 앞(주소 그대로), 전체는 맨 뒤 ?tab=all (10/25) */}
-        {roomTabsAround(category.slug).before.map((t) => (
+        {roomTabsAround(category.slug).before.filter((t) => !hideTabs?.includes(t.key)).map((t) => (
           <Link key={t.key} href={t.key === defaultTab ? basePath : `${basePath}?tab=${t.key}`} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
             {t.label}
           </Link>
@@ -167,7 +170,7 @@ export async function FeedView({
           💬 채팅
           <FilterCount k="chat" />
         </Link>
-        {roomTabsAround(category.slug).after.map((t) => (
+        {roomTabsAround(category.slug).after.filter((t) => !hideTabs?.includes(t.key)).map((t) => (
           <Link key={t.key} href={`${basePath}?tab=${t.key}`} aria-current={roomTab?.key === t.key ? "true" : undefined} rel="nofollow" {...PREFETCH_ON_TOUCH}>
             {t.label}
             {t.key === "play" && <FilterCount k="play" />}

@@ -12,14 +12,23 @@ export function KidsAreaPicker({ onPick, current }: { onPick: (area: string) => 
     <div className="kids-picker">
       <p className="kids-picker-title">📍 우리 동네</p>
       <div className="kids-picker-row">
-        <select aria-label="시·도" value={sido} onChange={(e) => {
-          setSido(e.target.value);
-          const r = REGIONS.find((x) => x.name === e.target.value);
-          if (r && r.districts.length === 0) onPick(r.short);
-        }}>
-          <option value="">시·도</option>
-          {REGIONS.map((r) => <option key={r.name} value={r.name}>{r.short}</option>)}
-        </select>
+        {/* 11/5 시작 쉬움 점검: 시·도는 고르는 칸 대신 칩으로 한 번에 (서울·경기·부산…) */}
+        <div className="chips kids-sido" role="group" aria-label="시·도">
+          {REGIONS.map((r) => (
+            <button
+              key={r.name}
+              type="button"
+              className="chip chip-sm"
+              aria-pressed={sido === r.name}
+              onClick={() => {
+                setSido(r.name);
+                if (r.districts.length === 0) onPick(r.short);
+              }}
+            >
+              {r.short}
+            </button>
+          ))}
+        </div>
         {region && options.length > 0 && (
           <select aria-label="시·군·구" value="" onChange={(e) => e.target.value && onPick(e.target.value)}>
             <option value="">시·군·구</option>

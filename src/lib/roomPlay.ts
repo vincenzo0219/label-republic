@@ -51,7 +51,7 @@ export const ROOM_PLAY: Record<string, readonly PlayItem[]> = {
   "비건-덕후방": [board("vegan-quiz"), link("/vegan-test", "🌱", "채식 타입 테스트", "플렉시테리언부터 비건까지 나의 채식 타입")],
   "비바리움-덕후방": [board("viv-photo"), link("/vivarium-test", "🦎", "첫 생물 고르기", "나에게 맞는 첫 생물은?"), link("/viv-test", "🌿", "비바리움 타입 테스트", "레이아웃 장인? 관찰 기록파?")],
   작가지망생방: [link("/writer-test", "✍️", "장르 테스트", "판타지? 로판? 무협? 나에게 맞는 장르")],
-  "perfume-audio": [link("/ear-test", "🎧", "황금귀 테스트", "음질 차이 맞히기", { duel: true }), link("/hearing-test", "🔊", "고음 청력 테스트", "내 귀는 몇 kHz까지 들릴까?")],
+  "perfume-audio": [link("/ear-test?from=play&go=1", "🎧", "황금귀 테스트", "음질 차이 맞히기", { duel: true }), link("/hearing-test", "🔊", "고음 청력 테스트", "내 귀는 몇 kHz까지 들릴까?")],
   // 🏟️ 구단·홈구장 짝 맞추기 (11/4): 하루 한 판 · 전국 랭킹을 맨 앞에
   "k리그-덕후방": [link("/games/kmatch?from=play&go=1", "🏟️", "오늘의 구단·홈구장 짝 맞추기", "6쌍 · 전국 랭킹", { duel: true }), link("/fan-test", "⚽", "K리그 팬 테스트", "나는 어떤 축구 팬?", { mate: true }), link("/games/pk?from=play&go=1", "🥅", "승부차기 대결", "다른 사람 골 수에 도전"), link("/games/rank?game=kmatch", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
   "미혼남녀-만남-행사": [

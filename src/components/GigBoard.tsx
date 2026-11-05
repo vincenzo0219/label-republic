@@ -1,5 +1,6 @@
 "use client";
 
+import { SampleCard } from "./SampleCard";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -100,6 +101,13 @@ const COPY: Record<GigKind, { aria: string; write: string; empty: string }> = {
   sub: { aria: "대강", write: "✍️ 대강 올리기", empty: "조건에 맞는 대강이 아직 없어요" },
   job: { aria: "구인구직", write: "✍️ 구인·구직 올리기", empty: "조건에 맞는 글이 아직 없어요. 지역을 넓혀 보세요" },
   ask: { aria: "1대1 레슨 구해요", write: "🙋 레슨 구해요 올리기", empty: "이 지역에 올라온 글이 아직 없어요" },
+};
+
+/** 빈 탭의 회색 예시 카드 (11/5). 실제 글·사람 이름·숫자 없이 모양만 */
+const SAMPLES: Record<GigKind, { title: string; lines: string[] }> = {
+  sub: { title: "화요일 저녁 매트 필라테스 대강 구해요", lines: ["📍 ○○구 · 🗓 화 저녁 7시 1타임", "그룹 수업 · 수업 방식은 글에 적어 주세요"] },
+  job: { title: "평일 오전 요가 강사님 구해요", lines: ["📍 ○○구 · 주 2회 오전", "수업 종류·초보 가능 여부를 적어 주세요"] },
+  ask: { title: "주말 오전 1대1 필라테스 레슨 구해요", lines: ["📍 ○○구 · 주 1회 · 토·일 오전", "원하는 지역·시간대를 남기면 강사님 글과 이어져요"] },
 };
 
 /**
@@ -207,7 +215,10 @@ export function GigBoard({ kind, offToken }: { kind: GigKind; offToken?: string 
       ) : items === null ? (
         <p className="hint kids-loading" aria-busy="true">불러오는 중</p>
       ) : items.length === 0 ? (
-        <p className="empty">{copy.empty}</p>
+        <>
+          <p className="empty">{copy.empty}</p>
+          <SampleCard {...SAMPLES[kind]} />
+        </>
       ) : (
         <>
           <div className="kids-grid">
