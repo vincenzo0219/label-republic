@@ -45,11 +45,13 @@ export async function runDailyGamePush(now = new Date(), opts: { send?: Send } =
         );
         if (!subs.length) continue;
         const { rows: plays } = await client.query<{ visitor_hash: string; score: number; created_at: string }>(
-          "SELECT visitor_hash, score, created_at FROM game_plays WHERE game = $1 AND day = $2 ORDER BY created_at",
+          "SELECT visitor_hash, score, created_at FROM game_plays WHERE game = $1 AND day = $2 ORDER BY created_at, id",
           [game, day],
         );
         const first = new Map<string, { score: number; at: number }>();
-        for (const p of plays) if (!first.has(p.visitor_hash)) first.set(p.visitor_hash, { score: Number(p.score), at: Date.parse(p.created_at) });
+        plays.forEach((p, i) => {
+          if (!first.has(p.visitor_hash)) first.set(p.visitor_hash, { score: Number(p.score), at: i });
+        });
         const all = [...first.entries()];
         const low = DAILY[game].lowerBetter;
         const ranks = competitionRanks(
