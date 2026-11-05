@@ -8,6 +8,7 @@ import { BOOK_ROOM_SLUG } from "@/lib/books";
 import { RoomQuiz } from "@/components/RoomQuiz";
 import { SentencePick } from "@/components/SentencePick";
 import { TeamPredict } from "@/components/TeamPredict";
+import { DailyGameBanner, dailyGameOf } from "@/components/DailyGameBanner";
 import { RoomTopBar } from "@/components/RoomTopBar";
 import { listCategories } from "@/lib/repo/categories";
 import { KospiGame } from "@/components/KospiGame";
@@ -140,7 +141,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   // 🎮 방 미니게임 (10/29 대표님): "1분 테스트" 버튼 바로 옆 하나 (새 탭 X)
   const game = roomGameLink(category.slug);
   // 🧩 놀이 탭에서는 같은 테스트·게임 카드가 아래에 있으니 위 바로가기는 숨긴다 (11/2 대표님 "중복표현 없애고 간결하게")
-  const links = sp.tab === "play" ? [] : [...(ROOM_LINKS[category.slug] ?? []), ...(game ? [game] : [])];
+  // 하루 게임은 맨 위 카드(DailyGameBanner)로 보여 주니 칩에서는 뺀다
+  const links = sp.tab === "play" ? [] : [...(ROOM_LINKS[category.slug] ?? []), ...(game && !dailyGameOf(category.slug) ? [game] : [])];
   const bite = category.slug === BOOK_ROOM_SLUG && !sp.tab ? await todayBite().catch(() => null) : null;
   const chat = sp.tab === "chat" ? await ensureRoomChat(category.slug) : null;
   const initial = chat ? await listComments(chat.postId, await viewerFp()) : [];
@@ -218,6 +220,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       {adTop}
       {/* 🧩 오늘의 1분 퀴즈 (10/29 대표님): 어느 탭이든 방 맨 위. 기존 오늘의 질문이 있는 방은 그 카드. 👫 남녀 생각 차이 탭은 같은 투표를 목록으로 보여 주니 뺀다 */}
       {/* 📖 책 덕후방 (11/2 대표님 "1분 퀴즈 자리에 놀이의 이걸 넣어줘"): 맨 위는 매일 새 "더 끌리는 문장", 1분 퀴즈는 🧩 놀이 탭으로 */}
+      {/* 🎯 하루 게임 (11/5): 칩만 있을 때 첫날 연 사람 0명 → 책·애니·K리그 방 맨 위 큰 카드 */}
+      {!category.is_hidden && sp.tab !== "play" && <DailyGameBanner slug={category.slug} />}
       {!category.is_hidden && category.slug === BOOK_ROOM_SLUG && sp.tab !== "play" && <SentencePick from="book" />}
       {!category.is_hidden && roomTab?.key !== "gender" && category.slug !== BOOK_ROOM_SLUG && <RoomQuiz slug={category.slug} name={category.name} />}
       {/* 🎯 예측 방 맨 위 (11/3 대표님 "1,2번 진행"): 예측 탭 안은 거의 안 누르고 바로 보이는 카드에서만 고른다 (K리그 23명). 열린 문제 3개를 그 자리에서 */}

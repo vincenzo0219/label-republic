@@ -19,11 +19,11 @@ const prevDay = (day: string, n = 1) => new Date(Date.parse(`${day}T00:00:00Z`) 
  */
 export async function insertDailyPlay(game: DailyGame, visitor: string, score: number, nickname: string | null, now = new Date()): Promise<boolean> {
   const rows = await query<{ id: string }>(
-    `INSERT INTO game_plays (game, room, visitor_hash, score, day, nickname)
-     SELECT $1::varchar, $2::varchar, $3::text, $4::int, $5::date, $6::varchar
+    `INSERT INTO game_plays (game, room, visitor_hash, score, day, nickname, created_at)
+     SELECT $1::varchar, $2::varchar, $3::text, $4::int, $5::date, $6::varchar, $7::timestamptz
       WHERE NOT EXISTS (SELECT 1 FROM game_plays WHERE game = $1::varchar AND visitor_hash = $3::text AND day = $5::date)
      RETURNING id::text`,
-    [game, GAMES[game].room, visitor, score, kstDay(now), nickname],
+    [game, GAMES[game].room, visitor, score, kstDay(now), nickname, now.toISOString()],
   );
   return rows.length > 0;
 }
