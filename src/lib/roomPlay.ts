@@ -26,7 +26,7 @@ const board = (key: string): PlayItem => ({ kind: "board", key });
 
 export const ROOM_PLAY: Record<string, readonly PlayItem[]> = {
   // 📖 첫 문장 맞히기 (11/4 대표님 "책방도 책 게임으로 전국 랭킹"): 예전 10문제 첫 문장 테스트 자리를 하루 10문제·전국 랭킹 게임으로
-  "읽는-책-제목을-교환해-보자": [link("/games/booksent?from=play", "📖", "오늘의 첫 문장 맞히기", "하루 10문제 · 전국 랭킹", { duel: true }), board("book-pages"), test("book-sentence"), { kind: "quiz" }, link("/games/rank?game=booksent", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
+  "읽는-책-제목을-교환해-보자": [link("/games/booksent?from=play&go=1", "📖", "오늘의 첫 문장 맞히기", "하루 10문제 · 전국 랭킹", { duel: true }), board("book-pages"), test("book-sentence"), { kind: "quiz" }, link("/games/rank?game=booksent", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
   "kbo-덕후방": [test("kbo-team"), link("/kbo-test", "⚾", "야구 팬 타입 테스트", "직관 응원단? 기록 분석가?")],
   "러닝-덕후방": [board("run-km"), link("/run-test", "🏃", "러너 타입 테스트", "새벽 혼런러? 크루 러너? 기록 사냥꾼? 풍경 산책러?")],
   "커피-덕후방": [board("coffee-cups"), board("coffee-vote"), link("/coffee-test", "☕", "커피 타입 테스트", "아아 직진파? 핸드드립 탐험가? 달달 라떼파?"), link("/games/latte?from=play", "☕", "라떼아트 따르기", "다른 사람 기록에 도전"), link("/games/rank?game=latte", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
@@ -44,7 +44,7 @@ export const ROOM_PLAY: Record<string, readonly PlayItem[]> = {
   "육아-덕후방": [link("/c/육아-덕후방?tab=near", "📍", "이번 주 동네 체험", "새 프로그램은 알림으로 받아요"), link("/parent-test", "👶", "육아 스타일 테스트", "꼼꼼 정보러? 기록 장인? 나들이 대장?")],
   "와인-위스키-덕후방": [board("wine-note"), link("/wine-test", "🍷", "맛 취향 테스트", "묵직 레드파? 스모키 피트파? 만 19세 이상만 해 주세요", { adult: true })],
   // 🎨 애니 제목 초성 60초 (11/4 대표님 "책·애니·K리그로 진행해"): 하루 한 판 · 전국 랭킹을 맨 앞에
-  "애니-만화-덕후방": [link("/games/anichosung?from=play", "🎨", "오늘의 애니 제목 초성", "60초 · 전국 랭킹", { duel: true }), board("anime-stars"), link("/anime-test", "🎨", "덕질 타입 테스트", "굿즈 수집가? 정주행 시청파? 원작 만화파?"), link("/games/rank?game=anichosung", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
+  "애니-만화-덕후방": [link("/games/anichosung?from=play&go=1", "🎨", "오늘의 애니 제목 초성", "60초 · 전국 랭킹", { duel: true }), board("anime-stars"), link("/anime-test", "🎨", "덕질 타입 테스트", "굿즈 수집가? 정주행 시청파? 원작 만화파?"), link("/games/rank?game=anichosung", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
   "드라마-덕후방": [link("/drama-test", "📺", "드라마 타입 테스트", "정주행 몰아보기파? 본방 사수파? 명대사 수집파?")],
   "신발-덕후방": [board("shoe-photo"), board("shoe-vote"), link("/shoe-test", "👟", "신발 타입 테스트", "데일리 컴포트파? 드로우 사냥꾼? 클린 콜렉터?")],
   "게임-덕후방": [link("/game-test", "🎮", "게임 타입 테스트", "랭크 올인파? 밤샘 스토리파? 친구랑 파티파?"), link("/games/reaction?from=play", "⚡", "반응속도 결투", "초록 되면 바로 탭", { duel: true }), link("/games/rank?game=reaction", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
@@ -53,7 +53,7 @@ export const ROOM_PLAY: Record<string, readonly PlayItem[]> = {
   작가지망생방: [link("/writer-test", "✍️", "장르 테스트", "판타지? 로판? 무협? 나에게 맞는 장르")],
   "perfume-audio": [link("/ear-test", "🎧", "황금귀 테스트", "음질 차이 맞히기", { duel: true }), link("/hearing-test", "🔊", "고음 청력 테스트", "내 귀는 몇 kHz까지 들릴까?")],
   // 🏟️ 구단·홈구장 짝 맞추기 (11/4): 하루 한 판 · 전국 랭킹을 맨 앞에
-  "k리그-덕후방": [link("/games/kmatch?from=play", "🏟️", "오늘의 구단·홈구장 짝 맞추기", "6쌍 · 전국 랭킹", { duel: true }), link("/fan-test", "⚽", "K리그 팬 테스트", "나는 어떤 축구 팬?", { mate: true }), link("/games/pk?from=play", "🥅", "승부차기 대결", "다른 사람 골 수에 도전"), link("/games/rank?game=kmatch", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
+  "k리그-덕후방": [link("/games/kmatch?from=play&go=1", "🏟️", "오늘의 구단·홈구장 짝 맞추기", "6쌍 · 전국 랭킹", { duel: true }), link("/fan-test", "⚽", "K리그 팬 테스트", "나는 어떤 축구 팬?", { mate: true }), link("/games/pk?from=play&go=1", "🥅", "승부차기 대결", "다른 사람 골 수에 도전"), link("/games/rank?game=kmatch", "🏆", "전국 랭킹", "오늘·이번 주·전체 순위")],
   "미혼남녀-만남-행사": [
     link("/love-test", "💘", "연애 성향 테스트", "1분, 나의 연애 스타일", { mate: true }),
     link("/games/worldcup?from=play", "💘", "이상형 월드컵", "따뜻한 성격·습관 16장"),

@@ -24,6 +24,7 @@ import { shake, VIBE, vibe } from "@/lib/juice";
 import { Confetti } from "../RoomQuiz";
 import { ChallengeIntro, ChallengeVerdict, MyRankLine, useChallenge, type ChallengeInfo } from "../GameRank";
 import { useVs } from "../Versus";
+import { useAutoGo } from "../AutoGo";
 import { encodeVs } from "@/lib/friendLink";
 import { myNick } from "@/lib/me";
 
@@ -73,6 +74,7 @@ export function PkGame() {
   // 🏁 지난 기록 도전 (11/4): 다른 사람이 남긴 골 수를 목표로. 친구 링크(?vs=골)로 들어오면 그 기록이 목표
   const [round, setRound] = useState(0);
   const [liveMode, setLiveMode] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const friend = useVs(8, 0);
   const past = useChallenge("pk", !!friend, round);
   const target: ChallengeInfo | null = friend ? { target: { name: friend.name, score: friend.score }, myBest: null, others: 1 } : past;
@@ -82,6 +84,7 @@ export function PkGame() {
     const t = savedTeam();
     setTeam(t);
     setEditTeam(!t);
+    setLoaded(true);
     return () => {
       alive.current = false;
       stopMusic();
@@ -125,6 +128,7 @@ export function PkGame() {
       setPhase("start");
     }
   }
+  useAutoGo(loaded, () => void start(), false);
 
   // 새로 끝난 킥이 있으면 하나씩 보여 준다 (공이 날아가고, 골키퍼가 몸을 날리고, 골!! / 선방!)
   useEffect(() => {

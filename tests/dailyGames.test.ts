@@ -135,9 +135,9 @@ describe("🏟️ K리그 구단·홈구장", () => {
     expect(kmatchScore(100, 0)).toBe(1500);
   });
   it("방 맨 위 바로가기는 하루 게임", () => {
-    expect(roomGameLink("k리그-덕후방")?.href).toBe("/games/kmatch?from=room");
-    expect(roomGameLink("애니-만화-덕후방")?.href).toBe("/games/anichosung?from=room");
-    expect(roomGameLink("게임-덕후방")?.href).toBe("/games/reaction?from=room");
+    expect(roomGameLink("k리그-덕후방")?.href).toBe("/games/kmatch?from=room&go=1");
+    expect(roomGameLink("애니-만화-덕후방")?.href).toBe("/games/anichosung?from=room&go=1");
+    expect(roomGameLink("게임-덕후방")?.href).toBe("/games/reaction?from=room&go=1");
   });
 });
 

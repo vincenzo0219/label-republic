@@ -9,6 +9,7 @@ import { formatScore } from "@/lib/miniGames";
 import { DailyExtras } from "./DailyExtras";
 import { ChallengeIntro, ChallengeVerdict, MyRankLine, useChallenge } from "./GameRank";
 import { TeamPredict } from "./TeamPredict";
+import { GoCountdown, useAutoGo } from "./AutoGo";
 import { Versus, VsIntro, useVs } from "./Versus";
 
 type Today = { day: string; no: number; board: KMatchBoard; played: number | null };
@@ -55,6 +56,7 @@ export function KMatchGame() {
     setNow(0);
     setPhase("play");
   };
+  const count = useAutoGo(!!today, start, true);
 
   const finish = async (w: number) => {
     const ms = Date.now() - started.current;
@@ -85,6 +87,7 @@ export function KMatchGame() {
   if (error && !today) return <p className="error">문제를 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.</p>;
   if (!today) return <p className="hint">문제를 불러오는 중이에요.</p>;
 
+  if (phase === "ready" && count !== null) return <GoCountdown n={count} label={`🏟️ 오늘의 짝 맞추기 · ${today.no}회`} />;
   if (phase === "ready")
     return (
       <section className="ear-card km-start">
