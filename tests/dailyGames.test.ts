@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { ANI_PER_DAY, ANI_TITLES, aniDailyIndexes, aniDailyQuestions, aniEncode, answerHash, chosung, gradeAni, normalizeAnswer } from "@/lib/aniChosung";
 import {
   beatenPushDue,
@@ -177,8 +177,15 @@ d("🎯 하루 게임 (DB)", async () => {
   });
 
   it("🔥 배지: 이 방 하루 게임 연속 2일 이상인 닉네임", async () => {
-    const badges = await b.badgesFor("애니-만화-덕후방", ["애니왕"]);
-    expect(badges["애니왕"] ?? "").toContain("🔥");
+    // 연속 기록은 "지금" 기준이라 고정 날짜 기록(11/3~11/4)에 맞춰 시계를 11/4 로 둔다
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-04T15:00:00+09:00"));
+    try {
+      const badges = await b.badgesFor("애니-만화-덕후방", ["애니왕"]);
+      expect(badges["애니왕"] ?? "").toContain("🔥");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("편: 3명 이상인 편만 평균, 잘못된 편은 못 고른다", async () => {

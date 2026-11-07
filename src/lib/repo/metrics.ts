@@ -98,6 +98,15 @@ export async function periodVisitors(fromDay: string, toDay: string): Promise<Pe
   return rows[0]!;
 }
 
+/** 머리글 누적 방문자 (11/7): 처음부터 그날까지 온 고유 방문자 수 */
+export async function totalVisitorsUntil(toDay: string): Promise<number> {
+  const rows = await query<{ n: number }>(
+    `SELECT count(DISTINCT visitor_hash)::int AS n FROM page_views WHERE day <= $1::date`,
+    [toDay],
+  );
+  return rows[0]?.n ?? 0;
+}
+
 export type SourceRow = { source: string; landings: number };
 
 export async function sourceBreakdown(fromDay: string, toDay: string): Promise<SourceRow[]> {
