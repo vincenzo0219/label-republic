@@ -41,7 +41,7 @@ export async function humanWrites(hours: number): Promise<HumanWrite[]> {
   ]);
   const [neo, games] = await Promise.all([
     query<{ id: string; title: string; created_at: string }>(
-      "SELECT id::text, title, created_at FROM neo_items WHERE created_at > now() - $1::interval ORDER BY created_at DESC LIMIT 50",
+      "SELECT id::text, title, created_at FROM neo_items WHERE author IS NULL AND created_at > now() - $1::interval ORDER BY created_at DESC LIMIT 50",
       [since],
     ),
     query<{ id: string; nickname: string; court: string; created_at: string }>(
