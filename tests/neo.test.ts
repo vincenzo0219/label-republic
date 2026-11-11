@@ -176,7 +176,30 @@ d("💳 넣어둬 (DB)", async () => {
     const ok = await route.POST(req({ title: "키보드", price: 129000, reason: "축 바꾸고 싶음" }), ctx);
     expect(ok.status).toBe(201);
     expect(ok.headers.get("set-cookie")).toMatch(/lr_vid=/);
-    const body = (await ok.json()) as { item: { owner: boolean; tally: unknown } };
-    expect(body.item).toMatchObject({ owner: true, tally: { buy: 0, keep: 0 } });
+    const body = (await ok.json()) as { item: { owner: boolean; tally: unknown; author: string | null } };
+    expect(body.item).toMatchObject({ owner: true, tally: { buy: 0, keep: 0 }, author: null });
+  });
+
+  it("✍️ 노방장 이름으로 올리기 (11/11): 이름이 보이고, 방문자 하루 제한·투표와 섞이지 않는다", async () => {
+    const admin = await import("@/app/api/admin/neo/route");
+    const req = (body: unknown) =>
+      new Request("http://localhost/api/admin/neo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const ctx = { params: Promise.resolve({}) };
+    expect((await admin.POST(req({}), ctx)).status).toBe(400);
+    expect((await admin.POST(req({ title: "운동화", price: 500, reason: "" }), ctx)).status).toBe(400);
+    expect((await admin.POST(req({ title: "운동화", price: 169000, reason: "카톡 주세요" }), ctx)).status).toBe(400);
+    const res = await admin.POST(req({ title: "러닝화", price: 169000, reason: "지금 신발로 버틸까?", alt: "할인 기다리기" }), ctx);
+    expect(res.status).toBe(201);
+    const { id } = (await res.json()) as { id: string };
+    const seen = await neo.getNeo(id, "visitor-a");
+    expect(seen).toMatchObject({ author: "노방장", owner: false, alt: "할인 기다리기", tally: null });
+    expect(await neo.voteNeo(id, "visitor-a", "keep")).toMatchObject({ mine: "keep", tally: { buy: 0, keep: 1 } });
+    // 하루 5개 제한은 방문자 글에만
+    for (let i = 0; i < 6; i++) await neo.adminCreateNeo({ title: `물건 ${i}`, price: 10000, reason: "" });
+    expect((await neo.adminListNeo()).find((x) => x.id === id)).toMatchObject({ author: "노방장", price: 169000 });
+    const anon = await neo.createNeo({ title: "가습기", price: 59000, reason: "", owner: "own-anon", fingerprint: "fp-anon" });
+    expect(anon.author).toBeNull();
+    // 복원 요청은 그대로
+    expect((await admin.POST(req({ action: "restore", id: anon.id }), ctx)).status).toBe(200);
   });
 });

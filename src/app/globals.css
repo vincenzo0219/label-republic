@@ -1456,6 +1456,7 @@ body[data-lr-recovered]::before { background: #e3f4ea; color: #134b31; border-bo
 .neo-price { flex: none; font-weight: 800; font-size: 17px; color: var(--brand); }
 .neo-reason { margin: 6px 0 0; }
 .neo-meta { margin: 6px 0 0; }
+.neo-author { font-weight: 700; color: var(--text); }
 .neo-vote { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .neo-vote .btn { font-weight: 800; }
 .neo-vote-one { grid-template-columns: 1fr; }
