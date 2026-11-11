@@ -136,6 +136,7 @@ export function NeoCard({ initial, now, talk, onChange, onRemove }: { initial: N
         </>
       )}
       <p className="hint neo-meta">
+        {it.author && <span className="neo-author">✍️ {it.author} · </span>}
         {closed ? "투표 마감" : left(it.closes_at, now)}
         {it.owner && " · 내 고민"}
         {it.outcome === "kept" && " · 💳 넣어뒀어요"}

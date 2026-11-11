@@ -24,6 +24,8 @@ export type NeoItem = {
   alt: string;
   /** 사진 1장 (101) */
   photo_id: string | null;
+  /** 운영자가 이름을 걸고 올린 글 (예: 노방장). null 이면 익명 */
+  author: string | null;
   created_at: string;
   closes_at: string;
   closed: boolean;
@@ -35,18 +37,18 @@ export type NeoItem = {
 };
 
 type Row = {
-  id: string; title: string; price: number; reason: string; alt: string; photo_id: string | null; created_at: string; closes_at: string; closed: boolean;
+  id: string; title: string; price: number; reason: string; alt: string; photo_id: string | null; author: string | null; created_at: string; closes_at: string; closed: boolean;
   outcome: NeoOutcome | null; buy_count: number; keep_count: number; mine: NeoChoice | null; owner: boolean;
 };
 
-const COLS = (v: string) => `i.id::text, i.title, i.price, i.reason, i.alt, i.photo_id::text, i.created_at, i.closes_at, (i.closes_at <= now()) AS closed,
+const COLS = (v: string) => `i.id::text, i.title, i.price, i.reason, i.alt, i.photo_id::text, i.author, i.created_at, i.closes_at, (i.closes_at <= now()) AS closed,
   i.outcome, i.buy_count, i.keep_count, i.owner_hash = ${v} AS owner,
   (SELECT choice FROM neo_votes nv WHERE nv.item_id = i.id AND nv.visitor_hash = ${v}) AS mine`;
 
 function shape(r: Row): NeoItem {
   const show = r.closed || !!r.mine || r.owner;
   return {
-    id: r.id, title: r.title, price: r.price, reason: r.reason, alt: r.alt, photo_id: r.photo_id, created_at: r.created_at, closes_at: r.closes_at, closed: r.closed,
+    id: r.id, title: r.title, price: r.price, reason: r.reason, alt: r.alt, photo_id: r.photo_id, author: r.author, created_at: r.created_at, closes_at: r.closes_at, closed: r.closed,
     outcome: r.outcome, tally: show ? { buy: r.buy_count, keep: r.keep_count } : null, mine: r.mine, owner: r.owner,
   };
 }
@@ -89,6 +91,22 @@ export async function createNeo(input: {
     return rows[0]!.id;
   });
   return (await getNeo(id, input.owner))!;
+}
+
+/** 🛠 노방장 이름으로 올리는 글 (11/11 대표님): 방문자 하루 개수 제한·쓴 사람 표시와 섞이지 않게 고정 표식 */
+export const NEO_ADMIN_OWNER = "admin:nobangjang";
+export const NEO_ADMIN_AUTHOR = "노방장";
+
+/** 🛠 운영자가 노방장 이름으로 올리기. 글 규칙(연락처·욕설)은 같고, 하루 개수 제한·조롱 자동 가림은 없다 */
+export async function adminCreateNeo(input: { title: string; price: number; reason: string; alt?: string }): Promise<NeoItem> {
+  if (input.title.trim().length < 2) throw new HttpError(400, "invalid_input", "물건 이름을 2자 이상 적어 주세요.");
+  const problem = neoTextProblem(input.title, input.reason, input.alt ?? "");
+  if (problem) throw new HttpError(400, "invalid_input", problem);
+  const [{ id }] = (await query<{ id: string }>(
+    "INSERT INTO neo_items (title, price, reason, alt, owner_hash, fingerprint, author) VALUES ($1, $2, $3, $4, $5, $5, $6) RETURNING id::text",
+    [input.title.trim(), input.price, input.reason, input.alt ?? "", NEO_ADMIN_OWNER, NEO_ADMIN_AUTHOR],
+  )) as [{ id: string }];
+  return (await getNeo(id, "-"))!;
 }
 
 export async function getNeo(id: string, visitor: string): Promise<NeoItem | null> {
@@ -193,9 +211,9 @@ export async function adminDeleteNeo(id: string, sameOwner = false): Promise<str
 }
 
 /** 🛠 운영자 목록: 가려진 글까지 (신고 수·같은 사람 표시용 짧은 owner) */
-export async function adminListNeo(): Promise<{ id: string; title: string; created_at: string; closes_at: string; is_hidden: boolean; report_count: number; owner: string }[]> {
+export async function adminListNeo(): Promise<{ id: string; title: string; price: number; author: string | null; created_at: string; closes_at: string; is_hidden: boolean; report_count: number; owner: string }[]> {
   return query(
-    "SELECT id::text, title, created_at, closes_at, is_hidden, report_count, left(owner_hash, 8) AS owner FROM neo_items ORDER BY id DESC LIMIT 200",
+    "SELECT id::text, title, price, author, created_at, closes_at, is_hidden, report_count, left(owner_hash, 8) AS owner FROM neo_items ORDER BY id DESC LIMIT 200",
   );
 }
 
