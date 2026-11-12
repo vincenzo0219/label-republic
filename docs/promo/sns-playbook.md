@@ -227,3 +227,9 @@
 - https://www.socialpilot.co/?p=563048
 - https://www.planoly.com/blog/why-trial-reels-get-no-views
 - https://www.lilachbullock.com/instagram-reel-not-eligible-for-recommendation/
+
+---
+
+## 9. 개선 기록
+
+- 11/13: 최근 최고는 스레드 "데이비스컵 파이널8 첫 출전 날짜"(11/11, 137회, 실제 첫 출전이라는 사실 + 날짜 하나로 끝나는 짧은 글)와 쇼츠 "애니 초성 남은 8초"(533회). 오늘 바꾼 것 하나: 릴스 1개를 반응속도 결투(쇼츠 1,053회 아웃라이어)로 고정하고 첫 프레임에 "몇 ms 나와요?"를 크게. 내일 확인: 반응속도 쇼츠 조회가 K리그(같은 날)보다 높은지, 인스타 릴스가 11/9 이후처럼 0~3회면 계정 상태(추천 가능 여부)부터 확인.
