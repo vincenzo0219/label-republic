@@ -2098,3 +2098,8 @@ button.room-icon-tile { background: none; border: 0; padding: 0; font: inherit; 
 .sample-foot { margin-top: 4px; }
 .kids-sido { flex: 1 1 100%; }
 .poll-skel { min-height: 230px; }
+
+/* 홈 맨 위 "📲 앱 설치" (11/12): 오른쪽 작은 버튼 한 줄, 누르면 안내가 그 아래 한 줄 */
+.home-install { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 8px; margin: -10px 0 8px; }
+.home-install .btn-sm { height: 28px; font-size: 12.5px; }
+.home-install .hint { flex-basis: 100%; margin: 0; text-align: right; }
