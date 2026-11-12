@@ -6,6 +6,7 @@ import { MyRoomsBar } from "@/components/MyRooms";
 import { MY_ROOMS_COOKIE, parseMyRoomsCookie } from "@/lib/myRooms";
 import { FeedView } from "@/components/FeedView";
 import { CRAWLER_HEADER } from "@/lib/fingerprint";
+import { HomeInstallButton } from "@/components/InstallPrompt";
 import { EarTestBanner } from "@/components/EarTestBanner";
 import { MyRoomEvents } from "@/components/MyRoomEvents";
 import { TodayCards } from "@/components/TodayCards";
@@ -59,6 +60,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     <>
       {all && <ForgetRoom />}
       {/* 홈 맨 위 순서 (10/30 대표님 "네이버 카페·밴드처럼, 헷갈리지 않게"): 내 방 → 방 둘러보기 → 넣어둬·오늘의 문제 줄 → 추천 글 */}
+      {/* 앱 설치 (11/12 대표님 "홈화면에 설치 버튼 필요"): 맨 위 오른쪽 작은 버튼. 앱으로 열었으면 안 보인다 */}
+      {!crawler && !sp.page && <HomeInstallButton />}
       {!crawler && <MyRoomsBar rooms={rooms.map((r) => ({ slug: r.slug, name: r.name }))} initial={mine} legacy={legacy} filtered={onlyMine} redirect={!all} />}
       {/* 방 둘러보기는 내 방이 있어도 늘 (10/30 대표님 "방선택 8개를 하면, 아예 다른 방을 볼수가 없어") */}
       {!sp.page && <RoomGrid all={all} mine={mine ?? []} />}
